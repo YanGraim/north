@@ -1,0 +1,40 @@
+---
+description: TypeScript strict, naming, DRY/SOLID e padrões de código do North
+alwaysApply: true
+---
+
+# Estilo de código
+
+## TypeScript
+
+- `strict: true` em todos os tsconfigs.
+- Preferir `type`/`interface` explícitos em APIs públicas (IPC, stores, props).
+- Evitar `any`; usar `unknown` + narrowing.
+- Nomes em inglês no código; docs de produto em português.
+
+## Naming
+
+| Coisa | Convenção |
+| --- | --- |
+| Arquivos de componente | `PascalCase.tsx` |
+| Hooks | `use-*.ts` |
+| Stores Zustand | `*-store.ts` |
+| Canais IPC | `domínio:ação` (`app:get-version`) |
+| Constantes de canal | `SCREAMING_SNAKE` em `IpcChannels` |
+
+## React
+
+- Componentes funcionais.
+- Extrair hooks para IPC e estado reutilizável.
+- Não colocar regra de negócio na UI — só orquestração e apresentação.
+
+## DRY / SOLID
+
+- Um canal IPC = uma responsabilidade no contrato.
+- Repositórios não conhecem React; handlers não conhecem JSX.
+- Reutilizar `cn()` e primitivos `components/ui` antes de criar estilos ad-hoc.
+
+## Formatação
+
+- Prettier do repo (`singleQuote`, sem ponto-e-vírgula, `printWidth: 100`).
+- ESLint flat config; não desligar regras sem motivo documentado.

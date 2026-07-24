@@ -1,0 +1,40 @@
+---
+description: UI do renderer — shadcn, Tailwind tokens, Lucide e acessibilidade
+globs: src/renderer/**
+alwaysApply: false
+---
+
+# UI (renderer)
+
+## Stack visual
+
+- Tailwind v4 com tokens em `assets/index.css` (`@theme`).
+- Componentes base em `components/ui` (padrão shadcn/new-york).
+- Ícones: **Lucide** (`lucide-react`).
+- Tema **dark-first**; cores via tokens (`background`, `surface`, `accent`, …).
+
+## Layout
+
+- Shell de 3 painéis: sidebar / lista / detalhes.
+- Titlebar com `-webkit-app-region: drag`; controles interativos com `no-drag`.
+- Uma responsabilidade por seção; evitar cards decorativos.
+
+## Acessibilidade
+
+- Contraste adequado no dark theme.
+- `aria-label` em botões só-ícone.
+- Foco visível (`ring` / `focus-visible`).
+- Não remover outlines sem substituto.
+
+## Exemplos
+
+```tsx
+// ✅ Tokens + Lucide
+import { PanelLeft } from 'lucide-react'
+<button className="text-muted hover:text-foreground" aria-label="Menu">
+  <PanelLeft className="size-4" />
+</button>
+
+// ❌ Cores soltas fora do design system
+<div className="bg-[#7c3aed] rounded-full shadow-2xl" />
+```

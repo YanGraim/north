@@ -1,0 +1,55 @@
+---
+description: Fronteiras main/preload/renderer/shared e regras de dependência do North
+alwaysApply: true
+---
+
+# Arquitetura North
+
+## Processos
+
+- **main** (`src/main`): janela, handlers IPC, serviços, repositórios. Único lugar com Node/SO/DB.
+- **preload** (`src/preload`): só `contextBridge` → `window.north`. Sem lógica de negócio.
+- **renderer** (`src/renderer`): React UI. Sem Electron, sem Node, sem `fs`/`child_process`.
+- **shared** (`src/shared`): tipos e contratos. Não importa Electron.
+
+## Dependências permitidas
+
+```
+renderer → shared
+preload  → shared
+main     → shared
+```
+
+Proibido: renderer → main/preload; shared → qualquer processo.
+
+## IPC obrigatório
+
+Toda comunicação renderer ↔ main passa pelo contrato em `src/shared/ipc` e pela API `window.north`. Não expor `ipcRenderer` ao renderer.
+
+## Segurança da janela
+
+Manter `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`.
+
+## Onde colocar código
+
+| Tipo | Pasta |
+| --- | --- |
+| UI de domínio | `src/renderer/src/features/*` |
+| Primitivos UI | `src/renderer/src/components/ui` |
+| Handlers IPC | `src/main/ipc` |
+| Persistência | `src/main/repositories` |
+| Casos de uso | `src/main/services` |
+| Protocolos remotos | `src/shared/protocols` + main |
+
+## Anti-padrões
+
+```ts
+// ❌ BAD — Node no renderer
+import fs from 'fs'
+
+// ❌ BAD — invoke ad-hoc sem contrato
+window.electron.ipcRenderer.invoke('foo')
+
+// ✅ GOOD — API tipada
+await window.north.getVersion()
+```
