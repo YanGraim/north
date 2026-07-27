@@ -393,8 +393,8 @@ function describePage({
 
   if (isEmptyInventory) {
     return {
-      title: 'Inventário',
-      subtitle: 'Comece organizando seu inventário',
+      title: 'Conexões',
+      subtitle: 'Comece cadastrando sua primeira conexão',
       emptyTitle: 'Bem-vindo ao North',
       emptyDescription:
         'Crie a primeira conexão ou acesso. Você pode cadastrar cliente, ambiente e grupo direto no formulário.'
@@ -402,9 +402,9 @@ function describePage({
   }
 
   return {
-    title: 'Inventário',
+    title: 'Conexões',
     subtitle: withSort(countLabel),
-    emptyTitle: 'Nenhum item',
+    emptyTitle: 'Nenhuma conexão',
     emptyDescription: 'Crie uma conexão ou acesso, ou selecione um grupo na árvore.'
   }
 }
