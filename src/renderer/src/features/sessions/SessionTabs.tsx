@@ -111,7 +111,8 @@ export function SessionTabs(): React.JSX.Element {
       role="tablist"
       aria-label="Abas de sessão"
       className={cn(
-        'flex h-8 shrink-0 items-stretch overflow-x-auto border-b border-border bg-surface',
+        'flex h-8 shrink-0 items-stretch overflow-x-auto overflow-y-hidden border-b border-border bg-surface',
+        '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         dragging && 'cursor-grabbing'
       )}
     >
