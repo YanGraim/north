@@ -38,7 +38,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
-const REPO_URL = 'https://github.com/north-app/north'
+const REPO_URL = 'https://github.com/YanGraim/north'
 
 const PRIMARY_SHORTCUTS = [
   SHORTCUTS.commandPalette,
@@ -381,7 +381,7 @@ export function SettingsPage(): React.JSX.Element {
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-accent hover:underline"
                   >
-                    github.com/north-app/north
+                    github.com/YanGraim/north
                     <ExternalLink className="size-3" />
                   </a>
                 </dd>
