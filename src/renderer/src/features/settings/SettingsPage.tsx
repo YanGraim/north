@@ -32,9 +32,10 @@ import {
   updatesLikelyDisabledInDev
 } from '@renderer/lib/update-actions'
 import { type LocaleCode, type ThemePreference, useUiStore } from '@renderer/stores/ui-store'
+import type { UpdateStatus } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
 import { BookOpen, Download, ExternalLink, FileSpreadsheet, RefreshCw, Upload } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
@@ -66,8 +67,21 @@ export function SettingsPage(): React.JSX.Element {
     'export' | 'import' | 'importCsv' | 'template' | 'check' | 'install' | null
   >(null)
   const [csvSecretsOpen, setCsvSecretsOpen] = useState(false)
-  const [availableVersion, setAvailableVersion] = useState<string | null>(null)
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
   const updatesDisabled = updatesLikelyDisabledInDev()
+
+  useEffect(() => {
+    if (updatesDisabled) return
+
+    void window.north.updates.getStatus().then(setUpdateStatus)
+    return window.north.updates.onStatusChanged(setUpdateStatus)
+  }, [updatesDisabled])
+
+  const availableVersion = updateStatus?.available ? updateStatus.version : null
+  const updateReady = updateStatus?.downloaded ?? false
+  const updateDownloading = updateStatus?.downloading ?? false
+  const updateChecking = updateStatus?.checking ?? false
+  const downloadProgress = updateStatus?.progress
 
   async function onExport(): Promise<void> {
     setBusy('export')
@@ -117,8 +131,7 @@ export function SettingsPage(): React.JSX.Element {
   async function onCheckUpdates(): Promise<void> {
     setBusy('check')
     try {
-      const result = await checkForUpdates()
-      setAvailableVersion(result.available ? result.version : null)
+      await checkForUpdates()
     } catch {
       /* toast já exibido */
     } finally {
@@ -131,6 +144,8 @@ export function SettingsPage(): React.JSX.Element {
     try {
       await installAndRestart()
     } catch {
+      /* toast já exibido */
+    } finally {
       setBusy(null)
     }
   }
@@ -312,30 +327,44 @@ export function SettingsPage(): React.JSX.Element {
             ) : null}
             {availableVersion ? (
               <p className="mb-3 text-sm text-foreground">
-                {t('settings.updates.available')}{' '}
+                {updateReady ? t('settings.updates.ready') : t('settings.updates.available')}{' '}
                 <span className="font-mono text-accent">{availableVersion}</span>
               </p>
+            ) : null}
+            {updateDownloading && downloadProgress != null ? (
+              <p className="mb-3 text-xs text-muted">
+                {t('settings.updates.downloading', { percent: Math.round(downloadProgress) })}
+              </p>
+            ) : null}
+            {updateStatus?.error ? (
+              <p className="mb-3 text-xs text-destructive">{updateStatus.error}</p>
             ) : null}
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={busy !== null}
+                disabled={busy !== null || updateChecking}
                 onClick={() => void onCheckUpdates()}
               >
                 <RefreshCw className="size-3.5" />
-                {busy === 'check' ? t('settings.updates.checking') : t('settings.updates.check')}
+                {busy === 'check' || updateChecking
+                  ? t('settings.updates.checking')
+                  : t('settings.updates.check')}
               </Button>
               <Button
                 type="button"
                 size="sm"
-                disabled={busy !== null || !availableVersion}
+                disabled={busy !== null || !updateReady || updateDownloading}
                 onClick={() => void onInstall()}
               >
                 {busy === 'install'
-                  ? t('settings.updates.installing')
-                  : t('settings.updates.install')}
+                  ? t('settings.updates.restarting')
+                  : updateDownloading
+                    ? t('settings.updates.downloading', {
+                        percent: downloadProgress != null ? Math.round(downloadProgress) : 0
+                      })
+                    : t('settings.updates.install')}
               </Button>
             </div>
           </SettingsSection>

@@ -43,6 +43,7 @@ import type {
   UpdateConnectionInput,
   UpdateEnvironmentInput,
   UpdateGroupInput,
+  UpdateStatus,
   UpdateTagInput
 } from '../types'
 import { IpcChannels } from './channels'
@@ -256,11 +257,15 @@ export interface IpcInvokeMap {
 
   [IpcChannels.UPDATES_CHECK]: {
     args: []
-    result: { available: boolean; version: string | null }
+    result: UpdateStatus
   }
   [IpcChannels.UPDATES_INSTALL]: {
     args: []
     result: undefined
+  }
+  [IpcChannels.UPDATES_GET_STATUS]: {
+    args: []
+    result: UpdateStatus
   }
 }
 
@@ -378,8 +383,10 @@ export interface NorthApi {
     downloadCsvTemplate: () => Promise<{ canceled: boolean; filePath: string | null }>
   }
   updates: {
-    check: () => Promise<{ available: boolean; version: string | null }>
+    check: () => Promise<UpdateStatus>
+    getStatus: () => Promise<UpdateStatus>
     install: () => Promise<void>
     onAvailable: (listener: (info: { version: string }) => void) => () => void
+    onStatusChanged: (listener: (status: UpdateStatus) => void) => () => void
   }
 }

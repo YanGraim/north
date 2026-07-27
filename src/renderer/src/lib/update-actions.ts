@@ -1,8 +1,8 @@
+import { toast } from '@renderer/components/ui/sonner'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
+import type { UpdateStatus } from '@shared/types'
 
-export type UpdateCheckResult = {
-  available: boolean
-  version: string | null
+export type UpdateCheckResult = UpdateStatus & {
   /** True quando o updater está desligado (dev sem NORTH_ENABLE_UPDATES). */
   disabledInDev: boolean
 }
@@ -12,30 +12,78 @@ export function updatesLikelyDisabledInDev(): boolean {
   return Boolean(import.meta.env.DEV)
 }
 
-export async function checkForUpdates(): Promise<UpdateCheckResult> {
-  const disabledInDev = updatesLikelyDisabledInDev()
-  try {
-    const result = await window.north.updates.check()
-    if (result.available && result.version) {
-      toastSuccess(`Nova versão disponível: ${result.version}`)
-    } else if (disabledInDev) {
-      toastSuccess('Atualizações desabilitadas em desenvolvimento')
-    } else {
-      toastSuccess('Você está na versão mais recente')
+function describeCheckResult(status: UpdateStatus, disabledInDev: boolean): string | null {
+  if (status.error) {
+    return status.error
+  }
+  if (status.available && status.version) {
+    if (status.downloaded) {
+      return `Atualização ${status.version} pronta para instalar`
     }
-    return { ...result, disabledInDev }
+    if (status.downloading) {
+      const percent = status.progress != null ? ` (${Math.round(status.progress)}%)` : ''
+      return `Baixando versão ${status.version}${percent}…`
+    }
+    return `Nova versão disponível: ${status.version}`
+  }
+  if (disabledInDev) {
+    return 'Atualizações desabilitadas em desenvolvimento'
+  }
+  return 'Você está na versão mais recente'
+}
+
+export async function checkForUpdates(options?: { silent?: boolean }): Promise<UpdateCheckResult> {
+  const disabledInDev = updatesLikelyDisabledInDev()
+  const silent = options?.silent ?? false
+
+  try {
+    const status = await window.north.updates.check()
+    const message = describeCheckResult(status, disabledInDev)
+
+    if (!silent && message) {
+      if (status.error) {
+        toastError(status.error)
+      } else {
+        toastSuccess(message)
+      }
+    }
+
+    return { ...status, disabledInDev }
   } catch (error: unknown) {
-    toastError(error, 'Falha ao verificar atualizações')
+    if (!silent) {
+      toastError(error, 'Falha ao verificar atualizações')
+    }
     throw error
   }
 }
 
 export async function installAndRestart(): Promise<void> {
   try {
-    toastSuccess('Baixando atualização… o app reinicia em seguida')
     await window.north.updates.install()
   } catch (error: unknown) {
     toastError(error, 'Falha ao instalar atualização')
     throw error
   }
+}
+
+export function showUpdateReadyToast(
+  version: string,
+  labels: { message: string; action: string },
+  onInstall: () => void
+): void {
+  toast.success(labels.message.replace('{{version}}', version), {
+    action: {
+      label: labels.action,
+      onClick: onInstall
+    }
+  })
+}
+
+export function showUpdateDownloadingToast(
+  version: string,
+  message: string,
+  progress: number | null
+): void {
+  const percent = progress != null ? ` (${Math.round(progress)}%)` : ''
+  toast.info(message.replace('{{version}}', version).replace('{{percent}}', percent))
 }

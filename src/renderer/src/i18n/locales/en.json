@@ -53,13 +53,16 @@
     },
     "updates": {
       "title": "Updates",
-      "description": "Opt-in checks via GitHub Releases (electron-updater).",
+      "description": "Automatic check on launch and background download via GitHub Releases.",
       "devNote": "In development the updater stays off unless NORTH_ENABLE_UPDATES=1. Prefer testing a packaged build.",
       "available": "New version available:",
+      "ready": "Update ready:",
       "check": "Check now",
       "checking": "Checking…",
       "install": "Install and restart",
-      "installing": "Installing…"
+      "installing": "Installing…",
+      "downloading": "Downloading… {{percent}}%",
+      "restarting": "Restarting…"
     },
     "help": {
       "title": "Help",
@@ -145,6 +148,13 @@
       "create": "Create"
     },
     "badge": "Server"
+  },
+  "updates": {
+    "toast": {
+      "downloading": "Downloading version {{version}}{{percent}}…",
+      "ready": "Update {{version}} ready to install",
+      "install": "Install"
+    }
   },
   "common": {
     "cancel": "Cancel",

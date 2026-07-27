@@ -11,6 +11,7 @@ import type {
   SessionPortMessage,
   TransferProgress
 } from '@shared/protocols'
+import type { UpdateStatus } from '@shared/types'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 function openSession(
@@ -204,6 +205,7 @@ const api: NorthApi = {
 
   updates: {
     check: () => ipcRenderer.invoke(IpcChannels.UPDATES_CHECK),
+    getStatus: () => ipcRenderer.invoke(IpcChannels.UPDATES_GET_STATUS),
     install: () => ipcRenderer.invoke(IpcChannels.UPDATES_INSTALL),
     onAvailable: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, info: { version: string }): void => {
@@ -211,6 +213,13 @@ const api: NorthApi = {
       }
       ipcRenderer.on(IpcChannels.UPDATES_AVAILABLE, handler)
       return () => ipcRenderer.removeListener(IpcChannels.UPDATES_AVAILABLE, handler)
+    },
+    onStatusChanged: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: UpdateStatus): void => {
+        listener(status)
+      }
+      ipcRenderer.on(IpcChannels.UPDATES_STATUS_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.UPDATES_STATUS_CHANGED, handler)
     }
   }
 }

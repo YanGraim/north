@@ -98,8 +98,11 @@ export const IpcChannels = {
 
   UPDATES_CHECK: 'updates:check',
   UPDATES_INSTALL: 'updates:install',
+  UPDATES_GET_STATUS: 'updates:get-status',
   /** Main → renderer (event): update available. */
-  UPDATES_AVAILABLE: 'updates:available'
+  UPDATES_AVAILABLE: 'updates:available',
+  /** Main → renderer (event): full update state changed. */
+  UPDATES_STATUS_CHANGED: 'updates:status-changed'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

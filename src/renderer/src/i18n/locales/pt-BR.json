@@ -53,13 +53,16 @@
     },
     "updates": {
       "title": "Atualizações",
-      "description": "Verificação opt-in via GitHub Releases (electron-updater).",
+      "description": "Verificação automática na abertura e download em segundo plano via GitHub Releases.",
       "devNote": "Em desenvolvimento o updater fica off salvo NORTH_ENABLE_UPDATES=1. Prefira testar em build empacotado.",
       "available": "Nova versão disponível:",
+      "ready": "Atualização pronta:",
       "check": "Verificar agora",
       "checking": "Verificando…",
       "install": "Instalar e reiniciar",
-      "installing": "Instalando…"
+      "installing": "Instalando…",
+      "downloading": "Baixando… {{percent}}%",
+      "restarting": "Reiniciando…"
     },
     "help": {
       "title": "Ajuda",
@@ -145,6 +148,13 @@
       "create": "Criar"
     },
     "badge": "Servidor"
+  },
+  "updates": {
+    "toast": {
+      "downloading": "Baixando versão {{version}}{{percent}}…",
+      "ready": "Atualização {{version}} pronta para instalar",
+      "install": "Instalar"
+    }
   },
   "common": {
     "cancel": "Cancelar",

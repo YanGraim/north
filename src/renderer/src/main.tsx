@@ -5,6 +5,7 @@ import { HashRouter } from 'react-router-dom'
 import App from './App'
 import { Toaster } from './components/ui/sonner'
 import { TooltipProvider } from './components/ui/tooltip'
+import { useAppUpdates } from './hooks/use-app-updates'
 import { useLocaleEffect } from './hooks/use-locale-effect'
 import { useThemeEffect } from './hooks/use-theme-effect'
 import './i18n'
@@ -28,6 +29,7 @@ const queryClient = new QueryClient({
 function Bootstrap(): React.JSX.Element {
   useThemeEffect()
   useLocaleEffect()
+  useAppUpdates()
   return (
     <>
       <App />

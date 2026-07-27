@@ -108,6 +108,7 @@ export {
   type UpdateTagInput,
   UpdateTagInputSchema
 } from './tag'
+export type { UpdateStatus } from './updates'
 export {
   type RevealSecretInput,
   RevealSecretInputSchema,
