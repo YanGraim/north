@@ -35,6 +35,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: verify
     timeout-minutes: 40
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: false
+      ELECTRON_BUILDER_PUBLISH: never
     strategy:
       fail-fast: false
       matrix:
@@ -43,14 +46,27 @@ jobs:
             os: macos-latest
             dist_command: dist:mac
             artifact_name: north-mac
+            artifact_glob: |
+              release/*.dmg
+              release/*.zip
+              release/*.blockmap
+              release/latest-mac.yml
           - target: win
             os: windows-latest
             dist_command: dist:win
             artifact_name: north-win
+            artifact_glob: |
+              release/*.exe
+              release/*.blockmap
+              release/latest.yml
           - target: linux
             os: ubuntu-latest
             dist_command: dist:linux
             artifact_name: north-linux
+            artifact_glob: |
+              release/*.AppImage
+              release/*.blockmap
+              release/latest-linux.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,21 +80,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Linux dependencies
+        if: matrix.target == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libfuse2
+
       - name: Build installer
         run: npm run ${{ matrix.dist_command }}
+
+      - name: List release output
+        shell: bash
+        run: |
+          if [ -d release ]; then
+            ls -la release
+          else
+            echo "release/ directory missing"
+            exit 1
+          fi
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           if-no-files-found: error
-          path: |
-            release/*.dmg
-            release/*.zip
-            release/*.exe
-            release/*.AppImage
-            release/*.blockmap
-            release/latest*.yml
+          path: ${{ matrix.artifact_glob }}
 
   release:
     name: Draft GitHub release
