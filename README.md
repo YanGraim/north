@@ -78,6 +78,8 @@ docs/          Visão, arquitetura, stack, dados, design, segurança, roadmap, Q
 
 ## IPC
 
+
+
 API agrupada em `window.north` (`clients`, `environments`, `groups`, `connections`, `tags`, `history`, `inventory`, `updates`) — contrato em `src/shared/ipc`. Seed de dev: `NORTH_SEED=1 npm run dev`.
 
 ## Licença
