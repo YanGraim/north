@@ -5,5 +5,3 @@ declare global {
     north: NorthApi
   }
 }
-
-export {}

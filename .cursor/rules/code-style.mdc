@@ -36,5 +36,5 @@ alwaysApply: true
 
 ## Formatação
 
-- Prettier do repo (`singleQuote`, sem ponto-e-vírgula, `printWidth: 100`).
-- ESLint flat config; não desligar regras sem motivo documentado.
+- Biome do repo (`quoteStyle: single`, `semicolons: asNeeded`, `lineWidth: 100`).
+- `biome.json` é a fonte única de lint + format; não desligar regras sem motivo documentado.

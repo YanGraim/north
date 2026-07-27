@@ -1,6 +1,7 @@
-import { app, shell, BrowserWindow } from 'electron'
-import { join } from 'path'
+import { join } from 'node:path'
+import { app, BrowserWindow, shell } from 'electron'
 import icon from '../../resources/icon.png?asset'
+import { closeDatabase } from './database'
 import { registerIpcHandlers } from './ipc/handlers'
 
 const isDev = !app.isPackaged
@@ -34,8 +35,8 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  if (isDev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  if (isDev && process.env.ELECTRON_RENDERER_URL) {
+    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
@@ -49,7 +50,7 @@ app.whenReady().then(() => {
   registerIpcHandlers()
   createWindow()
 
-  app.on('activate', function () {
+  app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
@@ -58,4 +59,8 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  closeDatabase()
 })

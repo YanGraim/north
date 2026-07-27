@@ -12,10 +12,12 @@
 | **React Router**                     | Navegação (HashRouter)        | Compatível com `file://` no build Electron          |
 | **Zustand**                          | Estado de UI                  | Simples; sem boilerplate para sidebar, modais, etc. |
 | **TanStack Query**                   | Cache/async de dados IPC      | Loading/error/retry padronizados para invokes       |
-| **better-sqlite3** _(Parte 2)_       | Persistência local            | Rápido, embutido, adequado a inventário offline     |
 | **keytar / safeStorage** _(Parte 8)_ | Credenciais                   | Keychain nativo com fallback Electron               |
-| **ESLint + Prettier**                | Qualidade de código           | Flat config + formatação única                      |
-| **Husky + lint-staged**              | Gate no commit                | Lint/format só nos arquivos staged                  |
+| **Biome**                            | Lint + formatação             | Uma ferramenta só; ~20× mais rápida que ESLint      |
+| **better-sqlite3**                   | Persistência local            | SQLite síncrono no main; rebuild via electron-builder |
+| **Zod**                              | Validação na fronteira IPC    | Schemas como fonte dos DTOs compartilhados          |
+| **Vitest**                           | Testes unitários              | Migrations e repositórios em Node                   |
+| **Husky + lint-staged**              | Gate no commit                | Biome só nos arquivos staged                        |
 | **electron-builder**                 | Empacotamento                 | DMG / NSIS / AppImage                               |
 
 ## Package manager

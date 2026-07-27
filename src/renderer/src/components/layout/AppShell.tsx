@@ -1,7 +1,7 @@
-import { PanelLeft } from 'lucide-react'
 import { useAppVersion } from '@renderer/hooks/use-app-version'
-import { useUiStore } from '@renderer/stores/ui-store'
 import { cn } from '@renderer/lib/utils'
+import { useUiStore } from '@renderer/stores/ui-store'
+import { PanelLeft } from 'lucide-react'
 
 export function AppShell(): React.JSX.Element {
   const { data: version, isLoading } = useAppVersion()

@@ -1,8 +1,8 @@
-export { IpcChannels, type IpcChannel } from './channels'
-export {
-  type IpcInvokeMap,
-  type InvokeChannel,
-  type InvokeArgs,
-  type InvokeResult,
-  type NorthApi
+export { type IpcChannel, IpcChannels } from './channels'
+export type {
+  InvokeArgs,
+  InvokeChannel,
+  InvokeResult,
+  IpcInvokeMap,
+  NorthApi
 } from './contract'

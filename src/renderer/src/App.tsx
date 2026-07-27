@@ -1,5 +1,5 @@
-import { Route, Routes } from 'react-router-dom'
 import { AppShell } from '@renderer/components/layout/AppShell'
+import { Route, Routes } from 'react-router-dom'
 
 function App(): React.JSX.Element {
   return (

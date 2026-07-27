@@ -4,9 +4,9 @@ Workspace desktop para infraestrutura — organize clientes, ambientes e conexõ
 
 > Documentação completa em [`docs/`](./docs/).
 
-## Stack (Parte 1)
+## Stack
 
-Electron · electron-vite · React · TypeScript · Tailwind v4 · shadcn/ui · Zustand · TanStack Query
+Electron · electron-vite · React · TypeScript · Tailwind v4 · shadcn/ui · Zustand · TanStack Query · SQLite · Biome · Zod · Vitest
 
 ## Pré-requisitos
 
@@ -26,9 +26,10 @@ npm run dev
 | ------------------------------------------------- | ------------------------------------ |
 | `npm run dev`                                     | App em modo desenvolvimento (HMR)    |
 | `npm run build`                                   | Typecheck + build de produção        |
-| `npm run lint`                                    | ESLint                               |
+| `npm run lint`                                    | Biome (lint + format check)          |
 | `npm run typecheck`                               | TypeScript (main/preload + renderer) |
-| `npm run format`                                  | Prettier                             |
+| `npm run test`                                    | Vitest (migrations + repositórios)   |
+| `npm run format`                                  | Biome format                         |
 | `npm run build:mac` / `build:win` / `build:linux` | Empacotar com electron-builder       |
 
 ## Estrutura
