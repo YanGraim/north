@@ -11,7 +11,7 @@ import type {
   SessionState
 } from '@shared/protocols'
 import { Client, type SFTPWrapper, type Stats } from 'ssh2'
-import { buildSshConnectConfig } from './ssh-auth'
+import { attachKeyboardInteractivePassword, buildSshConnectConfig } from './ssh-auth'
 
 function toEntryType(stats: Stats): RemoteEntryType {
   if (stats.isDirectory()) return 'dir'
@@ -237,6 +237,9 @@ export class SftpDriver implements ProtocolDriver {
 
     const client = new Client()
     const session = new SftpProtocolSession(sessionId, client)
+    if (typeof connectConfig.password === 'string') {
+      attachKeyboardInteractivePassword(client, connectConfig.password)
+    }
 
     await new Promise<void>((resolveConnect, rejectConnect) => {
       let settled = false

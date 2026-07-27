@@ -1,3 +1,4 @@
+import { formatIpcError } from '@renderer/lib/ipc-error'
 import type { SessionDescriptor, SessionKind, SessionState } from '@shared/protocols'
 import { create } from 'zustand'
 
@@ -298,7 +299,7 @@ export async function openConnectionSession(
     }
     store.attachSessionPort({ tempId, session, port })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Falha ao conectar'
+    const message = formatIpcError(error, 'Falha ao conectar')
     store.failConnectingTab(tempId, message)
     throw error
   }

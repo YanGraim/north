@@ -1,7 +1,8 @@
 import type { ConnectOptions } from '@shared/protocols'
 import type { Connection } from '@shared/types'
+import type { Client, Prompt } from 'ssh2'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildSshConnectConfig } from './ssh-auth'
+import { attachKeyboardInteractivePassword, buildSshConnectConfig } from './ssh-auth'
 
 function baseConnection(overrides: Partial<Connection> = {}): Connection {
   return {
@@ -84,7 +85,24 @@ describe('buildSshConnectConfig', () => {
       })
     )
     expect(config.password).toBe('s3cret')
+    expect(config.tryKeyboard).toBe(true)
     expect(config.host).toBe('127.0.0.1')
     expect(config.port).toBe(22)
+  })
+
+  it('answers keyboard-interactive prompts with the password', () => {
+    const handlers = new Map<string, (...args: unknown[]) => void>()
+    const client = {
+      on(event: string, handler: (...args: unknown[]) => void) {
+        handlers.set(event, handler)
+        return client
+      }
+    } as unknown as Client
+
+    attachKeyboardInteractivePassword(client, 's3cret')
+    const finish = vi.fn()
+    const prompts = [{ prompt: 'Password: ', echo: false }] as Prompt[]
+    handlers.get('keyboard-interactive')?.('', '', '', prompts, finish)
+    expect(finish).toHaveBeenCalledWith(['s3cret'])
   })
 })

@@ -1,12 +1,12 @@
 import { toast } from '@renderer/components/ui/sonner'
+import { formatIpcError } from '@renderer/lib/ipc-error'
 
 export function toastSuccess(message: string): void {
   toast.success(message)
 }
 
 export function toastError(error: unknown, fallback = 'Algo deu errado'): void {
-  const message = error instanceof Error && error.message ? error.message : fallback
-  toast.error(message)
+  toast.error(formatIpcError(error, fallback))
 }
 
 export function toastCopied(label: string): void {

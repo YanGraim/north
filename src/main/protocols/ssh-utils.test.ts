@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { fingerprintHostKey, parseHostKeyType, parseSshConnectionConfig } from './ssh-utils'
+import {
+  fingerprintHostKey,
+  formatSshClientError,
+  parseHostKeyType,
+  parseSshConnectionConfig
+} from './ssh-utils'
 
 describe('ssh-utils', () => {
   it('parses valid connection config', () => {
@@ -34,5 +39,12 @@ describe('ssh-utils', () => {
     header.write(algo, 4)
     const key = Buffer.concat([header, Buffer.from('rest')])
     expect(parseHostKeyType(key)).toBe('ssh-ed25519')
+  })
+
+  it('maps authentication failures to a Portuguese message', () => {
+    const err = Object.assign(new Error('All configured authentication methods failed'), {
+      level: 'client-authentication'
+    })
+    expect(formatSshClientError(err).message).toMatch(/Autenticação SSH recusada/)
   })
 })

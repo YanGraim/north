@@ -29,3 +29,27 @@ export function parseSshConnectionConfig(opts: {
   const username = opts.username?.trim() || process.env.USER || 'root'
   return { host, port, username }
 }
+
+/** Map ssh2 client errors to stable Portuguese messages for the UI. */
+export function formatSshClientError(error: unknown): Error {
+  const raw = error instanceof Error ? error.message : String(error)
+  const level =
+    error && typeof error === 'object' && 'level' in error
+      ? String((error as { level?: unknown }).level)
+      : ''
+
+  if (
+    level === 'client-authentication' ||
+    /all configured authentication methods failed/i.test(raw)
+  ) {
+    return new Error(
+      'Autenticação SSH recusada. Confira usuário/senha no vault, método de auth e se a VPN está conectada.'
+    )
+  }
+
+  if (/timed out|timeout|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|EHOSTUNREACH/i.test(raw)) {
+    return new Error(`Não foi possível alcançar o host (${raw}). Verifique IP, porta e VPN.`)
+  }
+
+  return error instanceof Error ? error : new Error(raw)
+}

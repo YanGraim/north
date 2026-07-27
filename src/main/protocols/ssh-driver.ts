@@ -10,7 +10,8 @@ import {
 } from '@shared/protocols'
 import { Client, type ClientChannel } from 'ssh2'
 import { SessionPortOutlet } from './session-port-outlet'
-import { buildSshConnectConfig } from './ssh-auth'
+import { attachKeyboardInteractivePassword, buildSshConnectConfig } from './ssh-auth'
+import { formatSshClientError } from './ssh-utils'
 
 class SshProtocolSession implements ProtocolSession {
   readonly id: string
@@ -128,6 +129,9 @@ export class SshDriver implements ProtocolDriver {
     const client = new Client()
     const session = new SshProtocolSession(sessionId, client)
     const connectConfig = await buildSshConnectConfig(opts)
+    if (typeof connectConfig.password === 'string') {
+      attachKeyboardInteractivePassword(client, connectConfig.password)
+    }
 
     await new Promise<void>((resolveConnect, rejectConnect) => {
       let settled = false
@@ -137,8 +141,9 @@ export class SshDriver implements ProtocolDriver {
             if (settled) return
             if (err) {
               settled = true
-              session.setState('error', err.message)
-              rejectConnect(err)
+              const formatted = formatSshClientError(err)
+              session.setState('error', formatted.message)
+              rejectConnect(formatted)
               return
             }
             session.attachStream(stream)
@@ -150,8 +155,9 @@ export class SshDriver implements ProtocolDriver {
         .on('error', (err) => {
           if (settled) return
           settled = true
-          session.setState('error', err.message)
-          rejectConnect(err)
+          const formatted = formatSshClientError(err)
+          session.setState('error', formatted.message)
+          rejectConnect(formatted)
         })
         .connect(connectConfig)
     })
