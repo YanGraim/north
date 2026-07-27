@@ -160,7 +160,7 @@ export function DesktopView({
 
   return (
     <div
-      className={cn('relative h-full min-h-0 bg-black')}
+      className={cn('relative h-full min-h-0 bg-background')}
       style={{ display: visible ? 'block' : 'none' }}
       role="application"
       aria-label="Sessão desktop"

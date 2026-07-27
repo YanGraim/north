@@ -4,7 +4,7 @@ import { coerceBytes } from '@shared/protocols'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import { Folder, User } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type TerminalViewProps = {
   sessionId: string
@@ -25,6 +25,7 @@ export function TerminalView({
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const visibleRef = useRef(visible)
+  const [awaitingOutput, setAwaitingOutput] = useState(true)
   const resolvedTheme = useResolvedTheme()
   const themeRef = useRef(resolvedTheme)
   themeRef.current = resolvedTheme
@@ -62,14 +63,22 @@ export function TerminalView({
 
     const scheduleFit = (): void => {
       requestAnimationFrame(() => {
-        if (!fitRef.current || !termRef.current) return
-        fitRef.current.fit()
-        sendResize()
+        requestAnimationFrame(() => {
+          if (!fitRef.current || !termRef.current || !containerRef.current) return
+          const { clientWidth, clientHeight } = containerRef.current
+          if (clientWidth < 2 || clientHeight < 2) return
+          fitRef.current.fit()
+          sendResize()
+        })
       })
     }
 
     scheduleFit()
-    const fitTimer = window.setTimeout(scheduleFit, 50)
+    const fitTimers = [
+      window.setTimeout(scheduleFit, 50),
+      window.setTimeout(scheduleFit, 150),
+      window.setTimeout(scheduleFit, 400)
+    ]
 
     const onData = term.onData((data) => {
       const encoded = new TextEncoder().encode(data)
@@ -81,7 +90,10 @@ export function TerminalView({
 
       if (message.type === 'data') {
         const bytes = coerceBytes(message.data)
-        if (bytes) term.write(bytes)
+        if (bytes) {
+          setAwaitingOutput(false)
+          term.write(bytes)
+        }
         return
       }
 
@@ -103,6 +115,8 @@ export function TerminalView({
       scheduleFit()
     })
     observer.observe(container)
+    const parent = container.parentElement
+    if (parent) observer.observe(parent)
 
     const onPointerDown = (): void => {
       document.body.style.removeProperty('pointer-events')
@@ -115,7 +129,7 @@ export function TerminalView({
     }, 0)
 
     return () => {
-      window.clearTimeout(fitTimer)
+      for (const timer of fitTimers) window.clearTimeout(timer)
       window.clearTimeout(focusTimer)
       container.removeEventListener('mousedown', onPointerDown)
       observer.disconnect()
@@ -142,15 +156,25 @@ export function TerminalView({
     if (!term || !fit) return
 
     requestAnimationFrame(() => {
-      fit.fit()
-      window.north.sessions.resize(
-        sessionId,
-        Math.max(term.cols || 80, 2),
-        Math.max(term.rows || 24, 1)
-      )
-      term.focus()
+      requestAnimationFrame(() => {
+        const container = containerRef.current
+        if (!container || container.clientWidth < 2 || container.clientHeight < 2) return
+        fit.fit()
+        window.north.sessions.resize(
+          sessionId,
+          Math.max(term.cols || 80, 2),
+          Math.max(term.rows || 24, 1)
+        )
+        term.focus()
+      })
     })
   }, [visible, sessionId])
+
+  useEffect(() => {
+    if (!awaitingOutput || !visible) return
+    const timer = window.setTimeout(() => setAwaitingOutput(false), 8000)
+    return () => window.clearTimeout(timer)
+  }, [awaitingOutput, visible])
 
   return (
     <div
@@ -173,7 +197,18 @@ export function TerminalView({
           digite no terminal · Workspace para voltar
         </span>
       </div>
-      <div ref={containerRef} className="min-h-0 flex-1 p-1" />
+      <div className="relative min-h-0 flex-1 p-1">
+        <div ref={containerRef} className="h-full min-h-[120px] w-full" />
+        {awaitingOutput ? (
+          <div
+            className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/80 p-4 text-center"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-xs text-muted">Aguardando saída do terminal…</p>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

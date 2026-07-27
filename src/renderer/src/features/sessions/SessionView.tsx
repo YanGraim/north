@@ -3,6 +3,7 @@ import { FileBrowserView } from '@renderer/features/sessions/FileBrowserView'
 import { TerminalView } from '@renderer/features/sessions/TerminalView'
 import {
   type SessionTab,
+  sessionKindForProtocol,
   useSessionsStore,
   WORKSPACE_TAB_ID
 } from '@renderer/stores/sessions-store'
@@ -20,6 +21,8 @@ type SessionViewProps = {
 export function SessionView({ tab, visible }: SessionViewProps): React.JSX.Element {
   const closeTab = useSessionsStore((s) => s.closeTab)
   const setActiveTab = useSessionsStore((s) => s.setActiveTab)
+  const sessionKind =
+    tab.sessionKind ?? (tab.protocol ? sessionKindForProtocol(tab.protocol) : undefined)
 
   if (tab.kind !== 'session') {
     return (
@@ -84,7 +87,7 @@ export function SessionView({ tab, visible }: SessionViewProps): React.JSX.Eleme
     )
   }
 
-  if (tab.sessionKind === 'terminal') {
+  if (sessionKind === 'terminal') {
     return (
       <TerminalView
         sessionId={tab.sessionId}
@@ -108,7 +111,7 @@ export function SessionView({ tab, visible }: SessionViewProps): React.JSX.Eleme
     )
   }
 
-  switch (tab.sessionKind) {
+  switch (sessionKind) {
     case 'file-transfer':
       return <FileBrowserView sessionId={tab.sessionId} visible={visible} />
     case 'desktop':

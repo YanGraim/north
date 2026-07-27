@@ -102,8 +102,8 @@ export function AppShell(): React.JSX.Element {
             .map((tab) => (
               <div
                 key={tab.id}
-                className="absolute inset-0 min-h-0 min-w-0"
-                style={{ display: activeTabId === tab.id ? 'block' : 'none' }}
+                className="absolute inset-0 flex h-full min-h-0 min-w-0 flex-col"
+                style={{ display: activeTabId === tab.id ? 'flex' : 'none' }}
               >
                 <SessionView tab={tab} visible={activeTabId === tab.id} />
               </div>

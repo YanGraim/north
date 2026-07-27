@@ -118,12 +118,11 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
   },
 
   attachSessionPort: ({ tempId, session, port }) => {
-    set((state) => {
-      const tabs = state.tabs.map((tab) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
         tab.id === tempId
           ? {
               ...tab,
-              id: session.id,
               sessionId: session.id,
               connectionId: session.connectionId,
               title: session.title || tab.title,
@@ -136,11 +135,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
             }
           : tab
       )
-      return {
-        tabs,
-        activeTabId: state.activeTabId === tempId ? session.id : state.activeTabId
-      }
-    })
+    }))
   },
 
   failConnectingTab: (tempId, errorMessage) => {

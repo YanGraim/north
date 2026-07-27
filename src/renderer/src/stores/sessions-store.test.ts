@@ -81,6 +81,7 @@ describe('sessions-store optimistic open', () => {
     expect(tempTab?.port).toBeNull()
     expect(tempTab?.title).toBe('prod-box')
     expect(tempTab?.username).toBe('root')
+    const tempTabId = tempTab?.id
 
     resolveOpen(session)
     await pending
@@ -89,8 +90,8 @@ describe('sessions-store optimistic open', () => {
     const tab = done.tabs.find((t) => t.sessionId === session.id)
     expect(tab?.state).toBe('connected')
     expect(tab?.port).toBe(port)
-    expect(tab?.id).toBe(session.id)
-    expect(done.activeTabId).toBe(session.id)
+    expect(tab?.id).toBe(tempTabId)
+    expect(done.activeTabId).toBe(tempTabId)
   })
 
   it('marks the optimistic tab as error when open fails', async () => {
