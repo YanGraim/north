@@ -67,7 +67,6 @@ src/preload    contextBridge → window.north
 src/renderer   React UI + hooks TanStack Query
 src/shared     Contratos IPC, tipos Zod e protocolos
 docs/          Visão, arquitetura, stack, dados, design, segurança, roadmap, QA, distribuição, ADRs
-.cursor/rules  Rules do agente (arquitetura, estilo, UI, IPC)
 ```
 
 ## Docs úteis

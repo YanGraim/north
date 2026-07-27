@@ -7,3 +7,24 @@ release
 .biome
 
 *.log*
+
+# Secrets and local credentials — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.key
+*.cer
+*.crt
+CSC_LINK
+*.mobileprovision
+
+# Editor/agent config (local only)
+.cursor/
+
+# Local user data exports
+*.sqlite
+*.sqlite3
+north-export*.json
