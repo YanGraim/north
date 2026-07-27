@@ -51,6 +51,28 @@ function normalizeUpdateError(error: unknown): string {
   return message || 'Falha ao verificar atualizações'
 }
 
+/** Comparação semver simples (x.y.z). Só true se remote > current. */
+export function isNewerVersion(remote: string, current: string): boolean {
+  const parse = (value: string): number[] =>
+    value
+      .replace(/^v/i, '')
+      .split(/[.+-]/)
+      .map((part) => Number.parseInt(part, 10))
+      .map((n) => (Number.isFinite(n) ? n : 0))
+
+  const remoteParts = parse(remote)
+  const currentParts = parse(current)
+  const length = Math.max(remoteParts.length, currentParts.length)
+
+  for (let i = 0; i < length; i++) {
+    const a = remoteParts[i] ?? 0
+    const b = currentParts[i] ?? 0
+    if (a > b) return true
+    if (a < b) return false
+  }
+  return false
+}
+
 function ensureConfigured(): void {
   if (configured) return
   configured = true
@@ -63,13 +85,26 @@ function ensureConfigured(): void {
   })
 
   autoUpdater.on('update-available', (info) => {
+    if (!isNewerVersion(info.version, app.getVersion())) {
+      patchState({
+        checking: false,
+        available: false,
+        version: null,
+        downloaded: false,
+        downloading: false,
+        progress: null
+      })
+      return
+    }
+
     patchState({
       checking: false,
       available: true,
       version: info.version,
       downloaded: false,
       downloading: true,
-      progress: state.progress ?? 0
+      progress: 0,
+      error: null
     })
     broadcast(IpcChannels.UPDATES_AVAILABLE, { version: info.version })
   })
@@ -86,6 +121,7 @@ function ensureConfigured(): void {
   })
 
   autoUpdater.on('download-progress', (progress) => {
+    if (!state.available) return
     patchState({
       downloading: true,
       progress: progress.percent
@@ -93,13 +129,25 @@ function ensureConfigured(): void {
   })
 
   autoUpdater.on('update-downloaded', (info) => {
+    if (!isNewerVersion(info.version, app.getVersion())) {
+      patchState({
+        available: false,
+        version: null,
+        downloaded: false,
+        downloading: false,
+        progress: null
+      })
+      return
+    }
+
     patchState({
       checking: false,
       available: true,
       version: info.version,
       downloaded: true,
       downloading: false,
-      progress: 100
+      progress: 100,
+      error: null
     })
   })
 
@@ -123,9 +171,10 @@ async function runCheck(): Promise<UpdateStatus> {
   try {
     const result = await autoUpdater.checkForUpdates()
     const remoteVersion = result?.updateInfo?.version ?? null
-    const available = Boolean(remoteVersion && remoteVersion !== app.getVersion())
+    const available = Boolean(remoteVersion && isNewerVersion(remoteVersion, app.getVersion()))
 
     if (!available) {
+      // Não inventar "baixando 0%" quando a latest remota é igual ou mais antiga.
       patchState({
         checking: false,
         available: false,
@@ -134,22 +183,21 @@ async function runCheck(): Promise<UpdateStatus> {
         downloading: false,
         progress: null
       })
-    } else if (!state.downloading && !state.downloaded) {
+    } else {
+      // Download real é sinalizado pelos eventos update-available / download-progress.
       patchState({
         checking: false,
         available: true,
         version: remoteVersion,
-        downloading: true,
-        progress: state.progress ?? 0
+        error: null
       })
-    } else {
-      patchState({ checking: false })
     }
 
     return getStatus()
   } catch (error: unknown) {
     patchState({
       checking: false,
+      downloading: false,
       error: normalizeUpdateError(error)
     })
     return getStatus()
@@ -211,8 +259,12 @@ async function installUpdate(): Promise<void> {
     throw new Error('Nenhuma atualização disponível para instalar.')
   }
 
+  if (state.version && !isNewerVersion(state.version, app.getVersion())) {
+    throw new Error('A versão remota não é mais recente que a instalada.')
+  }
+
   if (!state.downloaded) {
-    patchState({ downloading: true, error: null })
+    patchState({ downloading: true, error: null, progress: state.progress ?? 0 })
 
     try {
       await autoUpdater.downloadUpdate()
