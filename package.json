@@ -1,7 +1,7 @@
 {
   "name": "north",
   "productName": "North",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "North — Workspace para Infraestrutura",
   "main": "./out/main/index.js",
   "author": "North",
