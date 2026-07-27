@@ -56,5 +56,5 @@ appImage:
 npmRebuild: true
 publish:
   provider: github
-  owner: north-app
+  owner: YanGraim
   repo: north

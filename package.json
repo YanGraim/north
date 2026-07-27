@@ -1,11 +1,11 @@
 {
   "name": "north",
   "productName": "North",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "North — Workspace para Infraestrutura",
   "main": "./out/main/index.js",
   "author": "North",
-  "homepage": "https://github.com/north-app/north",
+  "homepage": "https://github.com/YanGraim/north",
   "license": "MIT",
   "scripts": {
     "format": "biome format --write .",

@@ -33,7 +33,7 @@ Arquivo: [`electron-builder.yml`](../electron-builder.yml) (fonte única — nã
 | Windows | NSIS (`North-${version}-setup.exe`) |
 | Linux | AppImage (`North-${version}.AppImage`) |
 | Nativos | `npmRebuild: true` (`better-sqlite3`, `serialport`) |
-| Publish | `provider: github`, `owner: north-app`, `repo: north` |
+| Publish | `provider: github`, `owner: YanGraim`, `repo: north` |
 
 Recursos em `build/`:
 
