@@ -601,15 +601,22 @@ export function AccessFormDialog(): React.JSX.Element | null {
                     )}
                   />
 
-                  <FormItem>
-                    <FormLabel>Senha</FormLabel>
+                  <div className="space-y-2">
+                    {!vaultAvailable ? (
+                      <p className="rounded-md border border-border bg-surface-elevated px-3 py-2 text-xs text-muted">
+                        Vault indisponível neste ambiente.
+                      </p>
+                    ) : null}
+
                     {mode === 'edit' && hasSecret && passwordMode === 'keep' && !removingSecret ? (
-                      <div className="flex items-center gap-2">
-                        <Input value="••••••••" disabled />
+                      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-elevated px-3 py-2">
+                        <span className="text-sm text-foreground">Senha definida</span>
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="secondary"
                           size="sm"
+                          className="h-7"
+                          disabled={!vaultAvailable}
                           onClick={() => setPasswordMode('replace')}
                         >
                           Trocar
@@ -618,32 +625,49 @@ export function AccessFormDialog(): React.JSX.Element | null {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => setRemovingSecret(true)}
+                          className="h-7 text-red-400"
+                          onClick={() => {
+                            setRemovingSecret(true)
+                            setPasswordMode('set')
+                            form.setValue('password', '')
+                          }}
                         >
                           Remover
                         </Button>
                       </div>
-                    ) : showPasswordField || removingSecret ? (
+                    ) : null}
+
+                    {showPasswordField || removingSecret ? (
                       <FormField
                         control={form.control}
                         name="password"
                         render={({ field }) => (
-                          <FormControl>
-                            <Input
-                              type="password"
-                              autoComplete="new-password"
-                              placeholder={removingSecret ? 'Senha será removida' : 'Senha (vault)'}
-                              disabled={removingSecret}
-                              {...field}
-                            />
-                          </FormControl>
+                          <FormItem>
+                            <FormLabel>
+                              {passwordMode === 'replace' ? 'Nova senha' : 'Senha'}
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="password"
+                                autoComplete="new-password"
+                                placeholder={
+                                  removingSecret ? 'Senha será removida' : 'Senha (vault)'
+                                }
+                                disabled={removingSecret || !vaultAvailable}
+                                {...field}
+                              />
+                            </FormControl>
+                            {vaultAvailable ? (
+                              <FormDescription>
+                                Write-only — a senha nunca é lida de volta do vault.
+                              </FormDescription>
+                            ) : null}
+                            <FormMessage />
+                          </FormItem>
                         )}
                       />
                     ) : null}
-                    {!vaultAvailable ? (
-                      <FormDescription>Vault indisponível neste ambiente.</FormDescription>
-                    ) : null}
-                  </FormItem>
+                  </div>
                 </div>
               </section>
 
