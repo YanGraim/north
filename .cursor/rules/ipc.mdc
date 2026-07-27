@@ -34,6 +34,7 @@ ipcMain.handle(IpcChannels.APP_GET_VERSION, () => app.getVersion())
 ## Regras
 
 - Nomes de canal: `domínio:ação` em kebab-case.
-- Validar/normalizar payload no **main** antes de persistir ou spawnar.
+- Validar/normalizar payload no **main** antes de persistir ou abrir sessão.
+- Bytes contínuos de sessão vão em `MessagePort`, não em `invoke` genérico.
 - Não vazar segredos no resultado IPC (só refs de credencial).
 - Preferir `invoke` (request/response) a `send` para APIs de dados.

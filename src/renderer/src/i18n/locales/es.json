@@ -1,0 +1,156 @@
+{
+  "app": {
+    "name": "North"
+  },
+  "nav": {
+    "overview": "Resumen",
+    "dashboard": "Dashboard",
+    "connections": "Conexiones",
+    "favorites": "Favoritos",
+    "recents": "Recientes",
+    "history": "Historial",
+    "clients": "Clientes",
+    "tags": "Etiquetas",
+    "settings": "Ajustes",
+    "newClient": "Nuevo cliente",
+    "newTag": "Nueva etiqueta"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "subtitle": "Preferencias, inventario y actualizaciones",
+    "appearance": {
+      "title": "Apariencia",
+      "description": "Tema de la interfaz. Oscuro es el predeterminado.",
+      "theme": "Tema",
+      "dark": "Oscuro",
+      "light": "Claro",
+      "system": "Sistema"
+    },
+    "language": {
+      "title": "Idioma",
+      "description": "Idioma de la interfaz. Se aplica de inmediato.",
+      "label": "Idioma"
+    },
+    "general": {
+      "title": "General",
+      "description": "Versión de la app y atajos principales.",
+      "version": "Versión",
+      "shortcuts": "Atajos"
+    },
+    "inventory": {
+      "title": "Inventario",
+      "description": "Copia JSON (v2, con accesses) e importación CSV. Contraseñas solo desde CSV con confirmación.",
+      "import": "Importar JSON",
+      "export": "Exportar JSON",
+      "importCsv": "Importar hoja (CSV)",
+      "downloadTemplate": "Descargar modelo CSV",
+      "importing": "Importando…",
+      "exporting": "Exportando…",
+      "csvSecretsTitle": "¿Este CSV contiene contraseñas?",
+      "csvSecretsDescription": "Si la columna senha está rellena, las credenciales se guardarán en el vault del sistema. Confirme solo si confía en el archivo.",
+      "csvSecretsConfirm": "Sí, importar con contraseñas",
+      "csvSecretsWithout": "Importar sin contraseñas"
+    },
+    "updates": {
+      "title": "Actualizaciones",
+      "description": "Verificación opt-in vía GitHub Releases (electron-updater).",
+      "devNote": "En desarrollo el updater queda off salvo NORTH_ENABLE_UPDATES=1. Prefiera probar un build empaquetado.",
+      "available": "Nueva versión disponible:",
+      "check": "Verificar ahora",
+      "checking": "Verificando…",
+      "install": "Instalar y reiniciar",
+      "installing": "Instalando…"
+    },
+    "help": {
+      "title": "Ayuda",
+      "description": "Manual y tutorial del producto — ábrelo cuando quieras.",
+      "openManual": "Abrir manual"
+    },
+    "about": {
+      "title": "Acerca de",
+      "description": "North — workspace local-first para infraestructura.",
+      "product": "Producto",
+      "version": "Versión",
+      "repository": "Repositorio"
+    }
+  },
+  "help": {
+    "title": "Manual",
+    "subtitle": "Guía del producto, offline y en tu idioma",
+    "toc": "Índice",
+    "backToSettings": "Ajustes",
+    "done": "Listo",
+    "openManual": "Abrir manual",
+    "tutorialGettingStarted": "Tutorial: primeros pasos",
+    "viewTutorial": "Ver tutorial",
+    "chapters": {
+      "overview": "Resumen",
+      "organization": "Organización",
+      "getting-started": "Primeros pasos",
+      "connect": "Conectar",
+      "accesses": "Accesos",
+      "command-palette": "Command Palette",
+      "import-export": "Importar / exportar",
+      "security": "Seguridad"
+    }
+  },
+  "access": {
+    "form": {
+      "createTitle": "Nuevo acceso",
+      "editTitle": "Editar acceso",
+      "description": "Credenciales de base de datos o login de entorno — sin sesión remota.",
+      "name": "Nombre",
+      "type": "Tipo",
+      "username": "Usuario",
+      "password": "Contraseña",
+      "url": "URL",
+      "engine": "Motor",
+      "host": "Host",
+      "port": "Puerto",
+      "database": "Base de datos",
+      "ssl": "SSL",
+      "notes": "Notas",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "create": "Crear",
+      "saving": "Guardando…"
+    },
+    "type": {
+      "database": "Base de datos",
+      "login": "Login",
+      "other": "Otro"
+    },
+    "details": {
+      "edit": "Editar",
+      "openUrl": "Abrir URL",
+      "revealPassword": "Revelar contraseña",
+      "hidePassword": "Ocultar contraseña",
+      "copyPassword": "Copiar contraseña",
+      "copyConnectionString": "Copiar connection string"
+    }
+  },
+  "connection": {
+    "form": {
+      "createTitle": "Nueva conexión",
+      "editTitle": "Editar conexión",
+      "description": "Configure acceso, organización y metadatos de la conexión.",
+      "name": "Nombre",
+      "protocol": "Protocolo",
+      "host": "Host",
+      "port": "Puerto",
+      "username": "Usuario",
+      "password": "Contraseña",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "create": "Crear"
+    },
+    "badge": "Servidor"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "create": "Crear",
+    "edit": "Editar",
+    "delete": "Eliminar"
+  }
+}

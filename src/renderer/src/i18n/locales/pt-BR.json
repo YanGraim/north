@@ -1,0 +1,156 @@
+{
+  "app": {
+    "name": "North"
+  },
+  "nav": {
+    "overview": "Visão geral",
+    "dashboard": "Dashboard",
+    "connections": "Conexões",
+    "favorites": "Favoritos",
+    "recents": "Recentes",
+    "history": "Histórico",
+    "clients": "Clientes",
+    "tags": "Tags",
+    "settings": "Configurações",
+    "newClient": "Novo cliente",
+    "newTag": "Nova tag"
+  },
+  "settings": {
+    "title": "Configurações",
+    "subtitle": "Preferências, inventário e atualizações",
+    "appearance": {
+      "title": "Aparência",
+      "description": "Tema da interface. Dark é o padrão.",
+      "theme": "Tema",
+      "dark": "Escuro",
+      "light": "Claro",
+      "system": "Sistema"
+    },
+    "language": {
+      "title": "Idioma",
+      "description": "Idioma da interface. Aplicado imediatamente.",
+      "label": "Idioma"
+    },
+    "general": {
+      "title": "Geral",
+      "description": "Versão do app e atalhos principais.",
+      "version": "Versão",
+      "shortcuts": "Atalhos"
+    },
+    "inventory": {
+      "title": "Inventário",
+      "description": "Backup JSON (v2, com accesses) e import de planilha CSV. Senhas só no CSV com confirmação.",
+      "import": "Importar JSON",
+      "export": "Exportar JSON",
+      "importCsv": "Importar planilha (CSV)",
+      "downloadTemplate": "Baixar modelo CSV",
+      "importing": "Importando…",
+      "exporting": "Exportando…",
+      "csvSecretsTitle": "Este CSV contém senhas?",
+      "csvSecretsDescription": "Se o arquivo tiver a coluna senha preenchida, as credenciais serão gravadas no vault do sistema. Confirme só se você confia no arquivo.",
+      "csvSecretsConfirm": "Sim, importar com senhas",
+      "csvSecretsWithout": "Importar sem senhas"
+    },
+    "updates": {
+      "title": "Atualizações",
+      "description": "Verificação opt-in via GitHub Releases (electron-updater).",
+      "devNote": "Em desenvolvimento o updater fica off salvo NORTH_ENABLE_UPDATES=1. Prefira testar em build empacotado.",
+      "available": "Nova versão disponível:",
+      "check": "Verificar agora",
+      "checking": "Verificando…",
+      "install": "Instalar e reiniciar",
+      "installing": "Instalando…"
+    },
+    "help": {
+      "title": "Ajuda",
+      "description": "Manual e tutorial do produto — abra quando quiser.",
+      "openManual": "Abrir manual"
+    },
+    "about": {
+      "title": "Sobre",
+      "description": "North — workspace local-first para infraestrutura.",
+      "product": "Produto",
+      "version": "Versão",
+      "repository": "Repositório"
+    }
+  },
+  "help": {
+    "title": "Manual",
+    "subtitle": "Guia do produto, offline e no seu idioma",
+    "toc": "Sumário",
+    "backToSettings": "Configurações",
+    "done": "Concluir",
+    "openManual": "Abrir manual",
+    "tutorialGettingStarted": "Tutorial: primeiros passos",
+    "viewTutorial": "Ver tutorial",
+    "chapters": {
+      "overview": "Visão geral",
+      "organization": "Organização",
+      "getting-started": "Primeiros passos",
+      "connect": "Conectar",
+      "accesses": "Acessos",
+      "command-palette": "Command Palette",
+      "import-export": "Importar / exportar",
+      "security": "Segurança"
+    }
+  },
+  "access": {
+    "form": {
+      "createTitle": "Novo acesso",
+      "editTitle": "Editar acesso",
+      "description": "Credenciais de banco ou login de ambiente — sem sessão remota.",
+      "name": "Nome",
+      "type": "Tipo",
+      "username": "Usuário",
+      "password": "Senha",
+      "url": "URL",
+      "engine": "Engine",
+      "host": "Host",
+      "port": "Porta",
+      "database": "Database",
+      "ssl": "SSL",
+      "notes": "Notas",
+      "cancel": "Cancelar",
+      "save": "Salvar",
+      "create": "Criar",
+      "saving": "Salvando…"
+    },
+    "type": {
+      "database": "Banco",
+      "login": "Login",
+      "other": "Outro"
+    },
+    "details": {
+      "edit": "Editar",
+      "openUrl": "Abrir URL",
+      "revealPassword": "Revelar senha",
+      "hidePassword": "Ocultar senha",
+      "copyPassword": "Copiar senha",
+      "copyConnectionString": "Copiar connection string"
+    }
+  },
+  "connection": {
+    "form": {
+      "createTitle": "Nova conexão",
+      "editTitle": "Editar conexão",
+      "description": "Configure acesso, organização e metadados da conexão.",
+      "name": "Nome",
+      "protocol": "Protocolo",
+      "host": "Host",
+      "port": "Porta",
+      "username": "Usuário",
+      "password": "Senha",
+      "cancel": "Cancelar",
+      "save": "Salvar",
+      "create": "Criar"
+    },
+    "badge": "Servidor"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "create": "Criar",
+    "edit": "Editar",
+    "delete": "Excluir"
+  }
+}

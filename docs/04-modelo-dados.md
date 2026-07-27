@@ -1,17 +1,19 @@
 # Modelo de dados
 
-Schema SQLite da Parte 2. Hierarquia:
+Schema SQLite (Partes 2–4). Hierarquia:
 
 ```
 Cliente → Ambiente → Grupo → Servidor (Conexão)
-                ↘ Tags (N:N com Conexão)
+                           ↘ Acesso (database | login | other)
+                ↘ Tags (N:N com Conexão e Access)
                 ↘ Histórico de uso
+                ↘ Credentials (vault, blobs cifrados)
+                ↘ known_hosts (SSH host keys)
 ```
-
 Arquivo: `north.db` (produção) / `north-dev.db` (dev) em `app.getPath('userData')`.
 Migrations versionadas via `PRAGMA user_version` em `src/main/database/migrations`.
 
-**Segurança:** apenas `credentialRef` no SQLite — nunca senha em claro (keychain na Parte 8).
+**Segurança:** apenas `credentialRef` nas conexões — nunca senha em claro. Blobs cifrados com Electron `safeStorage` na tabela `credentials` (Parte 4 / ADR 0005).
 
 ## Cliente
 
@@ -59,7 +61,7 @@ Migrations versionadas via `PRAGMA user_version` em `src/main/database/migration
 | `port`              | int       | Default por protocolo                           |
 | `username`          | string?   |                                                 |
 | `authMethod`        | enum      | `password` \| `key` \| `agent` \| `none`        |
-| `credentialRef`     | string?   | Referência no keychain (nunca a senha em claro) |
+| `credentialRef`     | string?   | FK lógica → `credentials.id` (nunca a senha)    |
 | `privateKeyPath`    | string?   | Caminho local da chave (opcional)               |
 | `jumpHostId`        | UUID?     | FK → outra Conexão (bastion), `ON DELETE SET NULL` |
 | `defaultCommand`    | string?   | Comando pós-login (SSH)                         |
@@ -82,6 +84,48 @@ Migrations versionadas via `PRAGMA user_version` em `src/main/database/migration
 
 - SSH: `sshOptions`, `forwardAgent`, `localForwards`
 - RDP: `domain`, `screenSize`, `fullscreen`
+
+## Credentials (vault)
+
+| Campo        | Tipo     | Notas                                              |
+| ------------ | -------- | -------------------------------------------------- |
+| `id`         | UUID     | PK — valor de `connections.credential_ref`         |
+| `ciphertext` | BLOB     | Saída de `safeStorage.encryptString` (nunca claro) |
+| `createdAt`  | datetime |                                                    |
+| `updatedAt`  | datetime | Atualizado ao substituir a senha (ref estável)     |
+
+O renderer só chama `vault:set-secret` / `delete-secret` / `has-secret` / `is-available` / `reveal-secret`. Resolução de plaintext (`resolveSecret`) é exclusiva do main — exceto `vault:reveal-secret`, que devolve a string ao renderer **somente** após checagem de ownership (o `credentialRef` deve pertencer a um `Access` ou a uma `Connection`).
+
+## Acesso (Access)
+
+Inventário de segredo/metadado (login de portal, credencial de banco). **Não** abre sessão. Ver [ADR 0012](./adr/0012-accesses-tema-i18n.md).
+
+| Campo               | Tipo      | Notas                                           |
+| ------------------- | --------- | ----------------------------------------------- |
+| `id`                | UUID      | PK                                              |
+| `groupId`           | UUID      | FK → Grupo (`ON DELETE CASCADE`)                |
+| `type`              | enum      | `database` \| `login` \| `other`                |
+| `name`              | string    |                                                 |
+| `description`       | text?     |                                                 |
+| `notes`             | markdown? |                                                 |
+| `username`          | string?   |                                                 |
+| `credentialRef`     | string?   | FK lógica → `credentials.id`                    |
+| `url`               | string?   | Portal / admin / API                            |
+| `links`             | JSON?     | Array `{ label, url }`                          |
+| `icon` / `color`    | string?   |                                                 |
+| `isFavorite`        | bool      |                                                 |
+| `engine`            | enum?     | Só `database`: postgres, mysql, mariadb, redis, mongodb, mssql, other |
+| `host` / `port`     | string?/int? | Só `database`                                |
+| `database`          | string?   | Nome da base (coluna SQL `database_name`)       |
+| `ssl`               | bool?     | Só `database`                                   |
+| `createdAt` / `updatedAt` | datetime |                                           |
+
+## AccessTag (N:N)
+
+| Campo      | Tipo | Notas |
+| ---------- | ---- | ----- |
+| `accessId` | UUID | FK → Access (`ON DELETE CASCADE`) |
+| `tagId`    | UUID | FK → Tag (`ON DELETE CASCADE`) |
 
 ## Tag
 
@@ -109,10 +153,27 @@ Migrations versionadas via `PRAGMA user_version` em `src/main/database/migration
 | `success`      | bool     |               |
 | `errorMessage` | string?  |               |
 
+## known_hosts (SSH)
+
+Gravado pelo `ProtocolManager` após o usuário confiar na fingerprint (Parte 6 / ADR 0007).
+
+| Campo         | Tipo     | Notas                                      |
+| ------------- | -------- | ------------------------------------------ |
+| `id`          | UUID     | PK                                         |
+| `host`        | string   | Hostname ou IP                             |
+| `port`        | int      |                                            |
+| `keyType`     | string   | ex.: `ssh-ed25519`, `ssh-rsa`              |
+| `fingerprint` | string   | `SHA256:…` (base64 sem padding)            |
+| `publicKey`   | BLOB     | Chave pública bruta do host                |
+| `createdAt` / `updatedAt` | datetime |                              |
+
+Unique: `(host, port, keyType)`. Em mismatch, a UI bloqueia e só atualiza após confirmação explícita.
+
 ## Índices
 
 - `environments(client_id)`, `groups(environment_id)`
 - `connections(host)`, `connections(group_id)`, `connections(is_favorite)`
 - `connection_tags(tag_id)`
 - `connection_history(connection_id, connected_at DESC)`
+- `known_hosts(host, port)`
 - Full-text / busca fuzzy sobre `name`, `host`, `notes` (Parte 5)

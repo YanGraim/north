@@ -3,14 +3,25 @@ import { app, ipcMain } from 'electron'
 import { initDatabase } from '../database'
 import { maybeSeedDevData } from '../database/seed'
 import { createRepositories, type Repositories } from '../repositories'
+import { CredentialVault, SafeStorageEncryptor } from '../vault'
+import { registerAccessHandlers } from './accesses'
 import { registerClientHandlers } from './clients'
 import { registerConnectionHandlers } from './connections'
 import { registerEnvironmentHandlers } from './environments'
+import { registerFsHandlers } from './fs'
 import { registerGroupHandlers } from './groups'
 import { registerHistoryHandlers } from './history'
+import { registerInventoryHandlers } from './inventory'
+import { registerSearchHandlers } from './search'
+import { registerSerialHandlers } from './serial'
+import { registerSessionHandlers } from './sessions'
+import { registerStatsHandlers } from './stats'
 import { registerTagHandlers } from './tags'
+import { registerUpdateHandlers } from './updates'
+import { registerVaultHandlers } from './vault'
 
 let repositories: Repositories | null = null
+let vault: CredentialVault | null = null
 
 export function getRepositories(): Repositories {
   if (!repositories) {
@@ -19,9 +30,17 @@ export function getRepositories(): Repositories {
   return repositories
 }
 
+export function getVault(): CredentialVault {
+  if (!vault) {
+    throw new Error('Vault not initialized')
+  }
+  return vault
+}
+
 export function registerIpcHandlers(): void {
   const db = initDatabase()
   repositories = createRepositories(db)
+  vault = new CredentialVault(repositories.credentials, new SafeStorageEncryptor())
 
   maybeSeedDevData(repositories)
 
@@ -29,10 +48,19 @@ export function registerIpcHandlers(): void {
     return app.getVersion()
   })
 
-  registerClientHandlers(repositories)
-  registerEnvironmentHandlers(repositories)
-  registerGroupHandlers(repositories)
-  registerConnectionHandlers(repositories)
+  registerVaultHandlers(vault, repositories)
+  registerClientHandlers(repositories, vault)
+  registerEnvironmentHandlers(repositories, vault)
+  registerGroupHandlers(repositories, vault)
+  registerConnectionHandlers(repositories, vault)
+  registerAccessHandlers(repositories, vault)
   registerTagHandlers(repositories)
   registerHistoryHandlers(repositories)
+  registerSearchHandlers(repositories)
+  registerSessionHandlers(repositories, vault)
+  registerFsHandlers()
+  registerSerialHandlers()
+  registerStatsHandlers(repositories)
+  registerInventoryHandlers(repositories, vault)
+  registerUpdateHandlers()
 }

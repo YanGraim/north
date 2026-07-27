@@ -1,0 +1,156 @@
+{
+  "app": {
+    "name": "North"
+  },
+  "nav": {
+    "overview": "Overview",
+    "dashboard": "Dashboard",
+    "connections": "Connections",
+    "favorites": "Favorites",
+    "recents": "Recents",
+    "history": "History",
+    "clients": "Clients",
+    "tags": "Tags",
+    "settings": "Settings",
+    "newClient": "New client",
+    "newTag": "New tag"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Preferences, inventory and updates",
+    "appearance": {
+      "title": "Appearance",
+      "description": "Interface theme. Dark is the default.",
+      "theme": "Theme",
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "language": {
+      "title": "Language",
+      "description": "Interface language. Applied immediately.",
+      "label": "Language"
+    },
+    "general": {
+      "title": "General",
+      "description": "App version and primary shortcuts.",
+      "version": "Version",
+      "shortcuts": "Shortcuts"
+    },
+    "inventory": {
+      "title": "Inventory",
+      "description": "JSON backup (v2, with accesses) and CSV spreadsheet import. Passwords only from CSV with confirmation.",
+      "import": "Import JSON",
+      "export": "Export JSON",
+      "importCsv": "Import spreadsheet (CSV)",
+      "downloadTemplate": "Download CSV template",
+      "importing": "Importing…",
+      "exporting": "Exporting…",
+      "csvSecretsTitle": "Does this CSV contain passwords?",
+      "csvSecretsDescription": "If the password column is filled, credentials will be stored in the system vault. Confirm only if you trust the file.",
+      "csvSecretsConfirm": "Yes, import with passwords",
+      "csvSecretsWithout": "Import without passwords"
+    },
+    "updates": {
+      "title": "Updates",
+      "description": "Opt-in checks via GitHub Releases (electron-updater).",
+      "devNote": "In development the updater stays off unless NORTH_ENABLE_UPDATES=1. Prefer testing a packaged build.",
+      "available": "New version available:",
+      "check": "Check now",
+      "checking": "Checking…",
+      "install": "Install and restart",
+      "installing": "Installing…"
+    },
+    "help": {
+      "title": "Help",
+      "description": "Product manual and tutorial — open anytime.",
+      "openManual": "Open manual"
+    },
+    "about": {
+      "title": "About",
+      "description": "North — local-first workspace for infrastructure.",
+      "product": "Product",
+      "version": "Version",
+      "repository": "Repository"
+    }
+  },
+  "help": {
+    "title": "Manual",
+    "subtitle": "Product guide, offline and in your language",
+    "toc": "Table of contents",
+    "backToSettings": "Settings",
+    "done": "Done",
+    "openManual": "Open manual",
+    "tutorialGettingStarted": "Tutorial: getting started",
+    "viewTutorial": "View tutorial",
+    "chapters": {
+      "overview": "Overview",
+      "organization": "Organization",
+      "getting-started": "Getting started",
+      "connect": "Connect",
+      "accesses": "Accesses",
+      "command-palette": "Command Palette",
+      "import-export": "Import / export",
+      "security": "Security"
+    }
+  },
+  "access": {
+    "form": {
+      "createTitle": "New access",
+      "editTitle": "Edit access",
+      "description": "Database or environment login credentials — no remote session.",
+      "name": "Name",
+      "type": "Type",
+      "username": "Username",
+      "password": "Password",
+      "url": "URL",
+      "engine": "Engine",
+      "host": "Host",
+      "port": "Port",
+      "database": "Database",
+      "ssl": "SSL",
+      "notes": "Notes",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create": "Create",
+      "saving": "Saving…"
+    },
+    "type": {
+      "database": "Database",
+      "login": "Login",
+      "other": "Other"
+    },
+    "details": {
+      "edit": "Edit",
+      "openUrl": "Open URL",
+      "revealPassword": "Reveal password",
+      "hidePassword": "Hide password",
+      "copyPassword": "Copy password",
+      "copyConnectionString": "Copy connection string"
+    }
+  },
+  "connection": {
+    "form": {
+      "createTitle": "New connection",
+      "editTitle": "Edit connection",
+      "description": "Configure access, organization and connection metadata.",
+      "name": "Name",
+      "protocol": "Protocol",
+      "host": "Host",
+      "port": "Port",
+      "username": "Username",
+      "password": "Password",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create": "Create"
+    },
+    "badge": "Server"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "create": "Create",
+    "edit": "Edit",
+    "delete": "Delete"
+  }
+}

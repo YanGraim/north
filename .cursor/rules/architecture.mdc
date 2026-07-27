@@ -7,9 +7,9 @@ alwaysApply: true
 
 ## Processos
 
-- **main** (`src/main`): janela, handlers IPC, serviços, repositórios. Único lugar com Node/SO/DB.
-- **preload** (`src/preload`): só `contextBridge` → `window.north`. Sem lógica de negócio.
-- **renderer** (`src/renderer`): React UI. Sem Electron, sem Node, sem `fs`/`child_process`.
+- **main** (`src/main`): janela, handlers IPC, serviços, repositórios, `ProtocolManager`, drivers de protocolo, vault (`safeStorage`). Único lugar com Node/SO/DB/sockets.
+- **preload** (`src/preload`): só `contextBridge` → `window.north` (e encaminhamento de `MessagePort` de sessão). Sem lógica de negócio.
+- **renderer** (`src/renderer`): React UI + views de sessão (`Terminal` / `Desktop` / `FileTransfer`). Sem Electron, sem Node, sem `fs`/`child_process`/sockets.
 - **shared** (`src/shared`): tipos e contratos. Não importa Electron.
 
 ## Dependências permitidas
@@ -24,7 +24,15 @@ Proibido: renderer → main/preload; shared → qualquer processo.
 
 ## IPC obrigatório
 
-Toda comunicação renderer ↔ main passa pelo contrato em `src/shared/ipc` e pela API `window.north`. Não expor `ipcRenderer` ao renderer.
+Toda comunicação de **controle** renderer ↔ main passa pelo contrato em `src/shared/ipc` e pela API `window.north`. Não expor `ipcRenderer` ao renderer.
+
+Streaming de sessão (bytes de terminal, framebuffer, etc.) usa **`MessagePort` dedicado por sessão**, não `invoke` ad-hoc.
+
+## Sessões in-app
+
+- A experiência remota acontece **dentro do North** (não lançar clientes externos como caminho principal).
+- UI conhece só o tipo de sessão; protocolo concreto fica no driver registrado no `ProtocolManager`.
+- Credenciais resolvem só no main via vault; renderer nunca recebe segredos.
 
 ## Segurança da janela
 
@@ -35,11 +43,14 @@ Manter `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`.
 | Tipo | Pasta |
 | --- | --- |
 | UI de domínio | `src/renderer/src/features/*` |
+| Views de sessão | `src/renderer/src/features/sessions` (ou equivalente) |
 | Primitivos UI | `src/renderer/src/components/ui` |
 | Handlers IPC | `src/main/ipc` |
 | Persistência | `src/main/repositories` |
-| Casos de uso | `src/main/services` |
-| Protocolos remotos | `src/shared/protocols` + main |
+| Casos de uso / ProtocolManager | `src/main/services` |
+| Drivers de protocolo | `src/main/protocols` |
+| Contratos de sessão | `src/shared/protocols` |
+| Vault | `src/main/vault` |
 
 ## Anti-padrões
 
@@ -50,6 +61,15 @@ import fs from 'fs'
 // ❌ BAD — invoke ad-hoc sem contrato
 window.electron.ipcRenderer.invoke('foo')
 
+// ❌ BAD — UI acoplada a protocolo concreto
+if (connection.protocol === 'ssh') { /* view SSH */ }
+
 // ✅ GOOD — API tipada
 await window.north.getVersion()
+
+// ✅ GOOD — UI por tipo de sessão
+switch (session.kind) {
+  case 'terminal':
+    return <TerminalView port={port} />
+}
 ```

@@ -3,6 +3,10 @@ import { app, BrowserWindow, shell } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { closeDatabase } from './database'
 import { registerIpcHandlers } from './ipc/handlers'
+import { disposeProtocolManager } from './ipc/sessions'
+
+// Must run before any app.getPath('userData') / DB access so paths match productName.
+app.setName('North')
 
 const isDev = !app.isPackaged
 
@@ -62,5 +66,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
-  closeDatabase()
+  void disposeProtocolManager().finally(() => {
+    closeDatabase()
+  })
 })

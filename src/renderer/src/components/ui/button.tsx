@@ -10,7 +10,8 @@ const buttonVariants = cva(
         default: 'bg-accent text-accent-foreground hover:opacity-90',
         secondary: 'bg-surface-elevated text-foreground hover:bg-border',
         ghost: 'hover:bg-surface-elevated text-foreground',
-        outline: 'border border-border bg-transparent hover:bg-surface-elevated'
+        outline: 'border border-border bg-transparent hover:bg-surface-elevated',
+        destructive: 'bg-red-600/90 text-white hover:bg-red-600'
       },
       size: {
         default: 'h-9 px-4 py-2',
@@ -33,3 +34,5 @@ export interface ButtonProps
 export function Button({ className, variant, size, ...props }: ButtonProps): React.JSX.Element {
   return <button className={cn(buttonVariants({ variant, size, className }))} {...props} />
 }
+
+export { buttonVariants }

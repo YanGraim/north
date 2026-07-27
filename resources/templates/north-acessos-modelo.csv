@@ -1,0 +1,4 @@
+tipo,cliente,ambiente,grupo,nome,protocolo,engine,host,porta,database,url,usuario,senha,notas,tags
+servidor,Acme,Produção,App,web-01,ssh,,10.0.0.10,22,,,ubuntu,,Notas do servidor,"ssh,prod"
+banco,Acme,Produção,App,postgres-app,,postgres,10.0.0.20,5432,appdb,,dbuser,,,"db,prod"
+login,Acme,Produção,App,painel-admin,,,,,,"https://admin.acme.example",admin,,URL do painel,web
