@@ -29,6 +29,7 @@ function item(
     isFavorite: false,
     lastConnectedAt: null,
     protocol: null,
+    icon: null,
     ...partial
   }
 }
