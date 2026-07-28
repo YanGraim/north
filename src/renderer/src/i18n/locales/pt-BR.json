@@ -31,6 +31,11 @@
       "description": "Idioma da interface. Aplicado imediatamente.",
       "label": "Idioma"
     },
+    "terminal": {
+      "title": "Terminal",
+      "description": "Preferências do terminal embutido.",
+      "copyOnSelect": "Copiar ao selecionar"
+    },
     "general": {
       "title": "Geral",
       "description": "Versão do app e atalhos principais.",

@@ -1,13 +1,15 @@
+import { TerminalContextMenu } from '@renderer/features/sessions/TerminalContextMenu'
+import { TerminalFindBar } from '@renderer/features/sessions/TerminalFindBar'
+import { copyToClipboard } from '@renderer/lib/clipboard'
 import { environmentStatusColor, hasEnvironmentContext } from '@renderer/lib/environment-color'
-import {
-  attachTerminalPasteHandlers,
-  terminalPasteShortcutLabel
-} from '@renderer/lib/terminal-paste'
+import { attachTerminalInteraction } from '@renderer/lib/terminal/attach-interaction'
 import { cn } from '@renderer/lib/utils'
 import { getXtermTheme, useResolvedTheme } from '@renderer/lib/xterm-theme'
+import { useUiStore } from '@renderer/stores/ui-store'
 import '@xterm/xterm/css/xterm.css'
 import { coerceBytes } from '@shared/protocols'
 import { FitAddon } from '@xterm/addon-fit'
+import type { SearchAddon } from '@xterm/addon-search'
 import { Terminal } from '@xterm/xterm'
 import { Folder, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -34,18 +36,24 @@ export function TerminalView({
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
+  const interactionRef = useRef<ReturnType<typeof attachTerminalInteraction> | null>(null)
+  const findOpenRef = useRef(false)
   const visibleRef = useRef(visible)
   const [awaitingOutput, setAwaitingOutput] = useState(true)
+  const [findOpen, setFindOpen] = useState(false)
+  const [searchAddon, setSearchAddon] = useState<SearchAddon | null>(null)
+  const [hasSelection, setHasSelection] = useState(false)
+  const [linkUrl, setLinkUrl] = useState<string | null>(null)
   const resolvedTheme = useResolvedTheme()
   const themeRef = useRef(resolvedTheme)
   themeRef.current = resolvedTheme
   visibleRef.current = visible
+  findOpenRef.current = findOpen
 
   const identity =
     username && host ? `${username}@${host}` : host ? host : username ? username : null
   const hasContext = Boolean(environmentName && hasEnvironmentContext(environmentName))
   const accent = hasContext ? environmentStatusColor(environmentName ?? '', environmentColor) : null
-  const pasteLabel = terminalPasteShortcutLabel()
 
   useEffect(() => {
     document.body.style.removeProperty('pointer-events')
@@ -59,7 +67,9 @@ export function TerminalView({
       fontSize: 13,
       lineHeight: 1.2,
       theme: getXtermTheme(themeRef.current),
-      allowProposedApi: true
+      allowProposedApi: true,
+      rightClickSelectsWord: true,
+      scrollback: 5000
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
@@ -67,6 +77,22 @@ export function TerminalView({
     fit.fit()
     termRef.current = term
     fitRef.current = fit
+
+    const interaction = attachTerminalInteraction({
+      term,
+      container,
+      getCopyOnSelect: () => useUiStore.getState().terminalCopyOnSelect,
+      isFindOpen: () => findOpenRef.current,
+      onOpenFind: () => setFindOpen(true),
+      onCloseFind: () => setFindOpen(false),
+      onLinkChange: setLinkUrl,
+      onSelectionChange: setHasSelection
+    })
+    interactionRef.current = interaction
+    setSearchAddon(interaction.searchAddon)
+    setFindOpen(false)
+    setHasSelection(false)
+    setLinkUrl(null)
 
     const sendResize = (): void => {
       const cols = Math.max(term.cols || 80, 2)
@@ -97,8 +123,6 @@ export function TerminalView({
       const encoded = new TextEncoder().encode(data)
       window.north.sessions.write(sessionId, Array.from(encoded))
     })
-
-    const detachPaste = attachTerminalPasteHandlers(term, container)
 
     const unsubStdout = window.north.sessions.onStdout(({ sessionId: id, message }) => {
       if (id !== sessionId) return
@@ -149,7 +173,8 @@ export function TerminalView({
       container.removeEventListener('mousedown', onPointerDown)
       observer.disconnect()
       onData.dispose()
-      detachPaste()
+      interaction.dispose()
+      interactionRef.current = null
       unsubStdout()
       term.dispose()
       termRef.current = null
@@ -192,6 +217,11 @@ export function TerminalView({
     return () => window.clearTimeout(timer)
   }, [awaitingOutput, visible])
 
+  const closeFind = (): void => {
+    setFindOpen(false)
+    termRef.current?.focus()
+  }
+
   return (
     <div
       className="flex h-full w-full flex-col overflow-hidden bg-background"
@@ -222,12 +252,22 @@ export function TerminalView({
           <Folder className="size-3 text-muted" aria-hidden />
           {title ?? 'session'}
         </span>
-        <span className="ml-auto text-[11px] text-muted">
-          {pasteLabel} para colar · Workspace para voltar
-        </span>
       </div>
       <div className="relative min-h-0 flex-1 p-1">
-        <div ref={containerRef} className="h-full min-h-[120px] w-full" />
+        <TerminalContextMenu
+          hasSelection={hasSelection}
+          linkUrl={linkUrl}
+          onCopy={() => void interactionRef.current?.copySelection()}
+          onPaste={() => void interactionRef.current?.paste()}
+          onSelectAll={() => interactionRef.current?.selectAll()}
+          onCopyLink={() => {
+            if (linkUrl) void copyToClipboard(linkUrl, 'Link')
+          }}
+          onClearSelection={() => interactionRef.current?.clearSelection()}
+        >
+          <div ref={containerRef} className="h-full min-h-[120px] w-full" />
+        </TerminalContextMenu>
+        <TerminalFindBar open={findOpen} searchAddon={searchAddon} onClose={closeFind} />
         {awaitingOutput ? (
           <div
             className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/80 p-4 text-center"

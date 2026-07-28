@@ -12,6 +12,7 @@ interface UiState {
   listSort: ListSort
   theme: ThemePreference
   locale: LocaleCode
+  terminalCopyOnSelect: boolean
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
   isTreeNodeExpanded: (id: string) => boolean
@@ -20,6 +21,7 @@ interface UiState {
   setListSort: (sort: ListSort) => void
   setTheme: (theme: ThemePreference) => void
   setLocale: (locale: LocaleCode) => void
+  setTerminalCopyOnSelect: (enabled: boolean) => void
 }
 
 export function resolveTheme(preference: ThemePreference): ResolvedTheme {
@@ -43,6 +45,7 @@ export const useUiStore = create<UiState>()(
       listSort: 'name',
       theme: 'dark',
       locale: 'pt-BR',
+      terminalCopyOnSelect: true,
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       isTreeNodeExpanded: (id) => Boolean(get().expandedTreeNodes[id]),
@@ -62,7 +65,8 @@ export const useUiStore = create<UiState>()(
         })),
       setListSort: (sort) => set({ listSort: sort }),
       setTheme: (theme) => set({ theme }),
-      setLocale: (locale) => set({ locale })
+      setLocale: (locale) => set({ locale }),
+      setTerminalCopyOnSelect: (enabled) => set({ terminalCopyOnSelect: enabled })
     }),
     {
       name: 'north-ui',
@@ -71,7 +75,8 @@ export const useUiStore = create<UiState>()(
         expandedTreeNodes: state.expandedTreeNodes,
         listSort: state.listSort,
         theme: state.theme,
-        locale: state.locale
+        locale: state.locale,
+        terminalCopyOnSelect: state.terminalCopyOnSelect
       })
     }
   )

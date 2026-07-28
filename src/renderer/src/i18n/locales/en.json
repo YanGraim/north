@@ -31,6 +31,11 @@
       "description": "Interface language. Applied immediately.",
       "label": "Language"
     },
+    "terminal": {
+      "title": "Terminal",
+      "description": "Built-in terminal preferences.",
+      "copyOnSelect": "Copy on select"
+    },
     "general": {
       "title": "General",
       "description": "App version and primary shortcuts.",

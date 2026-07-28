@@ -33,8 +33,11 @@ export function AppShell(): React.JSX.Element {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement | null
+      const inXterm = Boolean(target?.closest?.('.xterm'))
       const typing =
         target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
+      // xterm uses a textarea; session shortcuts still apply when the terminal is focused.
+      const typingOutsideTerminal = typing && !inXterm
 
       if (matchesShortcut(event, 'commandPalette')) {
         event.preventDefault()
@@ -54,7 +57,7 @@ export function AppShell(): React.JSX.Element {
         return
       }
 
-      if (!typing && matchesShortcut(event, 'closeTab')) {
+      if (!typingOutsideTerminal && matchesShortcut(event, 'closeTab')) {
         event.preventDefault()
         if (activeTabId !== WORKSPACE_TAB_ID) {
           void closeTab(activeTabId)
@@ -62,7 +65,7 @@ export function AppShell(): React.JSX.Element {
         return
       }
 
-      if (!typing && matchesShortcut(event, 'duplicateTab')) {
+      if (!typingOutsideTerminal && matchesShortcut(event, 'duplicateTab')) {
         event.preventDefault()
         if (activeTabId !== WORKSPACE_TAB_ID) {
           void duplicateTab(activeTabId).catch((error: unknown) => {

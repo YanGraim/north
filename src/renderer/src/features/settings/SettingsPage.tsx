@@ -18,6 +18,7 @@ import {
   SelectValue
 } from '@renderer/components/ui/select'
 import { Separator } from '@renderer/components/ui/separator'
+import { Switch } from '@renderer/components/ui/switch'
 import { useAppVersion } from '@renderer/hooks/use-app-version'
 import {
   downloadCsvTemplate,
@@ -63,6 +64,8 @@ export function SettingsPage(): React.JSX.Element {
   const setTheme = useUiStore((s) => s.setTheme)
   const locale = useUiStore((s) => s.locale)
   const setLocale = useUiStore((s) => s.setLocale)
+  const terminalCopyOnSelect = useUiStore((s) => s.terminalCopyOnSelect)
+  const setTerminalCopyOnSelect = useUiStore((s) => s.setTerminalCopyOnSelect)
   const [busy, setBusy] = useState<
     'export' | 'import' | 'importCsv' | 'template' | 'check' | 'install' | null
   >(null)
@@ -196,6 +199,21 @@ export function SettingsPage(): React.JSX.Element {
                   ))}
                 </SelectContent>
               </Select>
+            </Row>
+          </SettingsSection>
+
+          <Separator />
+
+          <SettingsSection
+            title={t('settings.terminal.title')}
+            description={t('settings.terminal.description')}
+          >
+            <Row label={t('settings.terminal.copyOnSelect')}>
+              <Switch
+                checked={terminalCopyOnSelect}
+                onCheckedChange={setTerminalCopyOnSelect}
+                aria-label={t('settings.terminal.copyOnSelect')}
+              />
             </Row>
           </SettingsSection>
 
