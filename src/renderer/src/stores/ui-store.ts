@@ -9,6 +9,7 @@ export type ListSort = 'name' | 'lastAccess'
 interface UiState {
   sidebarCollapsed: boolean
   expandedTreeNodes: Record<string, boolean>
+  sidebarTagsExpanded: boolean
   listSort: ListSort
   theme: ThemePreference
   locale: LocaleCode
@@ -18,6 +19,7 @@ interface UiState {
   isTreeNodeExpanded: (id: string) => boolean
   toggleTreeNode: (id: string) => void
   setTreeNodeExpanded: (id: string, expanded: boolean) => void
+  setSidebarTagsExpanded: (expanded: boolean) => void
   setListSort: (sort: ListSort) => void
   setTheme: (theme: ThemePreference) => void
   setLocale: (locale: LocaleCode) => void
@@ -42,6 +44,7 @@ export const useUiStore = create<UiState>()(
     (set, get) => ({
       sidebarCollapsed: false,
       expandedTreeNodes: {},
+      sidebarTagsExpanded: true,
       listSort: 'name',
       theme: 'dark',
       locale: 'pt-BR',
@@ -63,6 +66,7 @@ export const useUiStore = create<UiState>()(
             [id]: expanded
           }
         })),
+      setSidebarTagsExpanded: (expanded) => set({ sidebarTagsExpanded: expanded }),
       setListSort: (sort) => set({ listSort: sort }),
       setTheme: (theme) => set({ theme }),
       setLocale: (locale) => set({ locale }),
@@ -73,6 +77,7 @@ export const useUiStore = create<UiState>()(
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         expandedTreeNodes: state.expandedTreeNodes,
+        sidebarTagsExpanded: state.sidebarTagsExpanded,
         listSort: state.listSort,
         theme: state.theme,
         locale: state.locale,

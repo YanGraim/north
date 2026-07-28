@@ -60,8 +60,8 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps): React.JSX.E
         <Sidebar />
       </ResizablePanel>
       <ResizableHandle />
-      <ResizablePanel id="main" minSize="40%" className="min-h-0 min-w-0">
-        {children}
+      <ResizablePanel id="main" minSize="40%" className="min-h-0 min-w-0 overflow-hidden">
+        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">{children}</div>
       </ResizablePanel>
     </ResizablePanelGroup>
   )

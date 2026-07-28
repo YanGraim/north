@@ -1,5 +1,5 @@
 import { cn } from '@renderer/lib/utils'
-import { Plus } from 'lucide-react'
+import { ChevronDown, Plus } from 'lucide-react'
 
 /**
  * Linha padrão do sidebar aberto: conteúdo | coluna fixa de 16px (mesmo eixo do + e das contagens).
@@ -17,6 +17,10 @@ type SidebarSectionProps = {
   className?: string
   onAdd?: () => void
   addLabel?: string
+  /** When set, the section title toggles content visibility. */
+  expandable?: boolean
+  expanded?: boolean
+  onExpandedChange?: (expanded: boolean) => void
 }
 
 export function SidebarSection({
@@ -25,18 +29,43 @@ export function SidebarSection({
   children,
   className,
   onAdd,
-  addLabel = 'Adicionar'
+  addLabel = 'Adicionar',
+  expandable = false,
+  expanded = true,
+  onExpandedChange
 }: SidebarSectionProps): React.JSX.Element {
+  const showChildren = collapsed || !expandable || expanded
+
   return (
     <section
       className={cn('flex flex-col', collapsed ? 'items-center gap-1.5' : 'gap-0.5', className)}
     >
       {!collapsed ? (
-        onAdd ? (
-          <div className={cn(SIDEBAR_ROW, 'h-6')}>
+        <div className={cn(SIDEBAR_ROW, 'h-6')}>
+          {expandable ? (
+            <button
+              type="button"
+              className="flex min-w-0 items-center gap-1 text-left text-muted transition-colors hover:text-foreground"
+              aria-expanded={expanded}
+              onClick={() => onExpandedChange?.(!expanded)}
+            >
+              <ChevronDown
+                className={cn(
+                  'size-3 shrink-0 transition-transform motion-safe:duration-150',
+                  expanded ? 'rotate-0' : '-rotate-90'
+                )}
+                aria-hidden
+              />
+              <span className="truncate text-[11px] font-medium uppercase tracking-wider">
+                {title}
+              </span>
+            </button>
+          ) : (
             <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted">
               {title}
             </p>
+          )}
+          {onAdd ? (
             <button
               type="button"
               className={cn(SIDEBAR_TRAILING, 'hover:text-foreground')}
@@ -45,18 +74,16 @@ export function SidebarSection({
             >
               <Plus className="size-3.5" strokeWidth={2} />
             </button>
-          </div>
-        ) : (
-          <div className="flex h-6 items-center px-2">
-            <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted">
-              {title}
-            </p>
-          </div>
-        )
+          ) : (
+            <span aria-hidden />
+          )}
+        </div>
       ) : null}
-      <div className={cn('flex flex-col', collapsed ? 'items-center gap-1.5' : 'gap-0.5')}>
-        {children}
-      </div>
+      {showChildren ? (
+        <div className={cn('flex flex-col', collapsed ? 'items-center gap-1.5' : 'gap-0.5')}>
+          {children}
+        </div>
+      ) : null}
     </section>
   )
 }

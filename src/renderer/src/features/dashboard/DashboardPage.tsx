@@ -103,7 +103,7 @@ export function DashboardPage(): React.JSX.Element {
               </div>
             </div>
 
-            <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2 lg:grid-rows-2">
+            <div className="grid min-h-0 flex-1 grid-rows-4 gap-4 lg:grid-cols-2 lg:grid-rows-2">
               <Widget title="Favoritos" icon={Star} empty="Nenhum favorito ainda">
                 {data.favorites.map((c) => (
                   <ConnectionRow key={c.id} connection={c} />

@@ -12,6 +12,8 @@ import { useTranslation } from 'react-i18next'
 export function Sidebar(): React.JSX.Element {
   const { t } = useTranslation()
   const collapsed = useUiStore((s) => s.sidebarCollapsed)
+  const tagsExpanded = useUiStore((s) => s.sidebarTagsExpanded)
+  const setSidebarTagsExpanded = useUiStore((s) => s.setSidebarTagsExpanded)
   const openDialog = useInventoryDialogsStore((s) => s.open)
 
   return (
@@ -86,6 +88,9 @@ export function Sidebar(): React.JSX.Element {
             collapsed={collapsed}
             addLabel={t('nav.newTag')}
             onAdd={() => openDialog({ type: 'tag', mode: 'create' })}
+            expandable
+            expanded={tagsExpanded}
+            onExpandedChange={setSidebarTagsExpanded}
           >
             <TagList collapsed={collapsed} />
           </SidebarSection>

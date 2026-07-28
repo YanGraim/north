@@ -90,7 +90,7 @@ export function AppShell(): React.JSX.Element {
           >
             <WorkspaceLayout>
               {isFullBleed ? (
-                <main className="min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
+                <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
                   <Outlet />
                 </main>
               ) : (
