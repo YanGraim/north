@@ -100,6 +100,7 @@ function buildExport(repositories: Repositories): InventoryExport {
       return {
         name: environment.name,
         notes: environment.notes,
+        color: environment.color,
         sortOrder: environment.sortOrder,
         groups
       }
@@ -184,6 +185,7 @@ function importInventory(repositories: Repositories, data: InventoryExport): Imp
             clientId: client.id,
             name: envInput.name,
             notes: envInput.notes,
+            color: envInput.color,
             sortOrder: envInput.sortOrder
           })
           report.created.environments += 1

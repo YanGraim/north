@@ -7,6 +7,7 @@ type EnvironmentRow = {
   client_id: string
   name: string
   notes: string | null
+  color: string | null
   sort_order: number
   created_at: string
   updated_at: string
@@ -18,6 +19,7 @@ function mapEnvironment(row: EnvironmentRow): Environment {
     clientId: row.client_id,
     name: row.name,
     notes: row.notes,
+    color: row.color,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -34,28 +36,28 @@ export class EnvironmentsRepository {
 
   constructor(db: SqliteDatabase) {
     this.listAllStmt = db.prepare(`
-      SELECT id, client_id, name, notes, sort_order, created_at, updated_at
+      SELECT id, client_id, name, notes, color, sort_order, created_at, updated_at
       FROM environments
       ORDER BY sort_order ASC, name COLLATE NOCASE ASC
     `)
     this.listByClientStmt = db.prepare(`
-      SELECT id, client_id, name, notes, sort_order, created_at, updated_at
+      SELECT id, client_id, name, notes, color, sort_order, created_at, updated_at
       FROM environments
       WHERE client_id = ?
       ORDER BY sort_order ASC, name COLLATE NOCASE ASC
     `)
     this.getStmt = db.prepare(`
-      SELECT id, client_id, name, notes, sort_order, created_at, updated_at
+      SELECT id, client_id, name, notes, color, sort_order, created_at, updated_at
       FROM environments
       WHERE id = ?
     `)
     this.insertStmt = db.prepare(`
-      INSERT INTO environments (id, client_id, name, notes, sort_order, created_at, updated_at)
-      VALUES (@id, @client_id, @name, @notes, @sort_order, @created_at, @updated_at)
+      INSERT INTO environments (id, client_id, name, notes, color, sort_order, created_at, updated_at)
+      VALUES (@id, @client_id, @name, @notes, @color, @sort_order, @created_at, @updated_at)
     `)
     this.updateStmt = db.prepare(`
       UPDATE environments
-      SET name = @name, notes = @notes, sort_order = @sort_order, updated_at = @updated_at
+      SET name = @name, notes = @notes, color = @color, sort_order = @sort_order, updated_at = @updated_at
       WHERE id = @id
     `)
     this.deleteStmt = db.prepare(`DELETE FROM environments WHERE id = ?`)
@@ -80,6 +82,7 @@ export class EnvironmentsRepository {
       clientId: input.clientId,
       name: input.name,
       notes: input.notes ?? null,
+      color: input.color ?? null,
       sortOrder: input.sortOrder ?? 0,
       createdAt: now,
       updatedAt: now
@@ -89,6 +92,7 @@ export class EnvironmentsRepository {
       client_id: environment.clientId,
       name: environment.name,
       notes: environment.notes,
+      color: environment.color,
       sort_order: environment.sortOrder,
       created_at: environment.createdAt,
       updated_at: environment.updatedAt
@@ -105,6 +109,7 @@ export class EnvironmentsRepository {
       ...existing,
       name: input.name ?? existing.name,
       notes: input.notes === undefined ? existing.notes : input.notes,
+      color: input.color === undefined ? existing.color : input.color,
       sortOrder: input.sortOrder ?? existing.sortOrder,
       updatedAt: nowIso()
     }
@@ -112,6 +117,7 @@ export class EnvironmentsRepository {
       id: updated.id,
       name: updated.name,
       notes: updated.notes,
+      color: updated.color,
       sort_order: updated.sortOrder,
       updated_at: updated.updatedAt
     })

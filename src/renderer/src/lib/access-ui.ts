@@ -1,3 +1,4 @@
+import { resolveEntityIcon } from '@renderer/lib/entity-icons'
 import type { Access, DatabaseEngine } from '@shared/types'
 import type { LucideIcon } from 'lucide-react'
 import { Database, KeyRound, Link2 } from 'lucide-react'
@@ -22,6 +23,13 @@ export function accessTypeIcon(type: Access['type']): LucideIcon {
     case 'other':
       return Link2
   }
+}
+
+export function accessDisplayIcon(access: Pick<Access, 'type' | 'icon'>): LucideIcon {
+  if (access.icon) {
+    return resolveEntityIcon(access.icon)
+  }
+  return accessTypeIcon(access.type)
 }
 
 export function engineLabel(engine: DatabaseEngine | null): string {

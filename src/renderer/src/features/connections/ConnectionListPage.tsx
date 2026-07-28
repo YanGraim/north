@@ -1,3 +1,5 @@
+import { EnvironmentBadge } from '@renderer/components/EnvironmentBadge'
+import { EnvironmentContextBanner } from '@renderer/components/EnvironmentContextBanner'
 import { Button } from '@renderer/components/ui/button'
 import {
   DropdownMenu,
@@ -21,6 +23,7 @@ import { useEnvironment } from '@renderer/hooks/use-environments'
 import { useGroup } from '@renderer/hooks/use-groups'
 import { useClientFilters } from '@renderer/hooks/use-route-selection'
 import { useTags } from '@renderer/hooks/use-tags'
+import { hasEnvironmentContext } from '@renderer/lib/environment-color'
 import { shortcutDisplayLabel } from '@renderer/lib/shortcuts'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { useUiStore } from '@renderer/stores/ui-store'
@@ -196,11 +199,22 @@ export function ConnectionListPage({ mode }: ConnectionListPageProps): React.JSX
     })
   }
 
+  const showEnvBanner = Boolean(environment?.name && hasEnvironmentContext(environment.name))
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4">
         <div className="min-w-0">
-          <h1 className="truncate text-[13px] font-medium text-foreground">{title}</h1>
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="truncate text-[13px] font-medium text-foreground">{title}</h1>
+            {environment?.name && hasEnvironmentContext(environment.name) ? (
+              <EnvironmentBadge
+                name={environment.name}
+                color={environment.color}
+                className="h-4 shrink-0 px-1 text-[9px]"
+              />
+            ) : null}
+          </div>
           <p className="truncate text-[11px] text-muted">{subtitle}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -289,6 +303,9 @@ export function ConnectionListPage({ mode }: ConnectionListPageProps): React.JSX
           </DropdownMenu>
         </div>
       </div>
+      {showEnvBanner ? (
+        <EnvironmentContextBanner environmentName={environment?.name} color={environment?.color} />
+      ) : null}
       <ScrollArea className="min-h-0 flex-1">
         <ConnectionList
           items={items}

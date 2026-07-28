@@ -1,3 +1,4 @@
+import { environmentStatusColor, hasEnvironmentContext } from '@renderer/lib/environment-color'
 import { cn } from '@renderer/lib/utils'
 import {
   type SessionTab,
@@ -8,13 +9,24 @@ import type { SessionState } from '@shared/protocols'
 import { LayoutGrid, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 
-function stateDotClass(state: SessionState | undefined): string {
+function stateDotStyle(
+  state: SessionState | undefined,
+  accent: string | null
+): React.CSSProperties | undefined {
+  if (!accent) return undefined
+  if (state === 'connected' || state === 'connecting' || state === 'reconnecting') {
+    return { backgroundColor: accent }
+  }
+  return undefined
+}
+
+function stateDotClass(state: SessionState | undefined, accented: boolean): string {
   switch (state) {
     case 'connected':
-      return 'bg-emerald-500'
+      return accented ? '' : 'bg-emerald-500'
     case 'connecting':
     case 'reconnecting':
-      return 'bg-amber-400 animate-pulse'
+      return accented ? 'animate-pulse' : 'bg-amber-400 animate-pulse'
     case 'error':
       return 'bg-red-500'
     case 'closed':
@@ -42,6 +54,10 @@ function TabButton({
   onDrop: (index: number) => void
 }): React.JSX.Element {
   const isWorkspace = tab.kind === 'workspace'
+  const hasContext = Boolean(tab.environmentName && hasEnvironmentContext(tab.environmentName))
+  const accent = hasContext
+    ? environmentStatusColor(tab.environmentName ?? '', tab.environmentColor)
+    : null
 
   return (
     <div
@@ -68,16 +84,36 @@ function TabButton({
         'group flex h-8 max-w-[12rem] shrink-0 items-center gap-1.5 border-r border-border px-2.5 text-[12px] transition-colors motion-safe:duration-150',
         isWorkspace && 'min-w-[7.5rem] font-medium',
         active
-          ? 'bg-background text-foreground'
-          : isWorkspace
-            ? 'bg-surface-elevated/40 text-foreground/80 hover:bg-surface-elevated/70 hover:text-foreground'
-            : 'bg-surface text-muted hover:bg-surface-elevated/50 hover:text-foreground'
+          ? accent
+            ? 'text-foreground ring-1 ring-inset'
+            : 'bg-background text-foreground'
+          : accent
+            ? 'hover:text-foreground'
+            : isWorkspace
+              ? 'bg-surface-elevated/40 text-foreground/80 hover:bg-surface-elevated/70 hover:text-foreground'
+              : 'bg-surface text-muted hover:bg-surface-elevated/50 hover:text-foreground'
       )}
+      style={
+        accent
+          ? {
+              borderColor: `${accent}40`,
+              backgroundColor: active ? `${accent}26` : `${accent}14`,
+              ...(active ? { boxShadow: `inset 0 0 0 1px ${accent}59` } : {}),
+              color: active ? undefined : `${accent}cc`
+            }
+          : undefined
+      }
     >
       {isWorkspace ? (
         <LayoutGrid className="size-3.5 shrink-0 text-accent" />
       ) : (
-        <span className={cn('size-1.5 shrink-0 rounded-full', stateDotClass(tab.state))} />
+        <span
+          className={cn(
+            'size-1.5 shrink-0 rounded-full',
+            stateDotClass(tab.state, Boolean(accent))
+          )}
+          style={stateDotStyle(tab.state, accent)}
+        />
       )}
       <span className="min-w-0 flex-1 truncate">{isWorkspace ? 'Workspace' : tab.title}</span>
       {!isWorkspace && onClose ? (

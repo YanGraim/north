@@ -16,16 +16,19 @@ export function seedDevData(repos: Repositories): void {
   const acmeProd = repos.environments.create({
     clientId: acme.id,
     name: 'Produção',
+    color: '#ef4444',
     sortOrder: 0
   })
   const acmeStaging = repos.environments.create({
     clientId: acme.id,
     name: 'Staging',
+    color: '#eab308',
     sortOrder: 1
   })
   const globexLab = repos.environments.create({
     clientId: globex.id,
     name: 'Lab',
+    color: '#3d8bfd',
     sortOrder: 0
   })
 

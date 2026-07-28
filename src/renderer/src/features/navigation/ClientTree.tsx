@@ -182,7 +182,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                   .filter((g) => g.environmentId === env.id)
                   .sort((a, b) => a.sortOrder - b.sortOrder)
                 const envOpen = isExpanded(envKey)
-                const envColor = environmentStatusColor(env.name)
+                const envColor = environmentStatusColor(env.name, env.color)
                 const envActive = Boolean(
                   routeClientId === client.id && activeEnv === env.id && !activeGroup
                 )

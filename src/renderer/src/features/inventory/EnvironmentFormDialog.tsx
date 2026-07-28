@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { ColorPicker } from '@renderer/components/ColorPicker'
 import { Button } from '@renderer/components/ui/button'
 import {
   Dialog,
@@ -23,6 +24,7 @@ import {
   useEnvironment,
   useUpdateEnvironment
 } from '@renderer/hooks/use-environments'
+import { defaultEnvironmentColor, hasEnvironmentContext } from '@renderer/lib/environment-color'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
@@ -30,7 +32,8 @@ import { z } from 'zod'
 
 const FormSchema = z.object({
   name: z.string().min(1, 'Informe o nome'),
-  notes: z.string().nullable().optional()
+  notes: z.string().nullable().optional(),
+  color: z.string().nullable().optional()
 })
 
 type FormValues = z.infer<typeof FormSchema>
@@ -49,7 +52,7 @@ export function EnvironmentFormDialog(): React.JSX.Element | null {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
-    defaultValues: { name: '', notes: null },
+    defaultValues: { name: '', notes: null, color: null },
     mode: 'onSubmit',
     reValidateMode: 'onChange',
     shouldFocusError: true
@@ -58,23 +61,29 @@ export function EnvironmentFormDialog(): React.JSX.Element | null {
   useEffect(() => {
     if (!open) return
     if (mode === 'edit' && existing) {
-      form.reset({ name: existing.name, notes: existing.notes })
+      form.reset({
+        name: existing.name,
+        notes: existing.notes,
+        color: existing.color
+      })
     } else if (mode === 'create') {
-      form.reset({ name: '', notes: null })
+      form.reset({ name: '', notes: null, color: null })
     }
   }, [open, mode, existing, form])
 
   async function onSubmit(values: FormValues): Promise<void> {
+    const color = values.color ?? null
     if (mode === 'edit' && editId) {
       await updateEnvironment.mutateAsync({
         id: editId,
-        input: { name: values.name, notes: values.notes ?? null }
+        input: { name: values.name, notes: values.notes ?? null, color }
       })
     } else if (clientId) {
       await createEnvironment.mutateAsync({
         clientId,
         name: values.name,
-        notes: values.notes ?? null
+        notes: values.notes ?? null,
+        color
       })
     }
     close()
@@ -87,7 +96,9 @@ export function EnvironmentFormDialog(): React.JSX.Element | null {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{mode === 'edit' ? 'Editar ambiente' : 'Novo ambiente'}</DialogTitle>
-          <DialogDescription>Ex.: Produção, Staging, Homologação.</DialogDescription>
+          <DialogDescription>
+            Ex.: Produção, Homologação, Dev. A cor aparece na árvore, badge e banner.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
@@ -98,7 +109,40 @@ export function EnvironmentFormDialog(): React.JSX.Element | null {
                 <FormItem>
                   <FormLabel>Nome</FormLabel>
                   <FormControl>
-                    <Input placeholder="Produção" {...field} />
+                    <Input
+                      placeholder="Produção"
+                      {...field}
+                      onChange={(event) => {
+                        const name = event.target.value
+                        field.onChange(name)
+                        const currentColor = form.getValues('color')
+                        if (!currentColor && hasEnvironmentContext(name)) {
+                          form.setValue('color', defaultEnvironmentColor(name))
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="color"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cor</FormLabel>
+                  <FormControl>
+                    <ColorPicker
+                      value={field.value}
+                      onChange={(color) => {
+                        field.onChange(color)
+                        form.setValue('color', color, {
+                          shouldDirty: true,
+                          shouldTouch: true
+                        })
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

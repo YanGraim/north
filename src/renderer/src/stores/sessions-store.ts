@@ -1,4 +1,5 @@
 import { formatIpcError } from '@renderer/lib/ipc-error'
+import { resolveConnectionEnvironment } from '@renderer/lib/resolve-connection-environment'
 import type { SessionDescriptor, SessionKind, SessionState } from '@shared/protocols'
 import { create } from 'zustand'
 
@@ -14,6 +15,8 @@ export type SessionTab = {
   protocol?: string
   username?: string | null
   host?: string | null
+  environmentName?: string | null
+  environmentColor?: string | null
   state?: SessionState
   errorMessage?: string | null
   /** True while a host-key / TLS prompt is open for this connecting tab. */
@@ -28,6 +31,8 @@ export type OpenSessionOptions = {
   sessionKind?: SessionKind
   username?: string | null
   host?: string | null
+  environmentName?: string | null
+  environmentColor?: string | null
 }
 
 type SessionsState = {
@@ -43,6 +48,8 @@ type SessionsState = {
     sessionKind?: SessionKind
     username?: string | null
     host?: string | null
+    environmentName?: string | null
+    environmentColor?: string | null
   }) => void
   attachSessionPort: (input: {
     tempId: string
@@ -97,7 +104,17 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
     })
   },
 
-  beginConnectingTab: ({ id, connectionId, title, protocol, sessionKind, username, host }) => {
+  beginConnectingTab: ({
+    id,
+    connectionId,
+    title,
+    protocol,
+    sessionKind,
+    username,
+    host,
+    environmentName,
+    environmentColor
+  }) => {
     const tab: SessionTab = {
       id,
       kind: 'session',
@@ -107,6 +124,8 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       sessionKind,
       username: username ?? null,
       host: host ?? null,
+      environmentName: environmentName ?? null,
+      environmentColor: environmentColor ?? null,
       state: 'connecting',
       errorMessage: null,
       awaitingHostKey: false,
@@ -263,7 +282,9 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       protocol: tab.protocol,
       sessionKind: tab.sessionKind,
       username: tab.username,
-      host: tab.host
+      host: tab.host,
+      environmentName: tab.environmentName,
+      environmentColor: tab.environmentColor
     })
   }
 }))
@@ -278,7 +299,6 @@ export async function openConnectionSession(
   const sessionKind =
     options?.sessionKind ??
     (options?.protocol ? sessionKindForProtocol(options.protocol) : undefined)
-
   store.beginConnectingTab({
     id: tempId,
     connectionId,
@@ -286,8 +306,27 @@ export async function openConnectionSession(
     protocol: options?.protocol,
     sessionKind,
     username: options?.username,
-    host: options?.host
+    host: options?.host,
+    environmentName: options?.environmentName ?? null,
+    environmentColor: options?.environmentColor ?? null
   })
+
+  if (!options?.environmentName) {
+    void resolveConnectionEnvironment(connectionId).then((resolved) => {
+      if (!resolved) return
+      useSessionsStore.setState((state) => ({
+        tabs: state.tabs.map((tab) =>
+          tab.id === tempId
+            ? {
+                ...tab,
+                environmentName: resolved.name,
+                environmentColor: resolved.color
+              }
+            : tab
+        )
+      }))
+    })
+  }
 
   try {
     let port: MessagePort | null = null

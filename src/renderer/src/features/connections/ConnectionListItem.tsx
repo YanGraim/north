@@ -17,7 +17,7 @@ import {
 } from '@renderer/hooks/use-connections'
 import { useConnectionTags } from '@renderer/hooks/use-tags'
 import { copyToClipboard } from '@renderer/lib/clipboard'
-import { formatRelativeDate, protocolIcon } from '@renderer/lib/connection-ui'
+import { connectionDisplayIcon, formatRelativeDate } from '@renderer/lib/connection-ui'
 import { cn } from '@renderer/lib/utils'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import type { ListSort } from '@renderer/stores/ui-store'
@@ -40,7 +40,7 @@ export function ConnectionListItem({
   onSelect
 }: ConnectionListItemProps): React.JSX.Element {
   const { t } = useTranslation()
-  const Icon = protocolIcon(connection.protocol)
+  const Icon = connectionDisplayIcon(connection)
   const { data: tags = [] } = useConnectionTags(connection.id)
   const toggleFavorite = useToggleFavoriteConnection()
   const duplicate = useDuplicateConnection()

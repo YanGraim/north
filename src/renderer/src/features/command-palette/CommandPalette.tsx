@@ -20,8 +20,10 @@ import {
   useToggleFavoriteConnection
 } from '@renderer/hooks/use-connections'
 import { useSearchIndex } from '@renderer/hooks/use-search-index'
+import { accessDisplayIcon } from '@renderer/lib/access-ui'
 import { copyToClipboard } from '@renderer/lib/clipboard'
-import { protocolIcon } from '@renderer/lib/connection-ui'
+import { connectionDisplayIcon } from '@renderer/lib/connection-ui'
+import { resolveEntityIcon } from '@renderer/lib/entity-icons'
 import { exportInventory, importInventory } from '@renderer/lib/inventory-actions'
 import {
   groupSearchHits,
@@ -506,7 +508,7 @@ function SearchResultItem({
         }
       }}
     >
-      <KindIcon kind={hit.item.kind} />
+      <ItemIcon item={hit.item} />
       <div className="min-w-0 flex-1">
         <p className="truncate">
           {parts.map((part) => (
@@ -536,6 +538,27 @@ function SearchResultItem({
   )
 }
 
+function ItemIcon({ item }: { item: SearchIndexItem }): React.JSX.Element {
+  const className = 'size-4 shrink-0 text-muted'
+
+  if (item.kind === 'connection' && item.protocol) {
+    const Icon = connectionDisplayIcon({ protocol: item.protocol, icon: item.icon })
+    return <Icon className={className} />
+  }
+
+  if (item.kind === 'access' && item.accessType) {
+    const Icon = accessDisplayIcon({ type: item.accessType, icon: item.icon })
+    return <Icon className={className} />
+  }
+
+  if (item.icon) {
+    const Icon = resolveEntityIcon(item.icon)
+    return <Icon className={className} />
+  }
+
+  return <KindIcon kind={item.kind} />
+}
+
 function KindIcon({ kind }: { kind: SearchIndexKind }): React.JSX.Element {
   const className = 'size-4 shrink-0 text-muted'
   switch (kind) {
@@ -555,6 +578,5 @@ function KindIcon({ kind }: { kind: SearchIndexKind }): React.JSX.Element {
 }
 
 function RecentIcon({ item }: { item: SearchIndexItem }): React.JSX.Element {
-  const Icon = protocolIcon(item.protocol ?? 'ssh')
-  return <Icon className="size-4 shrink-0 text-muted" />
+  return <ItemIcon item={item} />
 }

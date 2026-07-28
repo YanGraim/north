@@ -37,6 +37,15 @@ describe('sessions-store optimistic open', () => {
           sessions: {
             open: openMock,
             close: closeMock
+          },
+          connections: {
+            get: vi.fn().mockResolvedValue(null)
+          },
+          groups: {
+            get: vi.fn().mockResolvedValue(null)
+          },
+          environments: {
+            get: vi.fn().mockResolvedValue(null)
           }
         }
       }

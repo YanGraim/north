@@ -1,5 +1,6 @@
 import { ConfirmDeleteDialog } from '@renderer/components/ConfirmDeleteDialog'
 import { EmptyState } from '@renderer/components/EmptyState'
+import { EnvironmentBadge } from '@renderer/components/EnvironmentBadge'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -329,7 +330,20 @@ export function AccessDetailsPanel(): React.JSX.Element {
             <DetailSection title="Organização">
               <dl className="min-w-0 space-y-3">
                 <DetailField label="Cliente" value={org.client?.name ?? '—'} />
-                <DetailField label="Ambiente" value={org.environment?.name ?? '—'} />
+                <DetailField
+                  label="Ambiente"
+                  value={
+                    org.environment ? (
+                      <EnvironmentBadge
+                        name={org.environment.name}
+                        color={org.environment.color}
+                        showFullName
+                      />
+                    ) : (
+                      '—'
+                    )
+                  }
+                />
                 <DetailField label="Grupo" value={org.group?.name ?? '—'} />
                 <div className="min-w-0">
                   <dt className="text-xs text-muted">Tags</dt>

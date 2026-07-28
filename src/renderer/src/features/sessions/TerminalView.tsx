@@ -1,3 +1,9 @@
+import { environmentStatusColor, hasEnvironmentContext } from '@renderer/lib/environment-color'
+import {
+  attachTerminalPasteHandlers,
+  terminalPasteShortcutLabel
+} from '@renderer/lib/terminal-paste'
+import { cn } from '@renderer/lib/utils'
 import { getXtermTheme, useResolvedTheme } from '@renderer/lib/xterm-theme'
 import '@xterm/xterm/css/xterm.css'
 import { coerceBytes } from '@shared/protocols'
@@ -12,6 +18,8 @@ type TerminalViewProps = {
   title?: string
   username?: string | null
   host?: string | null
+  environmentName?: string | null
+  environmentColor?: string | null
 }
 
 export function TerminalView({
@@ -19,7 +27,9 @@ export function TerminalView({
   visible,
   title,
   username,
-  host
+  host,
+  environmentName,
+  environmentColor
 }: TerminalViewProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
@@ -33,6 +43,9 @@ export function TerminalView({
 
   const identity =
     username && host ? `${username}@${host}` : host ? host : username ? username : null
+  const hasContext = Boolean(environmentName && hasEnvironmentContext(environmentName))
+  const accent = hasContext ? environmentStatusColor(environmentName ?? '', environmentColor) : null
+  const pasteLabel = terminalPasteShortcutLabel()
 
   useEffect(() => {
     document.body.style.removeProperty('pointer-events')
@@ -85,6 +98,8 @@ export function TerminalView({
       window.north.sessions.write(sessionId, Array.from(encoded))
     })
 
+    const detachPaste = attachTerminalPasteHandlers(term, container)
+
     const unsubStdout = window.north.sessions.onStdout(({ sessionId: id, message }) => {
       if (id !== sessionId) return
 
@@ -134,6 +149,7 @@ export function TerminalView({
       container.removeEventListener('mousedown', onPointerDown)
       observer.disconnect()
       onData.dispose()
+      detachPaste()
       unsubStdout()
       term.dispose()
       termRef.current = null
@@ -182,7 +198,20 @@ export function TerminalView({
       style={{ display: visible ? 'flex' : 'none' }}
       data-session-id={sessionId}
     >
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border bg-surface px-3">
+      <div
+        className={cn(
+          'flex h-9 shrink-0 items-center gap-2 border-b px-3',
+          accent ? '' : 'border-border bg-surface'
+        )}
+        style={
+          accent
+            ? {
+                borderColor: `${accent}4d`,
+                backgroundColor: `${accent}1a`
+              }
+            : undefined
+        }
+      >
         {identity ? (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-elevated px-2 py-1 font-mono text-[11px] text-foreground">
             <User className="size-3 text-muted" aria-hidden />
@@ -194,7 +223,7 @@ export function TerminalView({
           {title ?? 'session'}
         </span>
         <span className="ml-auto text-[11px] text-muted">
-          digite no terminal · Workspace para voltar
+          {pasteLabel} para colar · Workspace para voltar
         </span>
       </div>
       <div className="relative min-h-0 flex-1 p-1">

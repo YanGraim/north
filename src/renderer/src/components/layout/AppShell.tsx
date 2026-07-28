@@ -1,9 +1,9 @@
 import { ResizablePanels } from '@renderer/components/layout/ResizablePanels'
 import { Titlebar } from '@renderer/components/layout/Titlebar'
+import { WorkspaceLayout } from '@renderer/components/layout/WorkspaceLayout'
 import { TooltipProvider } from '@renderer/components/ui/tooltip'
 import { CommandPalette } from '@renderer/features/command-palette/CommandPalette'
 import { InventoryDialogs } from '@renderer/features/inventory/InventoryDialogs'
-import { Sidebar } from '@renderer/features/navigation/Sidebar'
 import { HostKeyDialog } from '@renderer/features/sessions/HostKeyDialog'
 import { SessionTabs } from '@renderer/features/sessions/SessionTabs'
 import { SessionView } from '@renderer/features/sessions/SessionView'
@@ -85,16 +85,17 @@ export function AppShell(): React.JSX.Element {
             className="flex min-h-0 min-w-0 flex-1"
             style={{ display: workspaceActive ? 'flex' : 'none' }}
           >
-            <Sidebar />
-            {isFullBleed ? (
-              <main className="min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
-                <Outlet />
-              </main>
-            ) : (
-              <ResizablePanels>
-                <Outlet />
-              </ResizablePanels>
-            )}
+            <WorkspaceLayout>
+              {isFullBleed ? (
+                <main className="min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
+                  <Outlet />
+                </main>
+              ) : (
+                <ResizablePanels>
+                  <Outlet />
+                </ResizablePanels>
+              )}
+            </WorkspaceLayout>
           </div>
 
           {tabs

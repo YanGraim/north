@@ -3,6 +3,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui
 import { ENTITY_COLORS } from '@renderer/lib/entity-colors'
 import { cn } from '@renderer/lib/utils'
 import { Check, Pipette } from 'lucide-react'
+import { useState } from 'react'
 
 type ColorPickerProps = {
   value: string | null | undefined
@@ -11,8 +12,15 @@ type ColorPickerProps = {
 }
 
 export function ColorPicker({ value, onChange, disabled }: ColorPickerProps): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+
+  function selectColor(color: string | null): void {
+    onChange(color)
+    setOpen(false)
+  }
+
   return (
-    <Popover>
+    <Popover modal={false} open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -36,7 +44,7 @@ export function ColorPicker({ value, onChange, disabled }: ColorPickerProps): Re
           <Pipette className="size-3.5 shrink-0 text-muted" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-2" align="start">
+      <PopoverContent className="z-[110] w-auto p-2" align="start">
         <div className="grid grid-cols-5 gap-1.5">
           {ENTITY_COLORS.map((color) => {
             const selected = value === color
@@ -50,7 +58,7 @@ export function ColorPicker({ value, onChange, disabled }: ColorPickerProps): Re
                   selected && 'ring-2 ring-ring'
                 )}
                 style={{ backgroundColor: color }}
-                onClick={() => onChange(color)}
+                onClick={() => selectColor(color)}
               >
                 {selected ? <Check className="size-3.5 text-accent-foreground" /> : null}
               </button>
@@ -62,7 +70,7 @@ export function ColorPicker({ value, onChange, disabled }: ColorPickerProps): Re
           variant="ghost"
           size="sm"
           className="mt-2 h-7 w-full text-xs text-muted"
-          onClick={() => onChange(null)}
+          onClick={() => selectColor(null)}
         >
           Limpar
         </Button>

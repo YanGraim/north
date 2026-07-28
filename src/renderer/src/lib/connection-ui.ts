@@ -1,4 +1,5 @@
-import type { ConnectionProtocol } from '@shared/types'
+import { resolveEntityIcon } from '@renderer/lib/entity-icons'
+import type { Connection, ConnectionProtocol } from '@shared/types'
 import {
   Cable,
   FolderOpen,
@@ -25,6 +26,15 @@ const PROTOCOL_ICONS: Record<ConnectionProtocol, LucideIcon> = {
 
 export function protocolIcon(protocol: ConnectionProtocol): LucideIcon {
   return PROTOCOL_ICONS[protocol] ?? Cable
+}
+
+export function connectionDisplayIcon(
+  connection: Pick<Connection, 'protocol' | 'icon'>
+): LucideIcon {
+  if (connection.icon) {
+    return resolveEntityIcon(connection.icon)
+  }
+  return protocolIcon(connection.protocol)
 }
 
 export function formatRelativeDate(iso: string | null): string {

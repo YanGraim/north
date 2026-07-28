@@ -11,7 +11,7 @@ import {
 import { TagBadges } from '@renderer/features/connections/TagBadges'
 import { useDeleteAccess, useToggleFavoriteAccess } from '@renderer/hooks/use-accesses'
 import { useAccessTags } from '@renderer/hooks/use-tags'
-import { accessTypeIcon, accessTypeLabel } from '@renderer/lib/access-ui'
+import { accessDisplayIcon } from '@renderer/lib/access-ui'
 import { cn } from '@renderer/lib/utils'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import type { Access } from '@shared/types'
@@ -29,7 +29,7 @@ export function AccessListItem({
   selected,
   onSelect
 }: AccessListItemProps): React.JSX.Element {
-  const Icon = accessTypeIcon(access.type)
+  const Icon = accessDisplayIcon(access)
   const { data: tags = [] } = useAccessTags(access.id)
   const toggleFavorite = useToggleFavoriteAccess()
   const deleteAccess = useDeleteAccess()

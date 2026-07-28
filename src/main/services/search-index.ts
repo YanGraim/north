@@ -108,7 +108,8 @@ function clientItem(client: Client): SearchIndexItem {
     tagId: null,
     isFavorite: false,
     lastConnectedAt: null,
-    protocol: null
+    protocol: null,
+    icon: null
   }
 }
 
@@ -135,7 +136,8 @@ function environmentItem(environment: Environment, client: Client | null): Searc
     tagId: null,
     isFavorite: false,
     lastConnectedAt: null,
-    protocol: null
+    protocol: null,
+    icon: null
   }
 }
 
@@ -167,7 +169,8 @@ function groupItem(
     tagId: null,
     isFavorite: false,
     lastConnectedAt: null,
-    protocol: null
+    protocol: null,
+    icon: null
   }
 }
 
@@ -194,7 +197,8 @@ function tagItem(tag: Tag): SearchIndexItem {
     tagId: tag.id,
     isFavorite: false,
     lastConnectedAt: null,
-    protocol: null
+    protocol: null,
+    icon: null
   }
 }
 
@@ -232,7 +236,8 @@ function connectionItem(
     tagId: null,
     isFavorite: connection.isFavorite,
     lastConnectedAt: connection.lastConnectedAt,
-    protocol: connection.protocol
+    protocol: connection.protocol,
+    icon: connection.icon
   }
 }
 
@@ -276,6 +281,7 @@ function accessItem(
     tagId: null,
     isFavorite: access.isFavorite,
     lastConnectedAt: null,
-    protocol: null
+    protocol: null,
+    icon: access.icon
   }
 }

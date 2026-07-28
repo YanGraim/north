@@ -2,7 +2,7 @@ import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Skeleton } from '@renderer/components/ui/skeleton'
-import { formatRelativeDate, protocolIcon } from '@renderer/lib/connection-ui'
+import { connectionDisplayIcon, formatRelativeDate } from '@renderer/lib/connection-ui'
 import { queryKeys } from '@renderer/lib/query-keys'
 import { useCommandPaletteStore } from '@renderer/stores/command-palette-store'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
@@ -191,7 +191,7 @@ function ConnectionRow({
   connection: Connection
   meta?: string
 }): React.JSX.Element {
-  const Icon = protocolIcon(connection.protocol)
+  const Icon = connectionDisplayIcon(connection)
   return (
     <li>
       <button

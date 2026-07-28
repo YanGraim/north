@@ -95,6 +95,8 @@ export function SessionView({ tab, visible }: SessionViewProps): React.JSX.Eleme
         title={tab.title}
         username={tab.username}
         host={tab.host}
+        environmentName={tab.environmentName}
+        environmentColor={tab.environmentColor}
       />
     )
   }

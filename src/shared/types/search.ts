@@ -38,7 +38,8 @@ export const SearchIndexItemSchema = z.object({
   tagId: z.string().uuid().nullable(),
   isFavorite: z.boolean(),
   lastConnectedAt: z.string().nullable(),
-  protocol: ConnectionProtocolSchema.nullable()
+  protocol: ConnectionProtocolSchema.nullable(),
+  icon: z.string().nullable()
 })
 
 export type SearchIndexItem = z.infer<typeof SearchIndexItemSchema>

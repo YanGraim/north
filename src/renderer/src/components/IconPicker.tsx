@@ -2,6 +2,7 @@ import { Button } from '@renderer/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { ENTITY_ICONS, resolveEntityIcon } from '@renderer/lib/entity-icons'
 import { cn } from '@renderer/lib/utils'
+import { useState } from 'react'
 
 type IconPickerProps = {
   value: string | null | undefined
@@ -10,10 +11,16 @@ type IconPickerProps = {
 }
 
 export function IconPicker({ value, onChange, disabled }: IconPickerProps): React.JSX.Element {
+  const [open, setOpen] = useState(false)
   const SelectedIcon = resolveEntityIcon(value)
 
+  function selectIcon(icon: string | null): void {
+    onChange(icon)
+    setOpen(false)
+  }
+
   return (
-    <Popover>
+    <Popover modal={false} open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -27,7 +34,7 @@ export function IconPicker({ value, onChange, disabled }: IconPickerProps): Reac
           <span className="text-xs text-muted">{value ? 'Ícone' : 'Padrão'}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-2" align="start">
+      <PopoverContent className="z-[110] w-56 p-2" align="start">
         <div className="grid grid-cols-5 gap-1">
           {ENTITY_ICONS.map(({ id, label, Icon }) => {
             const selected = value === id
@@ -41,7 +48,7 @@ export function IconPicker({ value, onChange, disabled }: IconPickerProps): Reac
                   'flex size-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-foreground',
                   selected && 'bg-surface text-accent ring-1 ring-ring'
                 )}
-                onClick={() => onChange(id)}
+                onClick={() => selectIcon(id)}
               >
                 <Icon className="size-3.5" />
               </button>
@@ -53,7 +60,7 @@ export function IconPicker({ value, onChange, disabled }: IconPickerProps): Reac
           variant="ghost"
           size="sm"
           className="mt-2 h-7 w-full text-xs text-muted"
-          onClick={() => onChange(null)}
+          onClick={() => selectIcon(null)}
         >
           Limpar
         </Button>
