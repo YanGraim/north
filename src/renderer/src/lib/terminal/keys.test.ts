@@ -93,12 +93,19 @@ describe('resolveTerminalKeyAction', () => {
       })
     ).toEqual({ type: 'openFind' })
 
-    expect(
-      resolveTerminalKeyAction(keyEvent({ key: 'Escape' }), {
-        hasSelection: true,
-        findOpen: false
-      })
-    ).toEqual({ type: 'clearSelection' })
+    const escapeWithSelection = resolveTerminalKeyAction(keyEvent({ key: 'Escape' }), {
+      hasSelection: true,
+      findOpen: false
+    })
+    expect(escapeWithSelection).toEqual({ type: 'clearSelection' })
+    expect(shouldConsumeTerminalKeyAction(escapeWithSelection)).toBe(true)
+
+    const escapeWithoutSelection = resolveTerminalKeyAction(keyEvent({ key: 'Escape' }), {
+      hasSelection: false,
+      findOpen: false
+    })
+    expect(escapeWithoutSelection).toEqual({ type: 'sendEscape' })
+    expect(shouldConsumeTerminalKeyAction(escapeWithoutSelection)).toBe(true)
 
     expect(
       resolveTerminalKeyAction(keyEvent({ key: 'PageUp', shiftKey: true }), {

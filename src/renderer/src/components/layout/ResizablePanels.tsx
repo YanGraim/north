@@ -6,6 +6,7 @@ import {
 import { AccessDetailsPanel } from '@renderer/features/accesses/AccessDetailsPanel'
 import { ConnectionDetailsPanel } from '@renderer/features/connections/ConnectionDetailsPanel'
 import { useSelectedAccessId, useSelectedConnectionId } from '@renderer/hooks/use-route-selection'
+import { useSessionsStore, WORKSPACE_TAB_ID } from '@renderer/stores/sessions-store'
 import { useEffect } from 'react'
 import { useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 
@@ -17,6 +18,7 @@ export function ResizablePanels({ children }: ResizablePanelsProps): React.JSX.E
   const { connectionId, setConnectionId } = useSelectedConnectionId()
   const { accessId, setAccessId } = useSelectedAccessId()
   const selected = Boolean(connectionId || accessId)
+  const workspaceActive = useSessionsStore((s) => s.activeTabId === WORKSPACE_TAB_ID)
   const detailsPanelRef = usePanelRef()
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: 'north-list-details-v2',
@@ -34,20 +36,22 @@ export function ResizablePanels({ children }: ResizablePanelsProps): React.JSX.E
   }, [selected, detailsPanelRef])
 
   useEffect(() => {
-    if (!selected) return
+    if (!selected || !workspaceActive) return
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return
       const target = event.target as HTMLElement | null
+      const inXterm = Boolean(target?.closest?.('.xterm'))
       const typing =
         target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
-      if (typing) return
+      // Never steal Esc from a terminal (layout stays mounted under session tabs).
+      if (typing || inXterm) return
       event.preventDefault()
       setConnectionId(null)
       setAccessId(null)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [selected, setConnectionId, setAccessId])
+  }, [selected, workspaceActive, setConnectionId, setAccessId])
 
   return (
     <ResizablePanelGroup

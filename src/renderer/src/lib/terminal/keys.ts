@@ -20,6 +20,8 @@ export type TerminalKeyAction =
   | { type: 'openFind' }
   | { type: 'closeFind' }
   | { type: 'clearSelection' }
+  /** Explicitly inject ESC (`\\x1b`) into the PTY; do not rely on xterm key encoding. */
+  | { type: 'sendEscape' }
   | { type: 'scrollPages'; delta: number }
   | { type: 'scrollToTop' }
   | { type: 'scrollToBottom' }
@@ -59,7 +61,9 @@ export function resolveTerminalKeyAction(
   if (isModKey(event, 'a')) return { type: 'selectAll' }
   if (isModKey(event, 'f')) return { type: 'openFind' }
 
-  if (event.key === 'Escape') return { type: 'clearSelection' }
+  if (event.key === 'Escape') {
+    return ctx.hasSelection ? { type: 'clearSelection' } : { type: 'sendEscape' }
+  }
 
   if (event.shiftKey && !hasPrimaryModifier(event) && event.key === 'PageUp') {
     return { type: 'scrollPages', delta: -1 }

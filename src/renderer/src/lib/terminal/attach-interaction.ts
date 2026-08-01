@@ -71,7 +71,11 @@ export function attachTerminalInteraction(
 
   const onCustomKey = (event: KeyboardEvent): boolean => {
     const action = resolveTerminalKeyAction(event, {
-      hasSelection: term.hasSelection(),
+      // Only pay for getSelection on Escape; other keys just need the cheap flag.
+      hasSelection:
+        event.key === 'Escape'
+          ? term.hasSelection() && term.getSelection().length > 0
+          : term.hasSelection(),
       findOpen: isFindOpen()
     })
 
@@ -97,6 +101,10 @@ export function attachTerminalInteraction(
         break
       case 'clearSelection':
         clearSelection()
+        break
+      case 'sendEscape':
+        // Inject ESC directly so the remote PTY always receives it (Vim, nano Meta, …).
+        term.input('\x1b')
         break
       case 'scrollPages':
         term.scrollPages(action.delta)
