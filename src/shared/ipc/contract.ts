@@ -1,5 +1,17 @@
 import type { ThemePreference } from '../lib/theme'
 import type {
+  DatabaseIntrospection,
+  DatabaseQueryResult,
+  DatabaseTestInput,
+  DatabaseTestResult,
+  DatabaseTxState,
+  DbCancelInput,
+  DbCommitInput,
+  DbIntrospectInput,
+  DbQueryInput,
+  DbRollbackInput,
+  DbSetAutoCommitInput,
+  DbTxStateInput,
   FsDownloadInput,
   FsListInput,
   FsPathInput,
@@ -208,6 +220,10 @@ export interface IpcInvokeMap {
     args: [connectionId: string, requestId: string]
     result: SessionDescriptor
   }
+  [IpcChannels.SESSIONS_OPEN_ACCESS]: {
+    args: [accessId: string]
+    result: SessionDescriptor
+  }
   [IpcChannels.SESSIONS_CLOSE]: {
     args: [sessionId: string]
     result: undefined
@@ -249,6 +265,43 @@ export interface IpcInvokeMap {
   [IpcChannels.SERIAL_LIST_PORTS]: {
     args: []
     result: SerialPortInfo[]
+  }
+
+  [IpcChannels.DB_TEST]: {
+    args: [input: DatabaseTestInput]
+    result: DatabaseTestResult
+  }
+  [IpcChannels.DB_INTROSPECT]: {
+    args: [input: DbIntrospectInput]
+    result: DatabaseIntrospection
+  }
+  [IpcChannels.DB_QUERY]: {
+    args: [input: DbQueryInput]
+    result: DatabaseQueryResult
+  }
+  [IpcChannels.DB_CANCEL]: {
+    args: [input: DbCancelInput]
+    result: undefined
+  }
+  [IpcChannels.DB_TX_STATE]: {
+    args: [input: DbTxStateInput]
+    result: DatabaseTxState
+  }
+  [IpcChannels.DB_SET_AUTO_COMMIT]: {
+    args: [input: DbSetAutoCommitInput]
+    result: DatabaseTxState
+  }
+  [IpcChannels.DB_COMMIT]: {
+    args: [input: DbCommitInput]
+    result: DatabaseTxState
+  }
+  [IpcChannels.DB_ROLLBACK]: {
+    args: [input: DbRollbackInput]
+    result: DatabaseTxState
+  }
+  [IpcChannels.DB_PICK_FILE]: {
+    args: []
+    result: string | null
   }
 
   [IpcChannels.STATS_OVERVIEW]: {
@@ -437,6 +490,7 @@ export interface NorthApi {
      * renderer callback) — returning MessagePort through contextBridge yields a dead port.
      */
     open: (connectionId: string, onPort: (port: MessagePort) => void) => Promise<SessionDescriptor>
+    openAccess: (accessId: string) => Promise<SessionDescriptor>
     close: (sessionId: string) => Promise<void>
     list: () => Promise<SessionDescriptor[]>
     respondHostKey: (response: HostKeyResponse) => Promise<void>
@@ -462,6 +516,17 @@ export interface NorthApi {
   }
   serial: {
     listPorts: () => Promise<SerialPortInfo[]>
+  }
+  db: {
+    test: (input: DatabaseTestInput) => Promise<DatabaseTestResult>
+    introspect: (input: DbIntrospectInput) => Promise<DatabaseIntrospection>
+    query: (input: DbQueryInput) => Promise<DatabaseQueryResult>
+    cancel: (input: DbCancelInput) => Promise<void>
+    txState: (input: DbTxStateInput) => Promise<DatabaseTxState>
+    setAutoCommit: (input: DbSetAutoCommitInput) => Promise<DatabaseTxState>
+    commit: (input: DbCommitInput) => Promise<DatabaseTxState>
+    rollback: (input: DbRollbackInput) => Promise<DatabaseTxState>
+    pickFile: () => Promise<string | null>
   }
   stats: {
     overview: () => Promise<StatsOverview>

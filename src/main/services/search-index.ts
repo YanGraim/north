@@ -74,14 +74,15 @@ export function buildSearchIndex(repos: Repositories): SearchIndexItem[] {
 
 function emptySearchFields(): Pick<
   SearchIndexItem,
-  'username' | 'url' | 'database' | 'accessType' | 'accessId'
+  'username' | 'url' | 'database' | 'accessType' | 'accessId' | 'engine'
 > {
   return {
     username: null,
     url: null,
     database: null,
     accessType: null,
-    accessId: null
+    accessId: null,
+    engine: null
   }
 }
 
@@ -228,6 +229,7 @@ function connectionItem(
     url: null,
     database: null,
     accessType: null,
+    engine: null,
     accessId: null,
     clientId: client?.id ?? null,
     environmentId: environment?.id ?? null,
@@ -273,6 +275,7 @@ function accessItem(
     url: access.url,
     database: access.database,
     accessType: access.type,
+    engine: access.engine,
     accessId: access.id,
     clientId: client?.id ?? null,
     environmentId: environment?.id ?? null,

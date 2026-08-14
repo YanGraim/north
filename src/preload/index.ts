@@ -132,6 +132,7 @@ const api: NorthApi = {
 
   sessions: {
     open: openSession,
+    openAccess: (accessId) => ipcRenderer.invoke(IpcChannels.SESSIONS_OPEN_ACCESS, accessId),
     close: (sessionId) => ipcRenderer.invoke(IpcChannels.SESSIONS_CLOSE, sessionId),
     list: () => ipcRenderer.invoke(IpcChannels.SESSIONS_LIST),
     respondHostKey: (response: HostKeyResponse) =>
@@ -190,6 +191,19 @@ const api: NorthApi = {
 
   serial: {
     listPorts: () => ipcRenderer.invoke(IpcChannels.SERIAL_LIST_PORTS)
+  },
+
+  db: {
+    test: (input) => ipcRenderer.invoke(IpcChannels.DB_TEST, input),
+    introspect: (input) => ipcRenderer.invoke(IpcChannels.DB_INTROSPECT, input),
+    query: (input) => ipcRenderer.invoke(IpcChannels.DB_QUERY, input),
+    cancel: (input) => ipcRenderer.invoke(IpcChannels.DB_CANCEL, input),
+    txState: (input) => ipcRenderer.invoke(IpcChannels.DB_TX_STATE, input),
+    setAutoCommit: (input) => ipcRenderer.invoke(IpcChannels.DB_SET_AUTO_COMMIT, input),
+    commit: (input) => ipcRenderer.invoke(IpcChannels.DB_COMMIT, input),
+    rollback: (input) => ipcRenderer.invoke(IpcChannels.DB_ROLLBACK, input),
+    // Session-level transaction controls (auto-commit / commit / rollback).
+    pickFile: () => ipcRenderer.invoke(IpcChannels.DB_PICK_FILE)
   },
 
   stats: {

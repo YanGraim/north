@@ -1,4 +1,5 @@
 import type { AuthMethod, Connection } from '../types'
+import type { DatabaseIntrospection, DatabaseQueryResult, DatabaseTxState } from './database'
 import type { FileTransferCapability } from './file-transfer'
 import type { SessionKind, SessionState } from './session'
 
@@ -27,6 +28,16 @@ export type TerminalCapability = {
   resize(cols: number, rows: number): void
 }
 
+export type DatabaseCapability = {
+  introspect(): Promise<DatabaseIntrospection>
+  query(sql: string): Promise<DatabaseQueryResult>
+  cancel(): Promise<void>
+  getTxState(): DatabaseTxState
+  setAutoCommit(on: boolean): Promise<void>
+  commit(): Promise<void>
+  rollback(): Promise<void>
+}
+
 /**
  * Minimal port surface shared by Electron MessagePortMain (main) and MessagePort (renderer).
  * Main attaches MessagePortMain; messages use structured clone.
@@ -46,6 +57,7 @@ export type ProtocolSession = {
   readonly state: SessionState
   readonly terminal?: TerminalCapability
   readonly fileTransfer?: FileTransferCapability
+  readonly database?: DatabaseCapability
   /**
    * Attach the main-side MessagePort. Outbound data/state go through this port;
    * inbound resize/data are handled by the driver.

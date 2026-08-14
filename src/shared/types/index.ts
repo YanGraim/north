@@ -61,6 +61,8 @@ export {
   ConnectionHistoryEntrySchema,
   type ListHistoryFilter,
   ListHistoryFilterSchema,
+  type RecordAccessInput,
+  RecordAccessInputSchema,
   type RecordConnectionInput,
   RecordConnectionInputSchema
 } from './history'

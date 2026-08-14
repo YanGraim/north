@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(6)
+    expect(getUserVersion(db)).toBe(7)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -30,6 +30,7 @@ describe('migrations', () => {
         'tags',
         'connection_tags',
         'connection_history',
+        'access_history',
         'known_hosts',
         'group_variables',
         'workflows',
@@ -43,7 +44,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(6)
+    expect(getUserVersion(db)).toBe(7)
   })
 
   it('adds color column to environments from 005', () => {

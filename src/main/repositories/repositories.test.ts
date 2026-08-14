@@ -120,6 +120,30 @@ describe('repositories', () => {
     expect(afterFail?.totalConnectedMs).toBe(1500)
   })
 
+  it('records access history without bumping connection stats', () => {
+    const { repos } = createTestRepositories()
+    const client = repos.clients.create({ name: 'C' })
+    const env = repos.environments.create({ clientId: client.id, name: 'E' })
+    const group = repos.groups.create({ environmentId: env.id, name: 'G' })
+    const access = repos.accesses.create({
+      groupId: group.id,
+      type: 'database',
+      name: 'pg',
+      engine: 'postgres',
+      host: '127.0.0.1',
+      port: 5432
+    })
+
+    const entry = repos.history.recordAccess({
+      accessId: access.id,
+      success: true,
+      durationMs: 40
+    })
+    expect(entry.accessId).toBe(access.id)
+    expect(entry.connectionId).toBeNull()
+    expect(repos.history.list({ accessId: access.id })).toHaveLength(1)
+  })
+
   it('seeds ~10 connections across two clients', () => {
     const { repos } = createTestRepositories()
     seedDevData(repos)

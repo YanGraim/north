@@ -7,6 +7,7 @@ import { CredentialVault, SafeStorageEncryptor } from '../vault'
 import { registerAccessHandlers } from './accesses'
 import { registerClientHandlers } from './clients'
 import { registerConnectionHandlers } from './connections'
+import { registerDatabaseHandlers } from './db'
 import { registerEnvironmentHandlers } from './environments'
 import { registerFsHandlers } from './fs'
 import { registerGroupHandlers } from './groups'
@@ -61,6 +62,7 @@ export function registerIpcHandlers(): void {
   registerHistoryHandlers(repositories)
   registerSearchHandlers(repositories)
   registerSessionHandlers(repositories, vault)
+  registerDatabaseHandlers(repositories, vault)
   registerFsHandlers()
   registerSerialHandlers()
   registerStatsHandlers(repositories)

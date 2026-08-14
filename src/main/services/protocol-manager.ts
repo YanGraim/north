@@ -3,6 +3,7 @@ import {
   coerceBytes,
   type HostKeyPrompt,
   type HostKeyResponse,
+  isSqlStudioEngine,
   type ProtocolDriver,
   type ProtocolSession,
   type SessionDescriptor,
@@ -11,6 +12,9 @@ import {
 } from '@shared/protocols'
 import type { MessagePortMain, WebContents } from 'electron'
 import { MessageChannelMain } from 'electron'
+import { configFromAccess } from '../protocols/database/config'
+import { connectAdapter } from '../protocols/database/registry'
+import { DatabaseProtocolSession } from '../protocols/database/session'
 import { fingerprintHostKey, parseHostKeyType } from '../protocols/ssh-utils'
 import type { Repositories } from '../repositories'
 import type { CredentialVault } from '../vault'
@@ -18,7 +22,8 @@ import type { CredentialVault } from '../vault'
 type ActiveSession = {
   session: ProtocolSession
   descriptor: SessionDescriptor
-  connectionId: string
+  connectionId: string | null
+  accessId: string | null
   startedAt: number
   portMain: MessagePortMain | null
   historyRecorded: boolean
@@ -145,6 +150,7 @@ export class ProtocolManager {
     const descriptor: SessionDescriptor = {
       id: sessionId,
       connectionId,
+      accessId: null,
       kind: driver.kind,
       protocol: connection.protocol,
       title: connection.name,
@@ -163,6 +169,7 @@ export class ProtocolManager {
       },
       descriptor,
       connectionId,
+      accessId: null,
       startedAt: Date.now(),
       portMain: null,
       historyRecorded: false,
@@ -212,6 +219,78 @@ export class ProtocolManager {
       this.watchSessionLifecycle(sessionId)
 
       return { descriptor: { ...active.descriptor }, port: port2 }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao abrir sessão'
+      this.updateState(sessionId, 'error', message)
+      this.finishWithHistory(sessionId, false, message)
+      throw error
+    }
+  }
+
+  async openAccess(accessId: string): Promise<{ descriptor: SessionDescriptor }> {
+    const access = this.repositories.accesses.get(accessId)
+    if (!access) {
+      throw new Error('Acesso não encontrado')
+    }
+    if (access.type !== 'database' || !isSqlStudioEngine(access.engine)) {
+      throw new Error('Este acesso não abre sessão SQL no North')
+    }
+
+    const sessionId = randomUUID()
+    const protocol = access.engine
+    const descriptor: SessionDescriptor = {
+      id: sessionId,
+      connectionId: null,
+      accessId,
+      kind: 'database',
+      protocol,
+      title: access.name,
+      state: 'connecting',
+      errorMessage: null
+    }
+
+    const placeholder: ActiveSession = {
+      session: {
+        id: sessionId,
+        kind: 'database',
+        protocol,
+        state: 'connecting',
+        attachPort: () => undefined,
+        dispose: async () => undefined
+      },
+      descriptor,
+      connectionId: null,
+      accessId,
+      startedAt: Date.now(),
+      portMain: null,
+      historyRecorded: false,
+      everConnected: false
+    }
+    this.sessions.set(sessionId, placeholder)
+    this.emitState(descriptor)
+
+    try {
+      let password: string | null = null
+      if (access.credentialRef) {
+        password = await this.vault.resolveSecret(access.credentialRef)
+      }
+      const config = configFromAccess(access, password)
+      const adapter = await connectAdapter(config)
+      const session = new DatabaseProtocolSession(sessionId, protocol, adapter)
+      session.state = 'connected'
+
+      const active = this.sessions.get(sessionId)
+      if (!active) {
+        await session.dispose()
+        throw new Error('Sessão cancelada')
+      }
+
+      active.session = session
+      active.everConnected = true
+      this.updateState(sessionId, 'connected')
+      this.watchSessionLifecycle(sessionId)
+
+      return { descriptor: { ...active.descriptor } }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao abrir sessão'
       this.updateState(sessionId, 'error', message)
@@ -362,13 +441,23 @@ export class ProtocolManager {
       active.historyRecorded = true
       const durationMs = Math.max(0, Date.now() - active.startedAt)
       try {
-        this.repositories.history.record({
-          connectionId: active.connectionId,
-          connectedAt: new Date(active.startedAt).toISOString(),
-          durationMs,
-          success,
-          errorMessage
-        })
+        if (active.accessId) {
+          this.repositories.history.recordAccess({
+            accessId: active.accessId,
+            connectedAt: new Date(active.startedAt).toISOString(),
+            durationMs,
+            success,
+            errorMessage
+          })
+        } else if (active.connectionId) {
+          this.repositories.history.record({
+            connectionId: active.connectionId,
+            connectedAt: new Date(active.startedAt).toISOString(),
+            durationMs,
+            success,
+            errorMessage
+          })
+        }
       } catch {
         // history must not break session teardown
       }

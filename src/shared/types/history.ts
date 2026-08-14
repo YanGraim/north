@@ -3,7 +3,8 @@ import { IdSchema, IsoDateSchema } from './client'
 
 export const ConnectionHistoryEntrySchema = z.object({
   id: IdSchema,
-  connectionId: IdSchema,
+  connectionId: IdSchema.nullable(),
+  accessId: IdSchema.nullable().optional(),
   connectedAt: IsoDateSchema,
   durationMs: z.number().int().nonnegative().nullable(),
   success: z.boolean(),
@@ -22,8 +23,19 @@ export const RecordConnectionInputSchema = z.object({
 
 export type RecordConnectionInput = z.infer<typeof RecordConnectionInputSchema>
 
+export const RecordAccessInputSchema = z.object({
+  accessId: IdSchema,
+  connectedAt: IsoDateSchema.optional(),
+  durationMs: z.number().int().nonnegative().nullable().optional(),
+  success: z.boolean(),
+  errorMessage: z.string().nullable().optional()
+})
+
+export type RecordAccessInput = z.infer<typeof RecordAccessInputSchema>
+
 export const ListHistoryFilterSchema = z.object({
   connectionId: IdSchema.optional(),
+  accessId: IdSchema.optional(),
   limit: z.number().int().positive().max(500).optional()
 })
 

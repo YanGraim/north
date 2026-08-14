@@ -76,6 +76,11 @@ export function registerSessionHandlers(repositories: Repositories, vault: Crede
     }
   )
 
+  ipcMain.handle(IpcChannels.SESSIONS_OPEN_ACCESS, async (_event, accessId: string) => {
+    const { descriptor } = await protocolManager!.openAccess(accessId)
+    return descriptor
+  })
+
   ipcMain.handle(IpcChannels.SESSIONS_CLOSE, async (_event, sessionId: string) => {
     await protocolManager!.close(sessionId)
   })

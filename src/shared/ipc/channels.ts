@@ -60,6 +60,7 @@ export const IpcChannels = {
   VAULT_REVEAL_SECRET: 'vault:reveal-secret',
 
   SESSIONS_OPEN: 'sessions:open',
+  SESSIONS_OPEN_ACCESS: 'sessions:open-access',
   SESSIONS_CLOSE: 'sessions:close',
   SESSIONS_LIST: 'sessions:list',
   SESSIONS_RESPOND_HOST_KEY: 'sessions:respond-host-key',
@@ -89,6 +90,16 @@ export const IpcChannels = {
   FS_PROGRESS: 'fs:progress',
 
   SERIAL_LIST_PORTS: 'serial:list-ports',
+
+  DB_TEST: 'db:test',
+  DB_INTROSPECT: 'db:introspect',
+  DB_QUERY: 'db:query',
+  DB_CANCEL: 'db:cancel',
+  DB_TX_STATE: 'db:tx-state',
+  DB_SET_AUTO_COMMIT: 'db:set-auto-commit',
+  DB_COMMIT: 'db:commit',
+  DB_ROLLBACK: 'db:rollback',
+  DB_PICK_FILE: 'db:pick-file',
 
   STATS_OVERVIEW: 'stats:overview',
 

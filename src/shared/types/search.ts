@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { DatabaseEngineSchema } from './access'
 import { ConnectionProtocolSchema } from './connection'
 
 export const SearchIndexKindSchema = z.enum([
@@ -30,6 +31,7 @@ export const SearchIndexItemSchema = z.object({
   url: z.string().nullable(),
   database: z.string().nullable(),
   accessType: z.enum(['database', 'login', 'other']).nullable(),
+  engine: DatabaseEngineSchema.nullable(),
   clientId: z.string().uuid().nullable(),
   environmentId: z.string().uuid().nullable(),
   groupId: z.string().uuid().nullable(),

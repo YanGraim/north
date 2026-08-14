@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const SessionKindSchema = z.enum(['terminal', 'desktop', 'file-transfer'])
+export const SessionKindSchema = z.enum(['terminal', 'desktop', 'file-transfer', 'database'])
 export type SessionKind = z.infer<typeof SessionKindSchema>
 
 export const SessionStateSchema = z.enum([
@@ -14,7 +14,8 @@ export type SessionState = z.infer<typeof SessionStateSchema>
 
 export const SessionDescriptorSchema = z.object({
   id: z.string().uuid(),
-  connectionId: z.string().uuid(),
+  connectionId: z.string().uuid().nullable(),
+  accessId: z.string().uuid().nullable().optional(),
   kind: SessionKindSchema,
   protocol: z.string().min(1),
   title: z.string().min(1),

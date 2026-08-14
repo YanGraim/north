@@ -13,6 +13,7 @@ export const DatabaseEngineSchema = z.enum([
   'redis',
   'mongodb',
   'mssql',
+  'sqlite',
   'other'
 ])
 

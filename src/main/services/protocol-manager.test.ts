@@ -320,4 +320,51 @@ describe('ProtocolManager', () => {
     expect(history[0]?.success).toBe(false)
     expect(history[0]?.errorMessage).toMatch(/Não foi possível ler a senha salva/)
   })
+
+  it('opens a database session from an Access and records access history', async () => {
+    const { manager, repos } = setup()
+    const client = repos.clients.create({ name: 'C' })
+    const env = repos.environments.create({ clientId: client.id, name: 'E' })
+    const group = repos.groups.create({ environmentId: env.id, name: 'G' })
+    const access = repos.accesses.create({
+      groupId: group.id,
+      type: 'database',
+      name: 'local-sqlite',
+      engine: 'sqlite',
+      host: ':memory:',
+      port: null,
+      database: null,
+      ssl: false
+    })
+
+    const { descriptor } = await manager.openAccess(access.id)
+    expect(descriptor.kind).toBe('database')
+    expect(descriptor.accessId).toBe(access.id)
+    expect(descriptor.connectionId).toBeNull()
+    expect(descriptor.state).toBe('connected')
+    expect(manager.getActiveSession(descriptor.id)?.database).toBeTruthy()
+
+    await manager.close(descriptor.id)
+    const history = repos.history.list({ accessId: access.id })
+    expect(history).toHaveLength(1)
+    expect(history[0]?.success).toBe(true)
+    expect(history[0]?.connectionId).toBeNull()
+  })
+
+  it('rejects Access engines that are inventory-only', async () => {
+    const { manager, repos } = setup()
+    const client = repos.clients.create({ name: 'C' })
+    const env = repos.environments.create({ clientId: client.id, name: 'E' })
+    const group = repos.groups.create({ environmentId: env.id, name: 'G' })
+    const access = repos.accesses.create({
+      groupId: group.id,
+      type: 'database',
+      name: 'redis-cache',
+      engine: 'redis',
+      host: '127.0.0.1',
+      port: 6379
+    })
+
+    await expect(manager.openAccess(access.id)).rejects.toThrow(/não abre sessão SQL/)
+  })
 })
