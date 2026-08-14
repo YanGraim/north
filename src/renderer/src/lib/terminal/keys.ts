@@ -1,3 +1,5 @@
+import { isApplePlatform } from '@renderer/lib/platform'
+
 export type TerminalKeyEvent = {
   type: string
   key: string
@@ -15,8 +17,10 @@ export type TerminalKeyAction =
   | { type: 'passthrough' }
   | { type: 'block' }
   | { type: 'copy' }
+  | { type: 'cut' }
   | { type: 'paste' }
   | { type: 'selectAll' }
+  | { type: 'deleteSelection' }
   | { type: 'openFind' }
   | { type: 'closeFind' }
   | { type: 'clearSelection' }
@@ -35,12 +39,23 @@ function isModKey(event: TerminalKeyEvent, key: string): boolean {
 }
 
 /**
+ * Select-all uses the platform primary modifier only so Mac Ctrl+A still reaches
+ * the shell (beginning of line) while ⌘A selects the current logical line.
+ */
+function isSelectAllModKey(event: TerminalKeyEvent, platform?: string): boolean {
+  if (event.key.toLowerCase() !== 'a' || event.shiftKey) return false
+  if (isApplePlatform(platform)) return event.metaKey && !event.ctrlKey
+  return event.ctrlKey && !event.metaKey
+}
+
+/**
  * Pure key policy for the terminal. Returns what North should do;
  * the attach layer maps actions to xterm / clipboard side effects.
  */
 export function resolveTerminalKeyAction(
   event: TerminalKeyEvent,
-  ctx: TerminalKeyContext
+  ctx: TerminalKeyContext,
+  platform?: string
 ): TerminalKeyAction {
   if (event.type !== 'keydown') return { type: 'passthrough' }
 
@@ -54,12 +69,24 @@ export function resolveTerminalKeyAction(
     return ctx.hasSelection ? { type: 'copy' } : { type: 'passthrough' }
   }
 
+  if (isModKey(event, 'x')) {
+    return ctx.hasSelection ? { type: 'cut' } : { type: 'passthrough' }
+  }
+
   if (isModKey(event, 'v') || (event.shiftKey && event.key === 'Insert')) {
     return { type: 'paste' }
   }
 
-  if (isModKey(event, 'a')) return { type: 'selectAll' }
+  if (isSelectAllModKey(event, platform)) return { type: 'selectAll' }
   if (isModKey(event, 'f')) return { type: 'openFind' }
+
+  if (
+    ctx.hasSelection &&
+    !hasPrimaryModifier(event) &&
+    (event.key === 'Backspace' || event.key === 'Delete')
+  ) {
+    return { type: 'deleteSelection' }
+  }
 
   if (event.key === 'Escape') {
     return ctx.hasSelection ? { type: 'clearSelection' } : { type: 'sendEscape' }

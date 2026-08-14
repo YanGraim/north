@@ -14,6 +14,13 @@ On the **Connect** button, the split menu also lists group workflows. You can op
 
 On the first SSH connection, North asks you to confirm the host key. Accept only if the fingerprint matches what you expect.
 
+## Terminal
+
+In a terminal session tab:
+
+- Click on the current command line to place the cursor (no arrow keys needed). Dragging still selects text.
+- **⌘A** (macOS) or **Ctrl+A** (Windows/Linux) selects the typed text on the line (not the prompt); press again to select the whole scrollback. With a selection, **Backspace** / **Delete** removes that text; **⌘X** / **Ctrl+X** cuts (copy and delete). On Mac, **Ctrl+A** still goes to the shell (beginning of line).
+
 ## Favorites and tabs
 
 - Star connections as favorites for quick access.

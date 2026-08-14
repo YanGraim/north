@@ -14,6 +14,13 @@ En el botón **Conectar**, el menú split también lista workflows del grupo. Pu
 
 En la primera conexión SSH, North pide confirmar la clave del host. Acepta solo si el fingerprint coincide con lo esperado.
 
+## Terminal
+
+En una pestaña de sesión terminal:
+
+- Haz clic en la línea de comando actual para colocar el cursor (sin usar las flechas). Arrastrar sigue seleccionando texto.
+- **⌘A** (macOS) o **Ctrl+A** (Windows/Linux) selecciona el texto escrito en la línea (no el prompt); pulsa otra vez para seleccionar todo el historial. Con la selección activa, **Backspace** / **Delete** borra ese texto; **⌘X** / **Ctrl+X** corta (copia y borra). En Mac, **Ctrl+A** sigue yendo al shell (inicio de línea).
+
 ## Favoritos y pestañas
 
 - Marca conexiones como favoritas para acceso rápido.

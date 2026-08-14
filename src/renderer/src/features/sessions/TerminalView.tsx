@@ -258,6 +258,7 @@ export function TerminalView({
           hasSelection={hasSelection}
           linkUrl={linkUrl}
           onCopy={() => void interactionRef.current?.copySelection()}
+          onCut={() => void interactionRef.current?.cutSelection()}
           onPaste={() => void interactionRef.current?.paste()}
           onSelectAll={() => interactionRef.current?.selectAll()}
           onCopyLink={() => {

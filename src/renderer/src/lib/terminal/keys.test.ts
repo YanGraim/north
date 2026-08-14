@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isApplePlatform,
   terminalCopyShortcutLabel,
+  terminalCutShortcutLabel,
   terminalFindShortcutLabel,
   terminalModKeyLabel,
   terminalPasteShortcutLabel,
@@ -40,6 +41,8 @@ describe('terminal clipboard labels', () => {
     expect(terminalPasteShortcutLabel('Win32')).toBe('Ctrl+V')
     expect(terminalCopyShortcutLabel('MacIntel')).toBe('⌘C')
     expect(terminalCopyShortcutLabel('Linux x86_64')).toBe('Ctrl+C')
+    expect(terminalCutShortcutLabel('MacIntel')).toBe('⌘X')
+    expect(terminalCutShortcutLabel('Win32')).toBe('Ctrl+X')
     expect(terminalSelectAllShortcutLabel('MacIntel')).toBe('⌘A')
     expect(terminalFindShortcutLabel('Win32')).toBe('Ctrl+F')
   })
@@ -55,6 +58,22 @@ describe('resolveTerminalKeyAction', () => {
     expect(shouldConsumeTerminalKeyAction(withSelection)).toBe(true)
 
     const withoutSelection = resolveTerminalKeyAction(keyEvent({ key: 'c', ctrlKey: true }), {
+      hasSelection: false,
+      findOpen: false
+    })
+    expect(withoutSelection).toEqual({ type: 'passthrough' })
+    expect(shouldConsumeTerminalKeyAction(withoutSelection)).toBe(false)
+  })
+
+  it('cuts only when there is a selection on mod+X', () => {
+    const withSelection = resolveTerminalKeyAction(keyEvent({ key: 'x', metaKey: true }), {
+      hasSelection: true,
+      findOpen: false
+    })
+    expect(withSelection).toEqual({ type: 'cut' })
+    expect(shouldConsumeTerminalKeyAction(withSelection)).toBe(true)
+
+    const withoutSelection = resolveTerminalKeyAction(keyEvent({ key: 'x', ctrlKey: true }), {
       hasSelection: false,
       findOpen: false
     })
@@ -78,14 +97,42 @@ describe('resolveTerminalKeyAction', () => {
     ).toEqual({ type: 'paste' })
   })
 
-  it('handles select-all, find, escape and scroll shortcuts', () => {
+  it('handles select-all with the platform primary modifier only', () => {
     expect(
-      resolveTerminalKeyAction(keyEvent({ key: 'a', ctrlKey: true }), {
-        hasSelection: false,
-        findOpen: false
-      })
+      resolveTerminalKeyAction(
+        keyEvent({ key: 'a', ctrlKey: true }),
+        { hasSelection: false, findOpen: false },
+        'Win32'
+      )
     ).toEqual({ type: 'selectAll' })
 
+    expect(
+      resolveTerminalKeyAction(
+        keyEvent({ key: 'a', metaKey: true }),
+        { hasSelection: false, findOpen: false },
+        'MacIntel'
+      )
+    ).toEqual({ type: 'selectAll' })
+
+    // Mac Ctrl+A must reach the shell (beginning of line).
+    expect(
+      resolveTerminalKeyAction(
+        keyEvent({ key: 'a', ctrlKey: true }),
+        { hasSelection: false, findOpen: false },
+        'MacIntel'
+      )
+    ).toEqual({ type: 'passthrough' })
+
+    expect(
+      resolveTerminalKeyAction(
+        keyEvent({ key: 'a', metaKey: true }),
+        { hasSelection: false, findOpen: false },
+        'Win32'
+      )
+    ).toEqual({ type: 'passthrough' })
+  })
+
+  it('handles find, escape and scroll shortcuts', () => {
     expect(
       resolveTerminalKeyAction(keyEvent({ key: 'f', metaKey: true }), {
         hasSelection: false,
@@ -134,6 +181,29 @@ describe('resolveTerminalKeyAction', () => {
         findOpen: false
       })
     ).toEqual({ type: 'scrollToBottom' })
+  })
+
+  it('deletes the selection on Backspace / Delete', () => {
+    expect(
+      resolveTerminalKeyAction(keyEvent({ key: 'Backspace' }), {
+        hasSelection: true,
+        findOpen: false
+      })
+    ).toEqual({ type: 'deleteSelection' })
+
+    expect(
+      resolveTerminalKeyAction(keyEvent({ key: 'Delete' }), {
+        hasSelection: true,
+        findOpen: false
+      })
+    ).toEqual({ type: 'deleteSelection' })
+
+    expect(
+      resolveTerminalKeyAction(keyEvent({ key: 'Backspace' }), {
+        hasSelection: false,
+        findOpen: false
+      })
+    ).toEqual({ type: 'passthrough' })
   })
 
   it('blocks PTY input while find is open except find shortcuts', () => {

@@ -18,6 +18,11 @@ export function terminalCopyShortcutLabel(platform?: string): string {
   return isApplePlatform(platform) ? `${mod}C` : `${mod}+C`
 }
 
+export function terminalCutShortcutLabel(platform?: string): string {
+  const mod = terminalModKeyLabel(platform)
+  return isApplePlatform(platform) ? `${mod}X` : `${mod}+X`
+}
+
 export function terminalSelectAllShortcutLabel(platform?: string): string {
   const mod = terminalModKeyLabel(platform)
   return isApplePlatform(platform) ? `${mod}A` : `${mod}+A`

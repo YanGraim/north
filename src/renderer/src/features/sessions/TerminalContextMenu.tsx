@@ -8,6 +8,7 @@ import {
 } from '@renderer/components/ui/context-menu'
 import {
   terminalCopyShortcutLabel,
+  terminalCutShortcutLabel,
   terminalPasteShortcutLabel,
   terminalSelectAllShortcutLabel
 } from '@renderer/lib/terminal/clipboard'
@@ -17,6 +18,7 @@ type TerminalContextMenuProps = {
   hasSelection: boolean
   linkUrl: string | null
   onCopy: () => void
+  onCut: () => void
   onPaste: () => void
   onSelectAll: () => void
   onCopyLink: () => void
@@ -28,6 +30,7 @@ export function TerminalContextMenu({
   hasSelection,
   linkUrl,
   onCopy,
+  onCut,
   onPaste,
   onSelectAll,
   onCopyLink,
@@ -37,6 +40,10 @@ export function TerminalContextMenu({
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
+        <ContextMenuItem disabled={!hasSelection} onSelect={onCut}>
+          Cortar
+          <ContextMenuShortcut>{terminalCutShortcutLabel()}</ContextMenuShortcut>
+        </ContextMenuItem>
         <ContextMenuItem disabled={!hasSelection} onSelect={onCopy}>
           Copiar
           <ContextMenuShortcut>{terminalCopyShortcutLabel()}</ContextMenuShortcut>
