@@ -9,3 +9,7 @@ Repeatable group actions — deploy, restart, health-check — without loose scr
 ## Light theme
 
 Light theme drops the mid-gray wash for slate-100: a bright canvas, white panels, and sharper text.
+
+## FTP
+
+**Connect** now opens FTP (and the other session protocols), not just SSH.

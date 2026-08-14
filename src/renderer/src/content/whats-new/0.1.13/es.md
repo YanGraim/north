@@ -9,3 +9,7 @@ Acciones repetibles del grupo — deploy, restart, health-check — sin scripts 
 ## Tema claro
 
 El tema claro deja el gris medio y pasa a un slate-100: lienzo claro, paneles blancos y texto más nítido.
+
+## FTP
+
+**Conectar** ahora abre FTP (y los demás protocolos de sesión), no solo SSH.

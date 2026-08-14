@@ -5,6 +5,7 @@ release
 .DS_Store
 .eslintcache
 .biome
+*.tsbuildinfo
 
 *.log*
 
