@@ -20,6 +20,7 @@ function item(
     url: null,
     database: null,
     accessType: null,
+    engine: null,
     clientId: null,
     environmentId: null,
     groupId: null,

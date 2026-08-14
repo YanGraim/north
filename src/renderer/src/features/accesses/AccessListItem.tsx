@@ -11,9 +11,16 @@ import {
 import { TagBadges } from '@renderer/features/connections/TagBadges'
 import { useDeleteAccess, useToggleFavoriteAccess } from '@renderer/hooks/use-accesses'
 import { useAccessTags } from '@renderer/hooks/use-tags'
-import { accessDisplayIcon, accessTypeLabel } from '@renderer/lib/access-ui'
+import {
+  accessDisplayIcon,
+  accessTypeLabel,
+  sqlStudioReady,
+  supportsSqlStudio
+} from '@renderer/lib/access-ui'
+import { toastError } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
+import { openAccessSession } from '@renderer/stores/sessions-store'
 import type { Access } from '@shared/types'
 import { MoreHorizontal, Star } from 'lucide-react'
 import { useState } from 'react'
@@ -105,6 +112,27 @@ export function AccessListItem({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {supportsSqlStudio(access) ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (!sqlStudioReady(access)) {
+                      openDialog({ type: 'access', mode: 'edit', id: access.id })
+                      return
+                    }
+                    void openAccessSession(access.id, {
+                      title: access.name,
+                      protocol: access.engine ?? undefined,
+                      sessionKind: 'database',
+                      username: access.username,
+                      host: access.host
+                    }).catch((error: unknown) => {
+                      toastError(error, 'Não foi possível conectar')
+                    })
+                  }}
+                >
+                  Conectar
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem
                 onSelect={() => openDialog({ type: 'access', mode: 'edit', id: access.id })}
               >

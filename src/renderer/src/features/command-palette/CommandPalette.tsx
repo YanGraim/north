@@ -41,21 +41,26 @@ import { shortcutDisplayLabel } from '@renderer/lib/shortcuts'
 import { toastError } from '@renderer/lib/toast'
 import { useCommandPaletteStore } from '@renderer/stores/command-palette-store'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
-import { openConnectionSession, sessionKindForProtocol } from '@renderer/stores/sessions-store'
+import {
+  openAccessSession,
+  openConnectionSession,
+  sessionKindForProtocol
+} from '@renderer/stores/sessions-store'
 import { useWhatsNewStore } from '@renderer/stores/whats-new-store'
+import { isSqlStudioEngine } from '@shared/protocols'
 import type { SearchIndexItem, SearchIndexKind, Workflow } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   BookOpen,
   Building2,
   Clock3,
+  Database,
   Download,
   FolderTree,
   GraduationCap,
   KeyRound,
   Layers,
   LayoutDashboard,
-  Plus,
   Server,
   Settings,
   Sparkles,
@@ -219,7 +224,28 @@ export function CommandPalette(): React.JSX.Element {
               }}
             />
             <CommandList>
-              {showActions && actionsFor ? (
+              {showActions && actionsFor?.kind === 'access' ? (
+                <AccessActions
+                  item={actionsFor}
+                  onBack={() => setActionsFor(null)}
+                  onConnect={() => {
+                    const id = actionsFor.id
+                    const title = actionsFor.title
+                    close()
+                    void openAccessSession(id, {
+                      title,
+                      host: actionsFor.host,
+                      username: actionsFor.username
+                    }).catch((error: unknown) => {
+                      toastError(error, 'Não foi possível conectar.')
+                    })
+                  }}
+                  onEdit={() => {
+                    close()
+                    openDialog({ type: 'access', mode: 'edit', id: actionsFor.id })
+                  }}
+                />
+              ) : showActions && actionsFor ? (
                 <ConnectionActions
                   item={actionsFor}
                   onBack={() => setActionsFor(null)}
@@ -276,7 +302,8 @@ export function CommandPalette(): React.JSX.Element {
                             hit={hit}
                             onSelect={() => goToItem(hit.item)}
                             onActions={
-                              hit.item.kind === 'connection'
+                              hit.item.kind === 'connection' ||
+                              (hit.item.kind === 'access' && hit.item.accessType === 'database')
                                 ? () => setActionsFor(hit.item)
                                 : undefined
                             }
@@ -371,9 +398,19 @@ export function CommandPalette(): React.JSX.Element {
                         openDialog({ type: 'connection', mode: 'create' })
                       }}
                     >
-                      <Plus className="size-4 text-muted" />
-                      Nova conexão
+                      <Server className="size-4 text-muted" />
+                      Nova conexão · servidor
                       <CommandShortcut>{shortcutDisplayLabel('newConnection')}</CommandShortcut>
+                    </CommandItem>
+                    <CommandItem
+                      value="action-new-database"
+                      onSelect={() => {
+                        close()
+                        openDialog({ type: 'access', mode: 'create', accessType: 'database' })
+                      }}
+                    >
+                      <Database className="size-4 text-muted" />
+                      Nova conexão · banco
                     </CommandItem>
                     <CommandItem
                       value="action-new-client"
@@ -587,6 +624,34 @@ function ConnectionActions({
       </CommandItem>
       <CommandItem value="action-delete" onSelect={onDelete} className="text-red-400">
         Excluir
+      </CommandItem>
+    </CommandGroup>
+  )
+}
+
+function AccessActions({
+  item,
+  onBack,
+  onConnect,
+  onEdit
+}: {
+  item: SearchIndexItem
+  onBack: () => void
+  onConnect: () => void
+  onEdit: () => void
+}): React.JSX.Element {
+  return (
+    <CommandGroup heading={`Ações · ${item.title}`}>
+      <CommandItem value="action-back" onSelect={onBack}>
+        Voltar
+      </CommandItem>
+      {isSqlStudioEngine(item.engine) ? (
+        <CommandItem value="action-connect" onSelect={onConnect}>
+          Conectar
+        </CommandItem>
+      ) : null}
+      <CommandItem value="action-edit" onSelect={onEdit}>
+        Editar
       </CommandItem>
     </CommandGroup>
   )

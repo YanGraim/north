@@ -1,6 +1,8 @@
 import type { SessionDescriptor } from '@shared/protocols'
+import type { Access } from '@shared/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  openAccessSession,
   openConnectionSession,
   sessionKindForProtocol,
   useSessionsStore,
@@ -21,23 +23,33 @@ describe('sessionKindForProtocol', () => {
     expect(sessionKindForProtocol('ftp')).toBe('file-transfer')
     expect(sessionKindForProtocol('vnc')).toBe('desktop')
     expect(sessionKindForProtocol('https')).toBeUndefined()
+    expect(sessionKindForProtocol('postgres')).toBe('database')
+    expect(sessionKindForProtocol('sqlite')).toBe('database')
   })
 })
 
 describe('sessions-store optimistic open', () => {
   const openMock = vi.fn()
   const closeMock = vi.fn()
+  const openAccessMock = vi.fn()
+  const getAccessMock = vi.fn()
 
   beforeEach(() => {
     resetStore()
     openMock.mockReset()
     closeMock.mockReset().mockResolvedValue(undefined)
+    openAccessMock.mockReset()
+    getAccessMock.mockReset()
     Object.assign(globalThis, {
       window: {
         north: {
           sessions: {
             open: openMock,
+            openAccess: openAccessMock,
             close: closeMock
+          },
+          accesses: {
+            get: getAccessMock
           },
           connections: {
             get: vi.fn().mockResolvedValue(null)
@@ -58,9 +70,10 @@ describe('sessions-store optimistic open', () => {
   })
 
   it('creates a connecting tab then attaches port on success', async () => {
+    const connectionId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
     const session: SessionDescriptor = {
       id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      connectionId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      connectionId,
       kind: 'terminal',
       protocol: 'ssh',
       title: 'prod-box',
@@ -77,7 +90,7 @@ describe('sessions-store optimistic open', () => {
       })
     })
 
-    const pending = openConnectionSession(session.connectionId, {
+    const pending = openConnectionSession(connectionId, {
       title: 'prod-box',
       protocol: 'ssh',
       username: 'root',
@@ -155,5 +168,65 @@ describe('sessions-store optimistic open', () => {
     expect(
       useSessionsStore.getState().tabs.find((t) => t.id === 'temp-host')?.awaitingHostKey
     ).toBe(false)
+  })
+
+  it('opens a database session from Access without a MessagePort', async () => {
+    const accessId = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
+    const access: Access = {
+      id: accessId,
+      groupId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      type: 'database',
+      name: 'PostgreSQL · wms',
+      description: null,
+      notes: null,
+      username: 'wms',
+      credentialRef: null,
+      url: null,
+      links: [],
+      icon: null,
+      color: null,
+      isFavorite: false,
+      engine: 'postgres',
+      host: '10.1.1.17',
+      port: 5432,
+      database: 'wms',
+      ssl: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z'
+    }
+    const session: SessionDescriptor = {
+      id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+      connectionId: null,
+      accessId,
+      kind: 'database',
+      protocol: 'postgres',
+      title: access.name,
+      state: 'connected',
+      errorMessage: null
+    }
+    getAccessMock.mockResolvedValue(access)
+    openAccessMock.mockResolvedValue(session)
+
+    await openAccessSession(accessId, { title: access.name })
+
+    const tab = useSessionsStore.getState().tabs.find((t) => t.sessionId === session.id)
+    expect(tab?.sessionKind).toBe('database')
+    expect(tab?.accessId).toBe(accessId)
+    expect(tab?.port).toBeNull()
+    expect(tab?.state).toBe('connected')
+    expect(openAccessMock).toHaveBeenCalledWith(accessId)
+  })
+
+  it('rejects Access engines that are not SQL studio', async () => {
+    getAccessMock.mockResolvedValue({
+      id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+      type: 'database',
+      engine: 'redis',
+      name: 'cache'
+    })
+    await expect(openAccessSession('cccccccc-cccc-cccc-cccc-cccccccccccc')).rejects.toThrow(
+      /não abre sessão SQL/
+    )
+    expect(openAccessMock).not.toHaveBeenCalled()
   })
 })

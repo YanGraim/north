@@ -131,6 +131,20 @@ export function TreeNodeContextMenu(props: TreeNodeContextMenuProps): React.JSX.
               >
                 Novo acesso
               </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() =>
+                  openDialog({
+                    type: 'access',
+                    mode: 'create',
+                    groupId: props.group.id,
+                    environmentId: props.environmentId,
+                    clientId: props.clientId,
+                    accessType: 'database'
+                  })
+                }
+              >
+                Novo banco
+              </ContextMenuItem>
             </>
           ) : null}
           <ContextMenuSeparator />

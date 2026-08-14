@@ -2,6 +2,7 @@ import { EmptyState } from '@renderer/components/EmptyState'
 import { Badge } from '@renderer/components/ui/badge'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Skeleton } from '@renderer/components/ui/skeleton'
+import { useAccesses } from '@renderer/hooks/use-accesses'
 import { useConnections } from '@renderer/hooks/use-connections'
 import { useConnectionHistory } from '@renderer/hooks/use-history'
 import { formatDayHeading, formatRelativeDate } from '@renderer/lib/connection-ui'
@@ -21,11 +22,17 @@ function formatDuration(ms: number): string {
 export function HistoryPage(): React.JSX.Element {
   const { data: entries = [], isLoading, isError } = useConnectionHistory({ limit: 200 })
   const { data: connections = [] } = useConnections()
+  const { data: accesses = [] } = useAccesses()
 
-  const connectionName = useMemo(() => {
-    const map = new Map(connections.map((c) => [c.id, c.name]))
-    return (id: string): string => map.get(id) ?? 'Conexão removida'
-  }, [connections])
+  const targetName = useMemo(() => {
+    const connectionsMap = new Map(connections.map((c) => [c.id, c.name]))
+    const accessesMap = new Map(accesses.map((a) => [a.id, a.name]))
+    return (entry: ConnectionHistoryEntry): string => {
+      if (entry.accessId) return accessesMap.get(entry.accessId) ?? 'Banco removido'
+      if (entry.connectionId) return connectionsMap.get(entry.connectionId) ?? 'Conexão removida'
+      return 'Sessão'
+    }
+  }, [connections, accesses])
 
   const groups = useMemo(() => groupByDay(entries), [entries])
 
@@ -71,13 +78,15 @@ export function HistoryPage(): React.JSX.Element {
                 {group.items.map((entry) => (
                   <li key={entry.id}>
                     <Link
-                      to={`/connections?connection=${entry.connectionId}`}
+                      to={
+                        entry.accessId
+                          ? `/connections?access=${entry.accessId}`
+                          : `/connections?connection=${entry.connectionId}`
+                      }
                       className="flex items-center justify-between gap-3 px-3 py-2.5 transition-colors motion-safe:duration-150 hover:bg-surface-elevated/60"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm text-foreground">
-                          {connectionName(entry.connectionId)}
-                        </p>
+                        <p className="truncate text-sm text-foreground">{targetName(entry)}</p>
                         <p className="mt-0.5 font-mono text-xs text-muted">
                           {formatRelativeDate(entry.connectedAt)}
                           {entry.durationMs != null ? ` · ${formatDuration(entry.durationMs)}` : ''}

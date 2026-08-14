@@ -21,12 +21,19 @@ import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
 import { useSelectedAccessId } from '@renderer/hooks/use-route-selection'
 import { useAccessTags } from '@renderer/hooks/use-tags'
 import { useHasSecret, useRevealSecret } from '@renderer/hooks/use-vault'
-import { accessTypeLabel, buildConnectionString, engineLabel } from '@renderer/lib/access-ui'
+import {
+  accessTypeLabel,
+  buildConnectionString,
+  engineLabel,
+  sqlStudioReady,
+  supportsSqlStudio
+} from '@renderer/lib/access-ui'
 import { copyToClipboard } from '@renderer/lib/clipboard'
 import { formatRelativeDate } from '@renderer/lib/connection-ui'
 import { queryKeys } from '@renderer/lib/query-keys'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
+import { openAccessSession } from '@renderer/stores/sessions-store'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   Copy,
@@ -55,6 +62,7 @@ export function AccessDetailsPanel(): React.JSX.Element {
   const queryClient = useQueryClient()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [revealed, setRevealed] = useState<{ accessId: string; secret: string } | null>(null)
+  const [connecting, setConnecting] = useState(false)
 
   useEffect(() => {
     if (!revealed) return
@@ -106,6 +114,28 @@ export function AccessDetailsPanel(): React.JSX.Element {
       await copyToClipboard(conn, 'Connection string')
     } catch {
       /* toast already shown */
+    }
+  }
+
+  async function handleConnect(): Promise<void> {
+    if (!access) return
+    if (!sqlStudioReady(access)) {
+      openDialog({ type: 'access', mode: 'edit', id: access.id })
+      return
+    }
+    setConnecting(true)
+    try {
+      await openAccessSession(access.id, {
+        title: access.name,
+        protocol: access.engine ?? undefined,
+        sessionKind: 'database',
+        username: access.username,
+        host: access.host
+      })
+    } catch (error) {
+      toastError(error, 'Não foi possível conectar. Verifique host, porta e senha.')
+    } finally {
+      setConnecting(false)
     }
   }
 
@@ -223,6 +253,22 @@ export function AccessDetailsPanel(): React.JSX.Element {
           </div>
 
           <div className="mt-3 flex items-center gap-2">
+            {access.type === 'database' ? (
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="h-8 min-w-0 flex-1"
+                disabled={connecting || !supportsSqlStudio(access)}
+                title={
+                  supportsSqlStudio(access) ? undefined : 'Este engine não abre sessão SQL no North'
+                }
+                onClick={() => void handleConnect()}
+                data-testid="connect-button"
+              >
+                {connecting ? 'Conectando…' : 'Conectar'}
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="secondary"

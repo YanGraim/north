@@ -1,5 +1,6 @@
 import type { RemoteEntry, SessionDescriptor, TransferProgress } from '@shared/protocols'
 import type {
+  Access,
   Client,
   Connection,
   ConnectionSecret,
@@ -41,6 +42,11 @@ const FTP_CLIENT_ID = 'a1000000-0000-4000-8000-000000000001'
 const FTP_ENV_ID = 'a2000000-0000-4000-8000-000000000002'
 const FTP_GROUP_ID = 'a3000000-0000-4000-8000-000000000003'
 const FTP_CONNECTION_ID = 'a4000000-0000-4000-8000-000000000004'
+
+const DB_CLIENT_ID = 'b1000000-0000-4000-8000-000000000001'
+const DB_ENV_ID = 'b2000000-0000-4000-8000-000000000002'
+const DB_GROUP_ID = 'b3000000-0000-4000-8000-000000000003'
+const DB_ACCESS_ID = 'b4000000-0000-4000-8000-000000000004'
 
 let workflows: Workflow[] = []
 let variables: GroupVariable[] = []
@@ -515,7 +521,7 @@ function createInMemoryFs() {
 export function installMockNorth(opts?: {
   failSecondStep?: boolean
   failFirstStep?: boolean
-  scenario?: 'workflows' | 'ftp'
+  scenario?: 'workflows' | 'ftp' | 'database'
   fsFail?: boolean
 }): void {
   workflows = []
@@ -533,6 +539,11 @@ export function installMockNorth(opts?: {
       : 'success'
 
   const workflowsApi = createWorkflowsApi(runScenario)
+
+  if (opts?.scenario === 'database') {
+    installDatabaseMock()
+    return
+  }
 
   if (opts?.scenario !== 'ftp') {
     const ts = now()
@@ -843,10 +854,242 @@ export function installMockNorth(opts?: {
   ;(window as unknown as { north: typeof api }).north = api
 }
 
+function installDatabaseMock(): void {
+  const ts = now()
+  const client: Client = {
+    id: DB_CLIENT_ID,
+    name: 'E2E Client',
+    notes: null,
+    color: null,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const environment: Environment = {
+    id: DB_ENV_ID,
+    clientId: DB_CLIENT_ID,
+    name: 'lab',
+    notes: null,
+    color: '#22c55e',
+    sortOrder: 0,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const group: Group = {
+    id: DB_GROUP_ID,
+    environmentId: DB_ENV_ID,
+    name: 'db-group',
+    notes: null,
+    sortOrder: 0,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const access: Access = {
+    id: DB_ACCESS_ID,
+    groupId: DB_GROUP_ID,
+    type: 'database',
+    name: 'PostgreSQL · wms',
+    description: null,
+    notes: null,
+    username: 'wms',
+    credentialRef: crypto.randomUUID(),
+    url: null,
+    links: [],
+    icon: null,
+    color: null,
+    isFavorite: false,
+    engine: 'postgres',
+    host: '10.1.1.17',
+    port: 5432,
+    database: 'wms',
+    ssl: false,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const openSessions = new Map<string, SessionDescriptor>()
+
+  const api = {
+    getVersion: async () => '0.0.0-e2e',
+    clients: {
+      list: async () => [client],
+      get: async (id: string) => (id === client.id ? client : null),
+      create: async () => {
+        throw new Error('not implemented')
+      },
+      update: async () => {
+        throw new Error('not implemented')
+      },
+      delete: async () => undefined
+    },
+    environments: {
+      list: async () => [environment],
+      get: async (id: string) => (id === environment.id ? environment : null),
+      create: async () => {
+        throw new Error('not implemented')
+      },
+      update: async () => {
+        throw new Error('not implemented')
+      },
+      delete: async () => undefined
+    },
+    groups: {
+      list: async () => [group],
+      get: async (id: string) => (id === group.id ? group : null),
+      create: async () => {
+        throw new Error('not implemented')
+      },
+      update: async () => {
+        throw new Error('not implemented')
+      },
+      delete: async () => undefined
+    },
+    connections: {
+      list: async () => [],
+      get: async () => null,
+      create: async () => {
+        throw new Error('not implemented')
+      },
+      update: async () => {
+        throw new Error('not implemented')
+      },
+      delete: async () => undefined,
+      toggleFavorite: async () => {
+        throw new Error('not implemented')
+      },
+      duplicate: async () => {
+        throw new Error('not implemented')
+      }
+    },
+    accesses: {
+      list: async () => [access],
+      get: async (id: string) => (id === access.id ? access : null),
+      create: async () => access,
+      update: async () => access,
+      delete: async () => undefined,
+      toggleFavorite: async (id: string) => {
+        if (id === access.id) access.isFavorite = !access.isFavorite
+        return access
+      }
+    },
+    tags: {
+      list: async () => [],
+      create: async () => {
+        throw new Error('not implemented')
+      },
+      update: async () => {
+        throw new Error('not implemented')
+      },
+      delete: async () => undefined,
+      setForConnection: async () => [],
+      listForConnection: async () => [],
+      setForAccess: async () => [],
+      listForAccess: async () => []
+    },
+    vault: {
+      setSecret: async () => crypto.randomUUID(),
+      deleteSecret: async () => undefined,
+      hasSecret: async () => true,
+      isAvailable: async () => true,
+      revealSecret: async () => 'secret'
+    },
+    search: {
+      index: async () => []
+    },
+    sessions: {
+      open: async () => {
+        throw new Error('use openAccess')
+      },
+      openAccess: async (accessId: string): Promise<SessionDescriptor> => {
+        if (accessId !== DB_ACCESS_ID) throw new Error('Access not found')
+        const session: SessionDescriptor = {
+          id: crypto.randomUUID(),
+          connectionId: null,
+          accessId: DB_ACCESS_ID,
+          kind: 'database',
+          protocol: 'postgres',
+          title: access.name,
+          state: 'connected',
+          errorMessage: null
+        }
+        openSessions.set(session.id, session)
+        return session
+      },
+      close: async (sessionId: string) => {
+        openSessions.delete(sessionId)
+      },
+      list: async () => [...openSessions.values()],
+      respondHostKey: async () => undefined,
+      write: () => undefined,
+      resize: () => undefined,
+      ready: () => undefined,
+      onStdout: () => () => undefined,
+      onStateChanged: () => () => undefined,
+      onHostKeyPrompt: () => () => undefined
+    },
+    db: {
+      test: async () => ({ ok: true, latencyMs: 12 }),
+      introspect: async () => ({
+        schemas: [
+          {
+            name: 'public',
+            tables: [
+              {
+                name: 'orders',
+                type: 'table' as const,
+                columns: [
+                  { name: 'id', dataType: 'integer', nullable: false, primaryKey: true },
+                  { name: 'sku', dataType: 'text', nullable: true, primaryKey: false }
+                ]
+              }
+            ]
+          }
+        ]
+      }),
+      query: async (input: { sessionId: string; sql: string }) => {
+        if (/orders/i.test(input.sql)) {
+          return {
+            columns: [
+              { name: 'id', dataType: 'integer' },
+              { name: 'sku', dataType: 'text' }
+            ],
+            rows: [
+              { id: 1, sku: 'ABC' },
+              { id: 2, sku: 'DEF' }
+            ],
+            rowCount: 2,
+            affectedRows: null,
+            durationMs: 4,
+            truncated: false
+          }
+        }
+        return {
+          columns: [{ name: 'ok' }],
+          rows: [{ ok: 1 }],
+          rowCount: 1,
+          affectedRows: null,
+          durationMs: 4,
+          truncated: false
+        }
+      },
+      cancel: async () => undefined,
+      txState: async () => ({ autoCommit: true, inTransaction: false }),
+      setAutoCommit: async (input: { sessionId: string; autoCommit: boolean }) => ({
+        autoCommit: input.autoCommit,
+        inTransaction: false
+      }),
+      commit: async () => ({ autoCommit: false, inTransaction: false }),
+      rollback: async () => ({ autoCommit: false, inTransaction: false }),
+      pickFile: async () => null
+    }
+  }
+
+  ;(window as unknown as { north: typeof api }).north = api
+}
+
 export const harnessIds = {
   GROUP_ID,
   GROUP_B_ID,
   CONNECTION_ID,
   FTP_CONNECTION_ID,
-  FTP_GROUP_ID
+  FTP_GROUP_ID,
+  DB_ACCESS_ID
 }

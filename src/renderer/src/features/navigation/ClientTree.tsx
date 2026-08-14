@@ -4,8 +4,10 @@ import {
   CollapsibleTrigger
 } from '@renderer/components/ui/collapsible'
 import { Skeleton } from '@renderer/components/ui/skeleton'
+import { countItemsByGroup } from '@renderer/features/navigation/count-items-by-group'
 import { SIDEBAR_ROW, SIDEBAR_TRAILING } from '@renderer/features/navigation/SidebarSection'
 import { TreeNodeContextMenu } from '@renderer/features/navigation/TreeNodeContextMenu'
+import { useAccesses } from '@renderer/hooks/use-accesses'
 import { useConnections } from '@renderer/hooks/use-connections'
 import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
 import { environmentStatusColor } from '@renderer/lib/environment-color'
@@ -43,6 +45,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
 
   const { clients, environments, groups, isLoading } = useOrgLookup()
   const { data: connections = [] } = useConnections()
+  const { data: accesses = [] } = useAccesses()
   const expandedTreeNodes = useUiStore((s) => s.expandedTreeNodes)
   const setTreeNodeExpanded = useUiStore((s) => s.setTreeNodeExpanded)
   const isExpanded = (id: string): boolean => Boolean(expandedTreeNodes[id])
@@ -55,10 +58,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
     if (activeEnv) setTreeNodeExpanded(treeKey('env', activeEnv), true)
   }, [activeEnv, setTreeNodeExpanded])
 
-  const countsByGroup = new Map<string, number>()
-  for (const connection of connections) {
-    countsByGroup.set(connection.groupId, (countsByGroup.get(connection.groupId) ?? 0) + 1)
-  }
+  const countsByGroup = countItemsByGroup(connections, accesses)
 
   const countForEnv = (environmentId: string): number =>
     groups

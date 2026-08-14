@@ -1,4 +1,5 @@
 import { Button } from '@renderer/components/ui/button'
+import { DatabaseStudioView } from '@renderer/features/sessions/DatabaseStudioView'
 import { FileBrowserView } from '@renderer/features/sessions/FileBrowserView'
 import { TerminalView } from '@renderer/features/sessions/TerminalView'
 import {
@@ -91,6 +92,21 @@ export function SessionView({ tab, visible }: SessionViewProps): React.JSX.Eleme
     return (
       <TerminalView
         sessionId={tab.sessionId}
+        visible={visible}
+        title={tab.title}
+        username={tab.username}
+        host={tab.host}
+        environmentName={tab.environmentName}
+        environmentColor={tab.environmentColor}
+      />
+    )
+  }
+
+  if (sessionKind === 'database') {
+    return (
+      <DatabaseStudioView
+        sessionId={tab.sessionId}
+        protocol={tab.protocol}
         visible={visible}
         title={tab.title}
         username={tab.username}

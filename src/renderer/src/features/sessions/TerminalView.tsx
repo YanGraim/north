@@ -1,9 +1,8 @@
+import { SessionIdentityBar } from '@renderer/features/sessions/SessionIdentityBar'
 import { TerminalContextMenu } from '@renderer/features/sessions/TerminalContextMenu'
 import { TerminalFindBar } from '@renderer/features/sessions/TerminalFindBar'
 import { copyToClipboard } from '@renderer/lib/clipboard'
-import { environmentStatusColor, hasEnvironmentContext } from '@renderer/lib/environment-color'
 import { attachTerminalInteraction } from '@renderer/lib/terminal/attach-interaction'
-import { cn } from '@renderer/lib/utils'
 import { getXtermTheme, useResolvedTheme } from '@renderer/lib/xterm-theme'
 import { useUiStore } from '@renderer/stores/ui-store'
 import '@xterm/xterm/css/xterm.css'
@@ -11,7 +10,6 @@ import { coerceBytes } from '@shared/protocols'
 import { FitAddon } from '@xterm/addon-fit'
 import type { SearchAddon } from '@xterm/addon-search'
 import { Terminal } from '@xterm/xterm'
-import { Folder, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 type TerminalViewProps = {
@@ -49,11 +47,6 @@ export function TerminalView({
   themeRef.current = resolvedTheme
   visibleRef.current = visible
   findOpenRef.current = findOpen
-
-  const identity =
-    username && host ? `${username}@${host}` : host ? host : username ? username : null
-  const hasContext = Boolean(environmentName && hasEnvironmentContext(environmentName))
-  const accent = hasContext ? environmentStatusColor(environmentName ?? '', environmentColor) : null
 
   useEffect(() => {
     document.body.style.removeProperty('pointer-events')
@@ -228,31 +221,13 @@ export function TerminalView({
       style={{ display: visible ? 'flex' : 'none' }}
       data-session-id={sessionId}
     >
-      <div
-        className={cn(
-          'flex h-9 shrink-0 items-center gap-2 border-b px-3',
-          accent ? '' : 'border-border bg-surface'
-        )}
-        style={
-          accent
-            ? {
-                borderColor: `${accent}4d`,
-                backgroundColor: `${accent}1a`
-              }
-            : undefined
-        }
-      >
-        {identity ? (
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-elevated px-2 py-1 font-mono text-[11px] text-foreground">
-            <User className="size-3 text-muted" aria-hidden />
-            {identity}
-          </span>
-        ) : null}
-        <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-elevated px-2 py-1 font-mono text-[11px] text-foreground">
-          <Folder className="size-3 text-muted" aria-hidden />
-          {title ?? 'session'}
-        </span>
-      </div>
+      <SessionIdentityBar
+        username={username}
+        host={host}
+        folderLabel={title ?? 'session'}
+        environmentName={environmentName}
+        environmentColor={environmentColor}
+      />
       <div className="relative min-h-0 flex-1 p-1">
         <TerminalContextMenu
           hasSelection={hasSelection}

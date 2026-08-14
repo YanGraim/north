@@ -11,6 +11,7 @@ export type ShortcutId =
   | 'newConnection'
   | 'closeTab'
   | 'duplicateTab'
+  | 'formatSql'
 
 export type ShortcutDefinition = {
   id: ShortcutId
@@ -60,6 +61,14 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutDefinition> = {
     shift: true,
     label: '⌘⇧D',
     description: 'Duplicar sessão ativa'
+  },
+  formatSql: {
+    id: 'formatSql',
+    key: 'f',
+    mod: true,
+    shift: true,
+    label: '⌘⇧F',
+    description: 'Formatar SQL'
   }
 }
 

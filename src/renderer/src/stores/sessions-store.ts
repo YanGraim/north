@@ -10,7 +10,8 @@ export type SessionTab = {
   kind: 'workspace' | 'session' | 'workflow-run'
   title: string
   sessionId?: string
-  connectionId?: string
+  connectionId?: string | null
+  accessId?: string | null
   sessionKind?: SessionKind
   protocol?: string
   username?: string | null
@@ -46,7 +47,8 @@ type SessionsState = {
   reorderTabs: (fromIndex: number, toIndex: number) => void
   beginConnectingTab: (input: {
     id: string
-    connectionId: string
+    connectionId?: string | null
+    accessId?: string | null
     title: string
     protocol?: string
     sessionKind?: SessionKind
@@ -58,7 +60,7 @@ type SessionsState = {
   attachSessionPort: (input: {
     tempId: string
     session: SessionDescriptor
-    port: MessagePort
+    port: MessagePort | null
   }) => void
   failConnectingTab: (tempId: string, errorMessage: string) => void
   setAwaitingHostKey: (sessionIdOrTabId: string | null, awaiting: boolean) => void
@@ -92,9 +94,20 @@ export function sessionKindForProtocol(protocol: string): SessionKind | undefine
     case 'vnc':
     case 'rdp':
       return 'desktop'
+    case 'postgres':
+    case 'mysql':
+    case 'mariadb':
+    case 'mssql':
+    case 'sqlite':
+      return 'database'
     default:
       return undefined
   }
+}
+
+export function sessionKindForEngine(engine: string | null | undefined): SessionKind | undefined {
+  if (!engine) return undefined
+  return sessionKindForProtocol(engine)
 }
 
 export const useSessionsStore = create<SessionsState>((set, get) => ({
@@ -119,6 +132,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
   beginConnectingTab: ({
     id,
     connectionId,
+    accessId,
     title,
     protocol,
     sessionKind,
@@ -131,7 +145,8 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       id,
       kind: 'session',
       title,
-      connectionId,
+      connectionId: connectionId ?? null,
+      accessId: accessId ?? null,
       protocol,
       sessionKind,
       username: username ?? null,
@@ -156,7 +171,8 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
           ? {
               ...tab,
               sessionId: session.id,
-              connectionId: session.connectionId,
+              connectionId: session.connectionId ?? tab.connectionId ?? null,
+              accessId: session.accessId ?? tab.accessId ?? null,
               title: session.title || tab.title,
               sessionKind: session.kind,
               protocol: session.protocol,
@@ -228,6 +244,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       title: session.title,
       sessionId: session.id,
       connectionId: session.connectionId,
+      accessId: session.accessId ?? null,
       sessionKind: session.kind,
       protocol: session.protocol,
       state: session.state,
@@ -296,7 +313,20 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
 
   duplicateTab: async (tabId) => {
     const tab = get().tabs.find((t) => t.id === tabId)
-    if (!tab?.connectionId || tab.kind === 'workflow-run') return
+    if (!tab || tab.kind === 'workflow-run') return
+    if (tab.accessId) {
+      await openAccessSession(tab.accessId, {
+        title: tab.title,
+        protocol: tab.protocol,
+        sessionKind: tab.sessionKind,
+        username: tab.username,
+        host: tab.host,
+        environmentName: tab.environmentName,
+        environmentColor: tab.environmentColor
+      })
+      return
+    }
+    if (!tab.connectionId) return
     await openConnectionSession(tab.connectionId, {
       title: tab.title,
       protocol: tab.protocol,
@@ -384,4 +414,68 @@ export async function openConnectionSession(
     store.failConnectingTab(tempId, message)
     throw error
   }
+}
+
+export async function openAccessSession(
+  accessId: string,
+  options?: OpenSessionOptions
+): Promise<void> {
+  const access = await window.north.accesses.get(accessId)
+  if (!access) {
+    throw new Error('Acesso não encontrado')
+  }
+  if (access.type !== 'database' || !sessionKindForEngine(access.engine)) {
+    throw new Error('Este engine não abre sessão SQL no North')
+  }
+
+  const store = useSessionsStore.getState()
+  const tempId = crypto.randomUUID()
+  const title = options?.title?.trim() || access.name
+  store.beginConnectingTab({
+    id: tempId,
+    accessId,
+    title,
+    protocol: access.engine ?? undefined,
+    sessionKind: 'database',
+    username: options?.username ?? access.username,
+    host: options?.host ?? access.host,
+    environmentName: options?.environmentName ?? null,
+    environmentColor: options?.environmentColor ?? null
+  })
+
+  if (!options?.environmentName) {
+    void resolveAccessEnvironment(access.groupId).then((resolved) => {
+      if (!resolved) return
+      useSessionsStore.setState((state) => ({
+        tabs: state.tabs.map((tab) =>
+          tab.id === tempId
+            ? {
+                ...tab,
+                environmentName: resolved.name,
+                environmentColor: resolved.color
+              }
+            : tab
+        )
+      }))
+    })
+  }
+
+  try {
+    const session = await window.north.sessions.openAccess(accessId)
+    store.attachSessionPort({ tempId, session, port: null })
+  } catch (error) {
+    const message = formatIpcError(error, 'Falha ao conectar')
+    store.failConnectingTab(tempId, message)
+    throw error
+  }
+}
+
+async function resolveAccessEnvironment(
+  groupId: string
+): Promise<{ name: string; color: string | null } | null> {
+  const group = await window.north.groups.get(groupId)
+  if (!group) return null
+  const environment = await window.north.environments.get(group.environmentId)
+  if (!environment) return null
+  return { name: environment.name, color: environment.color }
 }

@@ -288,13 +288,13 @@ export function ConnectionListPage({ mode }: ConnectionListPageProps): React.JSX
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={openCreateConnection}>Conexão</DropdownMenuItem>
+              <DropdownMenuItem onSelect={openCreateConnection}>Servidor</DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => openCreateAccess('database')}>
+                Banco
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => openCreateAccess('login')}>
                 Acesso · login
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => openCreateAccess('database')}>
-                Acesso · banco
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => openCreateAccess('other')}>
                 Acesso · outro

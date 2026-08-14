@@ -1,15 +1,32 @@
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@renderer/components/ui/dropdown-menu'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Skeleton } from '@renderer/components/ui/skeleton'
+import { useAccesses } from '@renderer/hooks/use-accesses'
 import { connectionDisplayIcon, formatRelativeDate } from '@renderer/lib/connection-ui'
 import { queryKeys } from '@renderer/lib/query-keys'
 import { useCommandPaletteStore } from '@renderer/stores/command-palette-store'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { openConnectionSession, sessionKindForProtocol } from '@renderer/stores/sessions-store'
-import type { Connection, ConnectionHistoryEntry, StatsOverview } from '@shared/types'
+import type { Access, Connection, ConnectionHistoryEntry, StatsOverview } from '@shared/types'
 import { useQuery } from '@tanstack/react-query'
-import { Clock3, LayoutDashboard, Plus, Search, Star, UserPlus, Zap } from 'lucide-react'
+import {
+  Clock3,
+  Database,
+  LayoutDashboard,
+  Plus,
+  Search,
+  Server,
+  Star,
+  UserPlus,
+  Zap
+} from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
 const ACTIVITY_LIMIT = 12
@@ -26,6 +43,7 @@ export function DashboardPage(): React.JSX.Element {
   const setPaletteOpen = useCommandPaletteStore((s) => s.setOpen)
   const openDialog = useInventoryDialogsStore((s) => s.open)
   const { data, isLoading, isError } = useStatsOverview()
+  const { data: accesses = [] } = useAccesses()
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'
@@ -75,14 +93,30 @@ export function DashboardPage(): React.JSX.Element {
                 <StatChip label="Favoritos" value={data.totals.favorites} to="/favorites" />
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => openDialog({ type: 'connection', mode: 'create' })}
-                >
-                  <Plus className="size-3.5" />
-                  Nova conexão
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" size="sm">
+                      <Plus className="size-3.5" />
+                      Nova conexão
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onSelect={() => openDialog({ type: 'connection', mode: 'create' })}
+                    >
+                      <Server className="size-3.5" />
+                      Servidor
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        openDialog({ type: 'access', mode: 'create', accessType: 'database' })
+                      }
+                    >
+                      <Database className="size-3.5" />
+                      Banco
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   type="button"
                   size="sm"
@@ -124,7 +158,7 @@ export function DashboardPage(): React.JSX.Element {
 
               <Widget title="Atividade" icon={LayoutDashboard} empty="Histórico vazio">
                 {data.activity.slice(0, ACTIVITY_LIMIT).map((entry) => (
-                  <ActivityRow key={entry.id} entry={entry} overview={data} />
+                  <ActivityRow key={entry.id} entry={entry} overview={data} accesses={accesses} />
                 ))}
               </Widget>
             </div>
@@ -225,24 +259,32 @@ function ConnectionRow({
 
 function ActivityRow({
   entry,
-  overview
+  overview,
+  accesses
 }: {
   entry: ConnectionHistoryEntry
   overview: StatsOverview
+  accesses: Access[]
 }): React.JSX.Element {
   const connection =
     overview.recent.find((c) => c.id === entry.connectionId) ??
     overview.mostUsed.find((c) => c.id === entry.connectionId) ??
     overview.favorites.find((c) => c.id === entry.connectionId)
+  const access = entry.accessId ? accesses.find((item) => item.id === entry.accessId) : undefined
+
+  const href = entry.accessId
+    ? `/connections?access=${entry.accessId}`
+    : `/connections?connection=${entry.connectionId}`
+  const name = entry.accessId ? (access?.name ?? 'Banco') : (connection?.name ?? 'Conexão')
 
   return (
     <li>
       <Link
-        to={`/connections?connection=${entry.connectionId}`}
+        to={href}
         className="flex items-center justify-between gap-2 px-3 py-2 transition-colors hover:bg-surface-elevated/60"
       >
         <div className="min-w-0">
-          <p className="truncate text-sm text-foreground">{connection?.name ?? 'Conexão'}</p>
+          <p className="truncate text-sm text-foreground">{name}</p>
           <p className="font-mono text-[11px] text-muted">
             {formatRelativeDate(entry.connectedAt)}
             {entry.durationMs != null ? ` · ${formatDuration(entry.durationMs)}` : ''}

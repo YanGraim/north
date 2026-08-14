@@ -1,4 +1,5 @@
 import { resolveEntityIcon } from '@renderer/lib/entity-icons'
+import { isSqlStudioEngine } from '@shared/protocols'
 import type { Access, DatabaseEngine } from '@shared/types'
 import type { LucideIcon } from 'lucide-react'
 import { Database, KeyRound, Link2 } from 'lucide-react'
@@ -47,6 +48,8 @@ export function engineLabel(engine: DatabaseEngine | null): string {
       return 'MongoDB'
     case 'mssql':
       return 'SQL Server'
+    case 'sqlite':
+      return 'SQLite'
     case 'other':
       return 'Outro'
   }
@@ -65,6 +68,8 @@ export function defaultPortForEngine(engine: DatabaseEngine): number {
       return 27017
     case 'mssql':
       return 1433
+    case 'sqlite':
+      return 1
     case 'other':
       return 5432
   }
@@ -94,7 +99,19 @@ export function buildConnectionString(access: Access, password?: string | null):
       return `redis://${auth}${access.host}${port}`
     case 'mssql':
       return `mssql://${auth}${access.host}${port}${db}`
+    case 'sqlite':
+      return `sqlite:${access.host}`
     case 'other':
       return `${auth}${access.host}${port}${db}`
   }
+}
+
+export function supportsSqlStudio(access: Pick<Access, 'type' | 'engine'>): boolean {
+  return access.type === 'database' && isSqlStudioEngine(access.engine)
+}
+
+export function sqlStudioReady(access: Pick<Access, 'type' | 'engine' | 'host' | 'port'>): boolean {
+  if (!supportsSqlStudio(access)) return false
+  if (access.engine === 'sqlite') return Boolean(access.host?.trim())
+  return Boolean(access.host?.trim() && access.port)
 }

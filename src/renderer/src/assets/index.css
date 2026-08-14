@@ -32,6 +32,14 @@ html.dark {
   --color-accent: #3d8bfd;
   --color-accent-foreground: #0a0e17;
   --color-ring: #3d8bfd;
+  --cm-keyword: #9db4c8;
+  --cm-ident: #d6a4e8;
+  --cm-ident-muted: #b08cc4;
+  --cm-string: #c9a56a;
+  --cm-number: #d19a66;
+  --cm-comment: #6b7788;
+  --cm-punct: #8b97ad;
+  --cm-kind: #d4b46a;
 }
 
 html.light {
@@ -46,6 +54,14 @@ html.light {
   --color-accent: #1a56c4;
   --color-accent-foreground: #ffffff;
   --color-ring: #1a56c4;
+  --cm-keyword: #3d5a73;
+  --cm-ident: #7c3aed;
+  --cm-ident-muted: #9333ea;
+  --cm-string: #b45309;
+  --cm-number: #c2410c;
+  --cm-comment: #64748b;
+  --cm-punct: #64748b;
+  --cm-kind: #a16207;
 }
 
 @layer base {
@@ -105,7 +121,11 @@ html.light {
 
   /* body user-select:none — allow selecting workflow run logs */
   [data-testid="workflow-run-log"],
-  [data-testid="workflow-run-log"] * {
+  [data-testid="workflow-run-log"] *,
+  /* SQL studio record view — copy field values */
+  .query-result-record,
+  .query-result-record td,
+  .query-result-record td * {
     user-select: text;
     -webkit-user-select: text;
   }
