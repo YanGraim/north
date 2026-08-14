@@ -1,13 +1,14 @@
 # Acessos
 
-Acessos guardam credenciais **sem** abrir sessão remota:
+Acessos guardam credenciais na mesma hierarquia Cliente → Ambiente → Grupo:
 
-- **Login** — usuário/senha e URL opcional (portal, painel)
-- **Banco** — engine, host, porta, database, SSL
+- **Login** — usuário/senha e URL (portal, painel) — **sem** sessão remota
+- **Banco** — engine, host, porta, database, SSL. PostgreSQL, MySQL/MariaDB, SQL Server e SQLite abrem o [estúdio SQL](database)
 - **Outro** — segredo genérico com notas
 
 ## Ações no painel
 
+- **Conectar** — só em bancos com engine suportado; abre o editor in-app
 - **Revelar / ocultar senha** — mostra o segredo só quando você pede
 - **Copiar senha** — para colar no destino
 - **Copiar connection string** — útil em acessos de banco

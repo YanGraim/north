@@ -4,7 +4,9 @@ Para abrir una sesión:
 
 1. Selecciona una **conexión** en la lista.
 2. Usa **Conectar** (o Enter en la Command Palette).
-3. La sesión abre en una **pestaña** del workspace — terminal, escritorio o archivos, según el tipo.
+3. La sesión abre en una **pestaña** del workspace — terminal, escritorio, archivos o **estudio SQL**, según el tipo.
+
+Las bases registradas como Access (PostgreSQL, MySQL/MariaDB, SQL Server, SQLite) también tienen **Conectar**. Detalles en el capítulo **Estudio SQL**.
 
 ## Workflows (SSH)
 

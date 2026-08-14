@@ -4,7 +4,9 @@ To open a session:
 
 1. Select a **connection** in the list.
 2. Use **Connect** (or Enter in the Command Palette).
-3. The session opens in a **tab** in the workspace — terminal, desktop or files, depending on the kind.
+3. The session opens in a **tab** in the workspace — terminal, desktop, files or **SQL studio**, depending on the kind.
+
+Databases stored as Access (PostgreSQL, MySQL/MariaDB, SQL Server, SQLite) also have **Connect**. See the **SQL studio** chapter.
 
 ## Workflows (SSH)
 

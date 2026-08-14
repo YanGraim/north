@@ -1,13 +1,14 @@
 # Accesses
 
-Accesses store credentials **without** opening a remote session:
+Accesses store credentials in the same Client → Environment → Group hierarchy:
 
-- **Login** — username/password and optional URL (portal, panel)
-- **Database** — engine, host, port, database, SSL
+- **Login** — username/password and URL (portal, panel) — **no** remote session
+- **Database** — engine, host, port, database, SSL. PostgreSQL, MySQL/MariaDB, SQL Server and SQLite open the [SQL studio](database)
 - **Other** — generic secret with notes
 
 ## Panel actions
 
+- **Connect** — only for supported database engines; opens the in-app editor
 - **Reveal / hide password** — shows the secret only when you ask
 - **Copy password** — paste into the destination
 - **Copy connection string** — useful for database accesses

@@ -2,15 +2,16 @@
 
 Documento de arquitetura da camada de sessões in-app. Implementação começa na Parte 6 do [roadmap](./07-roadmap.md). Decisão formal: [ADR 0004](./adr/0004-sessoes-nativas-in-app.md).
 
-## Três tipos de sessão
+## Quatro tipos de sessão
 
 A UI conhece **apenas** o tipo. O protocolo concreto fica no driver.
 
-| Tipo            | Exemplos de protocolo     | View no renderer              |
-| --------------- | ------------------------- | ----------------------------- |
-| `Terminal`      | SSH, Telnet, Serial       | `@xterm/xterm`                |
-| `Desktop`       | RDP, VNC                  | IronRDP WASM / `@novnc/novnc` |
-| `FileTransfer`  | SFTP, FTP                 | File browser próprio          |
+| Tipo            | Exemplos de protocolo                          | View no renderer              |
+| --------------- | ---------------------------------------------- | ----------------------------- |
+| `Terminal`      | SSH, Telnet, Serial                            | `@xterm/xterm`                |
+| `Desktop`       | RDP, VNC                                       | IronRDP WASM / `@novnc/novnc` |
+| `FileTransfer`  | SFTP, FTP                                      | File browser próprio          |
+| `Database`      | PostgreSQL, MySQL/MariaDB, SQL Server, SQLite  | Estúdio SQL (Access)          |
 
 ## Onde roda o plano de dados
 
@@ -23,6 +24,7 @@ A UI conhece **apenas** o tipo. O protocolo concreto fica no driver.
 | FTP       | `basic-ftp`                                 | File browser                  |
 | VNC       | Ponte TCP (proxy de socket)                 | `@novnc/novnc`                |
 | RDP       | Ponte TCP/TLS                               | IronRDP WASM                  |
+| SQL       | `pg` / `mysql2` / `tedious` / `better-sqlite3` no main | Estúdio SQL (Access) |
 
 Regra: sockets, TLS, credenciais e arquivos locais ficam no **main**. O renderer só renderiza e envia input do usuário.
 
@@ -31,7 +33,7 @@ Regra: sockets, TLS, credenciais e arquivos locais ficam no **main**. O renderer
 Esboço conceitual — nomes finais alinhados ao TypeScript na Parte 6.
 
 ```ts
-type SessionKind = 'terminal' | 'desktop' | 'file-transfer'
+type SessionKind = 'terminal' | 'desktop' | 'file-transfer' | 'database'
 type SessionState = 'connecting' | 'connected' | 'reconnecting' | 'closed' | 'error'
 
 interface ProtocolSession {
@@ -80,9 +82,11 @@ interface ProtocolManager {
 Eventos de sessão (plano de controle) — canais definitivos:
 
 - `sessions:open` / `sessions:close` / `sessions:list`
+- `sessions:open-access` — sessão SQL a partir de Access (sem MessagePort; [ADR 0015](./adr/0015-estudio-sql.md))
 - `sessions:state-changed` / `sessions:host-key-prompt` / `sessions:respond-host-key`
 - Entrega do port: `sessions:port` via `postMessage` (transfer)
 - File-transfer: `fs:list|mkdir|rename|delete|download|upload` + evento `fs:progress` ([ADR 0008](./adr/0008-file-transfer-ipc.md))
+- SQL studio: `db:test|introspect|query|cancel|pick-file`
 - Serial: `serial:list-ports`
 
 O plano de dados **não** usa esses canais para bytes contínuos.
@@ -113,6 +117,7 @@ O plano de dados **não** usa esses canais para bytes contínuos.
 | FTP           | `basic-ftp`                     | `ftp` legado, `jsftp`                            | API moderna, TypeScript-friendly |
 | VNC           | `@novnc/novnc` v1.7 + ponte TCP | Guacamole só para VNC                            | Ativo; roda no renderer |
 | RDP           | **IronRDP** WASM (Devolutions) + ponte | FreeRDP bindings nativos; Guacamole; stack TS própria | WASM seguro no renderer; referência `electerm/ironrdp-wasm`; FreeRDP complica sandbox Electron |
+| SQL           | `pg` / `mysql2` / `tedious` / `better-sqlite3` | Cliente SQL no renderer; protocolo em `Connection` | Sockets e senha só no main; Access continua inventário |
 
 Credenciais: **`safeStorage`** (ver [06-seguranca.md](./06-seguranca.md)). `keytar` descartado (deprecado).
 

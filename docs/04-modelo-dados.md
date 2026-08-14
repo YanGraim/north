@@ -117,7 +117,7 @@ Inventário de segredo/metadado (login de portal, credencial de banco). **Não**
 | `links`             | JSON?     | Array `{ label, url }`                          |
 | `icon` / `color`    | string?   |                                                 |
 | `isFavorite`        | bool      |                                                 |
-| `engine`            | enum?     | Só `database`: postgres, mysql, mariadb, redis, mongodb, mssql, other |
+| `engine`            | enum?     | Só `database`: postgres, mysql, mariadb, redis, mongodb, mssql, sqlite, other |
 | `host` / `port`     | string?/int? | Só `database`                                |
 | `database`          | string?   | Nome da base (coluna SQL `database_name`)       |
 | `ssl`               | bool?     | Só `database`                                   |
@@ -155,6 +155,19 @@ Inventário de segredo/metadado (login de portal, credencial de banco). **Não**
 | `durationMs`   | int?     | Se mensurável |
 | `success`      | bool     |               |
 | `errorMessage` | string?  |               |
+
+## Histórico de Access (estúdio SQL)
+
+Tabela irmã de `connection_history` — sessões `database` abertas a partir de Access ([ADR 0015](./adr/0015-estudio-sql.md)). Não reutiliza `connection_id`.
+
+| Campo          | Tipo     | Notas                        |
+| -------------- | -------- | ---------------------------- |
+| `id`           | UUID     | PK                           |
+| `accessId`     | UUID     | FK → Access (`ON DELETE CASCADE`) |
+| `connectedAt`  | datetime |                              |
+| `durationMs`   | int?     |                              |
+| `success`      | bool     |                              |
+| `errorMessage` | string?  |                              |
 
 ## known_hosts (SSH)
 
@@ -235,6 +248,7 @@ Unique: `(connection_id, kind)`.
 - `connections(host)`, `connections(group_id)`, `connections(is_favorite)`
 - `connection_tags(tag_id)`
 - `connection_history(connection_id, connected_at DESC)`
+- `access_history(access_id, connected_at DESC)`
 - `known_hosts(host, port)`
 - `group_variables(group_id)`, `workflows(group_id)`, `workflow_runs(workflow_id)`
 - `connection_secrets(connection_id)`

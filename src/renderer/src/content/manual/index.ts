@@ -3,6 +3,7 @@ import type { LocaleCode } from '@renderer/stores/ui-store'
 import accessesEn from './en/accesses.md?raw'
 import commandPaletteEn from './en/command-palette.md?raw'
 import connectEn from './en/connect.md?raw'
+import databaseEn from './en/database.md?raw'
 import gettingStartedEn from './en/getting-started.md?raw'
 import importExportEn from './en/import-export.md?raw'
 import organizationEn from './en/organization.md?raw'
@@ -13,6 +14,7 @@ import workflowsEn from './en/workflows.md?raw'
 import accessesEs from './es/accesses.md?raw'
 import commandPaletteEs from './es/command-palette.md?raw'
 import connectEs from './es/connect.md?raw'
+import databaseEs from './es/database.md?raw'
 import gettingStartedEs from './es/getting-started.md?raw'
 import importExportEs from './es/import-export.md?raw'
 import organizationEs from './es/organization.md?raw'
@@ -23,6 +25,7 @@ import workflowsEs from './es/workflows.md?raw'
 import accessesPt from './pt-BR/accesses.md?raw'
 import commandPalettePt from './pt-BR/command-palette.md?raw'
 import connectPt from './pt-BR/connect.md?raw'
+import databasePt from './pt-BR/database.md?raw'
 import gettingStartedPt from './pt-BR/getting-started.md?raw'
 import importExportPt from './pt-BR/import-export.md?raw'
 import organizationPt from './pt-BR/organization.md?raw'
@@ -36,6 +39,7 @@ export const MANUAL_CHAPTER_IDS = [
   'getting-started',
   'connect',
   'accesses',
+  'database',
   'workflows',
   'command-palette',
   'import-export',
@@ -58,6 +62,7 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     'getting-started': gettingStartedPt,
     connect: connectPt,
     accesses: accessesPt,
+    database: databasePt,
     workflows: workflowsPt,
     'command-palette': commandPalettePt,
     'import-export': importExportPt,
@@ -69,6 +74,7 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     'getting-started': gettingStartedEn,
     connect: connectEn,
     accesses: accessesEn,
+    database: databaseEn,
     workflows: workflowsEn,
     'command-palette': commandPaletteEn,
     'import-export': importExportEn,
@@ -80,6 +86,7 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     'getting-started': gettingStartedEs,
     connect: connectEs,
     accesses: accessesEs,
+    database: databaseEs,
     workflows: workflowsEs,
     'command-palette': commandPaletteEs,
     'import-export': importExportEs,
