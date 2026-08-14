@@ -7,7 +7,7 @@ export const WORKSPACE_TAB_ID = 'workspace'
 
 export type SessionTab = {
   id: string
-  kind: 'workspace' | 'session'
+  kind: 'workspace' | 'session' | 'workflow-run'
   title: string
   sessionId?: string
   connectionId?: string
@@ -23,6 +23,10 @@ export type SessionTab = {
   awaitingHostKey?: boolean
   /** Keep-alive: port lives for the lifetime of the tab. */
   port?: MessagePort | null
+  /** Workflow run tab fields */
+  workflowId?: string
+  workflowRunId?: string
+  workflowName?: string
 }
 
 export type OpenSessionOptions = {
@@ -62,6 +66,14 @@ type SessionsState = {
   updateSessionState: (session: SessionDescriptor) => void
   closeTab: (tabId: string) => Promise<void>
   duplicateTab: (tabId: string) => Promise<void>
+  openWorkflowRunTab: (input: {
+    runId: string
+    workflowId: string
+    workflowName: string
+    connectionId: string
+  }) => void
+  /** Rebind an existing workflow-run tab to a new run (e.g. Retry after failure). */
+  attachWorkflowRunToTab: (tabId: string, runId: string) => void
 }
 
 function workspaceTab(): SessionTab {
@@ -250,6 +262,14 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
     const tab = state.tabs.find((t) => t.id === tabId)
     if (!tab) return
 
+    if (tab.kind === 'workflow-run' && tab.workflowRunId) {
+      try {
+        await window.north.workflows.cancel(tab.workflowRunId)
+      } catch {
+        // run may already be finished
+      }
+    }
+
     if (tab.sessionId) {
       try {
         await window.north.sessions.close(tab.sessionId)
@@ -276,7 +296,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
 
   duplicateTab: async (tabId) => {
     const tab = get().tabs.find((t) => t.id === tabId)
-    if (!tab?.connectionId) return
+    if (!tab?.connectionId || tab.kind === 'workflow-run') return
     await openConnectionSession(tab.connectionId, {
       title: tab.title,
       protocol: tab.protocol,
@@ -286,6 +306,28 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       environmentName: tab.environmentName,
       environmentColor: tab.environmentColor
     })
+  },
+
+  openWorkflowRunTab: (input) => {
+    const tab: SessionTab = {
+      id: `workflow-run-${input.runId}`,
+      kind: 'workflow-run',
+      title: input.workflowName,
+      connectionId: input.connectionId,
+      workflowId: input.workflowId,
+      workflowRunId: input.runId,
+      workflowName: input.workflowName
+    }
+    set((state) => ({
+      tabs: [...state.tabs, tab],
+      activeTabId: tab.id
+    }))
+  },
+
+  attachWorkflowRunToTab: (tabId, runId) => {
+    set((state) => ({
+      tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, workflowRunId: runId } : t))
+    }))
   }
 }))
 

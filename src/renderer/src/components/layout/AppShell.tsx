@@ -3,10 +3,12 @@ import { Titlebar } from '@renderer/components/layout/Titlebar'
 import { WorkspaceLayout } from '@renderer/components/layout/WorkspaceLayout'
 import { TooltipProvider } from '@renderer/components/ui/tooltip'
 import { CommandPalette } from '@renderer/features/command-palette/CommandPalette'
+import { WhatsNewDialog } from '@renderer/features/help/WhatsNewDialog'
 import { InventoryDialogs } from '@renderer/features/inventory/InventoryDialogs'
 import { HostKeyDialog } from '@renderer/features/sessions/HostKeyDialog'
 import { SessionTabs } from '@renderer/features/sessions/SessionTabs'
 import { SessionView } from '@renderer/features/sessions/SessionView'
+import { WorkflowRunView } from '@renderer/features/workflows/WorkflowRunView'
 import { matchesShortcut } from '@renderer/lib/shortcuts'
 import { toastError } from '@renderer/lib/toast'
 import { useCommandPaletteStore } from '@renderer/stores/command-palette-store'
@@ -112,9 +114,22 @@ export function AppShell(): React.JSX.Element {
                 <SessionView tab={tab} visible={activeTabId === tab.id} />
               </div>
             ))}
+
+          {tabs
+            .filter((tab) => tab.kind === 'workflow-run')
+            .map((tab) => (
+              <div
+                key={tab.id}
+                className="absolute inset-0 flex h-full min-h-0 min-w-0 flex-col"
+                style={{ display: activeTabId === tab.id ? 'flex' : 'none' }}
+              >
+                <WorkflowRunView tab={tab} />
+              </div>
+            ))}
         </div>
         <CommandPalette />
         <HostKeyDialog />
+        <WhatsNewDialog />
         <InventoryDialogs />
       </div>
     </TooltipProvider>

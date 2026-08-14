@@ -1,11 +1,8 @@
+import { isApplePlatform } from '@renderer/lib/platform'
 import { toastError } from '@renderer/lib/toast'
 import type { Terminal } from '@xterm/xterm'
 
-export function isApplePlatform(
-  platform: string = typeof navigator !== 'undefined' ? navigator.platform : ''
-): boolean {
-  return /Mac|iPhone|iPad|iPod/.test(platform)
-}
+export { isApplePlatform }
 
 export function terminalModKeyLabel(platform?: string): string {
   return isApplePlatform(platform) ? '⌘' : 'Ctrl'

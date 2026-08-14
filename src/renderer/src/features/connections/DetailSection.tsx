@@ -4,16 +4,21 @@ type DetailSectionProps = {
   title: string
   children: React.ReactNode
   className?: string
+  action?: React.ReactNode
 }
 
 export function DetailSection({
   title,
   children,
-  className
+  className,
+  action
 }: DetailSectionProps): React.JSX.Element {
   return (
     <section className={cn('space-y-3', className)}>
-      <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted">{title}</h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-[11px] font-medium uppercase tracking-wider text-muted">{title}</h3>
+        {action}
+      </div>
       <div className="space-y-2.5">{children}</div>
     </section>
   )

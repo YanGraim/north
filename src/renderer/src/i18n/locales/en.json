@@ -70,8 +70,8 @@
       "restarting": "Restarting…"
     },
     "help": {
-      "title": "Help",
-      "description": "Product manual and tutorial — open anytime.",
+      "title": "Help & what's new",
+      "description": "Product manual and what changed in updates.",
       "openManual": "Open manual"
     },
     "about": {
@@ -97,10 +97,21 @@
       "getting-started": "Getting started",
       "connect": "Connect",
       "accesses": "Accesses",
+      "workflows": "Workflows",
       "command-palette": "Command Palette",
       "import-export": "Import / export",
       "security": "Security"
     }
+  },
+  "whatsNew": {
+    "title": "What's new in v{{version}}",
+    "titleSince": "What's new since v{{from}}",
+    "subtitle": "What changed in this update",
+    "featureLabel": "New",
+    "dismiss": "Got it",
+    "openManual": "View in manual",
+    "openFromSettings": "What's new",
+    "openFromPalette": "What's new"
   },
   "access": {
     "form": {

@@ -15,3 +15,7 @@ The inventory follows an explicit hierarchy:
 | **Access** | Database credential, portal login or other secret — **no** remote session |
 
 Think of connections as “how I reach the host” and accesses as “what I use to authenticate to services”.
+
+## Workflows
+
+The **group** owns workflows and project variables. A run targets a connection; credentials never live in the workflow — only in the connection secrets bag.

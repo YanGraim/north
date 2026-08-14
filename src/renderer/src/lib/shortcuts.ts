@@ -3,6 +3,8 @@
  * Base para atalhos configuráveis no futuro.
  */
 
+import { isApplePlatform } from '@renderer/lib/platform'
+
 export type ShortcutId =
   | 'commandPalette'
   | 'toggleSidebar'
@@ -77,8 +79,7 @@ export function matchesShortcut(event: KeyboardEvent, id: ShortcutId): boolean {
 /** Rótulo de tecla adaptado ao SO (⌘ no Apple, Ctrl nos demais). */
 export function shortcutDisplayLabel(id: ShortcutId): string {
   const shortcut = SHORTCUTS[id]
-  const isApple =
-    typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+  const isApple = isApplePlatform()
   if (!shortcut.mod) return shortcut.key.toUpperCase()
   const mod = isApple ? '⌘' : 'Ctrl+'
   const shift = shortcut.shift ? (isApple ? '⇧' : 'Shift+') : ''

@@ -76,7 +76,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
         })
       )
     } catch (error) {
-      toastError(error instanceof Error ? error.message : 'Falha ao listar diretório')
+      toastError(error, 'Falha ao listar diretório')
     } finally {
       setLoading(false)
     }
@@ -98,7 +98,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
         if (existing != null) toast.dismiss(existing)
         progressToasts.current.delete(progress.transferId)
         if (progress.error) {
-          toastError(progress.error)
+          toastError(new Error(progress.error))
         } else {
           toastSuccess(`${label} concluído: ${remote}`)
           void refresh()
@@ -125,7 +125,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
     for (const file of list) {
       const path = window.north.fs.getPathForFile(file)
       if (!path) {
-        toastError(`Não foi possível obter o caminho de “${file.name}”`)
+        toastError(new Error(`Não foi possível obter o caminho de “${file.name}”`))
         continue
       }
       try {
@@ -135,7 +135,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
           remotePath: joinRemote(cwd, file.name)
         })
       } catch (error) {
-        toastError(error instanceof Error ? error.message : 'Falha no upload')
+        toastError(error, 'Falha no upload')
       }
     }
   }
@@ -145,7 +145,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
       await window.north.fs.download({ sessionId, remotePath: entry.path })
     } catch (error) {
       if (error instanceof Error && error.message === 'Download cancelado') return
-      toastError(error instanceof Error ? error.message : 'Falha no download')
+      toastError(error, 'Falha no download')
     }
   }
 
@@ -156,7 +156,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
       await window.north.fs.mkdir({ sessionId, path: joinRemote(cwd, name.trim()) })
       await refresh()
     } catch (error) {
-      toastError(error instanceof Error ? error.message : 'Falha ao criar pasta')
+      toastError(error, 'Falha ao criar pasta')
     }
   }
 
@@ -171,7 +171,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
       })
       await refresh()
     } catch (error) {
-      toastError(error instanceof Error ? error.message : 'Falha ao renomear')
+      toastError(error, 'Falha ao renomear')
     }
   }
 
@@ -182,7 +182,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
       setSelected(null)
       await refresh()
     } catch (error) {
-      toastError(error instanceof Error ? error.message : 'Falha ao excluir')
+      toastError(error, 'Falha ao excluir')
     }
   }
 
@@ -191,6 +191,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
       className={cn('flex h-full min-h-0 flex-col bg-background')}
       style={{ display: visible ? 'flex' : 'none' }}
       aria-label="Navegador de arquivos"
+      data-testid="file-browser"
       onDragOver={(e) => {
         e.preventDefault()
         setDragOver(true)
@@ -300,6 +301,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
                 return (
                   <tr
                     key={entry.path}
+                    data-testid={`file-browser-entry-${entry.name}`}
                     className={cn(
                       'border-t border-border/60 hover:bg-surface-elevated/50',
                       selected === entry.path && 'bg-surface-elevated'
@@ -373,7 +375,7 @@ export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): R
             </tbody>
           </table>
           {!loading && entries.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted">
+            <p className="p-6 text-center text-sm text-muted" data-testid="file-browser-empty">
               Pasta vazia — arraste arquivos para enviar
             </p>
           ) : null}

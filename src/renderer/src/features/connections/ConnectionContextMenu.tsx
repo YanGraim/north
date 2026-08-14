@@ -57,7 +57,7 @@ export function ConnectionContextMenu({
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem
-            disabled={connecting || connection.protocol !== 'ssh'}
+            disabled={connecting || !sessionKindForProtocol(connection.protocol)}
             onSelect={() => void handleConnect()}
           >
             {connecting ? 'Conectando…' : 'Conectar'}

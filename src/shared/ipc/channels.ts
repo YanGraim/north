@@ -102,7 +102,28 @@ export const IpcChannels = {
   /** Main → renderer (event): update available. */
   UPDATES_AVAILABLE: 'updates:available',
   /** Main → renderer (event): full update state changed. */
-  UPDATES_STATUS_CHANGED: 'updates:status-changed'
+  UPDATES_STATUS_CHANGED: 'updates:status-changed',
+
+  WORKFLOWS_LIST: 'workflows:list',
+  WORKFLOWS_GET: 'workflows:get',
+  WORKFLOWS_CREATE: 'workflows:create',
+  WORKFLOWS_COPY: 'workflows:copy',
+  WORKFLOWS_UPDATE: 'workflows:update',
+  WORKFLOWS_DELETE: 'workflows:delete',
+  WORKFLOWS_LIST_VARIABLES: 'workflows:list-variables',
+  WORKFLOWS_CREATE_VARIABLE: 'workflows:create-variable',
+  WORKFLOWS_UPDATE_VARIABLE: 'workflows:update-variable',
+  WORKFLOWS_DELETE_VARIABLE: 'workflows:delete-variable',
+  WORKFLOWS_LIST_RUNS: 'workflows:list-runs',
+  WORKFLOWS_GET_RUN: 'workflows:get-run',
+  WORKFLOWS_RUN: 'workflows:run',
+  WORKFLOWS_RESPOND: 'workflows:respond',
+  WORKFLOWS_CANCEL: 'workflows:cancel',
+  WORKFLOWS_LIST_CONNECTION_SECRETS: 'workflows:list-connection-secrets',
+  WORKFLOWS_SET_CONNECTION_SECRET: 'workflows:set-connection-secret',
+  WORKFLOWS_DELETE_CONNECTION_SECRET: 'workflows:delete-connection-secret',
+  /** Main → renderer (event): workflow run timeline event. */
+  WORKFLOWS_RUN_EVENT: 'workflows:run-event'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

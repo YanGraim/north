@@ -70,8 +70,8 @@
       "restarting": "Reiniciando…"
     },
     "help": {
-      "title": "Ayuda",
-      "description": "Manual y tutorial del producto — ábrelo cuando quieras.",
+      "title": "Ayuda y novedades",
+      "description": "Manual del producto y qué cambió en las actualizaciones.",
       "openManual": "Abrir manual"
     },
     "about": {
@@ -97,10 +97,21 @@
       "getting-started": "Primeros pasos",
       "connect": "Conectar",
       "accesses": "Accesos",
+      "workflows": "Workflows",
       "command-palette": "Command Palette",
       "import-export": "Importar / exportar",
       "security": "Seguridad"
     }
+  },
+  "whatsNew": {
+    "title": "Novedades de la v{{version}}",
+    "titleSince": "Novedades desde la v{{from}}",
+    "subtitle": "Qué cambió en esta actualización",
+    "featureLabel": "Nuevo",
+    "dismiss": "Entendido",
+    "openManual": "Ver en el manual",
+    "openFromSettings": "Novedades",
+    "openFromPalette": "Novedades"
   },
   "access": {
     "form": {

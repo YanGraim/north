@@ -7,6 +7,7 @@ Open with **⌘K** (macOS) or **Ctrl+K** (Windows/Linux).
 - Search connections, accesses, clients, environments, groups and tags
 - Open a session directly from a result
 - Quick actions: new connection, dashboard, favorites, history, settings, import/export
+- **Run workflow…** and **Manage workflows…** (with an SSH connection in context)
 
 ## Main shortcuts
 

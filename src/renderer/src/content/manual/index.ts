@@ -8,6 +8,7 @@ import importExportEn from './en/import-export.md?raw'
 import organizationEn from './en/organization.md?raw'
 import overviewEn from './en/overview.md?raw'
 import securityEn from './en/security.md?raw'
+import workflowsEn from './en/workflows.md?raw'
 
 import accessesEs from './es/accesses.md?raw'
 import commandPaletteEs from './es/command-palette.md?raw'
@@ -17,6 +18,7 @@ import importExportEs from './es/import-export.md?raw'
 import organizationEs from './es/organization.md?raw'
 import overviewEs from './es/overview.md?raw'
 import securityEs from './es/security.md?raw'
+import workflowsEs from './es/workflows.md?raw'
 
 import accessesPt from './pt-BR/accesses.md?raw'
 import commandPalettePt from './pt-BR/command-palette.md?raw'
@@ -26,6 +28,7 @@ import importExportPt from './pt-BR/import-export.md?raw'
 import organizationPt from './pt-BR/organization.md?raw'
 import overviewPt from './pt-BR/overview.md?raw'
 import securityPt from './pt-BR/security.md?raw'
+import workflowsPt from './pt-BR/workflows.md?raw'
 
 export const MANUAL_CHAPTER_IDS = [
   'overview',
@@ -33,6 +36,7 @@ export const MANUAL_CHAPTER_IDS = [
   'getting-started',
   'connect',
   'accesses',
+  'workflows',
   'command-palette',
   'import-export',
   'security'
@@ -54,6 +58,7 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     'getting-started': gettingStartedPt,
     connect: connectPt,
     accesses: accessesPt,
+    workflows: workflowsPt,
     'command-palette': commandPalettePt,
     'import-export': importExportPt,
     security: securityPt
@@ -64,6 +69,7 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     'getting-started': gettingStartedEn,
     connect: connectEn,
     accesses: accessesEn,
+    workflows: workflowsEn,
     'command-palette': commandPaletteEn,
     'import-export': importExportEn,
     security: securityEn
@@ -74,6 +80,7 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     'getting-started': gettingStartedEs,
     connect: connectEs,
     accesses: accessesEs,
+    workflows: workflowsEs,
     'command-palette': commandPaletteEs,
     'import-export': importExportEs,
     security: securityEs

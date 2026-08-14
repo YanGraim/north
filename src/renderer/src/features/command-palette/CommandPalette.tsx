@@ -14,12 +14,18 @@ import {
   DialogDescription,
   DialogTitle
 } from '@renderer/components/ui/dialog'
+import { startWorkflowOnConnection } from '@renderer/features/workflows/start-workflow'
+import { WorkflowHubDialog } from '@renderer/features/workflows/WorkflowHubDialog'
+import { WorkflowInputsDialog } from '@renderer/features/workflows/WorkflowInputsDialog'
 import {
+  useConnection,
   useDeleteConnection,
   useDuplicateConnection,
   useToggleFavoriteConnection
 } from '@renderer/hooks/use-connections'
+import { useSelectedConnectionId } from '@renderer/hooks/use-route-selection'
 import { useSearchIndex } from '@renderer/hooks/use-search-index'
+import { useWorkflows } from '@renderer/hooks/use-workflows'
 import { accessDisplayIcon } from '@renderer/lib/access-ui'
 import { copyToClipboard } from '@renderer/lib/clipboard'
 import { connectionDisplayIcon } from '@renderer/lib/connection-ui'
@@ -36,7 +42,8 @@ import { toastError } from '@renderer/lib/toast'
 import { useCommandPaletteStore } from '@renderer/stores/command-palette-store'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { openConnectionSession, sessionKindForProtocol } from '@renderer/stores/sessions-store'
-import type { SearchIndexItem, SearchIndexKind } from '@shared/types'
+import { useWhatsNewStore } from '@renderer/stores/whats-new-store'
+import type { SearchIndexItem, SearchIndexKind, Workflow } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   BookOpen,
@@ -51,9 +58,11 @@ import {
   Plus,
   Server,
   Settings,
+  Sparkles,
   Star,
   Tag,
-  Upload
+  Upload,
+  Workflow as WorkflowIcon
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -82,12 +91,19 @@ export function CommandPalette(): React.JSX.Element {
   const open = useCommandPaletteStore((s) => s.open)
   const setOpen = useCommandPaletteStore((s) => s.setOpen)
   const openDialog = useInventoryDialogsStore((s) => s.open)
+  const openWhatsNew = useWhatsNewStore((s) => s.openWhatsNew)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { data: index = [] } = useSearchIndex()
   const [query, setQuery] = useState('')
   const [actionsFor, setActionsFor] = useState<SearchIndexItem | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<SearchIndexItem | null>(null)
+  const [pickWorkflow, setPickWorkflow] = useState(false)
+  const [hubOpen, setHubOpen] = useState(false)
+  const [pendingWorkflow, setPendingWorkflow] = useState<Workflow | null>(null)
+  const { connectionId } = useSelectedConnectionId()
+  const { data: selectedConnection } = useConnection(connectionId ?? undefined)
+  const { data: paletteWorkflows = [] } = useWorkflows(selectedConnection?.groupId)
 
   const toggleFavorite = useToggleFavoriteConnection()
   const duplicate = useDuplicateConnection()
@@ -294,6 +310,61 @@ export function CommandPalette(): React.JSX.Element {
 
                   <CommandGroup heading="Ações rápidas">
                     <CommandItem
+                      value="action-run-workflow"
+                      onSelect={() => {
+                        if (!selectedConnection || selectedConnection.protocol !== 'ssh') {
+                          toastError(
+                            new Error(
+                              'Selecione uma conexão SSH no inventário para executar um workflow.'
+                            )
+                          )
+                          return
+                        }
+                        setPickWorkflow(true)
+                      }}
+                    >
+                      <WorkflowIcon className="size-4 text-muted" />
+                      Executar workflow…
+                    </CommandItem>
+                    {pickWorkflow
+                      ? paletteWorkflows.map((workflow) => (
+                          <CommandItem
+                            key={workflow.id}
+                            value={`workflow-run-${workflow.name}`}
+                            onSelect={() => {
+                              close()
+                              setPickWorkflow(false)
+                              if (workflow.definition.inputs.length > 0) {
+                                setPendingWorkflow(workflow)
+                                return
+                              }
+                              if (selectedConnection) {
+                                void startWorkflowOnConnection({
+                                  workflow,
+                                  connectionId: selectedConnection.id
+                                })
+                              }
+                            }}
+                          >
+                            <WorkflowIcon className="size-4 text-accent" />
+                            {workflow.name}
+                          </CommandItem>
+                        ))
+                      : null}
+                    {pickWorkflow && selectedConnection ? (
+                      <CommandItem
+                        value="action-manage-workflows"
+                        onSelect={() => {
+                          close()
+                          setPickWorkflow(false)
+                          setHubOpen(true)
+                        }}
+                      >
+                        <WorkflowIcon className="size-4 text-muted" />
+                        Gerenciar workflows…
+                      </CommandItem>
+                    ) : null}
+                    <CommandItem
                       value="action-new-connection"
                       onSelect={() => {
                         close()
@@ -365,6 +436,16 @@ export function CommandPalette(): React.JSX.Element {
                       {t('help.openManual')}
                     </CommandItem>
                     <CommandItem
+                      value="action-whats-new novidades whats new patch atualizacao"
+                      onSelect={() => {
+                        close()
+                        openWhatsNew({ force: true })
+                      }}
+                    >
+                      <Sparkles className="size-4 text-muted" />
+                      {t('whatsNew.openFromPalette')}
+                    </CommandItem>
+                    <CommandItem
                       value="action-tutorial primeiros passos getting started"
                       onSelect={() => {
                         close()
@@ -431,6 +512,33 @@ export function CommandPalette(): React.JSX.Element {
           onConfirm={async () => {
             await deleteConnection.mutateAsync(confirmDelete.id)
             setConfirmDelete(null)
+          }}
+        />
+      ) : null}
+
+      {selectedConnection ? (
+        <WorkflowHubDialog
+          groupId={selectedConnection.groupId}
+          open={hubOpen}
+          onOpenChange={setHubOpen}
+        />
+      ) : null}
+
+      {pendingWorkflow && selectedConnection ? (
+        <WorkflowInputsDialog
+          workflow={pendingWorkflow}
+          open={Boolean(pendingWorkflow)}
+          onOpenChange={(open) => {
+            if (!open) setPendingWorkflow(null)
+          }}
+          onConfirm={async (inputValues) => {
+            const workflow = pendingWorkflow
+            setPendingWorkflow(null)
+            await startWorkflowOnConnection({
+              workflow,
+              connectionId: selectedConnection.id,
+              inputValues
+            })
           }}
         />
       ) : null}

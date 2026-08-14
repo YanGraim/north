@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(5)
+    expect(getUserVersion(db)).toBe(6)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -30,7 +30,11 @@ describe('migrations', () => {
         'tags',
         'connection_tags',
         'connection_history',
-        'known_hosts'
+        'known_hosts',
+        'group_variables',
+        'workflows',
+        'workflow_runs',
+        'connection_secrets'
       ])
     )
   })
@@ -39,7 +43,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(5)
+    expect(getUserVersion(db)).toBe(6)
   })
 
   it('adds color column to environments from 005', () => {
@@ -142,5 +146,31 @@ describe('migrations', () => {
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'access_tags'`)
       .all() as Array<{ name: string }>
     expect(junctions).toHaveLength(1)
+  })
+
+  it('creates workflow tables and migrates credential_ref into connection_secrets from 006', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+
+    for (const table of ['group_variables', 'workflows', 'workflow_runs', 'connection_secrets']) {
+      const found = db
+        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`)
+        .get(table) as { name: string } | undefined
+      expect(found?.name).toBe(table)
+    }
+
+    const runColumns = db.prepare(`PRAGMA table_info(workflow_runs)`).all() as Array<{
+      name: string
+    }>
+    expect(runColumns.map((c) => c.name)).toEqual(
+      expect.arrayContaining([
+        'definition_snapshot',
+        'variables_snapshot',
+        'input_values',
+        'targets',
+        'mode',
+        'status'
+      ])
+    )
   })
 })

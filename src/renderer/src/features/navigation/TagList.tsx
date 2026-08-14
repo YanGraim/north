@@ -1,6 +1,7 @@
 import { Skeleton } from '@renderer/components/ui/skeleton'
 import { NavItem } from '@renderer/features/navigation/NavItem'
 import { TagContextMenu } from '@renderer/features/navigation/TagContextMenu'
+import { useAccesses } from '@renderer/hooks/use-accesses'
 import { useConnections } from '@renderer/hooks/use-connections'
 import { useTags } from '@renderer/hooks/use-tags'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
@@ -56,7 +57,8 @@ function TagNavItem({
   color: string | null
   collapsed: boolean
 }): React.JSX.Element {
-  const { data: tagged = [] } = useConnections({ tagId })
+  const { data: connections = [] } = useConnections({ tagId })
+  const { data: accesses = [] } = useAccesses({ tagId })
 
   return (
     <NavItem
@@ -64,7 +66,7 @@ function TagNavItem({
       label={name}
       icon={Tag}
       collapsed={collapsed}
-      count={tagged.length}
+      count={connections.length + accesses.length}
       color={color}
       plain
     />

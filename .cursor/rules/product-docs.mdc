@@ -1,0 +1,37 @@
+---
+description: Checklist de manual in-app e patch de novidades em toda feature visível ao usuário
+alwaysApply: true
+---
+
+# Docs de produto (manual + novidades)
+
+Ao fechar uma **feature ou mudança visível na UI**, verificar os dois destinos abaixo. ADR e `docs/` de engenharia **não** substituem o manual do usuário.
+
+## 1. Manual in-app
+
+Pasta: `src/renderer/src/content/manual/` (locales `pt-BR`, `en`, `es`).
+
+- Superfície nova → capítulo novo (ou extensão clara de um existente) + chave em `help.chapters.*`
+- Feature que encaixa num capítulo → parágrafo / cruzamento nos capítulos relacionados
+- Sempre nos **3 idiomas**
+
+## 2. Patch de novidades
+
+Pasta: `src/renderer/src/content/whats-new/` (por versão, 3 idiomas).
+
+- **Entra** se o usuário percebe a mudança (feature, UX relevante, breaking)
+- **Não entra**: hotfix silencioso, refator interno, só testes ou docs de engenharia
+- Texto curto (o que o usuário **ganha**); CTA para o capítulo do manual quando fizer sentido
+
+## 3. Omissão consciente
+
+Se não atualizar manual ou patch, **justificar no PR** (uma linha). Não omitir por esquecimento.
+
+## Exemplos
+
+```
+✅ Workflows → capítulo no manual + entry no patch da versão
+✅ Split do botão Conectar → parágrafo em connect.md + bullet no patch
+❌ Corrigir timeout SSH interno → nem manual nem patch
+❌ Só Vitest/Cypress → nem manual nem patch
+```

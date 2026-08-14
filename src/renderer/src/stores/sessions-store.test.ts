@@ -18,6 +18,7 @@ describe('sessionKindForProtocol', () => {
   it('maps protocols to session kinds', () => {
     expect(sessionKindForProtocol('ssh')).toBe('terminal')
     expect(sessionKindForProtocol('sftp')).toBe('file-transfer')
+    expect(sessionKindForProtocol('ftp')).toBe('file-transfer')
     expect(sessionKindForProtocol('vnc')).toBe('desktop')
     expect(sessionKindForProtocol('https')).toBeUndefined()
   })

@@ -21,8 +21,9 @@ release
 CSC_LINK
 *.mobileprovision
 
-# Editor/agent config (local only)
-.cursor/
+.cypress-cache/
+cypress/screenshots/
+cypress/videos/
 
 # Local user data exports
 *.sqlite

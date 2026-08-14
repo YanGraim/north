@@ -25,6 +25,7 @@ Faixa prática para o produto ser usável e distribuível de verdade (ver [ADR 0
 | **Settings** | Rota `/settings` — Aparência, Idioma, Geral, Inventário, Atualizações, Sobre | — |
 | **Access** | Entidade `Access` (database/login/other), vault reveal com ownership, lista unificada | [ADR 0012](./adr/0012-accesses-tema-i18n.md) |
 | **Tema / i18n** | Dark/light/system + locales pt-BR/en/es | [ADR 0012](./adr/0012-accesses-tema-i18n.md) |
+| **Workflows** | Ações repetíveis por grupo: variáveis, engine linear, aba run, secrets bag, Vitest + Cypress | [ADR 0014](./adr/0014-workflows.md) |
 | **QA** | Checklist manual por protocolo + fluxos de produto + smoke CI local | [09-qa.md](./09-qa.md) |
 | **Distribuição** | Validar electron-builder, GitHub Releases, updater empacotado, signing/notarize opt-in | [10-distribuicao.md](./10-distribuicao.md) |
 
@@ -50,6 +51,7 @@ Dashboard, favoritos/recentes/histórico com estatísticas, notas Markdown; depo
 
 - **Plugins** — drivers e ações de terceiros via registry (UI sem protocolo hardcoded)
 - **Cloud sync** (opt-in) — metadados criptografados; credenciais continuam locais
+- **Workflows avançados** — dry-run UI, multi-target, scheduler, conditions/loops, templates/export
 - **Multi-janela** e workspaces salvos
 - **Audit log** exportável para compliance
 - **Fallback opcional** para cliente externo só quando o protocolo in-app ainda não existir

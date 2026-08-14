@@ -17,14 +17,19 @@ import type {
   Client,
   Connection,
   ConnectionHistoryEntry,
+  ConnectionSecret,
+  CopyWorkflowInput,
   CreateAccessInput,
   CreateClientInput,
   CreateConnectionInput,
   CreateEnvironmentInput,
   CreateGroupInput,
+  CreateGroupVariableInput,
   CreateTagInput,
+  CreateWorkflowInput,
   Environment,
   Group,
+  GroupVariable,
   ImportReport,
   ListAccessesFilter,
   ListConnectionsFilter,
@@ -34,8 +39,10 @@ import type {
   SearchIndexItem,
   SerialPortInfo,
   SetAccessTagsInput,
+  SetConnectionSecretInput,
   SetConnectionTagsInput,
   SetSecretInput,
+  StartWorkflowRunInput,
   StatsOverview,
   Tag,
   UpdateAccessInput,
@@ -43,8 +50,14 @@ import type {
   UpdateConnectionInput,
   UpdateEnvironmentInput,
   UpdateGroupInput,
+  UpdateGroupVariableInput,
   UpdateStatus,
-  UpdateTagInput
+  UpdateTagInput,
+  UpdateWorkflowInput,
+  Workflow,
+  WorkflowRun,
+  WorkflowRunEvent,
+  WorkflowRunRespondInput
 } from '../types'
 import { IpcChannels } from './channels'
 
@@ -267,6 +280,79 @@ export interface IpcInvokeMap {
     args: []
     result: UpdateStatus
   }
+
+  [IpcChannels.WORKFLOWS_LIST]: {
+    args: [groupId: string]
+    result: Workflow[]
+  }
+  [IpcChannels.WORKFLOWS_GET]: {
+    args: [id: string]
+    result: Workflow | null
+  }
+  [IpcChannels.WORKFLOWS_CREATE]: {
+    args: [input: CreateWorkflowInput]
+    result: Workflow
+  }
+  [IpcChannels.WORKFLOWS_COPY]: {
+    args: [input: CopyWorkflowInput]
+    result: Workflow[]
+  }
+  [IpcChannels.WORKFLOWS_UPDATE]: {
+    args: [id: string, input: UpdateWorkflowInput]
+    result: Workflow
+  }
+  [IpcChannels.WORKFLOWS_DELETE]: {
+    args: [id: string]
+    result: undefined
+  }
+  [IpcChannels.WORKFLOWS_LIST_VARIABLES]: {
+    args: [groupId: string]
+    result: GroupVariable[]
+  }
+  [IpcChannels.WORKFLOWS_CREATE_VARIABLE]: {
+    args: [input: CreateGroupVariableInput]
+    result: GroupVariable
+  }
+  [IpcChannels.WORKFLOWS_UPDATE_VARIABLE]: {
+    args: [id: string, input: UpdateGroupVariableInput]
+    result: GroupVariable
+  }
+  [IpcChannels.WORKFLOWS_DELETE_VARIABLE]: {
+    args: [id: string]
+    result: undefined
+  }
+  [IpcChannels.WORKFLOWS_LIST_RUNS]: {
+    args: [groupId: string, limit?: number]
+    result: WorkflowRun[]
+  }
+  [IpcChannels.WORKFLOWS_GET_RUN]: {
+    args: [id: string]
+    result: WorkflowRun | null
+  }
+  [IpcChannels.WORKFLOWS_RUN]: {
+    args: [input: StartWorkflowRunInput]
+    result: WorkflowRun
+  }
+  [IpcChannels.WORKFLOWS_RESPOND]: {
+    args: [input: WorkflowRunRespondInput]
+    result: undefined
+  }
+  [IpcChannels.WORKFLOWS_CANCEL]: {
+    args: [runId: string]
+    result: undefined
+  }
+  [IpcChannels.WORKFLOWS_LIST_CONNECTION_SECRETS]: {
+    args: [connectionId: string]
+    result: ConnectionSecret[]
+  }
+  [IpcChannels.WORKFLOWS_SET_CONNECTION_SECRET]: {
+    args: [input: SetConnectionSecretInput]
+    result: ConnectionSecret
+  }
+  [IpcChannels.WORKFLOWS_DELETE_CONNECTION_SECRET]: {
+    args: [connectionId: string, kind: string]
+    result: undefined
+  }
 }
 
 export type InvokeChannel = keyof IpcInvokeMap
@@ -388,5 +474,28 @@ export interface NorthApi {
     install: () => Promise<void>
     onAvailable: (listener: (info: { version: string }) => void) => () => void
     onStatusChanged: (listener: (status: UpdateStatus) => void) => () => void
+  }
+  workflows: {
+    list: (groupId: string) => Promise<Workflow[]>
+    get: (id: string) => Promise<Workflow | null>
+    create: (input: CreateWorkflowInput) => Promise<Workflow>
+    copy: (input: CopyWorkflowInput) => Promise<Workflow[]>
+    update: (id: string, input: UpdateWorkflowInput) => Promise<Workflow>
+    delete: (id: string) => Promise<void>
+    listVariables: (groupId: string) => Promise<GroupVariable[]>
+    createVariable: (input: CreateGroupVariableInput) => Promise<GroupVariable>
+    updateVariable: (id: string, input: UpdateGroupVariableInput) => Promise<GroupVariable>
+    deleteVariable: (id: string) => Promise<void>
+    listRuns: (groupId: string, limit?: number) => Promise<WorkflowRun[]>
+    getRun: (id: string) => Promise<WorkflowRun | null>
+    run: (input: StartWorkflowRunInput) => Promise<WorkflowRun>
+    respond: (input: WorkflowRunRespondInput) => Promise<void>
+    cancel: (runId: string) => Promise<void>
+    listConnectionSecrets: (connectionId: string) => Promise<ConnectionSecret[]>
+    setConnectionSecret: (input: SetConnectionSecretInput) => Promise<ConnectionSecret>
+    deleteConnectionSecret: (connectionId: string, kind: string) => Promise<void>
+    onRunEvent: (
+      listener: (payload: { runId: string; event: WorkflowRunEvent }) => void
+    ) => () => void
   }
 }

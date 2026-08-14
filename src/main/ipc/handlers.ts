@@ -19,6 +19,7 @@ import { registerStatsHandlers } from './stats'
 import { registerTagHandlers } from './tags'
 import { registerUpdateHandlers } from './updates'
 import { registerVaultHandlers } from './vault'
+import { registerWorkflowHandlers } from './workflows'
 
 let repositories: Repositories | null = null
 let vault: CredentialVault | null = null
@@ -63,4 +64,5 @@ export function registerIpcHandlers(): void {
   registerStatsHandlers(repositories)
   registerInventoryHandlers(repositories, vault)
   registerUpdateHandlers()
+  registerWorkflowHandlers(repositories, vault)
 }

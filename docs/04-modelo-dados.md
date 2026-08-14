@@ -5,15 +5,18 @@ Schema SQLite (Partes 2–4). Hierarquia:
 ```
 Cliente → Ambiente → Grupo → Servidor (Conexão)
                            ↘ Acesso (database | login | other)
+                           ↘ Variáveis de grupo (config plaintext)
+                           ↘ Workflows (+ runs com snapshot)
                 ↘ Tags (N:N com Conexão e Access)
                 ↘ Histórico de uso
                 ↘ Credentials (vault, blobs cifrados)
+                ↘ connection_secrets (bolsa por kind → credential_ref)
                 ↘ known_hosts (SSH host keys)
 ```
 Arquivo: `north.db` (produção) / `north-dev.db` (dev) em `app.getPath('userData')`.
 Migrations versionadas via `PRAGMA user_version` em `src/main/database/migrations`.
 
-**Segurança:** apenas `credentialRef` nas conexões — nunca senha em claro. Blobs cifrados com Electron `safeStorage` na tabela `credentials` (Parte 4 / ADR 0005).
+**Segurança:** secrets só na conexão (bolsa `connection_secrets` + vault) — nunca em workflows, variáveis de grupo ou snapshots de run. Blobs cifrados com Electron `safeStorage` na tabela `credentials` (Parte 4 / ADR 0005; Workflows / ADR 0014).
 
 ## Cliente
 
@@ -169,6 +172,63 @@ Gravado pelo `ProtocolManager` após o usuário confiar na fingerprint (Parte 6 
 
 Unique: `(host, port, keyType)`. Em mismatch, a UI bloqueia e só atualiza após confirmação explícita.
 
+## Variáveis de grupo (Workflows)
+
+Config plaintext compartilhada pelos workflows do grupo. **Nunca** secrets. Ver [ADR 0014](./adr/0014-workflows.md).
+
+| Campo         | Tipo     | Notas                          |
+| ------------- | -------- | ------------------------------ |
+| `id`          | UUID     | PK                             |
+| `groupId`     | UUID     | FK → Grupo (`ON DELETE CASCADE`) |
+| `key`         | string   | Único por grupo (ex.: `PROJECT_PATH`) |
+| `value`       | string   | Plaintext de configuração      |
+| `description` | text?    |                                |
+| `createdAt` / `updatedAt` | datetime |                    |
+
+## Workflow
+
+| Campo                   | Tipo     | Notas                                      |
+| ----------------------- | -------- | ------------------------------------------ |
+| `id`                    | UUID     | PK                                         |
+| `groupId`               | UUID     | FK → Grupo (`ON DELETE CASCADE`)           |
+| `name`                  | string   |                                            |
+| `description`           | text?    |                                            |
+| `icon`                  | string?  |                                            |
+| `preferredConnectionId` | UUID?    | Atalho; `ON DELETE SET NULL`               |
+| `sortOrder`             | int      |                                            |
+| `definition`            | JSON     | `{ schemaVersion, inputs, steps }`         |
+| `createdAt` / `updatedAt` | datetime |                                        |
+
+## WorkflowRun
+
+| Campo                 | Tipo     | Notas                                              |
+| --------------------- | -------- | -------------------------------------------------- |
+| `id`                  | UUID     | PK                                                 |
+| `workflowId`          | UUID     | FK → Workflow (`ON DELETE CASCADE`)                |
+| `groupId`             | UUID     | Denormalizado                                      |
+| `mode`                | enum     | `live` \| `dry-run`                                |
+| `status`              | enum     | pending/running/succeeded/failed/cancelled/paused  |
+| `targets`             | JSON     | `[{ connectionId }]` (MVP: length 1)               |
+| `definitionSnapshot`  | JSON     | Imutável no start                                  |
+| `variablesSnapshot`   | JSON     | Group vars + inputs resolvidos                     |
+| `inputValues`         | JSON     | Valores do formulário pré-run                      |
+| `startedAt`           | datetime |                                                    |
+| `finishedAt`          | datetime?|                                                    |
+
+## connection_secrets
+
+Bolsa de secrets por conexão (`kind` → `credential_ref`). Migração do `connections.credential_ref` legado.
+
+| Campo           | Tipo     | Notas                                      |
+| --------------- | -------- | ------------------------------------------ |
+| `id`            | UUID     | PK                                         |
+| `connectionId`  | UUID     | FK → Conexão (`ON DELETE CASCADE`)         |
+| `kind`          | string   | ex.: `password`, `passphrase`, `sudo`      |
+| `credentialRef` | UUID     | FK lógica → `credentials.id`               |
+| `createdAt` / `updatedAt` | datetime |                                |
+
+Unique: `(connection_id, kind)`.
+
 ## Índices
 
 - `environments(client_id)`, `groups(environment_id)`
@@ -176,4 +236,6 @@ Unique: `(host, port, keyType)`. Em mismatch, a UI bloqueia e só atualiza após
 - `connection_tags(tag_id)`
 - `connection_history(connection_id, connected_at DESC)`
 - `known_hosts(host, port)`
+- `group_variables(group_id)`, `workflows(group_id)`, `workflow_runs(workflow_id)`
+- `connection_secrets(connection_id)`
 - Full-text / busca fuzzy sobre `name`, `host`, `notes` (Parte 5)

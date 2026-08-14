@@ -6,6 +6,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger
 } from '@renderer/components/ui/context-menu'
+import { useAccesses } from '@renderer/hooks/use-accesses'
 import { useConnections } from '@renderer/hooks/use-connections'
 import { useDeleteTag } from '@renderer/hooks/use-tags'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
@@ -20,7 +21,9 @@ type TagContextMenuProps = {
 export function TagContextMenu({ tag, children }: TagContextMenuProps): React.JSX.Element {
   const openDialog = useInventoryDialogsStore((s) => s.open)
   const deleteTag = useDeleteTag()
-  const { data: tagged = [] } = useConnections({ tagId: tag.id })
+  const { data: taggedConnections = [] } = useConnections({ tagId: tag.id })
+  const { data: taggedAccesses = [] } = useAccesses({ tagId: tag.id })
+  const tagUses = taggedConnections.length + taggedAccesses.length
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   return (
@@ -43,8 +46,8 @@ export function TagContextMenu({ tag, children }: TagContextMenuProps): React.JS
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
           title={`Excluir tag “${tag.name}”?`}
-          description="A tag será removida das conexões associadas."
-          cascade={{ tagUses: tagged.length }}
+          description="A tag será removida dos itens associados."
+          cascade={{ tagUses }}
           confirming={deleteTag.isPending}
           onConfirm={async () => {
             await deleteTag.mutateAsync(tag.id)

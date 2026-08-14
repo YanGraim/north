@@ -70,6 +70,15 @@ html.light {
     user-select: none;
   }
 
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
+  }
+
   /* Electron: user-select:none no body bloqueia caret/digitação sem exceção explícita */
   input,
   textarea,
@@ -90,6 +99,13 @@ html.light {
 
   [data-slot="dialog-content"] {
     pointer-events: auto;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  /* body user-select:none — allow selecting workflow run logs */
+  [data-testid="workflow-run-log"],
+  [data-testid="workflow-run-log"] * {
     user-select: text;
     -webkit-user-select: text;
   }

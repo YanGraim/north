@@ -7,6 +7,7 @@ Abra com **⌘K** (macOS) ou **Ctrl+K** (Windows/Linux).
 - Buscar conexões, acessos, clientes, ambientes, grupos e tags
 - Abrir sessão direto do resultado
 - Ações rápidas: nova conexão, dashboard, favoritos, histórico, configurações, importar/exportar
+- **Executar workflow…** e **Gerenciar workflows…** (com conexão SSH no contexto)
 
 ## Atalhos principais
 

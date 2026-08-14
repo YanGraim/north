@@ -17,6 +17,11 @@ import { ConnectionContextMenu } from '@renderer/features/connections/Connection
 import { DetailField, DetailSection } from '@renderer/features/connections/DetailSection'
 import { MarkdownNotes } from '@renderer/features/connections/MarkdownNotes'
 import { TagBadges } from '@renderer/features/connections/TagBadges'
+import { ConnectionSecretsSection } from '@renderer/features/workflows/ConnectionSecretsSection'
+import { startWorkflowOnConnection } from '@renderer/features/workflows/start-workflow'
+import { WorkflowHubDialog } from '@renderer/features/workflows/WorkflowHubDialog'
+import { WorkflowInputsDialog } from '@renderer/features/workflows/WorkflowInputsDialog'
+import { WorkflowSection } from '@renderer/features/workflows/WorkflowSection'
 import {
   useConnection,
   useDeleteConnection,
@@ -26,15 +31,18 @@ import {
 import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
 import { useSelectedConnectionId } from '@renderer/hooks/use-route-selection'
 import { useConnectionTags } from '@renderer/hooks/use-tags'
+import { useWorkflows } from '@renderer/hooks/use-workflows'
 import { copyToClipboard } from '@renderer/lib/clipboard'
 import { authMethodLabel, formatRelativeDate } from '@renderer/lib/connection-ui'
 import { queryKeys } from '@renderer/lib/query-keys'
 import { toastError } from '@renderer/lib/toast'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { openConnectionSession, sessionKindForProtocol } from '@renderer/stores/sessions-store'
+import type { Workflow } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   CheckSquare,
+  ChevronDown,
   ExternalLink,
   MoreHorizontal,
   MousePointerClick,
@@ -56,6 +64,9 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
   const queryClient = useQueryClient()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [connecting, setConnecting] = useState(false)
+  const [hubOpen, setHubOpen] = useState(false)
+  const [pendingWorkflow, setPendingWorkflow] = useState<Workflow | null>(null)
+  const { data: groupWorkflows = [] } = useWorkflows(connection?.groupId)
 
   async function handleConnect(): Promise<void> {
     if (!connection) return
@@ -73,6 +84,15 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
     } finally {
       setConnecting(false)
     }
+  }
+
+  async function handleRunWorkflow(workflow: Workflow): Promise<void> {
+    if (!connection) return
+    if (workflow.definition.inputs.length > 0) {
+      setPendingWorkflow(workflow)
+      return
+    }
+    await startWorkflowOnConnection({ workflow, connectionId: connection.id })
   }
 
   if (!connectionId) {
@@ -198,16 +218,54 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
             </div>
 
             <div className="mt-3 flex items-center gap-2">
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                className="h-8 min-w-0 flex-1"
-                disabled={connecting || connection.protocol !== 'ssh'}
-                onClick={() => void handleConnect()}
-              >
-                {connecting ? 'Conectando…' : 'Conectar'}
-              </Button>
+              <div className="flex min-w-0 flex-1">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  className="h-8 min-w-0 flex-1 rounded-r-none"
+                  disabled={connecting || !sessionKindForProtocol(connection.protocol)}
+                  onClick={() => void handleConnect()}
+                  data-testid="connect-button"
+                >
+                  {connecting ? 'Conectando…' : 'Conectar'}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="h-8 rounded-l-none border-l border-l-background/20 px-2"
+                      disabled={connection.protocol !== 'ssh'}
+                      aria-label="Workflows da conexão"
+                      data-testid="connect-split-chevron"
+                    >
+                      <ChevronDown className="size-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" data-testid="connect-split-menu">
+                    {groupWorkflows.map((workflow) => (
+                      <DropdownMenuItem
+                        key={workflow.id}
+                        onSelect={() => void handleRunWorkflow(workflow)}
+                      >
+                        {workflow.name}
+                      </DropdownMenuItem>
+                    ))}
+                    {groupWorkflows.length === 0 ? (
+                      <DropdownMenuItem disabled>Nenhum workflow</DropdownMenuItem>
+                    ) : null}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      data-testid="connect-split-manage"
+                      onSelect={() => setHubOpen(true)}
+                    >
+                      Gerenciar workflows…
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
               <Button
                 type="button"
                 variant="secondary"
@@ -352,9 +410,22 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
                 </dl>
               </DetailSection>
 
+              <Separator />
+
+              <WorkflowSection
+                groupId={connection.groupId}
+                connectionId={connection.id}
+                connectionProtocol={connection.protocol}
+              />
+
+              <Separator />
+
+              <ConnectionSecretsSection connectionId={connection.id} />
+
+              <Separator />
+
               {connection.notes !== undefined ? (
                 <>
-                  <Separator />
                   <DetailSection title="Notas">
                     <MarkdownNotes
                       notes={connection.notes}
@@ -383,6 +454,27 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
           setConfirmOpen(false)
         }}
       />
+
+      <WorkflowHubDialog groupId={connection.groupId} open={hubOpen} onOpenChange={setHubOpen} />
+
+      {pendingWorkflow ? (
+        <WorkflowInputsDialog
+          workflow={pendingWorkflow}
+          open={Boolean(pendingWorkflow)}
+          onOpenChange={(open) => {
+            if (!open) setPendingWorkflow(null)
+          }}
+          onConfirm={async (inputValues) => {
+            const workflow = pendingWorkflow
+            setPendingWorkflow(null)
+            await startWorkflowOnConnection({
+              workflow,
+              connectionId: connection.id,
+              inputValues
+            })
+          }}
+        />
+      ) : null}
     </>
   )
 }

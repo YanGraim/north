@@ -15,3 +15,7 @@ O inventário segue uma hierarquia explícita:
 | **Acesso** | Credencial de banco, login de portal ou outro segredo — **sem** sessão remota |
 
 Pense em conexões como “como entro no host” e acessos como “o que uso para autenticar em serviços”.
+
+## Workflows
+
+O **grupo** é o dono dos workflows e das variáveis de projeto. A execução aponta para uma conexão (alvo); credenciais nunca ficam no workflow — só na bolsa de secrets da conexão.

@@ -221,6 +221,42 @@ const api: NorthApi = {
       ipcRenderer.on(IpcChannels.UPDATES_STATUS_CHANGED, handler)
       return () => ipcRenderer.removeListener(IpcChannels.UPDATES_STATUS_CHANGED, handler)
     }
+  },
+
+  workflows: {
+    list: (groupId) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_LIST, groupId),
+    get: (id) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_GET, id),
+    create: (input) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_CREATE, input),
+    copy: (input) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_COPY, input),
+    update: (id, input) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_UPDATE, id, input),
+    delete: (id) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_DELETE, id),
+    listVariables: (groupId) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_LIST_VARIABLES, groupId),
+    createVariable: (input) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_CREATE_VARIABLE, input),
+    updateVariable: (id, input) =>
+      ipcRenderer.invoke(IpcChannels.WORKFLOWS_UPDATE_VARIABLE, id, input),
+    deleteVariable: (id) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_DELETE_VARIABLE, id),
+    listRuns: (groupId, limit) =>
+      ipcRenderer.invoke(IpcChannels.WORKFLOWS_LIST_RUNS, groupId, limit),
+    getRun: (id) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_GET_RUN, id),
+    run: (input) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_RUN, input),
+    respond: (input) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_RESPOND, input),
+    cancel: (runId) => ipcRenderer.invoke(IpcChannels.WORKFLOWS_CANCEL, runId),
+    listConnectionSecrets: (connectionId) =>
+      ipcRenderer.invoke(IpcChannels.WORKFLOWS_LIST_CONNECTION_SECRETS, connectionId),
+    setConnectionSecret: (input) =>
+      ipcRenderer.invoke(IpcChannels.WORKFLOWS_SET_CONNECTION_SECRET, input),
+    deleteConnectionSecret: (connectionId, kind) =>
+      ipcRenderer.invoke(IpcChannels.WORKFLOWS_DELETE_CONNECTION_SECRET, connectionId, kind),
+    onRunEvent: (listener) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        payload: { runId: string; event: import('@shared/types').WorkflowRunEvent }
+      ): void => {
+        listener(payload)
+      }
+      ipcRenderer.on(IpcChannels.WORKFLOWS_RUN_EVENT, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.WORKFLOWS_RUN_EVENT, handler)
+    }
   }
 }
 

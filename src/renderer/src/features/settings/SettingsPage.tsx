@@ -33,9 +33,18 @@ import {
   updatesLikelyDisabledInDev
 } from '@renderer/lib/update-actions'
 import { type LocaleCode, type ThemePreference, useUiStore } from '@renderer/stores/ui-store'
+import { useWhatsNewStore } from '@renderer/stores/whats-new-store'
 import type { UpdateStatus } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Download, ExternalLink, FileSpreadsheet, RefreshCw, Upload } from 'lucide-react'
+import {
+  BookOpen,
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
+  RefreshCw,
+  Sparkles,
+  Upload
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -66,6 +75,7 @@ export function SettingsPage(): React.JSX.Element {
   const setLocale = useUiStore((s) => s.setLocale)
   const terminalCopyOnSelect = useUiStore((s) => s.terminalCopyOnSelect)
   const setTerminalCopyOnSelect = useUiStore((s) => s.setTerminalCopyOnSelect)
+  const openWhatsNew = useWhatsNewStore((s) => s.openWhatsNew)
   const [busy, setBusy] = useState<
     'export' | 'import' | 'importCsv' | 'template' | 'check' | 'install' | null
   >(null)
@@ -393,15 +403,26 @@ export function SettingsPage(): React.JSX.Element {
             title={t('settings.help.title')}
             description={t('settings.help.description')}
           >
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/settings/manual')}
-            >
-              <BookOpen className="size-3.5" />
-              {t('settings.help.openManual')}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/settings/manual')}
+              >
+                <BookOpen className="size-3.5" />
+                {t('settings.help.openManual')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => openWhatsNew({ force: true })}
+              >
+                <Sparkles className="size-3.5" />
+                {t('whatsNew.openFromSettings')}
+              </Button>
+            </div>
           </SettingsSection>
 
           <Separator />

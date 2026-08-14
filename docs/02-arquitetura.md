@@ -19,10 +19,10 @@ Main (handlers + ProtocolManager + drivers + vault)
 
 | Camada              | Onde vive                                                         | Responsabilidade                         |
 | ------------------- | ----------------------------------------------------------------- | ---------------------------------------- |
-| Apresentação        | `src/renderer`                                                    | UI, abas de sessão, views por tipo       |
+| Apresentação        | `src/renderer`                                                    | UI, abas de sessão / workflow-run, views por tipo |
 | Adapters / IPC      | `src/preload`, `src/main/ipc`                                     | Traduz contrato tipado ↔ Electron        |
-| Aplicação / Domínio | `src/main/services`, `ProtocolManager`                            | Casos de uso, ciclo de vida de sessões   |
-| Infraestrutura      | `src/main/repositories`, vault (`safeStorage`), drivers/protocolos | Persistência, I/O e sockets              |
+| Aplicação / Domínio | `src/main/services`, `ProtocolManager`, `WorkflowEngine`          | Casos de uso, sessões e runs de workflow |
+| Infraestrutura      | `src/main/repositories`, vault (`safeStorage`), drivers/protocolos, `RemoteExecService` | Persistência, I/O e sockets |
 
 **Regra de dependência:** renderer → shared; preload → shared; main → shared. Renderer **não** importa main. Shared **não** importa Electron.
 

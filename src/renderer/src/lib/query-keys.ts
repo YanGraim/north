@@ -48,5 +48,13 @@ export const queryKeys = {
   vault: {
     available: ['vault', 'available'] as const,
     hasSecret: (credentialRef: string) => ['vault', 'has-secret', credentialRef] as const
+  },
+  workflows: {
+    byGroup: (groupId: string) => ['workflows', 'group', groupId] as const,
+    detail: (id: string) => ['workflows', id] as const,
+    variables: (groupId: string) => ['workflows', 'variables', groupId] as const,
+    runs: (groupId: string) => ['workflows', 'runs', groupId] as const,
+    connectionSecrets: (connectionId: string) =>
+      ['workflows', 'connection-secrets', connectionId] as const
   }
 }

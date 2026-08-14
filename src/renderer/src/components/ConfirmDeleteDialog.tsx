@@ -89,7 +89,7 @@ function buildCascadeLines(cascade?: CascadeSummary): string[] {
     )
   }
   if (cascade.tagUses !== undefined && cascade.tagUses > 0) {
-    lines.push(`Usada em ${cascade.tagUses} conexão${cascade.tagUses === 1 ? '' : 'ões'}`)
+    lines.push(`Usada em ${cascade.tagUses} item${cascade.tagUses === 1 ? '' : 's'}`)
   }
   return lines
 }

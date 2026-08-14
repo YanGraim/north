@@ -14,6 +14,8 @@ interface UiState {
   theme: ThemePreference
   locale: LocaleCode
   terminalCopyOnSelect: boolean
+  /** Last app version for which the what's-new dialog was dismissed (or silently marked). */
+  lastSeenWhatsNewVersion: string | null
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
   isTreeNodeExpanded: (id: string) => boolean
@@ -24,6 +26,7 @@ interface UiState {
   setTheme: (theme: ThemePreference) => void
   setLocale: (locale: LocaleCode) => void
   setTerminalCopyOnSelect: (enabled: boolean) => void
+  setLastSeenWhatsNewVersion: (version: string) => void
 }
 
 export function resolveTheme(preference: ThemePreference): ResolvedTheme {
@@ -49,6 +52,7 @@ export const useUiStore = create<UiState>()(
       theme: 'dark',
       locale: 'pt-BR',
       terminalCopyOnSelect: true,
+      lastSeenWhatsNewVersion: null,
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       isTreeNodeExpanded: (id) => Boolean(get().expandedTreeNodes[id]),
@@ -70,7 +74,8 @@ export const useUiStore = create<UiState>()(
       setListSort: (sort) => set({ listSort: sort }),
       setTheme: (theme) => set({ theme }),
       setLocale: (locale) => set({ locale }),
-      setTerminalCopyOnSelect: (enabled) => set({ terminalCopyOnSelect: enabled })
+      setTerminalCopyOnSelect: (enabled) => set({ terminalCopyOnSelect: enabled }),
+      setLastSeenWhatsNewVersion: (version) => set({ lastSeenWhatsNewVersion: version })
     }),
     {
       name: 'north-ui',
@@ -81,7 +86,8 @@ export const useUiStore = create<UiState>()(
         listSort: state.listSort,
         theme: state.theme,
         locale: state.locale,
-        terminalCopyOnSelect: state.terminalCopyOnSelect
+        terminalCopyOnSelect: state.terminalCopyOnSelect,
+        lastSeenWhatsNewVersion: state.lastSeenWhatsNewVersion
       })
     }
   )

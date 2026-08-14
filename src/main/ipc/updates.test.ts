@@ -1,5 +1,5 @@
+import { isNewerVersion } from '@shared/lib/semver'
 import { describe, expect, it } from 'vitest'
-import { isNewerVersion } from './updates'
 
 describe('isNewerVersion', () => {
   it('returns true only when remote is greater', () => {

@@ -6,7 +6,7 @@ import {
   WORKSPACE_TAB_ID
 } from '@renderer/stores/sessions-store'
 import type { SessionState } from '@shared/protocols'
-import { LayoutGrid, X } from 'lucide-react'
+import { LayoutGrid, Workflow, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 function stateDotStyle(
@@ -106,6 +106,8 @@ function TabButton({
     >
       {isWorkspace ? (
         <LayoutGrid className="size-3.5 shrink-0 text-accent" />
+      ) : tab.kind === 'workflow-run' ? (
+        <Workflow className="size-3.5 shrink-0 text-accent" />
       ) : (
         <span
           className={cn(

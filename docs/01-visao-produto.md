@@ -8,7 +8,7 @@
 
 > Workspace para Infraestrutura
 
-Não é só um “gerenciador de SSH”. É o mapa operacional do dia a dia: quem é o cliente, em qual ambiente está o servidor, como conectar, com quais credenciais e o que foi feito recentemente.
+Não é só um “gerenciador de SSH”. É o mapa operacional do dia a dia: quem é o cliente, em qual ambiente está o servidor, como conectar, com quais credenciais, **quais ações repetir** (workflows) e o que foi feito recentemente.
 
 ## Diretriz: sessões in-app
 
@@ -21,8 +21,9 @@ A UI conhece apenas o **tipo de sessão** (Terminal, Desktop, Arquivos), nunca o
 ## Valores
 
 - **Clareza sobre volume** — hierarquia explícita (Cliente → Ambiente → Grupo → Servidor), sem pastas genéricas.
-- **Velocidade com intenção** — Command Palette, favoritos e recentes; zero atrito entre “pensar” e “conectar”.
-- **Sessão sem sair do app** — do inventário à sessão ativa no mesmo workspace.
+- **Velocidade com intenção** — Command Palette, favoritos e recentes; zero atrito entre “pensar” e “conectar” (ou executar um workflow).
+- **Sessão sem sair do app** — do inventário à sessão ativa (ou run de workflow) no mesmo workspace.
+- **Ações repetíveis** — workflows do grupo com variáveis de projeto, execução na conexão alvo e histórico com snapshot.
 - **Segurança local-first** — dados e credenciais no dispositivo; `safeStorage` / keychain do SO, não nuvem por padrão.
 - **Extensível por protocolo** — SSH, RDP, VNC e futuros protocolos atrás da mesma abstração de sessão.
 - **UI profissional** — dark-first, tipografia legível, layout de três painéis sem ruído visual.

@@ -9,4 +9,5 @@ Organize clients, environments, remote connections and accesses (database creden
 - Clear hierarchy: Client → Environment → Group → items
 - In-app sessions without relying on external clients
 - Credentials in the local vault (`safeStorage` / OS keychain)
+- Group workflows for repeatable actions (deploy, restart, health-check)
 - Command Palette and shortcuts to go from inventory to session in seconds

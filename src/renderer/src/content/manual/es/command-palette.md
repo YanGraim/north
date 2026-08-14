@@ -7,6 +7,7 @@
 - Buscar conexiones, accesos, clientes, entornos, grupos y etiquetas
 - Abrir sesión directo desde el resultado
 - Acciones rápidas: nueva conexión, dashboard, favoritos, historial, ajustes, importar/exportar
+- **Ejecutar workflow…** y **Gestionar workflows…** (con conexión SSH en contexto)
 
 ## Atajos principales
 

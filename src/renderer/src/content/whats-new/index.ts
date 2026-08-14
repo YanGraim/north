@@ -1,0 +1,54 @@
+import type { ManualChapterId } from '@renderer/content/manual'
+import type { LocaleCode } from '@renderer/stores/ui-store'
+import { isNewerVersion } from '@shared/lib/semver'
+import notes013En from './0.1.13/en.md?raw'
+import notes013Es from './0.1.13/es.md?raw'
+import notes013Pt from './0.1.13/pt-BR.md?raw'
+import { filterWhatsNewEntries } from './filter'
+
+export type WhatsNewEntry = {
+  version: string
+  /** Optional deep-link into the in-app manual */
+  chapter?: ManualChapterId
+  bodies: Record<LocaleCode, string>
+}
+
+/** Newest last — order used when accumulating skipped versions. */
+export const WHATS_NEW_ENTRIES: readonly WhatsNewEntry[] = [
+  {
+    version: '0.1.13',
+    chapter: 'workflows',
+    bodies: {
+      'pt-BR': notes013Pt,
+      en: notes013En,
+      es: notes013Es
+    }
+  }
+]
+
+/**
+ * Entries strictly newer than `afterVersion` and up to `currentVersion` (inclusive).
+ * If `afterVersion` is null/undefined, returns nothing (first boot should not show notes).
+ */
+export function getWhatsNewSince(
+  afterVersion: string | null | undefined,
+  currentVersion: string
+): WhatsNewEntry[] {
+  return filterWhatsNewEntries(WHATS_NEW_ENTRIES, afterVersion, currentVersion)
+}
+
+/** All notes for versions up to `currentVersion` (Settings / palette reopen). */
+export function getWhatsNewUpTo(currentVersion: string): WhatsNewEntry[] {
+  return WHATS_NEW_ENTRIES.filter((entry) => !isNewerVersion(entry.version, currentVersion))
+}
+
+export function getWhatsNewBody(entry: WhatsNewEntry, locale: LocaleCode): string {
+  return entry.bodies[locale] ?? entry.bodies['pt-BR']
+}
+
+export function hasWhatsNewSince(
+  afterVersion: string | null | undefined,
+  currentVersion: string
+): boolean {
+  return getWhatsNewSince(afterVersion, currentVersion).length > 0
+}

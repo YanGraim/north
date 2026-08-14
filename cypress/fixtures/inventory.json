@@ -1,0 +1,13 @@
+{
+  "client": { "id": "client-1", "name": "Acme" },
+  "environment": { "id": "env-1", "name": "Prod" },
+  "group": { "id": "group-1", "name": "App" },
+  "connection": {
+    "id": "conn-1",
+    "groupId": "group-1",
+    "name": "web-01",
+    "protocol": "ssh",
+    "host": "10.0.0.10",
+    "port": 22
+  }
+}
