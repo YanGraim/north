@@ -55,6 +55,7 @@ function openSession(
 
 const api: NorthApi = {
   getVersion: (): Promise<string> => ipcRenderer.invoke(IpcChannels.APP_GET_VERSION),
+  setTheme: (theme) => ipcRenderer.invoke(IpcChannels.APP_SET_THEME, theme),
 
   clients: {
     list: () => ipcRenderer.invoke(IpcChannels.CLIENTS_LIST),

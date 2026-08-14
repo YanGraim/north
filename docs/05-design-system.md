@@ -25,19 +25,19 @@
 | `accent-foreground` | `#0a0e17` | Texto sobre accent                       |
 | `ring`              | `#3d8bfd` | `focus-visible`                          |
 
-### Cores (light — soft dusk)
+### Cores (light — slate 100)
 
-| Token               | Valor     |
-| ------------------- | --------- |
-| `background`        | `#9aa3b4` |
-| `surface`           | `#a8b1c2` |
-| `surface-elevated`  | `#8a94a6` |
-| `foreground`        | `#121826` |
-| `muted`             | `#3d4656` |
-| `border`            | `#7a8496` |
-| `accent`            | `#1a56c4` |
-| `accent-foreground` | `#d8deea` |
-| `ring`              | `#1a56c4` |
+| Token               | Valor     | Uso                                      |
+| ------------------- | --------- | ---------------------------------------- |
+| `background`        | `#f1f5f9` | Fundo da janela (slate-100)              |
+| `surface`           | `#ffffff` | Sidebar / titlebar / diálogos            |
+| `surface-elevated`  | `#e2e8f0` | Hover, itens ativos, inputs, menus       |
+| `foreground`        | `#0f172a` | Texto principal (slate-900)              |
+| `muted`             | `#475569` | Texto secundário / metadados (slate-600) |
+| `border`            | `#cbd5e1` | Divisores (slate-300)                    |
+| `accent`            | `#1a56c4` | Ações primárias / foco / match           |
+| `accent-foreground` | `#ffffff` | Texto sobre accent                       |
+| `ring`              | `#1a56c4` | `focus-visible`                          |
 
 ### Tipografia
 

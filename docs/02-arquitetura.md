@@ -118,5 +118,5 @@ src/
 ## Janela
 
 - `titleBarStyle: 'hiddenInset'` (traffic lights no macOS)
-- Fundo `#0a0e17`, layout de três painéis (sidebar / lista / detalhes)
+- Fundo nativo acompanha o tema (`#0a0e17` / `#f1f5f9`); layout de três painéis (sidebar / lista / detalhes)
 - Abas de sessão ocupam a área de trabalho quando uma conexão está ativa

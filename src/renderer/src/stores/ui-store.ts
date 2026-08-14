@@ -1,9 +1,10 @@
+import type { ResolvedTheme, ThemePreference } from '@shared/lib/theme'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type ThemePreference = 'dark' | 'light' | 'system'
+export type { ResolvedTheme, ThemePreference }
+
 export type LocaleCode = 'pt-BR' | 'en' | 'es'
-export type ResolvedTheme = 'dark' | 'light'
 export type ListSort = 'name' | 'lastAccess'
 
 interface UiState {

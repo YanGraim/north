@@ -17,6 +17,7 @@ import { registerSerialHandlers } from './serial'
 import { registerSessionHandlers } from './sessions'
 import { registerStatsHandlers } from './stats'
 import { registerTagHandlers } from './tags'
+import { registerThemeHandlers } from './theme'
 import { registerUpdateHandlers } from './updates'
 import { registerVaultHandlers } from './vault'
 import { registerWorkflowHandlers } from './workflows'
@@ -48,6 +49,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.APP_GET_VERSION, (): string => {
     return app.getVersion()
   })
+  registerThemeHandlers()
 
   registerVaultHandlers(vault, repositories)
   registerClientHandlers(repositories, vault)

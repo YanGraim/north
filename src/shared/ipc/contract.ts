@@ -1,3 +1,4 @@
+import type { ThemePreference } from '../lib/theme'
 import type {
   FsDownloadInput,
   FsListInput,
@@ -69,6 +70,10 @@ export interface IpcInvokeMap {
   [IpcChannels.APP_GET_VERSION]: {
     args: []
     result: string
+  }
+  [IpcChannels.APP_SET_THEME]: {
+    args: [theme: ThemePreference]
+    result: undefined
   }
 
   [IpcChannels.CLIENTS_LIST]: { args: []; result: Client[] }
@@ -363,6 +368,7 @@ export type InvokeResult<C extends InvokeChannel> = IpcInvokeMap[C]['result']
 /** API tipada exposta ao renderer via contextBridge. */
 export interface NorthApi {
   getVersion: () => Promise<string>
+  setTheme: (theme: ThemePreference) => Promise<void>
   clients: {
     list: () => Promise<Client[]>
     get: (id: string) => Promise<Client | null>

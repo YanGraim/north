@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { NATIVE_CHROME, TITLEBAR_OVERLAY_HEIGHT } from '@shared/lib/theme'
 import { app, BrowserWindow, shell } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { closeDatabase } from './database'
@@ -11,6 +12,7 @@ app.setName('North')
 const isDev = !app.isPackaged
 
 function createWindow(): void {
+  const isMac = process.platform === 'darwin'
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -18,9 +20,20 @@ function createWindow(): void {
     minHeight: 640,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 16 },
-    backgroundColor: '#0a0e17',
+    ...(isMac
+      ? {
+          titleBarStyle: 'hiddenInset' as const,
+          trafficLightPosition: { x: 16, y: 16 }
+        }
+      : {
+          titleBarStyle: 'hidden' as const,
+          titleBarOverlay: {
+            color: NATIVE_CHROME.dark.overlayColor,
+            symbolColor: NATIVE_CHROME.dark.overlaySymbol,
+            height: TITLEBAR_OVERLAY_HEIGHT
+          }
+        }),
+    backgroundColor: NATIVE_CHROME.dark.background,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

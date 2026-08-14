@@ -1,7 +1,7 @@
 import { resolveTheme, useUiStore } from '@renderer/stores/ui-store'
 import { useEffect } from 'react'
 
-/** Applies `dark` | `light` on <html> and keeps BrowserWindow-friendly body bg in sync. */
+/** Applies `dark` | `light` on <html> and keeps native window chrome in sync. */
 export function useThemeEffect(): void {
   const theme = useUiStore((s) => s.theme)
 
@@ -11,6 +11,7 @@ export function useThemeEffect(): void {
       const root = document.documentElement
       root.classList.remove('dark', 'light')
       root.classList.add(resolved)
+      void window.north?.setTheme(theme)
     }
 
     apply()

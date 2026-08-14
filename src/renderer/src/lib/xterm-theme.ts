@@ -26,27 +26,27 @@ const DARK_THEME: ITheme = {
 }
 
 const LIGHT_THEME: ITheme = {
-  background: '#9aa3b4',
-  foreground: '#121826',
+  background: '#f1f5f9',
+  foreground: '#0f172a',
   cursor: '#1a56c4',
-  cursorAccent: '#d8deea',
+  cursorAccent: '#ffffff',
   selectionBackground: '#1a56c444',
-  black: '#121826',
+  black: '#0f172a',
   red: '#b91c1c',
   green: '#15803d',
   yellow: '#a16207',
   blue: '#1a56c4',
   magenta: '#7e22ce',
   cyan: '#0f766e',
-  white: '#d8deea',
-  brightBlack: '#3d4656',
+  white: '#e2e8f0',
+  brightBlack: '#64748b',
   brightRed: '#dc2626',
   brightGreen: '#16a34a',
   brightYellow: '#ca8a04',
   brightBlue: '#2563eb',
   brightMagenta: '#9333ea',
   brightCyan: '#0d9488',
-  brightWhite: '#e8edf5'
+  brightWhite: '#ffffff'
 }
 
 export function getXtermTheme(resolved: 'dark' | 'light'): ITheme {
