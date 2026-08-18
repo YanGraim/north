@@ -11,3 +11,4 @@ Organiza clientes, entornos, conexiones remotas y accesos (credenciales de base 
 - Credenciales en el vault local (`safeStorage` / keychain del SO)
 - Workflows del grupo para acciones repetibles (deploy, restart, health-check)
 - Command Palette y atajos para ir del inventario a la sesión en segundos
+- Perfil local (nombre y correo opcional) en **Ajustes** — solo en este equipo, visible en el chip de la barra lateral

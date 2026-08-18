@@ -7,6 +7,8 @@ El inventario sigue una jerarquía explícita:
 3. **Grupo** — agrupación lógica (región, stack, equipo)
 4. **Ítems** — conexiones y accesos dentro del grupo
 
+En la **sidebar**, expande cliente → entorno → grupo para ver cada conexión y acceso como hoja. El clic abre el ítem en el panel central (deep link en la URL). Los iconos de base de datos usan la marca del motor cuando no hay icono personalizado.
+
 ## Conexiones vs accesos
 
 | Tipo | Para qué |

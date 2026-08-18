@@ -11,3 +11,4 @@ Organize clients, environments, remote connections and accesses (database creden
 - Credentials in the local vault (`safeStorage` / OS keychain)
 - Group workflows for repeatable actions (deploy, restart, health-check)
 - Command Palette and shortcuts to go from inventory to session in seconds
+- Local profile (display name and optional e-mail) in **Settings** — this machine only, shown in the sidebar chip

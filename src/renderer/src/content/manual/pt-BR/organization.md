@@ -7,6 +7,8 @@ O inventário segue uma hierarquia explícita:
 3. **Grupo** — agrupamento lógico (região, stack, time)
 4. **Itens** — conexões e acessos dentro do grupo
 
+Na **sidebar**, expanda cliente → ambiente → grupo para ver cada conexão e acesso como folha. O clique abre o item no painel do meio (deep link na URL). Ícones de banco usam a marca da engine quando não há ícone customizado.
+
 ## Conexões vs acessos
 
 | Tipo | Para quê |

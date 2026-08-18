@@ -11,5 +11,6 @@ Fluxo sugerido para montar o inventário:
 - Cliente, ambiente e grupo podem ser criados direto no formulário de conexão/acesso.
 - Use tags para cruzar itens entre clientes.
 - Favoritos e recentes aceleram o dia a dia depois que o inventário cresce.
+- Ajuste **nome de exibição** e e-mail opcional em Configurações → Perfil (chip no rodapé da sidebar).
 
 Quando o inventário estiver vazio, a tela de conexões também aponta para este tutorial.

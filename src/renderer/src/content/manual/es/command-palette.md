@@ -5,6 +5,7 @@
 ## Qué puedes hacer
 
 - Buscar conexiones, accesos, clientes, entornos, grupos y etiquetas
+- Resultados de **base de datos** muestran la marca del motor (Postgres, Redis, etc.) cuando no hay icono personalizado
 - Abrir sesión directo desde el resultado
 - Acciones rápidas: nueva conexión, dashboard, favoritos, historial, ajustes, importar/exportar
 - **Ejecutar workflow…** y **Gestionar workflows…** (con conexión SSH en contexto)

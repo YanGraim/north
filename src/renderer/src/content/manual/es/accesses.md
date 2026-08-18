@@ -3,7 +3,7 @@
 Los accesos guardan credenciales en la misma jerarquía Cliente → Ambiente → Grupo:
 
 - **Login** — usuario/contraseña y URL (portal, panel) — **sin** sesión remota
-- **Base de datos** — motor, host, puerto, database, SSL. PostgreSQL, MySQL/MariaDB, SQL Server y SQLite abren el [estudio SQL](database)
+- **Base de datos** — motor, host, puerto, database, SSL. PostgreSQL, MySQL/MariaDB, SQL Server y SQLite abren el [estudio SQL](database); en la UI aparecen con la **marca del motor** (salvo icono personalizado)
 - **Otro** — secreto genérico con notas
 
 ## Acciones en el panel

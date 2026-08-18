@@ -3,7 +3,7 @@
 Acessos guardam credenciais na mesma hierarquia Cliente → Ambiente → Grupo:
 
 - **Login** — usuário/senha e URL (portal, painel) — **sem** sessão remota
-- **Banco** — engine, host, porta, database, SSL. PostgreSQL, MySQL/MariaDB, SQL Server e SQLite abrem o [estúdio SQL](database)
+- **Banco** — engine, host, porta, database, SSL. PostgreSQL, MySQL/MariaDB, SQL Server e SQLite abrem o [estúdio SQL](database); na UI aparecem com a **marca da engine** (salvo ícone customizado)
 - **Outro** — segredo genérico com notas
 
 ## Ações no painel

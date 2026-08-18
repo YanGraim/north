@@ -3,7 +3,7 @@
 Accesses store credentials in the same Client → Environment → Group hierarchy:
 
 - **Login** — username/password and URL (portal, panel) — **no** remote session
-- **Database** — engine, host, port, database, SSL. PostgreSQL, MySQL/MariaDB, SQL Server and SQLite open the [SQL studio](database)
+- **Database** — engine, host, port, database, SSL. PostgreSQL, MySQL/MariaDB, SQL Server and SQLite open the [SQL studio](database); the UI shows the **engine brand** (unless a custom icon is set)
 - **Other** — generic secret with notes
 
 ## Panel actions

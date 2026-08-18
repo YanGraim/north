@@ -7,6 +7,8 @@ The inventory follows an explicit hierarchy:
 3. **Group** — logical grouping (region, stack, team)
 4. **Items** — connections and accesses inside the group
 
+In the **sidebar**, expand client → environment → group to see each connection and access as a leaf. Click opens the item in the center panel (deep link in the URL). Database icons use the engine brand when no custom icon is set.
+
 ## Connections vs accesses
 
 | Type | Purpose |

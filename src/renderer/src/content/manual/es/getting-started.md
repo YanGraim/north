@@ -11,5 +11,6 @@ Flujo sugerido para armar el inventario:
 - Cliente, entorno y grupo se pueden crear directo en el formulario de conexión/acceso.
 - Usa etiquetas para cruzar ítems entre clientes.
 - Favoritos y recientes aceleran el día a día cuando el inventario crece.
+- Ajusta **nombre para mostrar** y correo opcional en Ajustes → Perfil (chip en el pie de la barra lateral).
 
 Cuando el inventario está vacío, la pantalla de conexiones también apunta a este tutorial.
