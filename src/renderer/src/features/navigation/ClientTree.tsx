@@ -1,10 +1,16 @@
+import { InventoryIcon } from '@renderer/components/InventoryIcon'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger
 } from '@renderer/components/ui/collapsible'
 import { Skeleton } from '@renderer/components/ui/skeleton'
+import { ConnectionContextMenu } from '@renderer/features/connections/ConnectionContextMenu'
 import { countItemsByGroup } from '@renderer/features/navigation/count-items-by-group'
+import {
+  findGroupIdForSelectedItem,
+  listGroupLeaves
+} from '@renderer/features/navigation/group-tree-items'
 import { SIDEBAR_ROW, SIDEBAR_TRAILING } from '@renderer/features/navigation/SidebarSection'
 import { TreeNodeContextMenu } from '@renderer/features/navigation/TreeNodeContextMenu'
 import { useAccesses } from '@renderer/hooks/use-accesses'
@@ -26,9 +32,9 @@ const CHEVRON_BTN =
   'inline-flex size-4 shrink-0 items-center justify-center text-muted hover:text-foreground'
 
 /** Indentação só no bloco esquerdo — contagem fica na coluna do +. */
-const DEPTH_PL = ['pl-0', 'pl-3', 'pl-6'] as const
+const DEPTH_PL = ['pl-0', 'pl-3', 'pl-6', 'pl-9'] as const
 
-function treeKey(kind: 'client' | 'env', id: string): string {
+function treeKey(kind: 'client' | 'env' | 'group', id: string): string {
   return `${kind}:${id}`
 }
 
@@ -41,6 +47,8 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
   const [searchParams] = useSearchParams()
   const activeEnv = searchParams.get('env')
   const activeGroup = searchParams.get('group')
+  const activeConnection = searchParams.get('connection')
+  const activeAccess = searchParams.get('access')
   const openDialog = useInventoryDialogsStore((s) => s.open)
 
   const { clients, environments, groups, isLoading } = useOrgLookup()
@@ -57,6 +65,16 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
   useEffect(() => {
     if (activeEnv) setTreeNodeExpanded(treeKey('env', activeEnv), true)
   }, [activeEnv, setTreeNodeExpanded])
+
+  useEffect(() => {
+    const groupId = findGroupIdForSelectedItem(
+      connections,
+      accesses,
+      activeConnection,
+      activeAccess
+    )
+    if (groupId) setTreeNodeExpanded(treeKey('group', groupId), true)
+  }, [activeConnection, activeAccess, connections, accesses, setTreeNodeExpanded])
 
   const countsByGroup = countItemsByGroup(connections, accesses)
 
@@ -132,7 +150,13 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
         const clientEnvs = environments
           .filter((e) => e.clientId === client.id)
           .sort((a, b) => a.sortOrder - b.sortOrder)
-        const clientActive = Boolean(routeClientId === client.id && !activeEnv && !activeGroup)
+        const clientActive = Boolean(
+          routeClientId === client.id &&
+            !activeEnv &&
+            !activeGroup &&
+            !activeConnection &&
+            !activeAccess
+        )
 
         return (
           <Collapsible
@@ -184,7 +208,11 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                 const envOpen = isExpanded(envKey)
                 const envColor = environmentStatusColor(env.name, env.color)
                 const envActive = Boolean(
-                  routeClientId === client.id && activeEnv === env.id && !activeGroup
+                  routeClientId === client.id &&
+                    activeEnv === env.id &&
+                    !activeGroup &&
+                    !activeConnection &&
+                    !activeAccess
                 )
 
                 return (
@@ -234,33 +262,120 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                     </div>
 
                     <CollapsibleContent className="flex flex-col gap-0.5">
-                      {envGroups.map((group) => (
-                        <div key={group.id} className={cn(SIDEBAR_ROW, 'h-8')}>
-                          <div className={cn('flex min-w-0 items-center gap-0.5', DEPTH_PL[2])}>
-                            <span className="size-4 shrink-0" aria-hidden />
-                            <TreeNodeContextMenu
-                              kind="group"
-                              group={group}
-                              clientId={client.id}
-                              environmentId={env.id}
-                            >
-                              <div className="min-w-0 flex-1">
-                                <NavLink
-                                  to={`/clients/${client.id}?env=${env.id}&group=${group.id}`}
-                                  className={cn(
-                                    LINK,
-                                    activeGroup === group.id ? ROW_ACTIVE : ROW_IDLE
-                                  )}
+                      {envGroups.map((group) => {
+                        const groupKey = treeKey('group', group.id)
+                        const groupOpen = isExpanded(groupKey)
+                        const leaves = listGroupLeaves(connections, accesses, group.id)
+                        const groupActive = Boolean(
+                          activeGroup === group.id && !activeConnection && !activeAccess
+                        )
+
+                        return (
+                          <Collapsible
+                            key={group.id}
+                            open={groupOpen}
+                            onOpenChange={(open) => setTreeNodeExpanded(groupKey, open)}
+                          >
+                            <div className={cn(SIDEBAR_ROW, 'h-8')}>
+                              <div className={cn('flex min-w-0 items-center gap-0.5', DEPTH_PL[2])}>
+                                <CollapsibleTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className={CHEVRON_BTN}
+                                    aria-label={groupOpen ? 'Recolher grupo' : 'Expandir grupo'}
+                                  >
+                                    <ChevronRight
+                                      className={cn(
+                                        'size-3.5 transition-transform motion-safe:duration-150',
+                                        groupOpen && 'rotate-90'
+                                      )}
+                                    />
+                                  </button>
+                                </CollapsibleTrigger>
+                                <TreeNodeContextMenu
+                                  kind="group"
+                                  group={group}
+                                  clientId={client.id}
+                                  environmentId={env.id}
                                 >
-                                  <Folder className="size-3.5 shrink-0" />
-                                  <span className="min-w-0 flex-1 truncate">{group.name}</span>
-                                </NavLink>
+                                  <div className="min-w-0 flex-1">
+                                    <NavLink
+                                      to={`/clients/${client.id}?env=${env.id}&group=${group.id}`}
+                                      onClick={() => setTreeNodeExpanded(groupKey, true)}
+                                      className={cn(LINK, groupActive ? ROW_ACTIVE : ROW_IDLE)}
+                                    >
+                                      <Folder className="size-3.5 shrink-0" />
+                                      <span className="min-w-0 flex-1 truncate">{group.name}</span>
+                                    </NavLink>
+                                  </div>
+                                </TreeNodeContextMenu>
                               </div>
-                            </TreeNodeContextMenu>
-                          </div>
-                          <Count value={countsByGroup.get(group.id) ?? 0} />
-                        </div>
-                      ))}
+                              <Count value={countsByGroup.get(group.id) ?? 0} />
+                            </div>
+
+                            <CollapsibleContent className="flex flex-col gap-0.5">
+                              {leaves.map((leaf) => {
+                                const leafActive =
+                                  leaf.kind === 'connection'
+                                    ? activeConnection === leaf.id
+                                    : activeAccess === leaf.id
+                                const leafHref =
+                                  leaf.kind === 'connection'
+                                    ? `/clients/${client.id}?env=${env.id}&group=${group.id}&connection=${leaf.id}`
+                                    : `/clients/${client.id}?env=${env.id}&group=${group.id}&access=${leaf.id}`
+
+                                const row = (
+                                  <div className={cn(SIDEBAR_ROW, 'h-8')}>
+                                    <div
+                                      className={cn(
+                                        'flex min-w-0 items-center gap-0.5',
+                                        DEPTH_PL[3]
+                                      )}
+                                    >
+                                      <span className="size-4 shrink-0" aria-hidden />
+                                      <div className="min-w-0 flex-1">
+                                        <NavLink
+                                          to={leafHref}
+                                          onClick={() => setTreeNodeExpanded(groupKey, true)}
+                                          className={cn(LINK, leafActive ? ROW_ACTIVE : ROW_IDLE)}
+                                        >
+                                          <InventoryIcon
+                                            className="size-3.5"
+                                            icon={leaf.icon}
+                                            protocol={
+                                              leaf.kind === 'connection' ? leaf.protocol : null
+                                            }
+                                            accessType={
+                                              leaf.kind === 'access' ? leaf.accessType : null
+                                            }
+                                            engine={leaf.kind === 'access' ? leaf.engine : null}
+                                          />
+                                          <span className="min-w-0 flex-1 truncate">
+                                            {leaf.name}
+                                          </span>
+                                        </NavLink>
+                                      </div>
+                                    </div>
+                                    <span aria-hidden />
+                                  </div>
+                                )
+
+                                if (leaf.kind === 'connection') {
+                                  const connection = connections.find((item) => item.id === leaf.id)
+                                  if (!connection) return row
+                                  return (
+                                    <ConnectionContextMenu key={leaf.id} connection={connection}>
+                                      {row}
+                                    </ConnectionContextMenu>
+                                  )
+                                }
+
+                                return <div key={leaf.id}>{row}</div>
+                              })}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        )
+                      })}
                     </CollapsibleContent>
                   </Collapsible>
                 )
