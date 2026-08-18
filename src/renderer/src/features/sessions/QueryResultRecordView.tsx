@@ -73,7 +73,7 @@ export function QueryResultRecordView({
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="query-result-record">
       <div className="query-result-record min-h-0 flex-1 overflow-auto">
-        <table className="min-w-full border-collapse text-left font-mono text-[11px]">
+        <table className="min-w-full border-collapse text-left font-mono text-[13px]">
           <tbody>
             {result.columns.map((column) => {
               const value = cellDisplayValue(row, column.name, edits, sourceIndex)
@@ -83,7 +83,7 @@ export function QueryResultRecordView({
                 <tr
                   key={column.name}
                   className={cn(
-                    'border-b border-border/60',
+                    'border-b border-grid-line',
                     markedDelete ? 'bg-red-500/10 text-red-400 line-through' : ''
                   )}
                 >
@@ -97,14 +97,15 @@ export function QueryResultRecordView({
                   </th>
                   <td
                     className={cn(
-                      'relative select-text px-3 py-1.5 text-foreground [-webkit-user-select:text]',
+                      'relative select-text text-foreground [-webkit-user-select:text]',
+                      isEditing ? 'p-0' : 'px-3 py-1.5',
                       dirtyCell && !markedDelete ? 'bg-accent/10' : ''
                     )}
                     tabIndex={editable && !markedDelete ? 0 : undefined}
                     onDoubleClick={() => beginEdit(column.name)}
                     onKeyDown={(event) => {
                       if (editingColumn) return
-                      if (event.key === 'Enter') {
+                      if (event.key === 'Enter' || event.key === 'F2') {
                         event.preventDefault()
                         beginEdit(column.name)
                       }
@@ -219,7 +220,11 @@ function RecordCellEditor({
       ref={ref}
       value={value}
       data-testid="grid-cell-editor"
-      className="w-full rounded-sm border border-accent bg-background px-1 py-0.5 text-[11px] text-foreground outline-none"
+      spellCheck={false}
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      className="box-border w-full min-w-0 appearance-none bg-background px-3 py-1.5 font-mono text-[13px] leading-5 text-foreground outline-none ring-1 ring-accent"
       onChange={(event) => {
         const next = event.target.value
         setValue(next)

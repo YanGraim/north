@@ -28,10 +28,13 @@ import {
   tableBrowsePageSql
 } from '@shared/lib/sql-ident'
 import {
-  alignPrimaryKeyNames,
-  buildMutationStatements,
-  primaryKeyColumnNames
-} from '@shared/lib/sql-update'
+  filterChangesToTableColumns,
+  findRelation,
+  parsePrimaryFromRelation,
+  resolveUpdatableTarget,
+  type UpdatableQueryReason
+} from '@shared/lib/sql-updatable-query'
+import { buildMutationStatements, primaryKeyColumnNames } from '@shared/lib/sql-update'
 import type {
   DatabaseIntrospection,
   DatabaseQueryResult,
@@ -311,28 +314,60 @@ export function DatabaseStudioView({
     [activeRelation]
   )
 
-  const relationPkKey =
-    activeTab?.kind === 'table' ? `${activeTab.schema}\0${activeTab.table}` : null
+  const parsedFrom = useMemo(() => {
+    if (activeTab?.kind !== 'query') return null
+    return parsePrimaryFromRelation(activeTab.sql)
+  }, [activeTab])
 
-  const pkColumns = useMemo(() => {
-    if (!activeTab || activeTab.kind !== 'table') return []
-    const fromTree = activeRelation ? primaryKeyColumnNames(activeRelation.columns) : []
-    const fromOverride = relationPkKey ? (pkOverrideByRelation[relationPkKey] ?? []) : []
-    const names = fromTree.length > 0 ? fromTree : fromOverride
+  const relationPkKey = useMemo(() => {
+    if (!activeTab) return null
+    if (activeTab.kind === 'table') return `${activeTab.schema}\0${activeTab.table}`
+    if (!parsedFrom) return null
+    const found = findRelation(tree, parsedFrom.schema, parsedFrom.table)
+    const schema = found?.schema ?? parsedFrom.schema ?? tree?.schemas[0]?.name ?? ''
+    const table = found?.relation.name ?? parsedFrom.table
+    return `${schema}\0${table}`
+  }, [activeTab, parsedFrom, tree])
+
+  const updatable = useMemo(() => {
+    if (!activeTab) return { ok: false as const, reason: 'not-select' as const }
     const resultNames = activeTab.result?.columns.map((column) => column.name) ?? []
-    return alignPrimaryKeyNames(names, resultNames)
-  }, [activeRelation, activeTab, pkOverrideByRelation, relationPkKey])
+    const pkOverride = relationPkKey ? pkOverrideByRelation[relationPkKey] : undefined
+    if (activeTab.kind === 'table') {
+      return resolveUpdatableTarget(
+        { kind: 'table', schema: activeTab.schema, table: activeTab.table },
+        { tree, resultColumnNames: resultNames, pkOverride }
+      )
+    }
+    return resolveUpdatableTarget(
+      { kind: 'query', sql: activeTab.sql },
+      { tree, resultColumnNames: resultNames, pkOverride }
+    )
+  }, [activeTab, pkOverrideByRelation, relationPkKey, tree])
+
+  const pkColumns = updatable.ok ? updatable.target.pkColumns : []
+  const saveTableColumns = updatable.ok ? updatable.target.tableColumnNames : []
 
   // Fallback when introspection omitted PKs (common on Postgres before pg_catalog fix).
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed by relation; override applied via setState
   useEffect(() => {
-    if (!activeTab || activeTab.kind !== 'table' || !relationPkKey) return
-    if (activeRelation && primaryKeyColumnNames(activeRelation.columns).length > 0) return
+    if (!activeTab || !relationPkKey) return
+    let schema: string
+    let table: string
+    if (activeTab.kind === 'table') {
+      schema = activeTab.schema
+      table = activeTab.table
+    } else {
+      if (!parsedFrom) return
+      const found = findRelation(treeRef.current, parsedFrom.schema, parsedFrom.table)
+      schema = found?.schema ?? parsedFrom.schema ?? treeRef.current?.schemas[0]?.name ?? ''
+      table = found?.relation.name ?? parsedFrom.table
+    }
+    const relation = findRelation(treeRef.current, schema, table)?.relation
+    if (relation && primaryKeyColumnNames(relation.columns).length > 0) return
     if (pkOverrideByRelation[relationPkKey]?.length) return
     if (pkLookupInFlight.current.has(relationPkKey)) return
 
-    const schema = activeTab.schema
-    const table = activeTab.table
     const key = relationPkKey
     pkLookupInFlight.current.add(key)
     let cancelled = false
@@ -362,56 +397,59 @@ export function DatabaseStudioView({
     return () => {
       cancelled = true
     }
-  }, [
-    activeTab?.kind === 'table' ? activeTab.schema : null,
-    activeTab?.kind === 'table' ? activeTab.table : null,
-    activeRelation,
-    engine,
-    relationPkKey,
-    sessionId
-  ])
+  }, [engine, parsedFrom, relationPkKey, sessionId, activeTab?.kind, activeTab])
 
   const activeDraft = activeTab ? (editsByTab[activeTab.id] ?? emptyGridDraft()) : emptyGridDraft()
   const dirty = hasDirtyDraft(activeDraft)
   const isTableTab = activeTab?.kind === 'table'
-  const isView = activeRelation?.type === 'view'
-  const editable = Boolean(isTableTab && !isView)
-  const canPersist = Boolean(isTableTab && !isView && pkColumns.length > 0)
-  const canSave = Boolean(canPersist && dirty && runningTabId == null)
+  const isView = activeRelation?.type === 'view' || (!updatable.ok && updatable.reason === 'view')
+  const persistableUpdates = activeTab?.result
+    ? collectPersistableUpdates(activeDraft, activeTab.result.rows, saveTableColumns)
+    : []
+  const hasPersistableWork =
+    updatable.ok &&
+    (persistableUpdates.length > 0 ||
+      (isTableTab && (activeDraft.deletes.length > 0 || activeDraft.inserts.length > 0)))
+  const editable = true
+  const canPersist = updatable.ok
+  const canSave = Boolean(canPersist && hasPersistableWork && dirty && runningTabId == null)
 
-  const saveDisabledReason = !isTableTab
-    ? null
-    : isView
-      ? t('database.studio.saveDisabledView')
-      : pkColumns.length === 0
-        ? t('database.studio.saveNoPk')
-        : !dirty
-          ? t('database.studio.saveDisabledClean')
-          : null
+  const saveDisabledReason = saveReasonLabel(t, {
+    dirty,
+    updatableOk: updatable.ok,
+    reason: updatable.ok ? null : updatable.reason,
+    hasPersistableWork
+  })
 
   async function saveActiveTab(): Promise<void> {
-    if (!activeTab || activeTab.kind !== 'table' || !canSave || !activeTab.result) return
+    if (!activeTab || !canSave || !activeTab.result || !updatable.ok) return
+    const target = updatable.target
     try {
-      const deleted = new Set(activeDraft.deletes)
-      const updates = collectUpdatePayloads(activeDraft.edits, activeTab.result.rows, deleted)
-      const deleteRows = activeDraft.deletes
-        .map((index) => activeTab.result?.rows[index])
-        .filter((row): row is NonNullable<typeof row> => Boolean(row))
+      const deleteRows =
+        activeTab.kind === 'table'
+          ? activeDraft.deletes
+              .map((index) => activeTab.result?.rows[index])
+              .filter((row): row is NonNullable<typeof row> => Boolean(row))
+          : []
       const statements = buildMutationStatements({
         engine,
-        schema: activeTab.schema,
-        table: activeTab.table,
-        pkColumns,
+        schema: target.schema,
+        table: target.table,
+        pkColumns: target.pkColumns,
         deletes: deleteRows,
-        updates,
-        inserts: activeDraft.inserts
+        updates: persistableUpdates,
+        inserts: activeTab.kind === 'table' ? activeDraft.inserts : []
       })
       for (const sql of statements) {
         await window.north.db.query({ sessionId, sql })
       }
       clearEdits(activeTab.id)
       await refreshTxState()
-      await runTableBrowse(activeTab.id)
+      if (activeTab.kind === 'table') {
+        await runTableBrowse(activeTab.id)
+      } else {
+        await runQuerySql(activeTab.id, activeTab.sql)
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : t('database.studio.saveError')
       patchTab(activeTab.id, (tab) => ({ ...tab, error: message, pane: 'messages' }))
@@ -627,6 +665,7 @@ export function DatabaseStudioView({
                   }
                   onSave={() => void saveActiveTab()}
                   onDiscard={() => discardEdits(activeTab.id)}
+                  rowActions={!isView}
                 />
               ) : (
                 <QueryTabPane
@@ -637,6 +676,17 @@ export function DatabaseStudioView({
                   visible={visible}
                   running={runningTabId === activeTab.id}
                   editorRef={sqlEditorRef}
+                  editable={editable}
+                  canPersist={canPersist}
+                  draft={activeDraft}
+                  pkColumns={pkColumns}
+                  canSave={canSave}
+                  saveDisabledReason={saveDisabledReason}
+                  onDraftChange={(draft) =>
+                    setEditsByTab((current) => ({ ...current, [activeTab.id]: draft }))
+                  }
+                  onSave={() => void saveActiveTab()}
+                  onDiscard={() => discardEdits(activeTab.id)}
                   onSqlChange={(sql) =>
                     patchTab(activeTab.id, (current) =>
                       current.kind === 'query' ? { ...current, sql } : current
@@ -711,6 +761,15 @@ function QueryTabPane({
   visible,
   running,
   editorRef,
+  editable,
+  canPersist,
+  draft,
+  pkColumns,
+  canSave,
+  saveDisabledReason,
+  onDraftChange,
+  onSave,
+  onDiscard,
   onSqlChange,
   onRun,
   onPaneChange
@@ -721,6 +780,15 @@ function QueryTabPane({
   visible: boolean
   running: boolean
   editorRef: React.RefObject<SqlEditorHandle | null>
+  editable: boolean
+  canPersist: boolean
+  draft: GridDraft
+  pkColumns: readonly string[]
+  canSave: boolean
+  saveDisabledReason: string | null
+  onDraftChange: (draft: GridDraft) => void
+  onSave: () => void
+  onDiscard: () => void
   onSqlChange: (sql: string) => void
   onRun: (sql: string) => void
   onPaneChange: (pane: StudioPane) => void
@@ -749,10 +817,65 @@ function QueryTabPane({
           running={running}
           emptyHint={t('database.studio.runHint')}
           onPaneChange={onPaneChange}
+          editable={editable}
+          canPersist={canPersist}
+          draft={draft}
+          onDraftChange={onDraftChange}
+          pkColumns={pkColumns}
+          canSave={canSave}
+          saveDisabledReason={saveDisabledReason}
+          onSave={onSave}
+          onDiscard={onDiscard}
         />
       </ResizablePanel>
     </ResizablePanelGroup>
   )
+}
+
+function collectPersistableUpdates(
+  draft: GridDraft,
+  rows: DatabaseQueryResult['rows'],
+  tableColumnNames: readonly string[]
+): Array<{
+  original: DatabaseQueryResult['rows'][number]
+  changes: DatabaseQueryResult['rows'][number]
+}> {
+  return collectUpdatePayloads(draft.edits, rows, draft.deletes)
+    .map((payload) => ({
+      original: payload.original,
+      changes: filterChangesToTableColumns(payload.changes, tableColumnNames)
+    }))
+    .filter((payload) => Object.keys(payload.changes).length > 0)
+}
+
+function saveReasonLabel(
+  t: (key: string) => string,
+  options: {
+    dirty: boolean
+    updatableOk: boolean
+    reason: UpdatableQueryReason | null
+    hasPersistableWork: boolean
+  }
+): string | null {
+  if (!options.updatableOk && options.reason) {
+    switch (options.reason) {
+      case 'view':
+        return t('database.studio.saveDisabledView')
+      case 'no-pk':
+      case 'pk-not-in-result':
+        return t('database.studio.saveNoPk')
+      case 'cte':
+      case 'distinct':
+      case 'group-by':
+      case 'set-op':
+        return t('database.studio.saveDisabledAggregated')
+      default:
+        return t('database.studio.saveDisabledNoTarget')
+    }
+  }
+  if (!options.dirty) return t('database.studio.saveDisabledClean')
+  if (!options.hasPersistableWork) return t('database.studio.saveDisabledNoTarget')
+  return null
 }
 
 function TxActionButton({

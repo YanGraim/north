@@ -11,6 +11,7 @@
   --color-foreground: #e8edf7;
   --color-muted: #8b97ad;
   --color-border: #1e2838;
+  --color-grid-line: #2e3d54;
   --color-accent: #3d8bfd;
   --color-accent-foreground: #0a0e17;
   --color-ring: #3d8bfd;
@@ -29,6 +30,7 @@ html.dark {
   --color-foreground: #e8edf7;
   --color-muted: #8b97ad;
   --color-border: #1e2838;
+  --color-grid-line: #2e3d54;
   --color-accent: #3d8bfd;
   --color-accent-foreground: #0a0e17;
   --color-ring: #3d8bfd;
@@ -51,6 +53,7 @@ html.light {
   --color-foreground: #0f172a;
   --color-muted: #475569;
   --color-border: #cbd5e1;
+  --color-grid-line: #94a3b8;
   --color-accent: #1a56c4;
   --color-accent-foreground: #ffffff;
   --color-ring: #1a56c4;

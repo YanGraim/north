@@ -4,12 +4,14 @@ import { QueryResultRecordView } from '@renderer/features/sessions/QueryResultRe
 import {
   emptyGridDraft,
   type GridDraft,
-  hasDirtyDraft
+  hasDirtyDraft,
+  sumNumericCells
 } from '@renderer/features/sessions/query-result-grid'
+import { copyToClipboard } from '@renderer/lib/clipboard'
 import { cn } from '@renderer/lib/utils'
-import type { DatabaseQueryResult } from '@shared/protocols'
-import { LayoutList, Loader2, Save, Table2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import type { DatabaseCellValue, DatabaseQueryResult } from '@shared/protocols'
+import { LayoutList, Loader2, Save, Sigma, Table2, X } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { StudioPane } from './studio-tabs'
 
@@ -61,16 +63,36 @@ export function QueryResultPane({
   onSave,
   onDiscard
 }: QueryResultPaneProps): React.JSX.Element {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const hasError = Boolean(error)
   const activePane: StudioPane = hasError && pane === 'messages' ? 'messages' : 'results'
   const [viewMode, setViewMode] = useState<ResultViewMode>('grid')
   const [activeSourceIndex, setActiveSourceIndex] = useState<number | null>(null)
+  const [selectedValues, setSelectedValues] = useState<DatabaseCellValue[]>([])
   const activeDraft = draft ?? emptyGridDraft()
 
   useEffect(() => {
     setActiveSourceIndex(result && result.rows.length > 0 ? 0 : null)
+    setSelectedValues([])
   }, [result])
+
+  useEffect(() => {
+    if (viewMode !== 'grid') {
+      setSelectedValues([])
+    }
+  }, [viewMode])
+
+  const handleSumSelectionChange = useCallback((values: DatabaseCellValue[]) => {
+    setSelectedValues((current) => {
+      if (
+        current.length === values.length &&
+        current.every((value, index) => value === values[index])
+      ) {
+        return current
+      }
+      return values
+    })
+  }, [])
 
   const recordIndex =
     activeSourceIndex != null && result && result.rows[activeSourceIndex]
@@ -117,6 +139,19 @@ export function QueryResultPane({
 
   const dirty = hasDirtyDraft(activeDraft)
   const showFooterActions = dirty && Boolean(onSave && onDiscard)
+  const columnSum = sumNumericCells(selectedValues)
+  const canSum = columnSum !== null
+  const formattedSum =
+    columnSum == null
+      ? null
+      : new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 10 }).format(columnSum)
+  const clipboardSum =
+    columnSum == null
+      ? null
+      : new Intl.NumberFormat('en-US', {
+          useGrouping: false,
+          maximumFractionDigits: 10
+        }).format(columnSum)
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -217,6 +252,7 @@ export function QueryResultPane({
               pkColumns={pkColumns}
               rowActions={rowActions}
               onActiveSourceIndexChange={setActiveSourceIndex}
+              onSumSelectionChange={handleSumSelectionChange}
               onNearEnd={browseMode ? onNearEnd : undefined}
             />
           )
@@ -278,6 +314,34 @@ export function QueryResultPane({
             >
               {t('database.studio.errorOpen')}
             </button>
+          ) : null}
+          {result && result.columns.length > 0 && viewMode === 'grid' ? (
+            <>
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex h-5 items-center gap-1 rounded-sm px-1.5 text-[11px]',
+                  canSum ? 'text-foreground hover:bg-surface-elevated' : 'cursor-default text-muted'
+                )}
+                data-testid="studio-column-sum"
+                disabled={!canSum}
+                aria-label={canSum ? t('database.studio.copySum') : undefined}
+                title={canSum ? t('database.studio.copySum') : t('database.studio.sumHint')}
+                onClick={() => {
+                  if (clipboardSum == null) return
+                  void copyToClipboard(clipboardSum, t('database.studio.sum'))
+                }}
+              >
+                <Sigma className="size-3" />
+                {formattedSum != null ? (
+                  <span className="tabular-nums" data-testid="studio-column-sum-total">
+                    {t('database.studio.sumTotal', { value: formattedSum })}
+                  </span>
+                ) : (
+                  t('database.studio.sum')
+                )}
+              </button>
+            </>
           ) : null}
           {!running && !hasError && statusMeta ? (
             <span className="truncate tabular-nums" data-dirty={dirty ? 'true' : undefined}>

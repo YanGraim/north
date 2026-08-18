@@ -7,7 +7,10 @@ import {
 } from '@renderer/components/ui/context-menu'
 import {
   appendInsert,
+  type CellPos,
   cellDisplayValue,
+  cellSelectionRect,
+  collectRectValues,
   cycleSort,
   duplicateRowValues,
   emptyRowForColumns,
@@ -15,12 +18,14 @@ import {
   type GridSort,
   hasDirtyDraft,
   isCellDirty,
+  isCellInRect,
   markRowsDeleted,
   orderedColumnIndices,
   parseCellInput,
   removeInserts,
   reorderList,
-  rowsToTsv,
+  selectIndexRange,
+  selectionToTsv,
   selectRange,
   setCellEdit,
   setInsertCell,
@@ -48,6 +53,8 @@ type QueryResultGridProps = {
   rowActions?: boolean
   /** Fired when the user scrolls near the bottom (table browse pagination). */
   onNearEnd?: () => void
+  /** Visible values in the current column/cell selection (for footer Sum). */
+  onSumSelectionChange?: (values: DatabaseCellValue[]) => void
 }
 
 type EditingCell =
@@ -67,18 +74,26 @@ export function QueryResultGrid({
   pkColumns = [],
   onActiveSourceIndexChange,
   rowActions = false,
-  onNearEnd
+  onNearEnd,
+  onSumSelectionChange
 }: QueryResultGridProps): React.JSX.Element {
   const { t } = useTranslation()
   const [order, setOrder] = useState<number[]>(() => result.columns.map((_, index) => index))
   const [sort, setSort] = useState<GridSort>(null)
+  const [selectionMode, setSelectionMode] = useState<'rows' | 'columns' | 'cells'>('rows')
+  const selectionModeRef = useRef<'rows' | 'columns' | 'cells'>('rows')
+  selectionModeRef.current = selectionMode
   const [selected, setSelected] = useState<Set<number>>(() => new Set())
+  const [cellAnchor, setCellAnchor] = useState<CellPos | null>(null)
+  const [cellFocus, setCellFocus] = useState<CellPos | null>(null)
   const [editing, setEditing] = useState<EditingCell | null>(null)
   const dragFrom = useRef<number | null>(null)
   const dragMoved = useRef(false)
   const [dragOver, setDragOver] = useState<number | null>(null)
   const anchorRef = useRef<number | null>(null)
-  const selectingRef = useRef(false)
+  const columnAnchorRef = useRef<number | null>(null)
+  const cellAnchorRef = useRef<CellPos | null>(null)
+  const selectingKindRef = useRef<'rows' | 'cells' | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const gridActiveRef = useRef(false)
   const draftRef = useRef(draft)
@@ -88,9 +103,16 @@ export function QueryResultGrid({
   useEffect(() => {
     setOrder(result.columns.map((_, index) => index))
     setSort(null)
+    setSelectionMode('rows')
+    selectionModeRef.current = 'rows'
     setSelected(new Set())
+    setCellAnchor(null)
+    setCellFocus(null)
+    cellAnchorRef.current = null
     setEditing(null)
     anchorRef.current = null
+    columnAnchorRef.current = null
+    selectingKindRef.current = null
   }, [result.columns, result.rows])
 
   const indices = orderedColumnIndices(result.columns.length, order)
@@ -123,10 +145,69 @@ export function QueryResultGrid({
     return [...existingSorted, ...inserts]
   }, [sortedExisting, draft.deletes, draft.inserts])
 
+  const cellRect = useMemo(() => {
+    if (selectionMode !== 'cells' || !cellAnchor || !cellFocus) return null
+    return cellSelectionRect(cellAnchor, cellFocus, indices)
+  }, [cellAnchor, cellFocus, indices, selectionMode])
+
+  const selectedColumnNames = useMemo(() => {
+    const columnIds =
+      selectionMode === 'columns'
+        ? indices.filter((columnIndex) => selected.has(columnIndex))
+        : (cellRect?.columnIndices ?? [])
+    if (selectionMode !== 'columns' && selectionMode !== 'cells') return []
+    return columnIds
+      .map((columnIndex) => result.columns[columnIndex]?.name)
+      .filter((name): name is string => Boolean(name))
+  }, [cellRect, indices, result.columns, selected, selectionMode])
+
+  const selectedRowIndices = useMemo(() => {
+    if (selectionMode === 'rows') return selected
+    if (selectionMode === 'cells' && cellRect) return new Set(cellRect.displayIndices)
+    return new Set<number>()
+  }, [cellRect, selected, selectionMode])
+
+  const displayRecords = useMemo(() => {
+    return displayRows.map((entry) => {
+      const next: Record<string, DatabaseCellValue> = {}
+      for (const name of orderedNames) {
+        if (entry.kind === 'existing') {
+          next[name] = cellDisplayValue(entry.row, name, draft.edits, entry.sourceIndex) ?? null
+        } else {
+          next[name] = entry.row[name] ?? null
+        }
+      }
+      return next
+    })
+  }, [displayRows, draft.edits, orderedNames])
+
+  const sumSelectionValues = useMemo(() => {
+    if (selectionMode === 'columns' && selectedColumnNames.length > 0) {
+      return collectRectValues(
+        displayRecords,
+        displayRecords.map((_, index) => index),
+        selectedColumnNames
+      )
+    }
+    if (selectionMode === 'cells' && cellRect && selectedColumnNames.length > 0) {
+      return collectRectValues(displayRecords, cellRect.displayIndices, selectedColumnNames)
+    }
+    return []
+  }, [cellRect, displayRecords, selectedColumnNames, selectionMode])
+
+  useEffect(() => {
+    onSumSelectionChange?.(sumSelectionValues)
+  }, [onSumSelectionChange, sumSelectionValues])
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'c') return
-      if (editing || !gridActiveRef.current || selected.size === 0) return
+      if (editing || !gridActiveRef.current) return
+      if (selectionMode === 'cells') {
+        if (!cellRect || cellRect.displayIndices.length === 0) return
+      } else if (selected.size === 0) {
+        return
+      }
       const active = document.activeElement
       if (
         active instanceof HTMLInputElement ||
@@ -136,20 +217,14 @@ export function QueryResultGrid({
         return
       }
       event.preventDefault()
-      const rows = displayRows
-        .filter((_, displayIndex) => selected.has(displayIndex))
-        .map((entry) => {
-          const next: Record<string, DatabaseCellValue> = {}
-          for (const name of orderedNames) {
-            if (entry.kind === 'existing') {
-              next[name] = cellDisplayValue(entry.row, name, draft.edits, entry.sourceIndex) ?? null
-            } else {
-              next[name] = entry.row[name] ?? null
-            }
-          }
-          return next
-        })
-      void navigator.clipboard.writeText(rowsToTsv(rows, orderedNames))
+      const text = selectionToTsv({
+        mode: selectionMode,
+        displayRows: displayRecords,
+        orderedColumnNames: orderedNames,
+        selectedRowIndices,
+        selectedColumnNames
+      })
+      void navigator.clipboard.writeText(text)
     }
     function onPointerDown(event: PointerEvent): void {
       const root = rootRef.current
@@ -163,11 +238,20 @@ export function QueryResultGrid({
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('pointerdown', onPointerDown, true)
     }
-  }, [displayRows, draft.edits, editing, orderedNames, selected])
+  }, [
+    cellRect,
+    displayRecords,
+    editing,
+    orderedNames,
+    selected,
+    selectedColumnNames,
+    selectedRowIndices,
+    selectionMode
+  ])
 
   useEffect(() => {
     function onMouseUp(): void {
-      selectingRef.current = false
+      selectingKindRef.current = null
     }
     window.addEventListener('mouseup', onMouseUp)
     return () => window.removeEventListener('mouseup', onMouseUp)
@@ -175,14 +259,15 @@ export function QueryResultGrid({
 
   useEffect(() => {
     if (!onActiveSourceIndexChange) return
-    if (selected.size === 0) {
-      onActiveSourceIndexChange(null)
+    if (selectionMode !== 'rows' && selectionMode !== 'cells') return
+    if (selectedRowIndices.size === 0) {
+      if (selectionMode === 'rows') onActiveSourceIndexChange(null)
       return
     }
-    const firstDisplay = Math.min(...selected)
+    const firstDisplay = Math.min(...selectedRowIndices)
     const entry = displayRows[firstDisplay]
     onActiveSourceIndexChange(entry?.kind === 'existing' ? entry.sourceIndex : null)
-  }, [displayRows, onActiveSourceIndexChange, selected])
+  }, [displayRows, onActiveSourceIndexChange, selectedRowIndices, selectionMode])
 
   if (result.columns.length === 0) {
     return (
@@ -197,18 +282,73 @@ export function QueryResultGrid({
     )
   }
 
+  function clearCellRange(): void {
+    cellAnchorRef.current = null
+    setCellAnchor(null)
+    setCellFocus(null)
+  }
+
   function applyRowSelection(displayIndex: number, event: React.MouseEvent): void {
-    if (event.shiftKey && anchorRef.current != null) {
+    const inRows = selectionModeRef.current === 'rows'
+    selectionModeRef.current = 'rows'
+    setSelectionMode('rows')
+    clearCellRange()
+    if (event.shiftKey && inRows && anchorRef.current != null) {
       setSelected(new Set(selectRange(anchorRef.current, displayIndex)))
       return
     }
     if (event.metaKey || event.ctrlKey) {
-      setSelected((current) => toggleInSet(current, displayIndex))
+      if (!inRows) {
+        setSelected(new Set([displayIndex]))
+      } else {
+        setSelected((current) => toggleInSet(current, displayIndex))
+      }
       anchorRef.current = displayIndex
       return
     }
     setSelected(new Set([displayIndex]))
     anchorRef.current = displayIndex
+  }
+
+  function applyColumnSelection(columnIndex: number, event: React.MouseEvent): void {
+    const inColumns = selectionModeRef.current === 'columns'
+    selectionModeRef.current = 'columns'
+    setSelectionMode('columns')
+    clearCellRange()
+    if (event.shiftKey && inColumns && columnAnchorRef.current != null) {
+      setSelected(new Set(selectIndexRange(indices, columnAnchorRef.current, columnIndex)))
+      return
+    }
+    if (event.metaKey || event.ctrlKey) {
+      if (!inColumns) {
+        setSelected(new Set([columnIndex]))
+      } else {
+        setSelected((current) => toggleInSet(current, columnIndex))
+      }
+      columnAnchorRef.current = columnIndex
+      return
+    }
+    setSelected(new Set([columnIndex]))
+    columnAnchorRef.current = columnIndex
+  }
+
+  function applyCellSelection(
+    displayIndex: number,
+    columnIndex: number,
+    event: React.MouseEvent
+  ): void {
+    const pos: CellPos = { displayIndex, columnIndex }
+    const inCells = selectionModeRef.current === 'cells'
+    selectionModeRef.current = 'cells'
+    setSelectionMode('cells')
+    setSelected(new Set())
+    if (event.shiftKey && inCells && cellAnchorRef.current) {
+      setCellFocus(pos)
+      return
+    }
+    cellAnchorRef.current = pos
+    setCellAnchor(pos)
+    setCellFocus(pos)
   }
 
   function beginCellEdit(target: EditingCell): void {
@@ -251,7 +391,7 @@ export function QueryResultGrid({
 
   function selectedTargets(): SelectionTarget[] {
     const targets: SelectionTarget[] = []
-    for (const displayIndex of [...selected].sort((a, b) => a - b)) {
+    for (const displayIndex of [...selectedRowIndices].sort((a, b) => a - b)) {
       const entry = displayRows[displayIndex]
       if (!entry) continue
       if (entry.kind === 'existing') {
@@ -323,25 +463,38 @@ export function QueryResultGrid({
     draftRef.current = next
     onDraftChange(next)
     setSelected(new Set())
+    clearCellRange()
   }
 
   const dirty = hasDirtyDraft(draft)
-  const hasSelection = selected.size > 0
+  const hasSelection = selectedRowIndices.size > 0
   const showRowMenu = rowActions && editable && Boolean(onDraftChange)
+  const colSelected = (columnIndex: number): boolean =>
+    selectionMode === 'columns' && selected.has(columnIndex)
+  const cellSelected = (displayIndex: number, columnIndex: number): boolean =>
+    Boolean(cellRect && isCellInRect(displayIndex, columnIndex, cellRect))
 
   const table = (
-    <table className="min-w-full border-collapse text-left font-mono text-[11px]">
+    <table
+      className={cn(
+        'min-w-full border-separate border-spacing-0 text-left font-mono text-[13px]',
+        '[&_th]:border-r [&_th]:border-b [&_th]:border-grid-line',
+        '[&_td]:border-r [&_td]:border-b [&_td]:border-grid-line'
+      )}
+    >
       <thead className="sticky top-0 z-10 bg-surface">
-        <tr className="border-b border-border">
+        <tr>
           <th className="w-10 px-1 py-1.5 text-center font-medium text-muted select-none">#</th>
           {indices.map((columnIndex) => {
             const column = result.columns[columnIndex]
             if (!column) return null
             const activeSort = sort?.columnIndex === columnIndex ? sort : null
+            const columnIsSelected = colSelected(columnIndex)
             return (
               <th
                 key={`${column.name}:${String(columnIndex)}`}
                 draggable
+                data-col-selected={columnIsSelected ? 'true' : undefined}
                 aria-sort={
                   activeSort ? (activeSort.dir === 'asc' ? 'ascending' : 'descending') : 'none'
                 }
@@ -375,17 +528,18 @@ export function QueryResultGrid({
                   dragFrom.current = null
                   setDragOver(null)
                 }}
-                onClick={() => {
+                onClick={(event) => {
                   if (dragMoved.current) {
                     dragMoved.current = false
                     return
                   }
-                  setSort((current) => cycleSort(current, columnIndex))
-                  setSelected(new Set())
+                  if ((event.target as HTMLElement).closest('[data-grid-sort]')) return
+                  applyColumnSelection(columnIndex, event)
                 }}
                 className={cn(
                   'cursor-grab whitespace-nowrap px-2 py-1.5 font-medium text-muted select-none active:cursor-grabbing',
-                  dragOver === columnIndex ? 'border-l-2 border-l-accent' : ''
+                  dragOver === columnIndex ? 'border-l-2 border-l-accent' : '',
+                  columnIsSelected ? 'bg-accent/25 text-foreground' : ''
                 )}
               >
                 <span className="inline-flex items-center gap-1">
@@ -395,15 +549,29 @@ export function QueryResultGrid({
                       {column.dataType}
                     </span>
                   ) : null}
-                  {activeSort ? (
-                    activeSort.dir === 'asc' ? (
-                      <ArrowUp className="size-3 text-foreground" />
+                  <button
+                    type="button"
+                    data-grid-sort=""
+                    data-testid={`grid-sort-${column.name}`}
+                    className="inline-flex size-4 items-center justify-center rounded-sm text-muted hover:text-foreground"
+                    aria-label={t('database.studio.sortHint')}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      setSort((current) => cycleSort(current, columnIndex))
+                    }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                  >
+                    {activeSort ? (
+                      activeSort.dir === 'asc' ? (
+                        <ArrowUp className="size-3 text-foreground" />
+                      ) : (
+                        <ArrowDown className="size-3 text-foreground" />
+                      )
                     ) : (
-                      <ArrowDown className="size-3 text-foreground" />
-                    )
-                  ) : (
-                    <ChevronsUpDown className="size-3 opacity-30" />
-                  )}
+                      <ChevronsUpDown className="size-3 opacity-30" />
+                    )}
+                  </button>
                 </span>
               </th>
             )
@@ -422,7 +590,7 @@ export function QueryResultGrid({
           </tr>
         ) : (
           displayRows.map((entry, displayIndex) => {
-            const isSelected = selected.has(displayIndex)
+            const isSelected = selectionMode === 'rows' && selected.has(displayIndex)
             const markedDelete = entry.kind === 'existing' && entry.markedDelete
             const isInsert = entry.kind === 'insert'
             return (
@@ -437,7 +605,6 @@ export function QueryResultGrid({
                 data-marked-delete={markedDelete ? 'true' : undefined}
                 data-insert={isInsert ? 'true' : undefined}
                 className={cn(
-                  'border-b border-border/60',
                   markedDelete
                     ? 'bg-red-500/10 text-red-400 line-through'
                     : isInsert
@@ -445,31 +612,34 @@ export function QueryResultGrid({
                       : isSelected
                         ? 'bg-accent/20'
                         : displayIndex % 2 === 1
-                          ? 'bg-surface-elevated/40'
+                          ? 'bg-muted/10'
                           : '',
                   isSelected && !markedDelete ? 'bg-accent/20' : ''
                 )}
-                onMouseDown={(event) => {
-                  if (event.button !== 0) return
-                  if (event.detail >= 2) return
-                  if ((event.target as HTMLElement).closest('input')) return
-                  selectingRef.current = true
-                  applyRowSelection(displayIndex, event)
-                }}
                 onMouseEnter={(event) => {
-                  if (!selectingRef.current || event.buttons !== 1) return
+                  if (selectingKindRef.current !== 'rows' || event.buttons !== 1) return
                   if (anchorRef.current == null) return
                   setSelected(new Set(selectRange(anchorRef.current, displayIndex)))
                 }}
                 onContextMenu={() => {
-                  if (!selected.has(displayIndex)) {
+                  const inRows = selectionModeRef.current === 'rows'
+                  selectionModeRef.current = 'rows'
+                  setSelectionMode('rows')
+                  clearCellRange()
+                  if (!inRows || !selected.has(displayIndex)) {
                     setSelected(new Set([displayIndex]))
                     anchorRef.current = displayIndex
                   }
                 }}
               >
                 <td
-                  className="w-10 cursor-default px-1 py-1 text-center tabular-nums text-muted"
+                  className="w-10 cursor-default px-1 py-1.5 text-center tabular-nums text-muted"
+                  onMouseDown={(event) => {
+                    if (event.button !== 0) return
+                    if (event.detail >= 2) return
+                    selectingKindRef.current = 'rows'
+                    applyRowSelection(displayIndex, event)
+                  }}
                   onDoubleClick={(event) => event.stopPropagation()}
                 >
                   {displayIndex + 1}
@@ -493,101 +663,125 @@ export function QueryResultGrid({
                       : editing?.kind === 'insert' &&
                         editing.insertIndex === entry.insertIndex &&
                         editing.column === column.name
+                  const columnIsSelected = colSelected(columnIndex)
+                  const isCellSelected = cellSelected(displayIndex, columnIndex)
+                  function startEdit(): void {
+                    if (markedDelete) return
+                    if (entry.kind === 'existing') {
+                      beginCellEdit({
+                        kind: 'existing',
+                        sourceIndex: entry.sourceIndex,
+                        column: column.name
+                      })
+                    } else {
+                      beginCellEdit({
+                        kind: 'insert',
+                        insertIndex: entry.insertIndex,
+                        column: column.name
+                      })
+                    }
+                  }
                   return (
                     <td
                       key={`${column.name}:${String(columnIndex)}`}
+                      data-col-selected={columnIsSelected ? 'true' : undefined}
+                      data-cell-selected={isCellSelected ? 'true' : undefined}
+                      tabIndex={editable && !markedDelete ? 0 : undefined}
                       className={cn(
-                        'relative max-w-xs truncate px-2 py-1 text-foreground',
-                        dirtyCell && !markedDelete ? 'bg-accent/10' : ''
+                        'relative text-foreground',
+                        isEditing ? 'z-20 overflow-visible p-0' : 'max-w-xs truncate px-2 py-1.5',
+                        dirtyCell && !markedDelete ? 'bg-accent/10' : '',
+                        (columnIsSelected || isCellSelected) && !isSelected && !markedDelete
+                          ? 'bg-accent/20'
+                          : '',
+                        (columnIsSelected || isCellSelected) && isSelected && !markedDelete
+                          ? 'bg-accent/30'
+                          : ''
                       )}
+                      onMouseDown={(event) => {
+                        if (event.button !== 0) return
+                        if (event.detail >= 2) return
+                        if ((event.target as HTMLElement).closest('input')) return
+                        selectingKindRef.current = 'cells'
+                        applyCellSelection(displayIndex, columnIndex, event)
+                      }}
+                      onMouseEnter={(event) => {
+                        if (selectingKindRef.current !== 'cells' || event.buttons !== 1) return
+                        if (selectionModeRef.current !== 'cells' || !cellAnchorRef.current) return
+                        setCellFocus({ displayIndex, columnIndex })
+                      }}
                       onDoubleClick={(event) => {
                         event.stopPropagation()
-                        if (markedDelete) return
-                        if (entry.kind === 'existing') {
-                          beginCellEdit({
-                            kind: 'existing',
-                            sourceIndex: entry.sourceIndex,
-                            column: column.name
-                          })
-                        } else {
-                          beginCellEdit({
-                            kind: 'insert',
-                            insertIndex: entry.insertIndex,
-                            column: column.name
-                          })
-                        }
+                        startEdit()
                       }}
                       onKeyDown={(event) => {
-                        if (event.key !== 'Enter' || editing || markedDelete) return
+                        if (editing || markedDelete) return
+                        if (event.key !== 'Enter' && event.key !== 'F2') return
                         event.preventDefault()
-                        if (entry.kind === 'existing') {
-                          beginCellEdit({
-                            kind: 'existing',
-                            sourceIndex: entry.sourceIndex,
-                            column: column.name
-                          })
-                        } else {
-                          beginCellEdit({
-                            kind: 'insert',
-                            insertIndex: entry.insertIndex,
-                            column: column.name
-                          })
-                        }
+                        startEdit()
                       }}
                     >
                       {isEditing ? (
-                        <CellEditor
-                          initial={formatEditValue(value)}
-                          onLiveChange={(raw) => {
-                            if (entry.kind === 'existing') {
-                              commitExistingEdit(entry.sourceIndex, column.name, raw)
-                            } else {
-                              commitInsertEdit(entry.insertIndex, column.name, raw)
-                            }
-                          }}
-                          onCommit={(raw) => {
-                            if (entry.kind === 'existing') {
-                              commitExistingEdit(entry.sourceIndex, column.name, raw)
-                            } else {
-                              commitInsertEdit(entry.insertIndex, column.name, raw)
-                            }
-                            setEditing(null)
-                          }}
-                          onCancel={(baseline) => {
-                            if (entry.kind === 'existing') {
-                              revertExistingEdit(entry.sourceIndex, column.name, baseline)
-                            } else {
-                              revertInsertEdit(entry.insertIndex, column.name, baseline)
-                            }
-                            cancelEdit()
-                          }}
-                          onTab={(raw, shift) => {
-                            if (entry.kind === 'existing') {
-                              commitExistingEdit(entry.sourceIndex, column.name, raw)
-                            } else {
-                              commitInsertEdit(entry.insertIndex, column.name, raw)
-                            }
-                            const nextPos = orderedNames.indexOf(column.name) + (shift ? -1 : 1)
-                            const nextColumn = orderedNames[nextPos]
-                            if (!nextColumn) {
+                        <>
+                          <span
+                            className="invisible block truncate px-2 py-1.5 leading-5"
+                            aria-hidden
+                          >
+                            {formatEditValue(value) || ' '}
+                          </span>
+                          <CellEditor
+                            initial={formatEditValue(value)}
+                            onLiveChange={(raw) => {
+                              if (entry.kind === 'existing') {
+                                commitExistingEdit(entry.sourceIndex, column.name, raw)
+                              } else {
+                                commitInsertEdit(entry.insertIndex, column.name, raw)
+                              }
+                            }}
+                            onCommit={(raw) => {
+                              if (entry.kind === 'existing') {
+                                commitExistingEdit(entry.sourceIndex, column.name, raw)
+                              } else {
+                                commitInsertEdit(entry.insertIndex, column.name, raw)
+                              }
                               setEditing(null)
-                              return
-                            }
-                            setEditing(
-                              entry.kind === 'existing'
-                                ? {
-                                    kind: 'existing',
-                                    sourceIndex: entry.sourceIndex,
-                                    column: nextColumn
-                                  }
-                                : {
-                                    kind: 'insert',
-                                    insertIndex: entry.insertIndex,
-                                    column: nextColumn
-                                  }
-                            )
-                          }}
-                        />
+                            }}
+                            onCancel={(baseline) => {
+                              if (entry.kind === 'existing') {
+                                revertExistingEdit(entry.sourceIndex, column.name, baseline)
+                              } else {
+                                revertInsertEdit(entry.insertIndex, column.name, baseline)
+                              }
+                              cancelEdit()
+                            }}
+                            onTab={(raw, shift) => {
+                              if (entry.kind === 'existing') {
+                                commitExistingEdit(entry.sourceIndex, column.name, raw)
+                              } else {
+                                commitInsertEdit(entry.insertIndex, column.name, raw)
+                              }
+                              const nextPos = orderedNames.indexOf(column.name) + (shift ? -1 : 1)
+                              const nextColumn = orderedNames[nextPos]
+                              if (!nextColumn) {
+                                setEditing(null)
+                                return
+                              }
+                              setEditing(
+                                entry.kind === 'existing'
+                                  ? {
+                                      kind: 'existing',
+                                      sourceIndex: entry.sourceIndex,
+                                      column: nextColumn
+                                    }
+                                  : {
+                                      kind: 'insert',
+                                      insertIndex: entry.insertIndex,
+                                      column: nextColumn
+                                    }
+                              )
+                            }}
+                          />
+                        </>
                       ) : (
                         <span className="inline-flex max-w-full items-center gap-1">
                           {dirtyCell && !markedDelete ? (
@@ -708,7 +902,13 @@ function CellEditor({
       ref={ref}
       value={value}
       data-testid="grid-cell-editor"
-      className="absolute inset-0 z-10 h-full w-full border border-accent bg-background px-2 font-mono text-[11px] text-foreground outline-none"
+      spellCheck={false}
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      size={Math.max(value.length, 1)}
+      className="absolute top-0 left-0 z-20 box-border min-h-full min-w-full appearance-none bg-background px-2.5 py-1.5 font-mono text-[13px] leading-5 text-foreground shadow-sm outline-none ring-1 ring-accent"
+      style={{ width: `max(100%, ${String(Math.max(value.length, 1) + 3)}ch)` }}
       onChange={(event) => {
         const next = event.target.value
         setValue(next)

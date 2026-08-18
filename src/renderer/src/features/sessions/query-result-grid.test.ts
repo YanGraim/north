@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   appendInsert,
+  cellSelectionRect,
+  collectRectValues,
   collectUpdatePayloads,
+  collectVisibleColumnValues,
   compareCell,
   cycleSort,
   duplicateRowValues,
@@ -15,9 +18,12 @@ import {
   removeInserts,
   reorderList,
   rowsToTsv,
+  selectIndexRange,
+  selectionToTsv,
   selectRange,
   setCellEdit,
   sortRows,
+  sumNumericCells,
   toggleInSet
 } from './query-result-grid'
 
@@ -131,5 +137,98 @@ describe('query result grid helpers', () => {
     expect(parseCellInput('NULL', 'x')).toBeNull()
     expect(parseCellInput('42', 1)).toBe(42)
     expect(parseCellInput('true', false)).toBe(true)
+  })
+
+  it('selects a visual index range for column Shift+click', () => {
+    expect(selectIndexRange([2, 0, 1], 2, 1)).toEqual([2, 0, 1])
+    expect(selectIndexRange([2, 0, 1], 0, 0)).toEqual([0])
+    expect(selectIndexRange([0, 1, 2], 9, 1)).toEqual([1])
+  })
+
+  it('copies TSV for row mode vs column mode', () => {
+    const rows = [
+      { id: 1, name: 'ada', amount: 10 },
+      { id: 2, name: 'grace', amount: 20 }
+    ]
+    expect(
+      selectionToTsv({
+        mode: 'rows',
+        displayRows: rows,
+        orderedColumnNames: ['id', 'name', 'amount'],
+        selectedRowIndices: new Set([1]),
+        selectedColumnNames: ['amount']
+      })
+    ).toBe('2\tgrace\t20')
+    expect(
+      selectionToTsv({
+        mode: 'columns',
+        displayRows: rows,
+        orderedColumnNames: ['id', 'name', 'amount'],
+        selectedRowIndices: new Set([0]),
+        selectedColumnNames: ['name', 'amount']
+      })
+    ).toBe('ada\t10\ngrace\t20')
+    expect(
+      selectionToTsv({
+        mode: 'cells',
+        displayRows: rows,
+        orderedColumnNames: ['id', 'name', 'amount'],
+        selectedRowIndices: new Set([0, 1]),
+        selectedColumnNames: ['amount']
+      })
+    ).toBe('10\n20')
+  })
+
+  it('builds a cell rectangle for drag up/down in one column', () => {
+    expect(
+      cellSelectionRect(
+        { displayIndex: 4, columnIndex: 2 },
+        { displayIndex: 2, columnIndex: 2 },
+        [0, 1, 2]
+      )
+    ).toEqual({ displayIndices: [2, 3, 4], columnIndices: [2] })
+    expect(
+      collectRectValues(
+        [{ amount: 10 }, { amount: 20 }, { amount: 30 }, { amount: 40 }, { amount: 50 }],
+        [2, 3, 4],
+        ['amount']
+      )
+    ).toEqual([30, 40, 50])
+  })
+
+  it('sums numeric visible cells and skips null/text', () => {
+    expect(sumNumericCells([1, 2, null, 'x', 3.5, false])).toBe(6.5)
+    expect(sumNumericCells([null, '10', true])).toBe(10)
+    expect(sumNumericCells(['175000', '670', '3250', '0', '0', '600.000001'])).toBeCloseTo(
+      179520.000001
+    )
+    expect(sumNumericCells(['  12.5  ', '-0.5'])).toBe(12)
+    expect(sumNumericCells(['0x10', 'Infinity', '', '10px'])).toBeNull()
+    expect(sumNumericCells([])).toBeNull()
+    const edits = setCellEdit({}, 0, 'amount', 10, 4)
+    expect(
+      collectVisibleColumnValues(
+        [
+          { id: 1, amount: 10 },
+          { id: 2, amount: 20 }
+        ],
+        ['amount'],
+        edits,
+        [{ id: null, amount: 1 }]
+      )
+    ).toEqual([4, 20, 1])
+    expect(
+      sumNumericCells(
+        collectVisibleColumnValues(
+          [
+            { id: 1, amount: 10 },
+            { id: 2, amount: 20 }
+          ],
+          ['amount'],
+          edits,
+          [{ id: null, amount: 1 }]
+        )
+      )
+    ).toBe(25)
   })
 })

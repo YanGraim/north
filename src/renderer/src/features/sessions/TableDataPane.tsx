@@ -32,6 +32,7 @@ type TableDataPaneProps = {
   onDraftChange: (draft: GridDraft) => void
   onSave: () => void
   onDiscard: () => void
+  rowActions?: boolean
 }
 
 export function TableDataPane({
@@ -56,7 +57,8 @@ export function TableDataPane({
   onPaneChange,
   onDraftChange,
   onSave,
-  onDiscard
+  onDiscard,
+  rowActions = true
 }: TableDataPaneProps): React.JSX.Element {
   const { t } = useTranslation()
   const filterColumns = useMemo(() => {
@@ -100,7 +102,7 @@ export function TableDataPane({
           draft={draft}
           onDraftChange={onDraftChange}
           pkColumns={pkColumns}
-          rowActions
+          rowActions={rowActions}
           browseMode
           browseHasMore={browseHasMore}
           browseCapReached={browseCapReached}

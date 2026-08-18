@@ -120,6 +120,45 @@ export function toggleInSet(selected: ReadonlySet<number>, index: number): Set<n
   return next
 }
 
+/** Inclusive range along a visual order (column header Shift+click). */
+export function selectIndexRange(
+  ordered: readonly number[],
+  fromId: number,
+  toId: number
+): number[] {
+  const fromPos = ordered.indexOf(fromId)
+  const toPos = ordered.indexOf(toId)
+  if (fromPos < 0 || toPos < 0) return [toId]
+  const start = Math.min(fromPos, toPos)
+  const end = Math.max(fromPos, toPos)
+  return ordered.slice(start, end + 1)
+}
+
+export type CellPos = {
+  displayIndex: number
+  columnIndex: number
+}
+
+/** Inclusive rectangle between two cells (display rows × visual column order). */
+export function cellSelectionRect(
+  anchor: CellPos,
+  focus: CellPos,
+  orderedColumnIndices: readonly number[]
+): { displayIndices: number[]; columnIndices: number[] } {
+  return {
+    displayIndices: selectRange(anchor.displayIndex, focus.displayIndex),
+    columnIndices: selectIndexRange(orderedColumnIndices, anchor.columnIndex, focus.columnIndex)
+  }
+}
+
+export function isCellInRect(
+  displayIndex: number,
+  columnIndex: number,
+  rect: { displayIndices: readonly number[]; columnIndices: readonly number[] }
+): boolean {
+  return rect.displayIndices.includes(displayIndex) && rect.columnIndices.includes(columnIndex)
+}
+
 export function formatTsvCell(value: DatabaseCellValue | undefined): string {
   if (value === null || value === undefined) return ''
   const text = typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value)
@@ -134,6 +173,83 @@ export function rowsToTsv(
   return rows
     .map((row) => columnNames.map((name) => formatTsvCell(row[name])).join('\t'))
     .join('\n')
+}
+
+export function selectionToTsv(input: {
+  mode: 'rows' | 'columns' | 'cells'
+  displayRows: Array<Record<string, DatabaseCellValue>>
+  orderedColumnNames: readonly string[]
+  selectedRowIndices: ReadonlySet<number>
+  selectedColumnNames: readonly string[]
+}): string {
+  if (input.mode === 'columns') {
+    return rowsToTsv(input.displayRows, input.selectedColumnNames)
+  }
+  const rows = input.displayRows.filter((_, index) => input.selectedRowIndices.has(index))
+  const columns = input.mode === 'cells' ? input.selectedColumnNames : input.orderedColumnNames
+  return rowsToTsv(rows, columns)
+}
+
+export function collectRectValues(
+  displayRows: Array<Record<string, DatabaseCellValue>>,
+  displayIndices: readonly number[],
+  columnNames: readonly string[]
+): DatabaseCellValue[] {
+  const values: DatabaseCellValue[] = []
+  for (const rowIndex of displayIndices) {
+    const row = displayRows[rowIndex]
+    if (!row) continue
+    for (const name of columnNames) {
+      values.push(row[name] ?? null)
+    }
+  }
+  return values
+}
+
+export function collectVisibleColumnValues(
+  rows: Array<Record<string, DatabaseCellValue>>,
+  columnNames: readonly string[],
+  edits: GridEdits | undefined,
+  inserts: ReadonlyArray<Record<string, DatabaseCellValue>> = []
+): DatabaseCellValue[] {
+  const values: DatabaseCellValue[] = []
+  rows.forEach((row, sourceIndex) => {
+    for (const name of columnNames) {
+      values.push(cellDisplayValue(row, name, edits, sourceIndex) ?? null)
+    }
+  })
+  for (const row of inserts) {
+    for (const name of columnNames) {
+      values.push(row[name] ?? null)
+    }
+  }
+  return values
+}
+
+/** DECIMAL / NUMERIC / BIGINT arrive as strings from the driver (see serializeCell). */
+const NUMERIC_STRING = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/
+
+function asFiniteNumber(value: DatabaseCellValue): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!NUMERIC_STRING.test(trimmed)) return null
+  const num = Number(trimmed)
+  return Number.isFinite(num) ? num : null
+}
+
+export function sumNumericCells(values: readonly DatabaseCellValue[]): number | null {
+  let total = 0
+  let any = false
+  for (const value of values) {
+    const num = asFiniteNumber(value)
+    if (num === null) continue
+    total += num
+    any = true
+  }
+  return any ? total : null
 }
 
 export function cellDisplayValue(
