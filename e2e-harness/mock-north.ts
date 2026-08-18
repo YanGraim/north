@@ -549,6 +549,7 @@ export function installMockNorth(opts?: {
     const ts = now()
     const api = {
       getVersion: async () => '0.0.0-e2e',
+      getIdentity: async () => ({ osUsername: 'e2e-user' }),
       clients: {
         list: async () => [
           {
@@ -673,6 +674,7 @@ export function installMockNorth(opts?: {
 
   const api = {
     getVersion: async () => '0.0.0-e2e',
+    getIdentity: async () => ({ osUsername: 'e2e-user' }),
     clients: {
       list: async () => [inventory.client],
       get: async (id: string) => (id === inventory.client.id ? inventory.client : null),
@@ -909,6 +911,7 @@ function installDatabaseMock(): void {
 
   const api = {
     getVersion: async () => '0.0.0-e2e',
+    getIdentity: async () => ({ osUsername: 'e2e-user' }),
     clients: {
       list: async () => [client],
       get: async (id: string) => (id === client.id ? client : null),

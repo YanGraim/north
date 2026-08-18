@@ -9,6 +9,8 @@ import {
   AlertDialogTitle
 } from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
+import { Input } from '@renderer/components/ui/input'
+import { Label } from '@renderer/components/ui/label'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import {
   Select,
@@ -20,6 +22,7 @@ import {
 import { Separator } from '@renderer/components/ui/separator'
 import { Switch } from '@renderer/components/ui/switch'
 import { useAppVersion } from '@renderer/hooks/use-app-version'
+import { useLocalProfile } from '@renderer/hooks/use-local-profile'
 import {
   downloadCsvTemplate,
   exportInventory,
@@ -47,7 +50,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 const REPO_URL = 'https://github.com/YanGraim/north'
 
@@ -67,7 +70,9 @@ const LOCALE_OPTIONS: Array<{ value: LocaleCode; label: string }> = [
 export function SettingsPage(): React.JSX.Element {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: version, isLoading: versionLoading } = useAppVersion()
+  const { displayName, profileEmail, setDisplayName, setProfileEmail } = useLocalProfile()
   const queryClient = useQueryClient()
   const theme = useUiStore((s) => s.theme)
   const setTheme = useUiStore((s) => s.setTheme)
@@ -89,6 +94,12 @@ export function SettingsPage(): React.JSX.Element {
     void window.north.updates.getStatus().then(setUpdateStatus)
     return window.north.updates.onStatusChanged(setUpdateStatus)
   }, [updatesDisabled])
+
+  useEffect(() => {
+    if (location.hash !== '#profile') return
+    const node = document.getElementById('profile')
+    node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [location.hash])
 
   const availableVersion = updateStatus?.available ? updateStatus.version : null
   const updateReady = updateStatus?.downloaded ?? false
@@ -172,6 +183,39 @@ export function SettingsPage(): React.JSX.Element {
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto flex max-w-xl flex-col gap-8 p-4 pb-10">
+          <SettingsSection
+            id="profile"
+            title={t('settings.profile.title')}
+            description={t('settings.profile.description')}
+          >
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="profile-display-name">{t('settings.profile.displayName')}</Label>
+                <Input
+                  id="profile-display-name"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  placeholder={t('settings.profile.displayNamePlaceholder')}
+                  autoComplete="name"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="profile-email">{t('settings.profile.email')}</Label>
+                <Input
+                  id="profile-email"
+                  type="email"
+                  value={profileEmail}
+                  onChange={(event) => setProfileEmail(event.target.value)}
+                  placeholder={t('settings.profile.emailPlaceholder')}
+                  autoComplete="email"
+                />
+              </div>
+              <p className="text-xs text-muted">{t('settings.profile.localNote')}</p>
+            </div>
+          </SettingsSection>
+
+          <Separator />
+
           <SettingsSection
             title={t('settings.appearance.title')}
             description={t('settings.appearance.description')}
@@ -463,16 +507,18 @@ export function SettingsPage(): React.JSX.Element {
 }
 
 function SettingsSection({
+  id,
   title,
   description,
   children
 }: {
+  id?: string
   title: string
   description: string
   children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <section className="space-y-3">
+    <section id={id} className="space-y-3 scroll-mt-4">
       <div>
         <h2 className="text-sm font-medium text-foreground">{title}</h2>
         <p className="mt-0.5 text-xs text-muted">{description}</p>

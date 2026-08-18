@@ -14,6 +14,12 @@ interface UiState {
   listSort: ListSort
   theme: ThemePreference
   locale: LocaleCode
+  /** Local display name — empty falls back to OS username at render time. */
+  displayName: string
+  /** Optional e-mail shown in the sidebar chip; never validated or synced. */
+  profileEmail: string
+  /** One-time seed from `app:get-identity` on first launch. */
+  profileSeeded: boolean
   terminalCopyOnSelect: boolean
   /** Last app version for which the what's-new dialog was dismissed (or silently marked). */
   lastSeenWhatsNewVersion: string | null
@@ -26,6 +32,9 @@ interface UiState {
   setListSort: (sort: ListSort) => void
   setTheme: (theme: ThemePreference) => void
   setLocale: (locale: LocaleCode) => void
+  setDisplayName: (name: string) => void
+  setProfileEmail: (email: string) => void
+  seedProfileFromOs: (username: string) => void
   setTerminalCopyOnSelect: (enabled: boolean) => void
   setLastSeenWhatsNewVersion: (version: string) => void
 }
@@ -52,6 +61,9 @@ export const useUiStore = create<UiState>()(
       listSort: 'name',
       theme: 'dark',
       locale: 'pt-BR',
+      displayName: '',
+      profileEmail: '',
+      profileSeeded: false,
       terminalCopyOnSelect: true,
       lastSeenWhatsNewVersion: null,
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -75,6 +87,12 @@ export const useUiStore = create<UiState>()(
       setListSort: (sort) => set({ listSort: sort }),
       setTheme: (theme) => set({ theme }),
       setLocale: (locale) => set({ locale }),
+      setDisplayName: (name) => set({ displayName: name }),
+      setProfileEmail: (email) => set({ profileEmail: email }),
+      seedProfileFromOs: (username) =>
+        set((state) =>
+          state.profileSeeded ? state : { displayName: username.trim(), profileSeeded: true }
+        ),
       setTerminalCopyOnSelect: (enabled) => set({ terminalCopyOnSelect: enabled }),
       setLastSeenWhatsNewVersion: (version) => set({ lastSeenWhatsNewVersion: version })
     }),
@@ -87,6 +105,9 @@ export const useUiStore = create<UiState>()(
         listSort: state.listSort,
         theme: state.theme,
         locale: state.locale,
+        displayName: state.displayName,
+        profileEmail: state.profileEmail,
+        profileSeeded: state.profileSeeded,
         terminalCopyOnSelect: state.terminalCopyOnSelect,
         lastSeenWhatsNewVersion: state.lastSeenWhatsNewVersion
       })

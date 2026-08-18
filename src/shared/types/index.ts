@@ -12,6 +12,7 @@ export {
   type UpdateAccessInput,
   UpdateAccessInputSchema
 } from './access'
+export { type AppIdentity, AppIdentitySchema } from './app-identity'
 export {
   type Client,
   ClientSchema,

@@ -18,6 +18,15 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Preferences, inventory and updates",
+    "profile": {
+      "title": "Profile",
+      "description": "Display name and optional e-mail on this machine only. Not login or sync.",
+      "displayName": "Display name",
+      "displayNamePlaceholder": "How you appear in the app",
+      "email": "E-mail (optional)",
+      "emailPlaceholder": "optional, this computer only",
+      "localNote": "Stays on this computer — nothing is sent to servers."
+    },
     "appearance": {
       "title": "Appearance",
       "description": "Interface theme. Dark is the default.",
@@ -219,7 +228,8 @@
       "browseCountExact": "{{count}}",
       "browseCap": " · load limit",
       "affected": "{{count}} row(s) affected · {{ms}} ms",
-      "columnHint": "Click to sort · drag to reorder the column",
+      "columnHint": "Click the name for the whole column · drag cells for a range · icon to sort · drag header to move",
+      "sortHint": "Sort column",
       "insertRow": "Insert row",
       "duplicateRow": "Duplicate row",
       "deleteRows": "Delete selected",
@@ -236,6 +246,12 @@
       "saveError": "Failed to save changes",
       "saveDisabledView": "Views cannot be edited",
       "saveDisabledClean": "No pending changes",
+      "saveDisabledAggregated": "Cannot save — this result is not a 1:1 row mapping (DISTINCT, GROUP BY, UNION or CTE)",
+      "saveDisabledNoTarget": "Cannot UPDATE from this query (no FROM table, or edited columns are not on it)",
+      "sum": "Sum",
+      "sumHint": "Sum numeric values in the selected columns or cells",
+      "sumTotal": "Sum: {{value}}",
+      "copySum": "Copy sum",
       "viewMode": "Result view",
       "viewGrid": "Grid view",
       "viewRecord": "Record view",

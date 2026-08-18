@@ -11,7 +11,7 @@ import type {
   SessionPortMessage,
   TransferProgress
 } from '@shared/protocols'
-import type { UpdateStatus } from '@shared/types'
+import type { AppIdentity, UpdateStatus } from '@shared/types'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 function openSession(
@@ -55,6 +55,7 @@ function openSession(
 
 const api: NorthApi = {
   getVersion: (): Promise<string> => ipcRenderer.invoke(IpcChannels.APP_GET_VERSION),
+  getIdentity: (): Promise<AppIdentity> => ipcRenderer.invoke(IpcChannels.APP_GET_IDENTITY),
   setTheme: (theme) => ipcRenderer.invoke(IpcChannels.APP_SET_THEME, theme),
 
   clients: {

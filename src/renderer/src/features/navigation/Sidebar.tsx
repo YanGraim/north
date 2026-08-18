@@ -1,6 +1,7 @@
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { ClientTree } from '@renderer/features/navigation/ClientTree'
 import { NavItem } from '@renderer/features/navigation/NavItem'
+import { ProfileChip } from '@renderer/features/navigation/ProfileChip'
 import { SidebarSection } from '@renderer/features/navigation/SidebarSection'
 import { TagList } from '@renderer/features/navigation/TagList'
 import { cn } from '@renderer/lib/utils'
@@ -100,7 +101,7 @@ export function Sidebar(): React.JSX.Element {
       <div
         className={cn(
           'shrink-0 border-t border-border',
-          collapsed ? 'flex items-center justify-center py-2' : 'p-2'
+          collapsed ? 'flex flex-col items-center gap-2 py-2' : 'flex flex-col gap-1 p-2'
         )}
       >
         <NavItem
@@ -110,6 +111,7 @@ export function Sidebar(): React.JSX.Element {
           collapsed={collapsed}
           plain={collapsed}
         />
+        <ProfileChip collapsed={collapsed} />
       </div>
     </aside>
   )

@@ -72,6 +72,7 @@ import type {
   WorkflowRunEvent,
   WorkflowRunRespondInput
 } from '../types'
+import type { AppIdentity } from '../types/app-identity'
 import { IpcChannels } from './channels'
 
 /**
@@ -82,6 +83,10 @@ export interface IpcInvokeMap {
   [IpcChannels.APP_GET_VERSION]: {
     args: []
     result: string
+  }
+  [IpcChannels.APP_GET_IDENTITY]: {
+    args: []
+    result: AppIdentity
   }
   [IpcChannels.APP_SET_THEME]: {
     args: [theme: ThemePreference]
@@ -421,6 +426,7 @@ export type InvokeResult<C extends InvokeChannel> = IpcInvokeMap[C]['result']
 /** API tipada exposta ao renderer via contextBridge. */
 export interface NorthApi {
   getVersion: () => Promise<string>
+  getIdentity: () => Promise<AppIdentity>
   setTheme: (theme: ThemePreference) => Promise<void>
   clients: {
     list: () => Promise<Client[]>

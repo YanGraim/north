@@ -1,3 +1,4 @@
+import os from 'node:os'
 import { IpcChannels } from '@shared/ipc'
 import { app, ipcMain } from 'electron'
 import { initDatabase } from '../database'
@@ -50,6 +51,9 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.APP_GET_VERSION, (): string => {
     return app.getVersion()
   })
+  ipcMain.handle(IpcChannels.APP_GET_IDENTITY, () => ({
+    osUsername: os.userInfo().username
+  }))
   registerThemeHandlers()
 
   registerVaultHandlers(vault, repositories)

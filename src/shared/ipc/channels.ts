@@ -4,6 +4,7 @@
  */
 export const IpcChannels = {
   APP_GET_VERSION: 'app:get-version',
+  APP_GET_IDENTITY: 'app:get-identity',
   APP_SET_THEME: 'app:set-theme',
 
   CLIENTS_LIST: 'clients:list',

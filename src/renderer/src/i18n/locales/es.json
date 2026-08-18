@@ -18,6 +18,15 @@
   "settings": {
     "title": "Ajustes",
     "subtitle": "Preferencias, inventario y actualizaciones",
+    "profile": {
+      "title": "Perfil",
+      "description": "Nombre y correo opcional en este equipo. No es login ni sincronización.",
+      "displayName": "Nombre para mostrar",
+      "displayNamePlaceholder": "Cómo apareces en la app",
+      "email": "Correo (opcional)",
+      "emailPlaceholder": "opcional, solo en este equipo",
+      "localNote": "Queda solo en este equipo — no se envía nada a servidores."
+    },
     "appearance": {
       "title": "Apariencia",
       "description": "Tema de la interfaz. Oscuro es el predeterminado.",
@@ -219,7 +228,8 @@
       "browseCountExact": "{{count}}",
       "browseCap": " · límite de carga",
       "affected": "{{count}} fila(s) afectada(s) · {{ms}} ms",
-      "columnHint": "Clic para ordenar · arrastra para mover la columna",
+      "columnHint": "Clic en el nombre para la columna entera · arrastra las celdas para un intervalo · icono para ordenar · arrastra el encabezado para mover",
+      "sortHint": "Ordenar columna",
       "insertRow": "Insertar fila",
       "duplicateRow": "Duplicar fila",
       "deleteRows": "Eliminar seleccionada(s)",
@@ -236,6 +246,12 @@
       "saveError": "Error al guardar los cambios",
       "saveDisabledView": "Las views no se pueden editar",
       "saveDisabledClean": "No hay cambios pendientes",
+      "saveDisabledAggregated": "No se puede guardar — el resultado no mapea 1:1 a una fila (DISTINCT, GROUP BY, UNION o CTE)",
+      "saveDisabledNoTarget": "No se puede hacer UPDATE desde esta query (sin tabla en FROM, o columnas que no pertenecen a ella)",
+      "sum": "Suma",
+      "sumHint": "Sumar valores numéricos de las columnas o celdas seleccionadas",
+      "sumTotal": "Suma: {{value}}",
+      "copySum": "Copiar suma",
       "viewMode": "Vista del resultado",
       "viewGrid": "Vista de cuadrícula",
       "viewRecord": "Vista de registro",

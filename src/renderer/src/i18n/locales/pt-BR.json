@@ -18,6 +18,15 @@
   "settings": {
     "title": "Configurações",
     "subtitle": "Preferências, inventário e atualizações",
+    "profile": {
+      "title": "Perfil",
+      "description": "Nome e e-mail opcional exibidos neste computador. Não é login nem sincronização.",
+      "displayName": "Nome de exibição",
+      "displayNamePlaceholder": "Como aparecer no app",
+      "email": "E-mail (opcional)",
+      "emailPlaceholder": "opcional, só neste computador",
+      "localNote": "Fica só neste computador — nada é enviado a servidores."
+    },
     "appearance": {
       "title": "Aparência",
       "description": "Tema da interface. Dark é o padrão.",
@@ -219,7 +228,8 @@
       "browseCountExact": "{{count}}",
       "browseCap": " · limite de carregamento",
       "affected": "{{count}} linha(s) afetada(s) · {{ms}} ms",
-      "columnHint": "Clique para ordenar · arraste para mover a coluna",
+      "columnHint": "Clique no nome para a coluna inteira · arraste nas células para um intervalo · ícone para ordenar · arraste o cabeçalho para mover",
+      "sortHint": "Ordenar coluna",
       "insertRow": "Inserir linha",
       "duplicateRow": "Duplicar linha",
       "deleteRows": "Excluir selecionada(s)",
@@ -236,6 +246,12 @@
       "saveError": "Falha ao salvar alterações",
       "saveDisabledView": "Views não podem ser editadas",
       "saveDisabledClean": "Nenhuma alteração pendente",
+      "saveDisabledAggregated": "Não é possível salvar — o resultado não mapeia 1:1 para uma linha (DISTINCT, GROUP BY, UNION ou CTE)",
+      "saveDisabledNoTarget": "Não foi possível gravar o UPDATE nesta query (sem tabela no FROM, ou colunas que não pertencem a ela)",
+      "sum": "Soma",
+      "sumHint": "Somar valores numéricos das colunas ou células selecionadas",
+      "sumTotal": "Soma: {{value}}",
+      "copySum": "Copiar soma",
       "viewMode": "Visão do resultado",
       "viewGrid": "Visão em grade",
       "viewRecord": "Visão registro",

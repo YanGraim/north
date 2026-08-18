@@ -2,7 +2,8 @@ import type { ListAccessesFilter, ListConnectionsFilter, ListHistoryFilter } fro
 
 export const queryKeys = {
   app: {
-    version: ['app', 'version'] as const
+    version: ['app', 'version'] as const,
+    identity: ['app', 'identity'] as const
   },
   clients: {
     all: ['clients'] as const,
