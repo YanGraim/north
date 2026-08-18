@@ -679,7 +679,11 @@ export function DatabaseConnectionFormDialog(): React.JSX.Element | null {
                         <FormItem>
                           <FormLabel>Ícone</FormLabel>
                           <FormControl>
-                            <IconPicker value={field.value} onChange={field.onChange} />
+                            <IconPicker
+                              value={field.value}
+                              onChange={field.onChange}
+                              engine={watchedEngine}
+                            />
                           </FormControl>
                         </FormItem>
                       )}

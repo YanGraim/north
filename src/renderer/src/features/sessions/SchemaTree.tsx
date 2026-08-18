@@ -84,7 +84,7 @@ export function SchemaTree({
         {visibleSchemas.length === 0 ? (
           <p className="px-3 py-4 text-xs text-muted">{t('database.studio.schemaFilterEmpty')}</p>
         ) : (
-          <ul className="space-y-0.5 p-2 text-[12px]">
+          <ul className="space-y-0.5 p-2 text-[14px]">
             {visibleSchemas.map((schema) => {
               const schemaKey = `schema:${schema.name}`
               // While filtering, matching schemas stay expanded (plan: auto-expand).

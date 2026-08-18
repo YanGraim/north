@@ -1,4 +1,5 @@
 import { ConfirmDeleteDialog } from '@renderer/components/ConfirmDeleteDialog'
+import { InventoryIcon } from '@renderer/components/InventoryIcon'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -11,12 +12,7 @@ import {
 import { TagBadges } from '@renderer/features/connections/TagBadges'
 import { useDeleteAccess, useToggleFavoriteAccess } from '@renderer/hooks/use-accesses'
 import { useAccessTags } from '@renderer/hooks/use-tags'
-import {
-  accessDisplayIcon,
-  accessTypeLabel,
-  sqlStudioReady,
-  supportsSqlStudio
-} from '@renderer/lib/access-ui'
+import { accessTypeLabel, sqlStudioReady, supportsSqlStudio } from '@renderer/lib/access-ui'
 import { toastError } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
@@ -36,7 +32,6 @@ export function AccessListItem({
   selected,
   onSelect
 }: AccessListItemProps): React.JSX.Element {
-  const Icon = accessDisplayIcon(access)
   const { data: tags = [] } = useAccessTags(access.id)
   const toggleFavorite = useToggleFavoriteAccess()
   const deleteAccess = useDeleteAccess()
@@ -70,7 +65,12 @@ export function AccessListItem({
             access.color ? { color: access.color, backgroundColor: `${access.color}18` } : undefined
           }
         >
-          <Icon className="size-3.5" />
+          <InventoryIcon
+            className="size-3.5"
+            icon={access.icon}
+            accessType={access.type}
+            engine={access.engine}
+          />
         </span>
         <span className="pointer-events-none relative z-10 min-w-0 flex-1">
           <span className="flex items-center gap-2">

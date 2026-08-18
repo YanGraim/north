@@ -1,6 +1,7 @@
 import { ConfirmDeleteDialog } from '@renderer/components/ConfirmDeleteDialog'
 import { EmptyState } from '@renderer/components/EmptyState'
 import { EnvironmentBadge } from '@renderer/components/EnvironmentBadge'
+import { InventoryIcon } from '@renderer/components/InventoryIcon'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -135,6 +136,20 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
         <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
           <header className="shrink-0 border-b border-border px-4 py-3">
             <div className="flex items-center gap-2">
+              <span
+                className="flex size-8 shrink-0 items-center justify-center rounded-md bg-surface text-muted ring-1 ring-border/60"
+                style={
+                  connection.color
+                    ? { color: connection.color, backgroundColor: `${connection.color}18` }
+                    : undefined
+                }
+              >
+                <InventoryIcon
+                  className="size-3.5"
+                  icon={connection.icon}
+                  protocol={connection.protocol}
+                />
+              </span>
               <h2 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                 {connection.name}
               </h2>

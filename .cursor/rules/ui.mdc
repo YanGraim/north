@@ -10,7 +10,8 @@ alwaysApply: false
 
 - Tailwind v4 com tokens em `assets/index.css` (`@theme`).
 - Componentes base em `components/ui` (padrão shadcn/new-york).
-- Ícones: **Lucide** (`lucide-react`).
+- Ícones: **Lucide** (`lucide-react`) no chrome (nav, ações, pastas).
+- **Marcas vendored** (`assets/brands/`, Simple Icons CC0) só para engines de banco conhecidas via `InventoryIcon`.
 - Tema **dark-first**; cores via tokens (`background`, `surface`, `accent`, …).
 
 ## Layout
@@ -29,8 +30,12 @@ alwaysApply: false
 ## Exemplos
 
 ```tsx
-// ✅ Tokens + Lucide
+// ✅ Tokens + Lucide (chrome)
 import { PanelLeft } from 'lucide-react'
+
+// ✅ Marca de engine no inventário
+import { InventoryIcon } from '@renderer/components/InventoryIcon'
+<InventoryIcon engine="postgres" accessType="database" className="size-3.5" />
 <button className="text-muted hover:text-foreground" aria-label="Menu">
   <PanelLeft className="size-4" />
 </button>

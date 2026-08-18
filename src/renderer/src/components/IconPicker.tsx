@@ -1,18 +1,30 @@
+import { BrandMark } from '@renderer/components/BrandMark'
 import { Button } from '@renderer/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
+import { resolveEngineBrand } from '@renderer/lib/engine-brands'
 import { ENTITY_ICONS, resolveEntityIcon } from '@renderer/lib/entity-icons'
 import { cn } from '@renderer/lib/utils'
+import type { DatabaseEngine } from '@shared/types'
 import { useState } from 'react'
 
 type IconPickerProps = {
   value: string | null | undefined
   onChange: (icon: string | null) => void
   disabled?: boolean
+  /** When set, “Padrão” previews the engine brand instead of a generic Lucide icon. */
+  engine?: DatabaseEngine | null
 }
 
-export function IconPicker({ value, onChange, disabled }: IconPickerProps): React.JSX.Element {
+export function IconPicker({
+  value,
+  onChange,
+  disabled,
+  engine
+}: IconPickerProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const SelectedIcon = resolveEntityIcon(value)
+  const defaultBrand = resolveEngineBrand(engine)
+  const previewBrand = !value ? defaultBrand : null
 
   function selectIcon(icon: string | null): void {
     onChange(icon)
@@ -30,7 +42,11 @@ export function IconPicker({ value, onChange, disabled }: IconPickerProps): Reac
           className="h-9 min-w-[7rem] justify-start gap-2.5 px-3"
           aria-label="Escolher ícone"
         >
-          <SelectedIcon className="size-3.5 text-muted" />
+          {previewBrand ? (
+            <BrandMark engine={previewBrand} className="size-3.5" />
+          ) : (
+            <SelectedIcon className="size-3.5 text-muted" />
+          )}
           <span className="text-xs text-muted">{value ? 'Ícone' : 'Padrão'}</span>
         </Button>
       </PopoverTrigger>
@@ -62,7 +78,7 @@ export function IconPicker({ value, onChange, disabled }: IconPickerProps): Reac
           className="mt-2 h-7 w-full text-xs text-muted"
           onClick={() => selectIcon(null)}
         >
-          Limpar
+          {defaultBrand ? 'Usar marca da engine' : 'Limpar'}
         </Button>
       </PopoverContent>
     </Popover>

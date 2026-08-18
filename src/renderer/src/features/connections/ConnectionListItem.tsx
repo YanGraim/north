@@ -1,4 +1,5 @@
 import { ConfirmDeleteDialog } from '@renderer/components/ConfirmDeleteDialog'
+import { InventoryIcon } from '@renderer/components/InventoryIcon'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -17,7 +18,7 @@ import {
 } from '@renderer/hooks/use-connections'
 import { useConnectionTags } from '@renderer/hooks/use-tags'
 import { copyToClipboard } from '@renderer/lib/clipboard'
-import { connectionDisplayIcon, formatRelativeDate } from '@renderer/lib/connection-ui'
+import { formatRelativeDate } from '@renderer/lib/connection-ui'
 import { cn } from '@renderer/lib/utils'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import type { ListSort } from '@renderer/stores/ui-store'
@@ -40,7 +41,6 @@ export function ConnectionListItem({
   onSelect
 }: ConnectionListItemProps): React.JSX.Element {
   const { t } = useTranslation()
-  const Icon = connectionDisplayIcon(connection)
   const { data: tags = [] } = useConnectionTags(connection.id)
   const toggleFavorite = useToggleFavoriteConnection()
   const duplicate = useDuplicateConnection()
@@ -71,7 +71,11 @@ export function ConnectionListItem({
                 : undefined
             }
           >
-            <Icon className="size-3.5" />
+            <InventoryIcon
+              className="size-3.5"
+              icon={connection.icon}
+              protocol={connection.protocol}
+            />
           </span>
           <span className="pointer-events-none relative z-10 min-w-0 flex-1">
             <span className="flex items-center gap-2">

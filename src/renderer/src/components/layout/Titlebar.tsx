@@ -3,6 +3,7 @@ import { useAppVersion } from '@renderer/hooks/use-app-version'
 import { isApplePlatform } from '@renderer/lib/platform'
 import { cn } from '@renderer/lib/utils'
 import { useUiStore } from '@renderer/stores/ui-store'
+import northIcon from '@resources/icon.png'
 import { PanelLeft } from 'lucide-react'
 
 export function Titlebar(): React.JSX.Element {
@@ -28,12 +29,13 @@ export function Titlebar(): React.JSX.Element {
             type="button"
             variant="ghost"
             size="icon"
-            className="size-7"
+            className="size-7 no-drag"
             onClick={toggleSidebar}
             aria-label="Alternar barra lateral"
           >
             <PanelLeft className="size-4" />
           </Button>
+          <img src={northIcon} alt="" className="size-5 shrink-0 rounded-sm no-drag" aria-hidden />
           <span className="font-display text-sm font-semibold tracking-wide text-foreground">
             North
           </span>

@@ -1,4 +1,5 @@
 import { ConfirmDeleteDialog } from '@renderer/components/ConfirmDeleteDialog'
+import { InventoryIcon } from '@renderer/components/InventoryIcon'
 import {
   Command,
   CommandEmpty,
@@ -26,9 +27,7 @@ import {
 import { useSelectedConnectionId } from '@renderer/hooks/use-route-selection'
 import { useSearchIndex } from '@renderer/hooks/use-search-index'
 import { useWorkflows } from '@renderer/hooks/use-workflows'
-import { accessDisplayIcon } from '@renderer/lib/access-ui'
 import { copyToClipboard } from '@renderer/lib/clipboard'
-import { connectionDisplayIcon } from '@renderer/lib/connection-ui'
 import { resolveEntityIcon } from '@renderer/lib/entity-icons'
 import { exportInventory, importInventory } from '@renderer/lib/inventory-actions'
 import {
@@ -715,13 +714,18 @@ function ItemIcon({ item }: { item: SearchIndexItem }): React.JSX.Element {
   const className = 'size-4 shrink-0 text-muted'
 
   if (item.kind === 'connection' && item.protocol) {
-    const Icon = connectionDisplayIcon({ protocol: item.protocol, icon: item.icon })
-    return <Icon className={className} />
+    return <InventoryIcon className={className} icon={item.icon} protocol={item.protocol} />
   }
 
   if (item.kind === 'access' && item.accessType) {
-    const Icon = accessDisplayIcon({ type: item.accessType, icon: item.icon })
-    return <Icon className={className} />
+    return (
+      <InventoryIcon
+        className={className}
+        icon={item.icon}
+        accessType={item.accessType}
+        engine={item.engine}
+      />
+    )
   }
 
   if (item.icon) {

@@ -1,3 +1,4 @@
+import { InventoryIcon } from '@renderer/components/InventoryIcon'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -9,7 +10,7 @@ import {
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Skeleton } from '@renderer/components/ui/skeleton'
 import { useAccesses } from '@renderer/hooks/use-accesses'
-import { connectionDisplayIcon, formatRelativeDate } from '@renderer/lib/connection-ui'
+import { formatRelativeDate } from '@renderer/lib/connection-ui'
 import { queryKeys } from '@renderer/lib/query-keys'
 import { useCommandPaletteStore } from '@renderer/stores/command-palette-store'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
@@ -225,7 +226,6 @@ function ConnectionRow({
   connection: Connection
   meta?: string
 }): React.JSX.Element {
-  const Icon = connectionDisplayIcon(connection)
   return (
     <li>
       <button
@@ -241,7 +241,11 @@ function ConnectionRow({
           }).catch(() => undefined)
         }
       >
-        <Icon className="size-3.5 shrink-0 text-muted" />
+        <InventoryIcon
+          className="size-3.5 text-muted"
+          icon={connection.icon}
+          protocol={connection.protocol}
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-foreground">{connection.name}</p>
           <p className="truncate font-mono text-[11px] text-muted">
