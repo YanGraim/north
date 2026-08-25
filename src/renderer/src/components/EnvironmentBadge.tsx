@@ -29,6 +29,7 @@ export function EnvironmentBadge({
     <Badge
       variant="outline"
       title={name}
+      data-testid="environment-badge"
       className={cn(
         'gap-1 font-semibold uppercase tracking-wide',
         emphasize && 'ring-1 ring-offset-0',

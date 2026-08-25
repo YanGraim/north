@@ -1,3 +1,4 @@
+import { EnvironmentBadge } from '@renderer/components/EnvironmentBadge'
 import { environmentStatusColor, hasEnvironmentContext } from '@renderer/lib/environment-color'
 import { cn } from '@renderer/lib/utils'
 import { Folder, User } from 'lucide-react'
@@ -54,6 +55,14 @@ export function SessionIdentityBar({
         <Folder className="size-3 shrink-0 text-muted" aria-hidden />
         <span className="truncate">{folderLabel}</span>
       </span>
+      {hasContext && environmentName ? (
+        <EnvironmentBadge
+          name={environmentName}
+          color={environmentColor}
+          showFullName
+          className="shrink-0"
+        />
+      ) : null}
       {children ? <div className="ml-auto flex shrink-0 items-center gap-1">{children}</div> : null}
     </div>
   )

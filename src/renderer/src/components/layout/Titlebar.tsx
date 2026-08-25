@@ -1,6 +1,11 @@
 import { Button } from '@renderer/components/ui/button'
 import { useAppVersion } from '@renderer/hooks/use-app-version'
 import { isApplePlatform } from '@renderer/lib/platform'
+import {
+  titlebarContentStyle,
+  titlebarHeaderClass,
+  titlebarInnerClass
+} from '@renderer/lib/titlebar-layout'
 import { cn } from '@renderer/lib/utils'
 import { useUiStore } from '@renderer/stores/ui-store'
 import northIcon from '@resources/icon.png'
@@ -12,17 +17,15 @@ export function Titlebar(): React.JSX.Element {
   const isMac = isApplePlatform()
 
   return (
-    <header className="titlebar flex h-11 shrink-0 items-center border-b border-border bg-surface px-4">
+    <header
+      className={cn(
+        'titlebar flex h-11 shrink-0 items-center border-b border-border bg-surface',
+        titlebarHeaderClass(isMac)
+      )}
+    >
       <div
-        className={cn('flex items-center justify-between', isMac && 'w-full pl-16')}
-        style={
-          isMac
-            ? undefined
-            : {
-                width: 'env(titlebar-area-width, 100%)',
-                marginLeft: 'env(titlebar-area-x, 0px)'
-              }
-        }
+        className={cn('flex items-center justify-between', titlebarInnerClass(isMac))}
+        style={titlebarContentStyle(isMac)}
       >
         <div className="flex items-center gap-2">
           <Button

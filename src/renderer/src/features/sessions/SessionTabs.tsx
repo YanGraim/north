@@ -1,4 +1,8 @@
-import { environmentStatusColor, hasEnvironmentContext } from '@renderer/lib/environment-color'
+import {
+  environmentBadgeLabel,
+  environmentStatusColor,
+  hasEnvironmentContext
+} from '@renderer/lib/environment-color'
 import { cn } from '@renderer/lib/utils'
 import {
   type SessionTab,
@@ -117,6 +121,14 @@ function TabButton({
           style={stateDotStyle(tab.state, accent)}
         />
       )}
+      {hasContext && tab.environmentName ? (
+        <span
+          className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide"
+          style={{ color: accent ?? undefined }}
+        >
+          {environmentBadgeLabel(tab.environmentName)}
+        </span>
+      ) : null}
       <span className="min-w-0 flex-1 truncate">{isWorkspace ? 'Workspace' : tab.title}</span>
       {!isWorkspace && onClose ? (
         <button
