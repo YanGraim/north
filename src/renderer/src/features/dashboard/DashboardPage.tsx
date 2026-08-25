@@ -11,6 +11,7 @@ import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Skeleton } from '@renderer/components/ui/skeleton'
 import { useAccesses } from '@renderer/hooks/use-accesses'
 import { formatRelativeDate } from '@renderer/lib/connection-ui'
+import { formatDuration } from '@renderer/lib/format-duration'
 import { queryKeys } from '@renderer/lib/query-keys'
 import { useCommandPaletteStore } from '@renderer/stores/command-palette-store'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
@@ -300,12 +301,4 @@ function ActivityRow({
       </Link>
     </li>
   )
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms} ms`
-  if (ms < 60_000) return `${Math.round(ms / 1000)}s`
-  const mins = Math.floor(ms / 60_000)
-  const secs = Math.round((ms % 60_000) / 1000)
-  return `${mins}m ${secs}s`
 }

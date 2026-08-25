@@ -3,6 +3,11 @@ import { TerminalContextMenu } from '@renderer/features/sessions/TerminalContext
 import { TerminalFindBar } from '@renderer/features/sessions/TerminalFindBar'
 import { copyToClipboard } from '@renderer/lib/clipboard'
 import { attachTerminalInteraction } from '@renderer/lib/terminal/attach-interaction'
+import {
+  fitFollowing,
+  writeFollowing,
+  writelnFollowing
+} from '@renderer/lib/terminal/follow-output'
 import { getXtermTheme, useResolvedTheme } from '@renderer/lib/xterm-theme'
 import { useUiStore } from '@renderer/stores/ui-store'
 import '@xterm/xterm/css/xterm.css'
@@ -99,7 +104,7 @@ export function TerminalView({
           if (!fitRef.current || !termRef.current || !containerRef.current) return
           const { clientWidth, clientHeight } = containerRef.current
           if (clientWidth < 2 || clientHeight < 2) return
-          fitRef.current.fit()
+          fitFollowing(termRef.current, () => fitRef.current?.fit())
           sendResize()
         })
       })
@@ -124,18 +129,18 @@ export function TerminalView({
         const bytes = coerceBytes(message.data)
         if (bytes) {
           setAwaitingOutput(false)
-          term.write(bytes)
+          writeFollowing(term, bytes)
         }
         return
       }
 
       if (message.type === 'error') {
-        term.writeln(`\r\n\x1b[31m${message.message}\x1b[0m`)
+        writelnFollowing(term, `\r\n\x1b[31m${message.message}\x1b[0m`)
         return
       }
 
       if (message.type === 'state' && message.state === 'closed') {
-        term.writeln('\r\n\x1b[33mSessão encerrada.\x1b[0m')
+        writelnFollowing(term, '\r\n\x1b[33mSessão encerrada.\x1b[0m')
       }
     })
 
@@ -193,7 +198,7 @@ export function TerminalView({
       requestAnimationFrame(() => {
         const container = containerRef.current
         if (!container || container.clientWidth < 2 || container.clientHeight < 2) return
-        fit.fit()
+        fitFollowing(term, () => fit.fit())
         window.north.sessions.resize(
           sessionId,
           Math.max(term.cols || 80, 2),
@@ -224,7 +229,7 @@ export function TerminalView({
       <SessionIdentityBar
         username={username}
         host={host}
-        folderLabel={title ?? 'session'}
+        folderLabel={environmentName?.trim() || title || 'session'}
         environmentName={environmentName}
         environmentColor={environmentColor}
       />

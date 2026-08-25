@@ -1,6 +1,7 @@
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
+import { formatDuration } from '@renderer/lib/format-duration'
 import { toastError } from '@renderer/lib/toast'
 import type { SessionTab } from '@renderer/stores/sessions-store'
 import {
@@ -8,9 +9,18 @@ import {
   sessionKindForProtocol,
   useSessionsStore
 } from '@renderer/stores/sessions-store'
-import type { StepRunStatus, WorkflowRunEvent } from '@shared/types'
+import type { RunStatus, StepRunStatus, WorkflowRunEvent } from '@shared/types'
 import { CheckCircle2, Circle, Copy, Loader2, XCircle } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+function isLiveRunStatus(status: string): boolean {
+  return status === 'pending' || status === 'running' || status === 'paused'
+}
+
+function formatRunElapsed(ms: number, live: boolean): string {
+  if (live && ms < 60_000) return `${(ms / 1000).toFixed(1)}s`
+  return formatDuration(ms)
+}
 
 type StepState = {
   id: string
@@ -28,9 +38,10 @@ type WorkflowRunViewProps = {
 
 export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Element {
   const runId = tab.workflowRunId
+  const liveRef = useRef(true)
   const [totalSteps, setTotalSteps] = useState(0)
   const [completedSteps, setCompletedSteps] = useState(0)
-  const [runStatus, setRunStatus] = useState<string>('running')
+  const [runStatus, setRunStatus] = useState<RunStatus>('running')
   const [elapsedMs, setElapsedMs] = useState(0)
   const [startedAt, setStartedAt] = useState(() => Date.now())
   const [steps, setSteps] = useState<StepState[]>([])
@@ -49,6 +60,7 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
 
   useEffect(() => {
     if (!runId) return
+    liveRef.current = true
     setRunStatus('running')
     setCompletedSteps(0)
     setElapsedMs(0)
@@ -59,15 +71,17 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
   }, [runId])
 
   useEffect(() => {
-    if (!runId) return
+    if (!runId || !isLiveRunStatus(runStatus)) return
     const tick = window.setInterval(() => {
+      if (!liveRef.current) return
       setElapsedMs(Date.now() - startedAt)
     }, 500)
     return () => window.clearInterval(tick)
-  }, [runId, startedAt])
+  }, [runId, startedAt, runStatus])
 
   useEffect(() => {
     if (!runId) return
+    let cancelled = false
 
     function onEvent(event: WorkflowRunEvent): void {
       switch (event.type) {
@@ -119,6 +133,7 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
           setRunStatus('paused')
           break
         case 'run_finished':
+          liveRef.current = false
           setRunStatus(event.status)
           setPaused(null)
           setElapsedMs(event.durationMs)
@@ -127,7 +142,7 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
     }
 
     void window.north.workflows.getRun(runId).then((run) => {
-      if (!run) return
+      if (cancelled || !run) return
       setSteps(
         run.definitionSnapshot.steps.map((step, index) => ({
           id: step.id,
@@ -138,18 +153,32 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
         }))
       )
       setTotalSteps(run.definitionSnapshot.steps.length)
-      if (run.status !== 'pending' && run.status !== 'running' && run.status !== 'paused') {
+      if (!isLiveRunStatus(run.status)) {
+        liveRef.current = false
         setRunStatus(run.status)
+        if (run.finishedAt) {
+          const finished = Date.parse(run.finishedAt)
+          const started = Date.parse(run.startedAt)
+          if (Number.isFinite(finished) && Number.isFinite(started)) {
+            setElapsedMs(Math.max(0, finished - started))
+          }
+        }
       }
     })
 
-    return window.north.workflows.onRunEvent(({ runId: eventRunId, event }) => {
+    const unsubscribe = window.north.workflows.onRunEvent(({ runId: eventRunId, event }) => {
       if (eventRunId !== runId) return
       onEvent(event)
     })
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
   }, [runId])
 
+  const live = isLiveRunStatus(runStatus)
   const percent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0
+  const progressPrefix = `${completedSteps} / ${totalSteps}${live ? ` · ${percent}%` : ''} · ${formatRunElapsed(elapsedMs, live)} · `
   const selected = useMemo(
     () => steps.find((s) => s.id === selectedStepId) ?? steps[0] ?? null,
     [steps, selectedStepId]
@@ -238,7 +267,7 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-medium">{tab.workflowName ?? tab.title}</h2>
           <p className="text-xs text-muted" data-testid="workflow-run-progress">
-            {completedSteps} / {totalSteps} · {percent}% · {(elapsedMs / 1000).toFixed(1)}s ·{' '}
+            {progressPrefix}
             <span className="capitalize">{runStatus}</span>
           </p>
         </div>
@@ -429,7 +458,7 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
 }
 
 function StepStatusLabel({ step }: { step: StepState }): React.JSX.Element {
-  const duration = step.durationMs !== undefined ? ` · ${step.durationMs}ms` : ''
+  const duration = step.durationMs !== undefined ? ` · ${formatDuration(step.durationMs)}` : ''
   const exit = step.exitCode !== undefined ? ` · exit ${step.exitCode}` : ''
 
   switch (step.status) {
