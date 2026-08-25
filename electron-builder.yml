@@ -5,16 +5,23 @@ directories:
   output: release
 files:
   - '!**/.vscode/*'
-  - '!src/*'
+  - '!src/**'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
-  - '!docs/*'
-  - '!.cursor/*'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json,tsconfig.*.tsbuildinfo}'
+  - '!docs/**'
+  - '!.cursor/**'
+  - '!.github/**'
+  - '!.husky/**'
   - '!vitest.config.ts'
   - '!biome.json'
-  - '!release/*'
+  - '!components.json'
+  - '!release/**'
+  - '!.cypress-cache/**'
+  - '!cypress/**'
+  - '!cypress.config.ts'
+  - '!e2e-harness/**'
   - '!**/*.{spec,test}.{ts,tsx,js,jsx}'
   - '!**/migrations.test.ts'
   - '!**/repositories.test.ts'
@@ -34,6 +41,8 @@ nsis:
 mac:
   category: public.app-category.developer-tools
   icon: build/icon.icns
+  identity: North Code Signing
+  forceCodeSigning: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.inherit.plist
   extendInfo:

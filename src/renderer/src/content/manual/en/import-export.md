@@ -20,4 +20,10 @@ If the CSV has passwords, the UI asks for explicit confirmation before writing t
 
 ## Updates
 
-Under **Settings → Updates**, check for new versions via GitHub Releases (opt-in). In development builds the updater is usually off.
+Under **Settings → Updates**, check for new versions via GitHub Releases. In development builds the updater is usually off.
+
+**macOS — first install:** the `.dmg` is not Apple-signed; Gatekeeper may ask for Right-click → Open. Copy North to **Applications** before using in-app updates.
+
+**If you are on 0.1.16 or older:** install this `.dmg` **once**. Ad-hoc builds reject the new zip. After that, **Check now** → **Install and restart**.
+
+**Later updates:** the GitHub release must be **published** (drafts are invisible to the updater).

@@ -8,5 +8,9 @@
     <true/>
     <key>com.apple.security.cs.allow-dyld-environment-variables</key>
     <true/>
+    <!-- Assinatura self-signed não tem Team ID; sem isso a library validation
+         do Hardened Runtime impede carregar o Electron Framework e os .node. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
   </dict>
 </plist>

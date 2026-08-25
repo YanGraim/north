@@ -3,12 +3,14 @@ import { isNewerVersion } from '@shared/lib/semver'
 import type { UpdateStatus } from '@shared/types'
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
+import { stripQuarantine } from '../lib/strip-quarantine'
 
 const DOWNLOAD_TIMEOUT_MS = 15 * 60 * 1000
 const QUIT_TIMEOUT_MS = 12_000
 const STARTUP_CHECK_DELAY_MS = 8_000
 
 let configured = false
+let lastDownloadedUpdatePath: string | null = null
 
 const disabledStatus = (): UpdateStatus => ({
   enabled: false,
@@ -25,6 +27,10 @@ let state: UpdateStatus = disabledStatus()
 
 function isUpdatesEnabled(): boolean {
   return app.isPackaged || process.env.NORTH_ENABLE_UPDATES === '1'
+}
+
+function isRunningFromDmgVolume(): boolean {
+  return process.platform === 'darwin' && process.execPath.startsWith('/Volumes/')
 }
 
 function getStatus(): UpdateStatus {
@@ -48,6 +54,16 @@ function normalizeUpdateError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
   if (/404|not found|latest/i.test(message)) {
     return 'Não foi possível acessar as releases. Verifique se o repositório é público e sua conexão.'
+  }
+  if (
+    /code signature|codesign|gatekeeper|signature|SQRLCodeSignature|did not pass validation/i.test(
+      message
+    )
+  ) {
+    return (
+      'Falha na verificação da atualização no Mac. O release no GitHub precisa estar publicado ' +
+      '(rascunho não conta). Se esta cópia ainda for anterior à assinatura estável, instale o .dmg desta versão uma vez.'
+    )
   }
   return message || 'Falha ao verificar atualizações'
 }
@@ -117,6 +133,12 @@ function ensureConfigured(): void {
         progress: null
       })
       return
+    }
+
+    const downloadedFile = info.downloadedFile
+    if (downloadedFile) {
+      lastDownloadedUpdatePath = downloadedFile
+      void stripQuarantine(downloadedFile)
     }
 
     patchState({
@@ -232,6 +254,12 @@ async function installUpdate(): Promise<void> {
     throw new Error('Atualizações desabilitadas neste ambiente.')
   }
 
+  if (isRunningFromDmgVolume()) {
+    throw new Error(
+      'O North está rodando a partir de um volume (DMG). Copie o app para /Applications e abra de lá antes de instalar atualizações.'
+    )
+  }
+
   ensureConfigured()
 
   if (!state.available && !state.downloaded) {
@@ -258,6 +286,10 @@ async function installUpdate(): Promise<void> {
   }
 
   patchState({ downloading: false })
+
+  if (lastDownloadedUpdatePath) {
+    await stripQuarantine(lastDownloadedUpdatePath)
+  }
 
   setImmediate(() => {
     autoUpdater.quitAndInstall(false, true)

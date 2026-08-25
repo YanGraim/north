@@ -20,4 +20,10 @@ Si el CSV tiene contraseñas, la UI pide confirmación explícita antes de guard
 
 ## Actualizaciones
 
-En **Ajustes → Actualizaciones**, verifica nuevas versiones vía GitHub Releases (opt-in). En builds de desarrollo el updater suele estar apagado.
+En **Ajustes → Actualizaciones**, verifica nuevas versiones vía GitHub Releases. En builds de desarrollo el updater suele estar apagado.
+
+**macOS — primera instalación:** el `.dmg` no está firmado por Apple; Gatekeeper puede pedir clic derecho → Abrir. Copia North a **Aplicaciones** antes de usar actualizaciones in-app.
+
+**Si vienes de la 0.1.16 o anterior:** instala este `.dmg` **una vez**. Las builds ad-hoc rechazan el zip nuevo. Después, **Verificar ahora** → **Instalar y reiniciar**.
+
+**Actualizaciones siguientes:** el release en GitHub debe estar **publicado** (un borrador/draft no lo ve el updater).
