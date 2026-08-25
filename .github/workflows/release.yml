@@ -84,11 +84,23 @@ jobs:
         if: matrix.target == 'linux'
         run: sudo apt-get update && sudo apt-get install -y libfuse2
 
+      - name: Prepare macOS signing certificate
+        if: matrix.target == 'mac'
+        env:
+          CSC_LINK_B64: ${{ secrets.CSC_LINK }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CSC_LINK_B64}" ]; then
+            echo "GitHub secret CSC_LINK is missing (base64 of the North Code Signing .p12)."
+            exit 1
+          fi
+          CERT="$RUNNER_TEMP/north-codesign.p12"
+          echo "$CSC_LINK_B64" | base64 --decode > "$CERT"
+          echo "CSC_LINK=$CERT" >> "$GITHUB_ENV"
+
       - name: Build installer
         env:
-          # Só o job mac recebe o .p12. No Windows o electron-builder tentaria
-          # assinar o .exe com este certificado e falharia.
-          CSC_LINK: ${{ matrix.target == 'mac' && secrets.CSC_LINK || '' }}
+          # Só o job mac recebe a senha. CSC_LINK vem do passo anterior.
           CSC_KEY_PASSWORD: ${{ matrix.target == 'mac' && secrets.CSC_KEY_PASSWORD || '' }}
         run: npm run ${{ matrix.dist_command }}
 
