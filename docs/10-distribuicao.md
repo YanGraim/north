@@ -127,7 +127,7 @@ git push origin vX.Y.Z
    - Windows: `North-*-setup.exe`, `*.blockmap`
    - Linux: `.AppImage`, `*.blockmap`
    - updater: `latest*.yml` quando presentes
-5. Rodar checklist de smoke dos instaladores e publicar manualmente.
+5. Rodar checklist de smoke dos instaladores e **publicar** o draft (draft não alimenta o updater).
 
 ### Execução manual (sem tag)
 
@@ -153,21 +153,47 @@ GH_TOKEN=… npm run dist:mac -- --publish always
 - Testar updater **somente** em build empacotado instalado a partir de um release anterior (ou feed de teste)
 - Fluxo: verificar → toast/estado “nova versão” → Instalar e reiniciar (download + `quitAndInstall`)
 
+### Mac (certificado self-signed)
+
+O Squirrel.Mac (electron-updater) compara o **designated requirement** da cópia instalada com o do zip novo. Assinatura ad-hoc amarra esse requisito ao *cdhash* do binário — cada build é uma identidade nova e o auto-update quebra. Por isso o CI assina o `.app` com o certificado estável **North Code Signing** (`mac.identity` + `mac.forceCodeSigning: true`).
+
+O certificado **não é** Developer ID da Apple: não tem Team ID. Sem `com.apple.security.cs.disable-library-validation` o Hardened Runtime recusa o Electron Framework e o app nem abre.
+
+Integridade do pacote continua pelo SHA-512 do `latest-mac.yml`. O main ainda:
+
+- Remove quarentena (`xattr -cr`) do zip baixado e da pasta pai antes de `quitAndInstall`
+- Recusa install se o app estiver rodando de `/Volumes/` (DMG montado) — copiar para `/Applications` primeiro
+
+**Segredo (nunca no git):** o `.p12` + a senha. No GitHub Actions: `CSC_LINK` (arquivo `.p12` em base64) e `CSC_KEY_PASSWORD`, **somente** no job mac. `CSC_IDENTITY_AUTO_DISCOVERY` permanece `false` para o Windows/Linux não tentarem assinar.
+
+**Bootstrap:** quem ainda tem build **ad-hoc** (0.1.16 e anteriores) precisa instalar o `.dmg` assinado **uma vez**. Daí em diante o updater aceita zips com o mesmo certificado.
+
+**Ciclo normal:** bump `package.json#version` → `git tag vX.Y.Z` → CI gera zip assinado + `latest-mac.yml` → **publicar o draft** no GitHub → no Mac: Configurações → Verificar agora → Instalar e reiniciar.
+
+**Draft vs published:** o feed do electron-updater usa `/releases/latest`. Release em **draft** não aparece.
+
+**Gatekeeper:** a primeira abertura ainda pode pedir clique direito → Abrir. Não há notarização (`notarize: false`).
+
+Não é preciso `npm run dist:mac` local a cada versão — o CI já sobe o zip que o updater consome (não o `.dmg`).
+
 ## Assinatura e notarização (opt-in)
 
-Não bloqueiam o restante do pipeline enquanto não houver certificados.
+### macOS (Apple Developer ID)
 
-### macOS
+Trocar o self-signed por Developer ID Application + notarização quando houver conta Apple:
 
 1. Apple Developer ID Application + perfil de notarização
-2. Variáveis típicas: `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (ou `CSC_LINK` / `CSC_KEY_PASSWORD` para o certificado)
+2. Variáveis: `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (e o `.p12` em `CSC_LINK` / `CSC_KEY_PASSWORD`)
 3. Em `electron-builder.yml`, ligar `mac.notarize: true` (hoje `false`)
-4. Validar com Gatekeeper (`spctl --assess`) após notarizar
+4. A entitlement `disable-library-validation` pode sair: Developer ID tem Team ID
+5. Validar com Gatekeeper (`spctl --assess`) após notarizar
+
+Quem já instalou a cadeia self-signed **não** recebe essa build pelo updater (o designated requirement muda). É um corte: instalar o `.dmg` Apple uma vez.
 
 ### Windows
 
 1. Certificado Authenticode (EV ou standard)
-2. `CSC_LINK` + `CSC_KEY_PASSWORD` (ou store Windows)
+2. `CSC_LINK` + `CSC_KEY_PASSWORD` (ou store Windows) — **não** reutilizar o `.p12` de Mac
 3. Confirmar que o NSIS assinado não dispara SmartScreen em excesso após reputação inicial
 
-Até haver certificados, distribuir builds **não assinados** só para QA interna; documentar o aviso do SO para testadores.
+Windows e Linux seguem **sem** Authenticode/GPG enquanto não houver certificado; o aviso do SO é esperado no QA.
