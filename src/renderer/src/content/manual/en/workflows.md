@@ -16,7 +16,7 @@
 - **Connect** button (split menu) → pick a workflow
 - Command Palette → **Run workflow…** (SSH connection selected)
 
-Execution opens a **run tab** with timeline, progress and per-step log. Duration in the header and on each step freezes when the run finishes. On failure, depending on the step policy, you can **Retry**, **Continue** or **Cancel**.
+Execution opens a **run tab** with timeline, progress and per-step log. The bar under the header shows the **client** and the environment (**HML** / **PROD** / **DEV** and the name). The step log follows the output; scrolling up pauses follow until you return to the bottom. Duration in the header and on each step freezes when the run finishes. On failure, depending on the step policy, you can **Retry**, **Continue** or **Cancel**.
 
 ## Secrets
 

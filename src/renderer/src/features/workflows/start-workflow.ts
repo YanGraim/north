@@ -24,7 +24,8 @@ export async function startWorkflowOnConnection(opts: {
       runId: run.id,
       workflowId: workflow.id,
       workflowName: workflow.name,
-      connectionId
+      connectionId,
+      groupId: workflow.groupId
     })
   } catch (error) {
     toastError(error, 'Não foi possível executar o workflow')

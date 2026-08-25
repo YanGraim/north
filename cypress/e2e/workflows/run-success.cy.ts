@@ -18,6 +18,8 @@ describe('workflows run-success', () => {
       .click()
 
     cy.get('[data-testid="workflow-run-view"]').should('be.visible')
+    cy.get('[data-testid="session-identity-bar"]').should('contain', 'Cliente A')
+    cy.get('[data-testid="session-identity-bar"]').should('contain', 'Prod')
     cy.get('[data-testid="workflow-auth-prompt"]').should('not.exist')
     cy.get('[data-testid="workflow-run-timeline"]').should('be.visible')
     cy.get('[data-testid="workflow-run-progress"]', { timeout: 10000 }).should('contain', '1 / 1')

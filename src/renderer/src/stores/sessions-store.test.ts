@@ -59,6 +59,9 @@ describe('sessions-store optimistic open', () => {
           },
           environments: {
             get: vi.fn().mockResolvedValue(null)
+          },
+          clients: {
+            get: vi.fn().mockResolvedValue(null)
           }
         }
       }
@@ -228,5 +231,68 @@ describe('sessions-store optimistic open', () => {
       /não abre sessão SQL/
     )
     expect(openAccessMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('openWorkflowRunTab org hydrate', () => {
+  const connectionsGet = vi.fn()
+  const groupsGet = vi.fn()
+  const environmentsGet = vi.fn()
+  const clientsGet = vi.fn()
+
+  beforeEach(() => {
+    resetStore()
+    connectionsGet.mockReset()
+    groupsGet.mockReset()
+    environmentsGet.mockReset()
+    clientsGet.mockReset()
+    Object.assign(globalThis, {
+      window: {
+        north: {
+          connections: { get: connectionsGet },
+          groups: { get: groupsGet },
+          environments: { get: environmentsGet },
+          clients: { get: clientsGet }
+        }
+      }
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('hydrates environmentName and clientName from the group chain', async () => {
+    const groupId = 'group-1'
+    groupsGet.mockResolvedValue({ id: groupId, environmentId: 'env-1', name: 'App' })
+    environmentsGet.mockResolvedValue({
+      id: 'env-1',
+      clientId: 'client-1',
+      name: 'Homologação',
+      color: '#eab308'
+    })
+    clientsGet.mockResolvedValue({ id: 'client-1', name: 'Ecofitus' })
+
+    useSessionsStore.getState().openWorkflowRunTab({
+      runId: 'run-1',
+      workflowId: 'wf-1',
+      workflowName: 'Atualizar frontend',
+      connectionId: 'conn-1',
+      groupId
+    })
+
+    const created = useSessionsStore.getState().tabs.find((t) => t.kind === 'workflow-run')
+    expect(created?.title).toBe('Atualizar frontend')
+    expect(created?.groupId).toBe(groupId)
+
+    await vi.waitFor(() => {
+      const tab = useSessionsStore.getState().tabs.find((t) => t.kind === 'workflow-run')
+      expect(tab?.environmentName).toBe('Homologação')
+      expect(tab?.environmentColor).toBe('#eab308')
+      expect(tab?.clientName).toBe('Ecofitus')
+    })
+
+    expect(connectionsGet).not.toHaveBeenCalled()
+    expect(groupsGet).toHaveBeenCalledWith(groupId)
   })
 })

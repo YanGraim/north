@@ -547,6 +547,58 @@ export function installMockNorth(opts?: {
 
   if (opts?.scenario !== 'ftp') {
     const ts = now()
+    const workflowEnvironments: Environment[] = [
+      {
+        id: ENV_ID,
+        clientId: CLIENT_ID,
+        name: 'Prod',
+        notes: null,
+        color: null,
+        sortOrder: 0,
+        createdAt: ts,
+        updatedAt: ts
+      },
+      {
+        id: ENV_B_ID,
+        clientId: CLIENT_B_ID,
+        name: 'Prod',
+        notes: null,
+        color: null,
+        sortOrder: 0,
+        createdAt: ts,
+        updatedAt: ts
+      }
+    ]
+    const workflowConnection: Connection = {
+      id: CONNECTION_ID,
+      groupId: GROUP_ID,
+      name: 'web-01',
+      description: null,
+      protocol: 'ssh',
+      host: '10.0.0.10',
+      port: 22,
+      username: 'deploy',
+      authMethod: 'password',
+      credentialRef: crypto.randomUUID(),
+      privateKeyPath: null,
+      jumpHostId: null,
+      defaultCommand: null,
+      notes: null,
+      os: null,
+      icon: null,
+      color: null,
+      owner: null,
+      links: [],
+      vpnRequired: false,
+      checklist: [],
+      relatedFiles: [],
+      isFavorite: false,
+      accessCount: 0,
+      totalConnectedMs: 0,
+      lastConnectedAt: null,
+      createdAt: ts,
+      updatedAt: ts
+    }
     const api = {
       getVersion: async () => '0.0.0-e2e',
       getIdentity: async () => ({ osUsername: 'e2e-user' }),
@@ -589,29 +641,8 @@ export function installMockNorth(opts?: {
         delete: async () => undefined
       },
       environments: {
-        list: async () => [
-          {
-            id: ENV_ID,
-            clientId: CLIENT_ID,
-            name: 'Prod',
-            notes: null,
-            color: null,
-            sortOrder: 0,
-            createdAt: ts,
-            updatedAt: ts
-          },
-          {
-            id: ENV_B_ID,
-            clientId: CLIENT_B_ID,
-            name: 'Prod',
-            notes: null,
-            color: null,
-            sortOrder: 0,
-            createdAt: ts,
-            updatedAt: ts
-          }
-        ],
-        get: async () => null,
+        list: async () => workflowEnvironments,
+        get: async (id: string) => workflowEnvironments.find((env) => env.id === id) ?? null,
         create: async () => {
           throw new Error('not implemented')
         },
@@ -660,6 +691,23 @@ export function installMockNorth(opts?: {
           throw new Error('not implemented')
         },
         delete: async () => undefined
+      },
+      connections: {
+        list: async () => [workflowConnection],
+        get: async (id: string) => (id === CONNECTION_ID ? workflowConnection : null),
+        create: async () => {
+          throw new Error('not implemented')
+        },
+        update: async () => {
+          throw new Error('not implemented')
+        },
+        delete: async () => undefined,
+        toggleFavorite: async () => {
+          throw new Error('not implemented')
+        },
+        duplicate: async () => {
+          throw new Error('not implemented')
+        }
       },
       workflows: workflowsApi
     }

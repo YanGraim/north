@@ -1,7 +1,11 @@
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
+import { SessionIdentityBar } from '@renderer/features/sessions/SessionIdentityBar'
+import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
+import { isNearBottom, stickToBottom } from '@renderer/lib/follow-scroll'
 import { formatDuration } from '@renderer/lib/format-duration'
+import { workflowRunFolderLabel } from '@renderer/lib/resolve-connection-environment'
 import { toastError } from '@renderer/lib/toast'
 import type { SessionTab } from '@renderer/stores/sessions-store'
 import {
@@ -11,7 +15,7 @@ import {
 } from '@renderer/stores/sessions-store'
 import type { RunStatus, StepRunStatus, WorkflowRunEvent } from '@shared/types'
 import { CheckCircle2, Circle, Copy, Loader2, XCircle } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 function isLiveRunStatus(status: string): boolean {
   return status === 'pending' || status === 'running' || status === 'paused'
@@ -39,6 +43,11 @@ type WorkflowRunViewProps = {
 export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Element {
   const runId = tab.workflowRunId
   const liveRef = useRef(true)
+  const logScrollRef = useRef<HTMLDivElement>(null)
+  const followRef = useRef(true)
+  const { resolveGroup } = useOrgLookup()
+  const [runGroupId, setRunGroupId] = useState<string | null>(tab.groupId ?? null)
+  const [connectionName, setConnectionName] = useState<string | null>(null)
   const [totalSteps, setTotalSteps] = useState(0)
   const [completedSteps, setCompletedSteps] = useState(0)
   const [runStatus, setRunStatus] = useState<RunStatus>('running')
@@ -68,7 +77,9 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
     setPaused(null)
     setActionsDismissed(false)
     setSelectedStepId(null)
-  }, [runId])
+    setRunGroupId(tab.groupId ?? null)
+    setConnectionName(null)
+  }, [runId, tab.groupId])
 
   useEffect(() => {
     if (!runId || !isLiveRunStatus(runStatus)) return
@@ -143,6 +154,7 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
 
     void window.north.workflows.getRun(runId).then((run) => {
       if (cancelled || !run) return
+      setRunGroupId(run.groupId)
       setSteps(
         run.definitionSnapshot.steps.map((step, index) => ({
           id: step.id,
@@ -176,6 +188,22 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
     }
   }, [runId])
 
+  useEffect(() => {
+    const id = tab.connectionId
+    if (!id) return
+    const get = window.north.connections?.get
+    if (typeof get !== 'function') return
+    let cancelled = false
+    void get(id)
+      .then((connection) => {
+        if (!cancelled && connection?.name) setConnectionName(connection.name)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [tab.connectionId])
+
   const live = isLiveRunStatus(runStatus)
   const percent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0
   const progressPrefix = `${completedSteps} / ${totalSteps}${live ? ` · ${percent}%` : ''} · ${formatRunElapsed(elapsedMs, live)} · `
@@ -183,6 +211,35 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
     () => steps.find((s) => s.id === selectedStepId) ?? steps[0] ?? null,
     [steps, selectedStepId]
   )
+
+  const groupId = tab.groupId ?? runGroupId
+  const org = groupId ? resolveGroup(groupId) : { client: null, environment: null, group: null }
+  const clientName = org.client?.name ?? tab.clientName ?? null
+  const environmentName = org.environment?.name ?? tab.environmentName ?? null
+  const environmentColor = org.environment?.color ?? tab.environmentColor ?? null
+  const folderLabel = workflowRunFolderLabel(clientName, environmentName, connectionName)
+  const selectedStepIdForFollow = selected?.id ?? null
+  const selectedLogs = selected?.logs
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-pin when the selected step changes
+  useLayoutEffect(() => {
+    followRef.current = true
+    const el = logScrollRef.current
+    if (el) stickToBottom(el)
+  }, [selectedStepIdForFollow])
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: follow new log chunks while pinned
+  useLayoutEffect(() => {
+    const el = logScrollRef.current
+    if (!el || !followRef.current) return
+    stickToBottom(el)
+  }, [selectedLogs])
+
+  function handleLogScroll(): void {
+    const el = logScrollRef.current
+    if (!el) return
+    followRef.current = isNearBottom(el)
+  }
 
   const showFailureActions =
     paused?.reason === 'on_failure_ask' || (runStatus === 'failed' && !actionsDismissed)
@@ -339,6 +396,14 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
         ) : null}
       </header>
 
+      {folderLabel ? (
+        <SessionIdentityBar
+          folderLabel={folderLabel}
+          environmentName={environmentName}
+          environmentColor={environmentColor}
+        />
+      ) : null}
+
       {paused?.reason === 'auth' ? (
         <div
           className="flex shrink-0 flex-wrap items-end gap-2 border-b border-border bg-surface px-4 py-3"
@@ -428,15 +493,20 @@ export function WorkflowRunView({ tab }: WorkflowRunViewProps): React.JSX.Elemen
           </ol>
         </ScrollArea>
 
-        <div className="relative min-h-0">
-          <ScrollArea className="h-full min-h-0">
+        <div className="relative h-full min-h-0">
+          <div
+            ref={logScrollRef}
+            className="h-full min-h-0 overflow-auto"
+            data-testid="workflow-run-log-scroll"
+            onScroll={handleLogScroll}
+          >
             <pre
               className="select-text whitespace-pre-wrap p-4 pr-28 font-mono text-xs text-foreground [-webkit-user-select:text]"
               data-testid="workflow-run-log"
             >
               {selected?.logs.join('') || 'Sem logs neste step.'}
             </pre>
-          </ScrollArea>
+          </div>
           <Button
             type="button"
             size="sm"

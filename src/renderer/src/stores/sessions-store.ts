@@ -1,5 +1,8 @@
 import { formatIpcError } from '@renderer/lib/ipc-error'
-import { resolveConnectionEnvironment } from '@renderer/lib/resolve-connection-environment'
+import {
+  resolveConnectionEnvironment,
+  resolveOrgContext
+} from '@renderer/lib/resolve-connection-environment'
 import type { SessionDescriptor, SessionKind, SessionState } from '@shared/protocols'
 import { create } from 'zustand'
 
@@ -18,6 +21,8 @@ export type SessionTab = {
   host?: string | null
   environmentName?: string | null
   environmentColor?: string | null
+  clientName?: string | null
+  groupId?: string | null
   state?: SessionState
   errorMessage?: string | null
   /** True while a host-key / TLS prompt is open for this connecting tab. */
@@ -73,6 +78,7 @@ type SessionsState = {
     workflowId: string
     workflowName: string
     connectionId: string
+    groupId?: string | null
   }) => void
   /** Rebind an existing workflow-run tab to a new run (e.g. Retry after failure). */
   attachWorkflowRunToTab: (tabId: string, runId: string) => void
@@ -344,6 +350,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       kind: 'workflow-run',
       title: input.workflowName,
       connectionId: input.connectionId,
+      groupId: input.groupId,
       workflowId: input.workflowId,
       workflowRunId: input.runId,
       workflowName: input.workflowName
@@ -352,6 +359,10 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       tabs: [...state.tabs, tab],
       activeTabId: tab.id
     }))
+    void hydrateWorkflowRunOrg(tab.id, {
+      groupId: input.groupId,
+      connectionId: input.connectionId
+    })
   },
 
   attachWorkflowRunToTab: (tabId, runId) => {
@@ -360,6 +371,29 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
     }))
   }
 }))
+
+async function hydrateWorkflowRunOrg(
+  tabId: string,
+  input: { groupId?: string | null; connectionId?: string | null }
+): Promise<void> {
+  const ctx = await resolveOrgContext({
+    groupId: input.groupId,
+    connectionId: input.groupId ? undefined : input.connectionId
+  })
+  if (!ctx) return
+  useSessionsStore.setState((state) => ({
+    tabs: state.tabs.map((tab) =>
+      tab.id === tabId
+        ? {
+            ...tab,
+            environmentName: ctx.environmentName,
+            environmentColor: ctx.environmentColor,
+            clientName: ctx.clientName
+          }
+        : tab
+    )
+  }))
+}
 
 export async function openConnectionSession(
   connectionId: string,

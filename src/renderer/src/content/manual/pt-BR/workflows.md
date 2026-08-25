@@ -16,7 +16,7 @@ Variáveis do **grupo** (config plaintext) valem para todos os workflows daquele
 - Botão **Conectar** (menu split) → escolher um workflow
 - Command Palette → **Executar workflow…** (conexão SSH selecionada)
 
-A execução abre uma **aba de run** com timeline, progresso e log por passo. A duração no cabeçalho e em cada passo congela ao terminar. Em falha, conforme a política do passo, você pode **Retry**, **Continue** ou **Cancelar**.
+A execução abre uma **aba de run** com timeline, progresso e log por passo. A barra abaixo do cabeçalho mostra o **cliente** e o ambiente (**HML** / **PROD** / **DEV** e o nome). O log do passo acompanha o fim da saída; se você subir o histórico, o follow pausa até voltar ao fundo. A duração no cabeçalho e em cada passo congela ao terminar. Em falha, conforme a política do passo, você pode **Retry**, **Continue** ou **Cancelar**.
 
 ## Secrets
 
