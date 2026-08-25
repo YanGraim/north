@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   appendInsert,
+  buildDisplayRows,
   cellSelectionRect,
   collectRectValues,
   collectUpdatePayloads,
@@ -11,6 +12,7 @@ import {
   emptyGridDraft,
   emptyRowForColumns,
   hasDirtyDraft,
+  insertDuplicate,
   isCellDirty,
   markRowsDeleted,
   orderedColumnIndices,
@@ -22,6 +24,7 @@ import {
   selectionToTsv,
   selectRange,
   setCellEdit,
+  setInsertCell,
   sortRows,
   sumNumericCells,
   toggleInSet
@@ -133,6 +136,45 @@ describe('query result grid helpers', () => {
     expect(draft.inserts).toEqual([])
   })
 
+  it('displays duplicates immediately below the source row', () => {
+    const rows = [
+      { id: 1, name: 'ada' },
+      { id: 2, name: 'grace' }
+    ]
+    const indexed = rows.map((row, sourceIndex) => ({ sourceIndex, row }))
+    let draft = insertDuplicate(
+      emptyGridDraft(),
+      { id: null, name: 'ada' },
+      { afterSourceIndex: 0 }
+    )
+    draft = appendInsert(draft, { id: null, name: 'empty' }, null)
+    const display = buildDisplayRows(indexed, draft)
+    expect(display.map((row) => row.kind)).toEqual(['existing', 'insert', 'existing', 'insert'])
+    expect(display[1]).toMatchObject({ kind: 'insert', row: { name: 'ada' } })
+    expect(display[3]).toMatchObject({ kind: 'insert', row: { name: 'empty' } })
+
+    const fromInsert = insertDuplicate(
+      draft,
+      { id: null, name: 'ada-2' },
+      {
+        afterSourceIndex: 0,
+        afterInsertIndex: 0
+      }
+    )
+    const nested = buildDisplayRows(indexed, fromInsert)
+    expect(nested.filter((row) => row.kind === 'insert').map((row) => row.row.name)).toEqual([
+      'ada',
+      'ada-2',
+      'empty'
+    ])
+  })
+
+  it('sets insert cells including NULL', () => {
+    let draft = appendInsert(emptyGridDraft(), { id: 1, name: 'x' })
+    draft = setInsertCell(draft, 0, 'name', null)
+    expect(draft.inserts[0]?.values.name).toBeNull()
+  })
+
   it('parses cell input with null and typed values', () => {
     expect(parseCellInput('NULL', 'x')).toBeNull()
     expect(parseCellInput('42', 1)).toBe(42)
@@ -214,7 +256,7 @@ describe('query result grid helpers', () => {
         ],
         ['amount'],
         edits,
-        [{ id: null, amount: 1 }]
+        [{ values: { id: null, amount: 1 }, afterSourceIndex: null }]
       )
     ).toEqual([4, 20, 1])
     expect(
@@ -226,7 +268,7 @@ describe('query result grid helpers', () => {
           ],
           ['amount'],
           edits,
-          [{ id: null, amount: 1 }]
+          [{ values: { id: null, amount: 1 }, afterSourceIndex: null }]
         )
       )
     ).toBe(25)

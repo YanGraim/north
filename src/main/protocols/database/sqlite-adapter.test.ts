@@ -29,8 +29,20 @@ describe('SqliteAdapter', () => {
     expect(tree.schemas[0]?.name).toBe('main')
     const users = tree.schemas[0]?.tables.find((table) => table.name === 'users')
     expect(users?.columns).toEqual([
-      { name: 'id', dataType: 'INTEGER', nullable: true, primaryKey: true },
-      { name: 'name', dataType: 'TEXT', nullable: false, primaryKey: false }
+      {
+        name: 'id',
+        dataType: 'INTEGER',
+        nullable: true,
+        primaryKey: true,
+        characterMaximumLength: null
+      },
+      {
+        name: 'name',
+        dataType: 'TEXT',
+        nullable: false,
+        primaryKey: false,
+        characterMaximumLength: null
+      }
     ])
     expect(users?.columns[0]?.primaryKey).toBe(true)
     expect(users?.columns[1]?.primaryKey).toBe(false)

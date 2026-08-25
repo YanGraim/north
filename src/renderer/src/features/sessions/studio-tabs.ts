@@ -24,6 +24,10 @@ export type QueryStudioTab = StudioTabCommon & {
   kind: 'query'
   queryNumber: number
   sql: string
+  /** Snapshot of the statement that produced `result` (never the paginated SQL). */
+  executedSql: string | null
+  hasMore: boolean
+  browseCapReached: boolean
 }
 
 export type StudioTab = TableStudioTab | QueryStudioTab
@@ -36,7 +40,10 @@ export function emptyQueryTab(queryNumber: number): QueryStudioTab {
     sql: '',
     result: null,
     error: null,
-    pane: 'results'
+    pane: 'results',
+    executedSql: null,
+    hasMore: false,
+    browseCapReached: false
   }
 }
 

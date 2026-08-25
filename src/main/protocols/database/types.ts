@@ -43,6 +43,7 @@ export type IntrospectColumnRow = {
   dataType: string
   nullable: boolean
   primaryKey: boolean
+  characterMaximumLength: number | null
 }
 
 export function groupIntrospection(
@@ -95,7 +96,8 @@ export function groupIntrospection(
             name: column.name,
             dataType: column.dataType,
             nullable: column.nullable,
-            primaryKey: column.primaryKey
+            primaryKey: column.primaryKey,
+            characterMaximumLength: column.characterMaximumLength
           }))
         }))
     }))

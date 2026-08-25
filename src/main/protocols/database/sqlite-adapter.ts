@@ -1,3 +1,4 @@
+import { parseSqliteCharacterMaximumLength } from '@shared/lib/sql-char-length'
 import {
   DATABASE_MAX_ROWS,
   type DatabaseIntrospection,
@@ -55,7 +56,8 @@ export class SqliteAdapter implements DatabaseAdapter {
         name: col.name,
         dataType: col.type || 'ANY',
         nullable: col.notnull === 0,
-        primaryKey: col.pk > 0
+        primaryKey: col.pk > 0,
+        characterMaximumLength: parseSqliteCharacterMaximumLength(col.type || '')
       }))
     })
 

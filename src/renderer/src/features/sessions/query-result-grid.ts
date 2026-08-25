@@ -11,9 +11,15 @@ export type GridSort = {
 export type GridEdits = Record<number, Record<string, DatabaseCellValue>>
 
 /** Pending mutations for a table-tab grid (cell edits, inserts, deletes). */
+export type GridInsertRow = {
+  values: Record<string, DatabaseCellValue>
+  /** Existing source row to insert after; null = append at end (Insert row). */
+  afterSourceIndex: number | null
+}
+
 export type GridDraft = {
   edits: GridEdits
-  inserts: Array<Record<string, DatabaseCellValue>>
+  inserts: GridInsertRow[]
   /** Source indices of loaded rows marked for DELETE on save. */
   deletes: number[]
 }
@@ -210,7 +216,7 @@ export function collectVisibleColumnValues(
   rows: Array<Record<string, DatabaseCellValue>>,
   columnNames: readonly string[],
   edits: GridEdits | undefined,
-  inserts: ReadonlyArray<Record<string, DatabaseCellValue>> = []
+  inserts: ReadonlyArray<GridInsertRow> = []
 ): DatabaseCellValue[] {
   const values: DatabaseCellValue[] = []
   rows.forEach((row, sourceIndex) => {
@@ -218,9 +224,9 @@ export function collectVisibleColumnValues(
       values.push(cellDisplayValue(row, name, edits, sourceIndex) ?? null)
     }
   })
-  for (const row of inserts) {
+  for (const insert of inserts) {
     for (const name of columnNames) {
-      values.push(row[name] ?? null)
+      values.push(insert.values[name] ?? null)
     }
   }
   return values
@@ -402,30 +408,64 @@ export function setInsertCell(
   value: DatabaseCellValue
 ): GridDraft {
   const inserts = draft.inserts.map((row, index) =>
-    index === insertIndex ? { ...row, [column]: value } : row
+    index === insertIndex ? { ...row, values: { ...row.values, [column]: value } } : row
   )
   return { ...draft, inserts }
 }
 
-export function appendInsert(draft: GridDraft, row: Record<string, DatabaseCellValue>): GridDraft {
-  return { ...draft, inserts: [...draft.inserts, row] }
+export function appendInsert(
+  draft: GridDraft,
+  row: Record<string, DatabaseCellValue>,
+  afterSourceIndex: number | null = null
+): GridDraft {
+  return {
+    ...draft,
+    inserts: [...draft.inserts, { values: row, afterSourceIndex }]
+  }
+}
+
+export function insertDuplicate(
+  draft: GridDraft,
+  row: Record<string, DatabaseCellValue>,
+  options: { afterSourceIndex: number | null; afterInsertIndex?: number }
+): GridDraft {
+  const nextRow: GridInsertRow = {
+    values: row,
+    afterSourceIndex: options.afterSourceIndex
+  }
+  if (options.afterInsertIndex == null) {
+    return { ...draft, inserts: [...draft.inserts, nextRow] }
+  }
+  const at = Math.min(options.afterInsertIndex + 1, draft.inserts.length)
+  const inserts = [...draft.inserts]
+  inserts.splice(at, 0, nextRow)
+  return { ...draft, inserts }
 }
 
 export function buildDisplayRows<T extends Record<string, DatabaseCellValue>>(
-  rows: T[],
+  sortedExisting: ReadonlyArray<{ sourceIndex: number; row: T }>,
   draft: GridDraft | undefined
 ): DraftDisplayRow<T>[] {
   const deleted = new Set(draft?.deletes ?? [])
-  const existing: DraftDisplayRow<T>[] = rows.map((row, sourceIndex) => ({
-    kind: 'existing',
-    sourceIndex,
-    row,
-    markedDelete: deleted.has(sourceIndex)
-  }))
-  const inserts: DraftDisplayRow<T>[] = (draft?.inserts ?? []).map((row, insertIndex) => ({
-    kind: 'insert',
-    insertIndex,
-    row: row as T
-  }))
-  return [...existing, ...inserts]
+  const inserts = draft?.inserts ?? []
+  const rows: DraftDisplayRow<T>[] = []
+  for (const entry of sortedExisting) {
+    rows.push({
+      kind: 'existing',
+      sourceIndex: entry.sourceIndex,
+      row: entry.row,
+      markedDelete: deleted.has(entry.sourceIndex)
+    })
+    inserts.forEach((insert, insertIndex) => {
+      if (insert.afterSourceIndex === entry.sourceIndex) {
+        rows.push({ kind: 'insert', insertIndex, row: insert.values as T })
+      }
+    })
+  }
+  inserts.forEach((insert, insertIndex) => {
+    if (insert.afterSourceIndex === null) {
+      rows.push({ kind: 'insert', insertIndex, row: insert.values as T })
+    }
+  })
+  return rows
 }

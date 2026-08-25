@@ -5,6 +5,7 @@ import {
   previewSelectSql,
   primaryKeyLookupSql,
   qualifyRelation,
+  queryResultPageSql,
   quoteIdent,
   quoteLiteral,
   TABLE_BROWSE_PAGE_SIZE,
@@ -90,5 +91,20 @@ describe('sql helpers', () => {
     expect(primaryKeyLookupSql('mysql', 'app', 'orders')).toContain("constraint_name = 'PRIMARY'")
     expect(primaryKeyLookupSql('mssql', 'dbo', 'orders')).toContain('is_primary_key = 1')
     expect(primaryKeyLookupSql('sqlite', 'main', 'users')).toContain('pragma_table_info')
+  })
+
+  it('pages a Query-tab SELECT without wrapping in a subquery', () => {
+    expect(queryResultPageSql('postgres', 'SELECT * FROM users ORDER BY id', 0, 100)).toBe(
+      'SELECT * FROM users ORDER BY id LIMIT 100 OFFSET 0'
+    )
+    expect(queryResultPageSql('postgres', 'SELECT * FROM users LIMIT 10', 0, 100)).toBeNull()
+    expect(queryResultPageSql('postgres', 'SELECT 1; SELECT 2', 0, 100)).toBeNull()
+    expect(queryResultPageSql('mssql', 'SELECT * FROM users ORDER BY id', 100, 100)).toBe(
+      'SELECT * FROM users ORDER BY id OFFSET 100 ROWS FETCH NEXT 100 ROWS ONLY'
+    )
+    expect(queryResultPageSql('mssql', 'SELECT * FROM users', 0, 100)).toBe(
+      'SELECT * FROM users ORDER BY (SELECT NULL) OFFSET 0 ROWS FETCH NEXT 100 ROWS ONLY'
+    )
+    expect(queryResultPageSql('mssql', 'SELECT TOP 10 * FROM users', 0, 100)).toBeNull()
   })
 })

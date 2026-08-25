@@ -4,6 +4,7 @@ export {
   previewSelectSql,
   primaryKeyLookupSql,
   qualifyRelation,
+  queryResultPageSql,
   quoteIdent,
   quoteLiteral,
   TABLE_BROWSE_PAGE_SIZE,

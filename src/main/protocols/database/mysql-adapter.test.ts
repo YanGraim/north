@@ -68,7 +68,8 @@ describe('MysqlAdapter', () => {
       name: 'sku',
       dataType: 'varchar',
       nullable: true,
-      primaryKey: false
+      primaryKey: false,
+      characterMaximumLength: null
     })
 
     const result = await adapter.query('SELECT 1', { maxRows: 1000, timeoutMs: 5000 })

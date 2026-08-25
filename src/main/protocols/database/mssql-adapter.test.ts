@@ -64,6 +64,7 @@ function emitResult(request: FakeRequest): void {
       { colName: 'COLUMN_NAME' },
       { colName: 'DATA_TYPE' },
       { colName: 'IS_NULLABLE' },
+      { colName: 'CHARACTER_MAXIMUM_LENGTH' },
       { colName: 'IS_PRIMARY_KEY' }
     ])
     request.emit('row', [
@@ -72,6 +73,7 @@ function emitResult(request: FakeRequest): void {
       { metadata: { colName: 'COLUMN_NAME' }, value: 'id' },
       { metadata: { colName: 'DATA_TYPE' }, value: 'int' },
       { metadata: { colName: 'IS_NULLABLE' }, value: 'NO' },
+      { metadata: { colName: 'CHARACTER_MAXIMUM_LENGTH' }, value: null },
       { metadata: { colName: 'IS_PRIMARY_KEY' }, value: 1 }
     ])
     request.callback(null, 1)
@@ -115,7 +117,8 @@ describe('MssqlAdapter', () => {
       name: 'id',
       dataType: 'int',
       nullable: false,
-      primaryKey: true
+      primaryKey: true,
+      characterMaximumLength: null
     })
 
     const result = await adapter.query('SELECT 1', { maxRows: 1000, timeoutMs: 5000 })

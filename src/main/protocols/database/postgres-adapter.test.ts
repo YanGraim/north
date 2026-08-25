@@ -93,7 +93,8 @@ describe('PostgresAdapter', () => {
       name: 'id',
       dataType: 'integer',
       nullable: false,
-      primaryKey: true
+      primaryKey: true,
+      characterMaximumLength: null
     })
     expect(tree.schemas[0]?.tables[0]?.columns[1]?.primaryKey).toBe(false)
 

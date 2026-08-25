@@ -15,7 +15,8 @@ describe('groupIntrospection', () => {
           name: 'id',
           dataType: 'int',
           nullable: false,
-          primaryKey: true
+          primaryKey: true,
+          characterMaximumLength: null
         },
         {
           schema: 'public',
@@ -23,7 +24,8 @@ describe('groupIntrospection', () => {
           name: 'n',
           dataType: 'text',
           nullable: true,
-          primaryKey: false
+          primaryKey: false,
+          characterMaximumLength: null
         }
       ]
     )

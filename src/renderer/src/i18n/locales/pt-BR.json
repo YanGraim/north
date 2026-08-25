@@ -67,7 +67,7 @@
     },
     "updates": {
       "title": "Atualizações",
-      "description": "Verificação automática na abertura e download em segundo plano via GitHub Releases.",
+      "description": "Verificação na abertura e download via GitHub Releases. No Mac, a primeira abertura do .dmg pode pedir liberação do Gatekeeper; depois use Instalar e reiniciar.",
       "devNote": "Em desenvolvimento o updater fica off salvo NORTH_ENABLE_UPDATES=1. Prefira testar em build empacotado.",
       "available": "Nova versão disponível:",
       "ready": "Atualização pronta:",
@@ -228,10 +228,12 @@
       "browseCountExact": "{{count}}",
       "browseCap": " · limite de carregamento",
       "affected": "{{count}} linha(s) afetada(s) · {{ms}} ms",
-      "columnHint": "Clique no nome para a coluna inteira · arraste nas células para um intervalo · ícone para ordenar · arraste o cabeçalho para mover",
+      "columnHint": "Clique no nome para a coluna inteira · arraste nas células para um intervalo · ícone para ordenar · arraste o cabeçalho para mover · borda direita para redimensionar",
       "sortHint": "Ordenar coluna",
+      "resizeColumn": "Redimensionar coluna",
       "insertRow": "Inserir linha",
       "duplicateRow": "Duplicar linha",
+      "setNull": "Definir NULL",
       "deleteRows": "Excluir selecionada(s)",
       "loadingSchema": "Carregando schema…",
       "emptySchema": "Nenhuma tabela encontrada.",
@@ -265,7 +267,10 @@
       "autoCommitBlocked": "Faça Commit ou Rollback antes de religar o auto-commit",
       "txError": "Falha na transação",
       "txDisabledAutoCommit": "Desligue o auto-commit; Commit e Rollback fecham a transação no servidor",
-      "txDisabledIdle": "Execute uma query para abrir a transação"
+      "txDisabledIdle": "Execute uma query para abrir a transação",
+      "unsafeDmlTitle": "Confirmar UPDATE/DELETE sem WHERE",
+      "unsafeDmlBody": "Este statement pode alterar ou apagar todas as linhas da tabela porque não há WHERE no nível principal. Continuar?",
+      "unsafeDmlRun": "Executar mesmo assim"
     }
   },
   "updates": {

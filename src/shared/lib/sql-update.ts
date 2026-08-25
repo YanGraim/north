@@ -1,5 +1,5 @@
 import type { DatabaseCellValue, DatabaseColumn, SqlStudioEngine } from '../protocols/database'
-import { qualifyRelation, quoteIdent } from './sql-ident'
+import { qualifyRelation, quoteIdent, quoteLiteral } from './sql-ident'
 
 export function primaryKeyColumnNames(columns: readonly DatabaseColumn[]): string[] {
   return columns.filter((column) => column.primaryKey).map((column) => column.name)
@@ -35,14 +35,9 @@ function rowCellValue(
   return undefined
 }
 
+/** @deprecated Prefer quoteLiteral(engine, value) so MSSQL gets 1/0 instead of TRUE/FALSE. */
 export function quoteSqlLiteral(value: DatabaseCellValue): string {
-  if (value === null) return 'NULL'
-  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error('Invalid numeric cell value')
-    return String(value)
-  }
-  return `'${value.replaceAll("'", "''")}'`
+  return quoteLiteral('postgres', value)
 }
 
 export type RowUpdateInput = {
@@ -86,7 +81,7 @@ function wherePrimaryKey(
       if (value === undefined) {
         throw new Error(`Missing primary key value for column ${column}`)
       }
-      return `${quoteIdent(engine, column)} = ${quoteSqlLiteral(value)}`
+      return `${quoteIdent(engine, column)} = ${quoteLiteral(engine, value)}`
     })
     .join(' AND ')
 }
@@ -101,7 +96,7 @@ export function buildRowUpdateSql(input: RowUpdateInput): string {
   }
 
   const setClause = changeEntries
-    .map(([column, value]) => `${quoteIdent(engine, column)} = ${quoteSqlLiteral(value)}`)
+    .map(([column, value]) => `${quoteIdent(engine, column)} = ${quoteLiteral(engine, value)}`)
     .join(', ')
 
   return `UPDATE ${qualifyRelation(engine, schema, table)} SET ${setClause} WHERE ${wherePrimaryKey(engine, pkColumns, original)}`
@@ -125,7 +120,7 @@ export function buildRowInsertSql(input: RowInsertInput): string {
     throw new Error('Nothing to insert — all columns are null')
   }
   const columns = entries.map(([column]) => quoteIdent(engine, column)).join(', ')
-  const literals = entries.map(([, value]) => quoteSqlLiteral(value)).join(', ')
+  const literals = entries.map(([, value]) => quoteLiteral(engine, value)).join(', ')
   return `INSERT INTO ${qualifyRelation(engine, schema, table)} (${columns}) VALUES (${literals})`
 }
 

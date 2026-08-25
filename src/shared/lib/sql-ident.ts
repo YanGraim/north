@@ -1,5 +1,6 @@
 import type { DatabaseCellValue, SqlStudioEngine } from '../protocols/database'
 import type { DatabaseEngine } from '../types/access'
+import { keywordAt, skipTrivia, splitTopLevelStatements, walkTopLevelTokens } from './sql-scan'
 
 export function quoteIdent(engine: DatabaseEngine, ident: string): string {
   switch (engine) {
@@ -195,4 +196,76 @@ export function tableBrowseSql(
   orderBy?: readonly string[]
 ): string {
   return tableBrowsePageSql(engine, schema, table, filter, 0, TABLE_BROWSE_PAGE_SIZE, orderBy)
+}
+
+function hasTopLevelPagingKeyword(sql: string): boolean {
+  let blocked = false
+  let afterSelect = false
+  const i = skipTrivia(sql, 0)
+  const first = keywordAt(sql, i)
+  if (first?.keyword === 'select') afterSelect = true
+  walkTopLevelTokens(sql, (keyword) => {
+    if (keyword === 'limit' || keyword === 'offset' || keyword === 'fetch') blocked = true
+    if (afterSelect && keyword === 'top') blocked = true
+    if (keyword === 'select') afterSelect = true
+    if (keyword === 'from') afterSelect = false
+  })
+  return blocked
+}
+
+function hasTopLevelOrderBy(sql: string): boolean {
+  let hasOrder = false
+  walkTopLevelTokens(sql, (keyword, _index, next) => {
+    if (keyword !== 'order') return
+    const by = keywordAt(sql, next)
+    if (by?.keyword === 'by') hasOrder = true
+  })
+  return hasOrder
+}
+
+function isPageableResultSql(sql: string): boolean {
+  const statements = splitTopLevelStatements(sql)
+  if (statements.length !== 1) return false
+  const text = statements[0]?.text ?? ''
+  const first = keywordAt(text, skipTrivia(text, 0))
+  if (!first || (first.keyword !== 'select' && first.keyword !== 'with')) return false
+
+  let hasSelect = first.keyword === 'select'
+  let hasDml = false
+  walkTopLevelTokens(text, (keyword) => {
+    if (keyword === 'select') hasSelect = true
+    if (
+      keyword === 'insert' ||
+      keyword === 'update' ||
+      keyword === 'delete' ||
+      keyword === 'merge'
+    ) {
+      hasDml = true
+    }
+  })
+  if (!hasSelect || hasDml) return false
+  return !hasTopLevelPagingKeyword(text)
+}
+
+/**
+ * Append LIMIT/OFFSET (or MSSQL OFFSET/FETCH) to a single SELECT/WITH.
+ * Returns null when the SQL already pages, has multiple statements, or is not a SELECT.
+ * Does not wrap in a subquery — ORDER BY stays on the original statement.
+ */
+export function queryResultPageSql(
+  engine: SqlStudioEngine,
+  sql: string,
+  offset: number,
+  limit: number
+): string | null {
+  const trimmed = sql.trim().replace(/^\uFEFF/, '')
+  if (!isPageableResultSql(trimmed)) return null
+  const safeOffset = Math.max(0, Math.floor(offset))
+  const safeLimit = Math.max(1, Math.floor(limit))
+  const body = trimmed.replace(/;\s*$/, '')
+  if (engine === 'mssql') {
+    const order = hasTopLevelOrderBy(body) ? '' : ' ORDER BY (SELECT NULL)'
+    return `${body}${order} OFFSET ${safeOffset} ROWS FETCH NEXT ${safeLimit} ROWS ONLY`
+  }
+  return `${body} LIMIT ${safeLimit} OFFSET ${safeOffset}`
 }

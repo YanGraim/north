@@ -7,6 +7,7 @@ import {
 } from '@renderer/components/ui/context-menu'
 import {
   appendInsert,
+  buildDisplayRows,
   type CellPos,
   cellDisplayValue,
   cellSelectionRect,
@@ -17,6 +18,7 @@ import {
   type GridDraft,
   type GridSort,
   hasDirtyDraft,
+  insertDuplicate,
   isCellDirty,
   isCellInRect,
   markRowsDeleted,
@@ -33,6 +35,7 @@ import {
   toggleInSet
 } from '@renderer/features/sessions/query-result-grid'
 import { cn } from '@renderer/lib/utils'
+import { applyCharacterMaxLength } from '@shared/lib/sql-char-length'
 import type { DatabaseCellValue, DatabaseQueryResult } from '@shared/protocols'
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -47,6 +50,7 @@ type QueryResultGridProps = {
   draft?: GridDraft
   onDraftChange?: (draft: GridDraft) => void
   pkColumns?: readonly string[]
+  columnMeta?: Record<string, { maxLength: number | null; nullable: boolean }>
   /** First selected existing-row source index (ignores inserts). */
   onActiveSourceIndexChange?: (sourceIndex: number | null) => void
   /** Show insert/duplicate/delete context menu (table tabs only). */
@@ -72,6 +76,7 @@ export function QueryResultGrid({
   draft = { edits: {}, inserts: [], deletes: [] },
   onDraftChange,
   pkColumns = [],
+  columnMeta,
   onActiveSourceIndexChange,
   rowActions = false,
   onNearEnd,
@@ -87,6 +92,7 @@ export function QueryResultGrid({
   const [cellAnchor, setCellAnchor] = useState<CellPos | null>(null)
   const [cellFocus, setCellFocus] = useState<CellPos | null>(null)
   const [editing, setEditing] = useState<EditingCell | null>(null)
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const dragFrom = useRef<number | null>(null)
   const dragMoved = useRef(false)
   const [dragOver, setDragOver] = useState<number | null>(null)
@@ -94,6 +100,13 @@ export function QueryResultGrid({
   const columnAnchorRef = useRef<number | null>(null)
   const cellAnchorRef = useRef<CellPos | null>(null)
   const selectingKindRef = useRef<'rows' | 'cells' | null>(null)
+  const contextColumnRef = useRef<string | null>(null)
+  const resizeRef = useRef<{
+    name: string
+    startX: number
+    startWidth: number
+    minWidth: number
+  } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const gridActiveRef = useRef(false)
   const draftRef = useRef(draft)
@@ -130,20 +143,10 @@ export function QueryResultGrid({
     [result.rows, result.columns, sort]
   )
 
-  const displayRows = useMemo(() => {
-    const existingSorted = sortedExisting.map((entry) => ({
-      kind: 'existing' as const,
-      sourceIndex: entry.sourceIndex,
-      row: entry.row,
-      markedDelete: draft.deletes.includes(entry.sourceIndex)
-    }))
-    const inserts = draft.inserts.map((row, insertIndex) => ({
-      kind: 'insert' as const,
-      insertIndex,
-      row
-    }))
-    return [...existingSorted, ...inserts]
-  }, [sortedExisting, draft.deletes, draft.inserts])
+  const displayRows = useMemo(
+    () => buildDisplayRows(sortedExisting, draft),
+    [sortedExisting, draft]
+  )
 
   const cellRect = useMemo(() => {
     if (selectionMode !== 'cells' || !cellAnchor || !cellFocus) return null
@@ -268,6 +271,27 @@ export function QueryResultGrid({
     const entry = displayRows[firstDisplay]
     onActiveSourceIndexChange(entry?.kind === 'existing' ? entry.sourceIndex : null)
   }, [displayRows, onActiveSourceIndexChange, selectedRowIndices, selectionMode])
+
+  useEffect(() => {
+    function onMouseMove(event: MouseEvent): void {
+      const resize = resizeRef.current
+      if (!resize) return
+      const next = clampColumnWidth(
+        resize.startWidth + (event.clientX - resize.startX),
+        resize.minWidth
+      )
+      setColumnWidths((current) => ({ ...current, [resize.name]: next }))
+    }
+    function onResizeUp(): void {
+      resizeRef.current = null
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onResizeUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onResizeUp)
+    }
+  }, [])
 
   if (result.columns.length === 0) {
     return (
@@ -405,7 +429,7 @@ export function QueryResultGrid({
 
   function insertEmptyRow(): void {
     if (!editable || !onDraftChange) return
-    const next = appendInsert(draftRef.current, emptyRowForColumns(columnNames))
+    const next = appendInsert(draftRef.current, emptyRowForColumns(columnNames), null)
     draftRef.current = next
     onDraftChange(next)
   }
@@ -428,9 +452,80 @@ export function QueryResultGrid({
             if (changes) Object.assign(merged, changes)
             return merged
           })()
-        : (current.inserts[source.insertIndex] ?? null)
+        : (current.inserts[source.insertIndex]?.values ?? null)
     if (!row) return
-    const next = appendInsert(current, duplicateRowValues(row, columnNames, pkColumns))
+    const values = duplicateRowValues(row, columnNames, pkColumns)
+    const next =
+      source.kind === 'existing'
+        ? insertDuplicate(current, values, { afterSourceIndex: source.sourceIndex })
+        : insertDuplicate(current, values, {
+            afterSourceIndex: current.inserts[source.insertIndex]?.afterSourceIndex ?? null,
+            afterInsertIndex: source.insertIndex
+          })
+    draftRef.current = next
+    onDraftChange(next)
+  }
+
+  function lookupColumnMeta(column: string): { maxLength: number | null; nullable: boolean } {
+    if (!columnMeta) return { maxLength: null, nullable: true }
+    const exact = columnMeta[column]
+    if (exact) return exact
+    const lower = column.toLowerCase()
+    for (const [name, meta] of Object.entries(columnMeta)) {
+      if (name.toLowerCase() === lower) return meta
+    }
+    return { maxLength: null, nullable: true }
+  }
+
+  function setSelectedCellsNull(): void {
+    if (!editable || !onDraftChange) return
+    const columns =
+      selectionMode === 'cells' && selectedColumnNames.length > 0
+        ? selectedColumnNames
+        : contextColumnRef.current
+          ? [contextColumnRef.current]
+          : cellFocus
+            ? [result.columns[cellFocus.columnIndex]?.name].filter((name): name is string =>
+                Boolean(name)
+              )
+            : []
+    if (columns.length === 0) return
+    const targets = [...selectedTargets()]
+    if (targets.length === 0 && cellFocus) {
+      const entry = displayRows[cellFocus.displayIndex]
+      if (entry?.kind === 'existing') {
+        targets.push({
+          kind: 'existing',
+          sourceIndex: entry.sourceIndex,
+          displayIndex: cellFocus.displayIndex
+        })
+      } else if (entry?.kind === 'insert') {
+        targets.push({
+          kind: 'insert',
+          insertIndex: entry.insertIndex,
+          displayIndex: cellFocus.displayIndex
+        })
+      }
+    }
+    let next = draftRef.current
+    let changed = false
+    for (const target of targets) {
+      for (const column of columns) {
+        if (!lookupColumnMeta(column).nullable && columnMeta) continue
+        if (target.kind === 'existing') {
+          const original = result.rows[target.sourceIndex]?.[column]
+          next = {
+            ...next,
+            edits: setCellEdit(next.edits, target.sourceIndex, column, original, null)
+          }
+          changed = true
+        } else {
+          next = setInsertCell(next, target.insertIndex, column, null)
+          changed = true
+        }
+      }
+    }
+    if (!changed) return
     draftRef.current = next
     onDraftChange(next)
   }
@@ -468,20 +563,51 @@ export function QueryResultGrid({
 
   const dirty = hasDirtyDraft(draft)
   const hasSelection = selectedRowIndices.size > 0
-  const showRowMenu = rowActions && editable && Boolean(onDraftChange)
+  const showContextMenu = editable && Boolean(onDraftChange)
+  const setNullColumns =
+    selectionMode === 'cells' && selectedColumnNames.length > 0
+      ? selectedColumnNames
+      : contextColumnRef.current
+        ? [contextColumnRef.current]
+        : []
+  const setNullDisabled =
+    setNullColumns.length > 0 &&
+    Boolean(columnMeta) &&
+    setNullColumns.every((name) => lookupColumnMeta(name).nullable === false)
   const colSelected = (columnIndex: number): boolean =>
     selectionMode === 'columns' && selected.has(columnIndex)
   const cellSelected = (displayIndex: number, columnIndex: number): boolean =>
     Boolean(cellRect && isCellInRect(displayIndex, columnIndex, cellRect))
 
+  const tableWidth =
+    40 +
+    indices.reduce((sum, columnIndex) => {
+      const name = result.columns[columnIndex]?.name
+      return sum + (name ? (columnWidths[name] ?? COLUMN_DEFAULT_PX) : COLUMN_DEFAULT_PX)
+    }, 0)
+
   const table = (
     <table
       className={cn(
-        'min-w-full border-separate border-spacing-0 text-left font-mono text-[13px]',
-        '[&_th]:border-r [&_th]:border-b [&_th]:border-grid-line',
+        'border-separate border-spacing-0 text-left font-mono text-[13px]',
+        'table-fixed [&_th]:border-r [&_th]:border-b [&_th]:border-grid-line',
         '[&_td]:border-r [&_td]:border-b [&_td]:border-grid-line'
       )}
+      style={{ width: tableWidth, tableLayout: 'fixed' }}
     >
+      <colgroup>
+        <col style={{ width: 40 }} />
+        {indices.map((columnIndex) => {
+          const column = result.columns[columnIndex]
+          if (!column) return null
+          return (
+            <col
+              key={`col-${column.name}:${String(columnIndex)}`}
+              style={{ width: columnWidths[column.name] ?? COLUMN_DEFAULT_PX }}
+            />
+          )
+        })}
+      </colgroup>
       <thead className="sticky top-0 z-10 bg-surface">
         <tr>
           <th className="w-10 px-1 py-1.5 text-center font-medium text-muted select-none">#</th>
@@ -537,15 +663,16 @@ export function QueryResultGrid({
                   applyColumnSelection(columnIndex, event)
                 }}
                 className={cn(
-                  'cursor-grab whitespace-nowrap px-2 py-1.5 font-medium text-muted select-none active:cursor-grabbing',
+                  'relative overflow-hidden px-2 py-1.5 font-medium text-muted select-none',
+                  'cursor-grab active:cursor-grabbing',
                   dragOver === columnIndex ? 'border-l-2 border-l-accent' : '',
                   columnIsSelected ? 'bg-accent/25 text-foreground' : ''
                 )}
               >
-                <span className="inline-flex items-center gap-1">
-                  <span>{column.name}</span>
+                <span className="flex min-w-0 items-center gap-1 overflow-hidden pr-1">
+                  <span className="min-w-0 flex-1 truncate">{column.name}</span>
                   {column.dataType ? (
-                    <span className="font-normal text-[10px] uppercase opacity-70">
+                    <span className="max-w-[4.5rem] min-w-0 shrink truncate font-normal text-[10px] uppercase opacity-70">
                       {column.dataType}
                     </span>
                   ) : null}
@@ -573,6 +700,41 @@ export function QueryResultGrid({
                     )}
                   </button>
                 </span>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label={t('database.studio.resizeColumn')}
+                  data-testid={`grid-col-resize-${column.name}`}
+                  className="absolute top-0 right-0 z-20 h-full w-1 cursor-col-resize hover:bg-accent"
+                  onClick={(event) => event.stopPropagation()}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    dragFrom.current = null
+                    resizeRef.current = {
+                      name: column.name,
+                      startX: event.clientX,
+                      startWidth: columnWidths[column.name] ?? COLUMN_DEFAULT_PX,
+                      minWidth: headerMinWidth(column.name)
+                    }
+                  }}
+                  onDoubleClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    const canvas = document.createElement('canvas')
+                    const ctx = canvas.getContext('2d')
+                    if (!ctx) return
+                    ctx.font = GRID_MONO_FONT
+                    let max = ctx.measureText(column.name).width
+                    for (const record of displayRecords) {
+                      max = Math.max(max, ctx.measureText(formatCell(record[column.name])).width)
+                    }
+                    setColumnWidths((current) => ({
+                      ...current,
+                      [column.name]: clampColumnWidth(max + 36, headerMinWidth(column.name))
+                    }))
+                  }}
+                />
               </th>
             )
           })}
@@ -622,6 +784,11 @@ export function QueryResultGrid({
                   setSelected(new Set(selectRange(anchorRef.current, displayIndex)))
                 }}
                 onContextMenu={() => {
+                  const keepCells =
+                    selectionModeRef.current === 'cells' &&
+                    cellRect != null &&
+                    cellRect.displayIndices.includes(displayIndex)
+                  if (keepCells) return
                   const inRows = selectionModeRef.current === 'rows'
                   selectionModeRef.current = 'rows'
                   setSelectionMode('rows')
@@ -688,8 +855,8 @@ export function QueryResultGrid({
                       data-cell-selected={isCellSelected ? 'true' : undefined}
                       tabIndex={editable && !markedDelete ? 0 : undefined}
                       className={cn(
-                        'relative text-foreground',
-                        isEditing ? 'z-20 overflow-visible p-0' : 'max-w-xs truncate px-2 py-1.5',
+                        'relative overflow-hidden text-foreground',
+                        isEditing ? 'z-20 p-0' : 'truncate px-2 py-1.5',
                         dirtyCell && !markedDelete ? 'bg-accent/10' : '',
                         (columnIsSelected || isCellSelected) && !isSelected && !markedDelete
                           ? 'bg-accent/20'
@@ -704,6 +871,9 @@ export function QueryResultGrid({
                         if ((event.target as HTMLElement).closest('input')) return
                         selectingKindRef.current = 'cells'
                         applyCellSelection(displayIndex, columnIndex, event)
+                      }}
+                      onContextMenu={() => {
+                        contextColumnRef.current = column.name
                       }}
                       onMouseEnter={(event) => {
                         if (selectingKindRef.current !== 'cells' || event.buttons !== 1) return
@@ -727,10 +897,12 @@ export function QueryResultGrid({
                             className="invisible block truncate px-2 py-1.5 leading-5"
                             aria-hidden
                           >
-                            {formatEditValue(value) || ' '}
+                            {' '}
                           </span>
                           <CellEditor
                             initial={formatEditValue(value)}
+                            maxLength={lookupColumnMeta(column.name).maxLength}
+                            nullable={lookupColumnMeta(column.name).nullable}
                             onLiveChange={(raw) => {
                               if (entry.kind === 'existing') {
                                 commitExistingEdit(entry.sourceIndex, column.name, raw)
@@ -818,35 +990,51 @@ export function QueryResultGrid({
         }
       }}
     >
-      {showRowMenu ? (
+      {showContextMenu ? (
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div className="min-h-full">{table}</div>
           </ContextMenuTrigger>
           <ContextMenuContent data-testid="grid-row-context-menu">
-            <ContextMenuItem data-testid="grid-insert-row" onSelect={() => insertEmptyRow()}>
-              {t('database.studio.insertRow')}
-            </ContextMenuItem>
+            {rowActions ? (
+              <>
+                <ContextMenuItem data-testid="grid-insert-row" onSelect={() => insertEmptyRow()}>
+                  {t('database.studio.insertRow')}
+                </ContextMenuItem>
+                <ContextMenuItem
+                  data-testid="grid-duplicate-row"
+                  disabled={!hasSelection}
+                  onSelect={() => duplicateSelected()}
+                >
+                  {t('database.studio.duplicateRow')}
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+              </>
+            ) : null}
             <ContextMenuItem
-              data-testid="grid-duplicate-row"
-              disabled={!hasSelection}
-              onSelect={() => duplicateSelected()}
+              data-testid="grid-set-null"
+              disabled={setNullDisabled || (!hasSelection && selectionMode !== 'cells')}
+              onSelect={() => setSelectedCellsNull()}
             >
-              {t('database.studio.duplicateRow')}
+              {t('database.studio.setNull')}
             </ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem
-              variant="destructive"
-              data-testid="grid-delete-rows"
-              disabled={
-                !hasSelection ||
-                (!canPersist && selectedTargets().every((item) => item.kind === 'existing'))
-              }
-              title={!canPersist ? t('database.studio.saveNoPk') : undefined}
-              onSelect={() => deleteSelected()}
-            >
-              {t('database.studio.deleteRows')}
-            </ContextMenuItem>
+            {rowActions ? (
+              <>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  variant="destructive"
+                  data-testid="grid-delete-rows"
+                  disabled={
+                    !hasSelection ||
+                    (!canPersist && selectedTargets().every((item) => item.kind === 'existing'))
+                  }
+                  title={!canPersist ? t('database.studio.saveNoPk') : undefined}
+                  onSelect={() => deleteSelected()}
+                >
+                  {t('database.studio.deleteRows')}
+                </ContextMenuItem>
+              </>
+            ) : null}
           </ContextMenuContent>
         </ContextMenu>
       ) : (
@@ -868,14 +1056,41 @@ function formatEditValue(value: DatabaseCellValue | undefined): string {
   return String(value)
 }
 
+const COLUMN_MIN_PX = 64
+const COLUMN_MAX_PX = 640
+const COLUMN_DEFAULT_PX = 160
+const GRID_MONO_FONT = '13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+
+function measureMonoText(text: string): number {
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return text.length * 8
+  ctx.font = GRID_MONO_FONT
+  return ctx.measureText(text).width
+}
+
+/** Padding + sort icon + resize handle — column cannot go narrower than the header name. */
+function headerMinWidth(columnName: string): number {
+  return Math.min(COLUMN_MAX_PX, Math.ceil(measureMonoText(columnName) + 44))
+}
+
+function clampColumnWidth(width: number, minWidth = COLUMN_MIN_PX): number {
+  const floor = Math.min(COLUMN_MAX_PX, Math.max(COLUMN_MIN_PX, minWidth))
+  return Math.min(COLUMN_MAX_PX, Math.max(floor, Math.round(width)))
+}
+
 function CellEditor({
   initial,
+  maxLength,
+  nullable,
   onLiveChange,
   onCommit,
   onCancel,
   onTab
 }: {
   initial: string
+  maxLength?: number | null
+  nullable?: boolean
   onLiveChange?: (raw: string) => void
   onCommit: (raw: string) => void
   onCancel: (baseline: string) => void
@@ -906,15 +1121,24 @@ function CellEditor({
       autoComplete="off"
       autoCorrect="off"
       autoCapitalize="off"
-      size={Math.max(value.length, 1)}
-      className="absolute top-0 left-0 z-20 box-border min-h-full min-w-full appearance-none bg-background px-2.5 py-1.5 font-mono text-[13px] leading-5 text-foreground shadow-sm outline-none ring-1 ring-accent"
-      style={{ width: `max(100%, ${String(Math.max(value.length, 1) + 3)}ch)` }}
+      className="absolute inset-0 z-20 box-border h-full w-full min-w-0 max-w-full appearance-none bg-background px-2 py-1.5 font-mono text-[13px] leading-5 text-foreground outline-none ring-1 ring-inset ring-accent"
       onChange={(event) => {
-        const next = event.target.value
+        const next = applyCharacterMaxLength(event.target.value, maxLength ?? null, {
+          nullable: nullable ?? true
+        })
         setValue(next)
         onLiveChange?.(next)
       }}
-      onBlur={() => finish(() => onCommit(value))}
+      onBlur={() =>
+        finish(() =>
+          onCommit(
+            applyCharacterMaxLength(value, maxLength ?? null, {
+              nullable: nullable ?? true,
+              committing: true
+            })
+          )
+        )
+      }
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.preventDefault()
@@ -924,12 +1148,27 @@ function CellEditor({
         }
         if (event.key === 'Enter') {
           event.preventDefault()
-          finish(() => onCommit(value))
+          finish(() =>
+            onCommit(
+              applyCharacterMaxLength(value, maxLength ?? null, {
+                nullable: nullable ?? true,
+                committing: true
+              })
+            )
+          )
           return
         }
         if (event.key === 'Tab') {
           event.preventDefault()
-          finish(() => onTab(value, event.shiftKey))
+          finish(() =>
+            onTab(
+              applyCharacterMaxLength(value, maxLength ?? null, {
+                nullable: nullable ?? true,
+                committing: true
+              }),
+              event.shiftKey
+            )
+          )
         }
       }}
       onMouseDown={(event) => event.stopPropagation()}

@@ -1,3 +1,4 @@
+import { normalizeCharacterMaximumLength } from '@shared/lib/sql-char-length'
 import type { DatabaseIntrospection, DatabaseQueryResult, DatabaseTxState } from '@shared/protocols'
 import { Connection, Request } from 'tedious'
 import { serializeRow } from './serialize'
@@ -64,6 +65,7 @@ export class MssqlAdapter implements DatabaseAdapter {
       COLUMN_NAME: string
       DATA_TYPE: string
       IS_NULLABLE: string
+      CHARACTER_MAXIMUM_LENGTH: number | null
       IS_PRIMARY_KEY: number
     }>(
       `SELECT
@@ -72,16 +74,17 @@ export class MssqlAdapter implements DatabaseAdapter {
          cols.COLUMN_NAME,
          cols.DATA_TYPE,
          cols.IS_NULLABLE,
+         cols.CHARACTER_MAXIMUM_LENGTH,
          CASE WHEN pk.COLUMN_NAME IS NOT NULL THEN 1 ELSE 0 END AS IS_PRIMARY_KEY
        FROM INFORMATION_SCHEMA.COLUMNS cols
        LEFT JOIN (
-         SELECT kcu.TABLE_SCHEMA, kcu.TABLE_NAME, kcu.COLUMN_NAME
-         FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-         JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
-           ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-          AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
-          AND tc.TABLE_NAME = kcu.TABLE_NAME
-         WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
+         SELECT s.name AS TABLE_SCHEMA, t.name AS TABLE_NAME, c.name AS COLUMN_NAME
+         FROM sys.indexes i
+         JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+         JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+         JOIN sys.tables t ON i.object_id = t.object_id
+         JOIN sys.schemas s ON t.schema_id = s.schema_id
+         WHERE i.is_primary_key = 1
        ) pk
          ON cols.TABLE_SCHEMA = pk.TABLE_SCHEMA
         AND cols.TABLE_NAME = pk.TABLE_NAME
@@ -101,7 +104,8 @@ export class MssqlAdapter implements DatabaseAdapter {
         name: row.COLUMN_NAME,
         dataType: row.DATA_TYPE,
         nullable: row.IS_NULLABLE === 'YES',
-        primaryKey: Number(row.IS_PRIMARY_KEY) === 1
+        primaryKey: Number(row.IS_PRIMARY_KEY) === 1,
+        characterMaximumLength: normalizeCharacterMaximumLength(row.CHARACTER_MAXIMUM_LENGTH)
       }))
     )
   }

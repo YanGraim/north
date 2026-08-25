@@ -3,6 +3,7 @@ import type {
   DatabaseIntrospection,
   DatabaseRelation
 } from '../protocols/database'
+import { keywordAt as scanKeyword, skipTrivia as scanTrivia, skipBalancedParens } from './sql-scan'
 import { alignPrimaryKeyNames, primaryKeyColumnNames } from './sql-update'
 
 export type PrimaryFromRelation = {
@@ -162,7 +163,7 @@ export function analyzeUpdatableSql(sql: string): SqlUpdatableAnalysis {
   let hasDistinct = false
   let hasGroupBy = false
   let hasSetOp = false
-  i = first.next
+  i = skipSelectModifiers(text, first.next)
 
   while (i < text.length) {
     i = skipTrivia(text, i)
@@ -256,6 +257,27 @@ function readFromRelation(sql: string, fromPos: number): PrimaryFromRelation | n
   if (!table) return null
   const schema = parts.length >= 2 ? (parts[parts.length - 2] ?? null) : null
   return { schema, table }
+}
+
+function skipSelectModifiers(sql: string, afterSelect: number): number {
+  let i = scanTrivia(sql, afterSelect)
+  const top = scanKeyword(sql, i)
+  if (!top || top.keyword !== 'top') return afterSelect
+  i = scanTrivia(sql, top.next)
+  if (sql[i] === '(') {
+    i = skipBalancedParens(sql, i)
+  } else {
+    while (i < sql.length && /[0-9.]/.test(sql[i] ?? '')) i += 1
+  }
+  i = scanTrivia(sql, i)
+  const percent = scanKeyword(sql, i)
+  if (percent?.keyword === 'percent') i = scanTrivia(sql, percent.next)
+  const withKw = scanKeyword(sql, i)
+  if (withKw?.keyword === 'with') {
+    const ties = scanKeyword(sql, withKw.next)
+    if (ties?.keyword === 'ties') i = ties.next
+  }
+  return i
 }
 
 export function findRelation(

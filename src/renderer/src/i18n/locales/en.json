@@ -67,7 +67,7 @@
     },
     "updates": {
       "title": "Updates",
-      "description": "Automatic check on launch and background download via GitHub Releases.",
+      "description": "Check on launch and download via GitHub Releases. On Mac, the first .dmg open may need a Gatekeeper bypass; after that use Install and restart.",
       "devNote": "In development the updater stays off unless NORTH_ENABLE_UPDATES=1. Prefer testing a packaged build.",
       "available": "New version available:",
       "ready": "Update ready:",
@@ -228,10 +228,12 @@
       "browseCountExact": "{{count}}",
       "browseCap": " · load limit",
       "affected": "{{count}} row(s) affected · {{ms}} ms",
-      "columnHint": "Click the name for the whole column · drag cells for a range · icon to sort · drag header to move",
+      "columnHint": "Click the name for the whole column · drag cells for a range · icon to sort · drag header to move · right edge to resize",
       "sortHint": "Sort column",
+      "resizeColumn": "Resize column",
       "insertRow": "Insert row",
       "duplicateRow": "Duplicate row",
+      "setNull": "Set NULL",
       "deleteRows": "Delete selected",
       "loadingSchema": "Loading schema…",
       "emptySchema": "No tables found.",
@@ -265,7 +267,10 @@
       "autoCommitBlocked": "Commit or Rollback before turning auto-commit back on",
       "txError": "Transaction failed",
       "txDisabledAutoCommit": "Turn auto-commit off; Commit and Rollback close the server transaction",
-      "txDisabledIdle": "Run a query to open a transaction"
+      "txDisabledIdle": "Run a query to open a transaction",
+      "unsafeDmlTitle": "Confirm UPDATE/DELETE without WHERE",
+      "unsafeDmlBody": "This statement may change or delete every row in the table because there is no top-level WHERE. Continue?",
+      "unsafeDmlRun": "Run anyway"
     }
   },
   "updates": {

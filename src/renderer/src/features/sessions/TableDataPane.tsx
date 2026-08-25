@@ -21,6 +21,7 @@ type TableDataPaneProps = {
   canPersist: boolean
   draft: GridDraft
   pkColumns: readonly string[]
+  columnMeta?: Record<string, { maxLength: number | null; nullable: boolean }>
   canSave: boolean
   saveDisabledReason: string | null
   browseHasMore: boolean
@@ -47,6 +48,7 @@ export function TableDataPane({
   canPersist,
   draft,
   pkColumns,
+  columnMeta,
   canSave,
   saveDisabledReason,
   browseHasMore,
@@ -102,6 +104,7 @@ export function TableDataPane({
           draft={draft}
           onDraftChange={onDraftChange}
           pkColumns={pkColumns}
+          columnMeta={columnMeta}
           rowActions={rowActions}
           browseMode
           browseHasMore={browseHasMore}

@@ -29,6 +29,7 @@ type QueryResultPaneProps = {
   draft?: GridDraft
   onDraftChange?: (draft: GridDraft) => void
   pkColumns?: readonly string[]
+  columnMeta?: Record<string, { maxLength: number | null; nullable: boolean }>
   rowActions?: boolean
   /** Table-tab browse: DBeaver-style count (200+) and infinite scroll. */
   browseMode?: boolean
@@ -53,6 +54,7 @@ export function QueryResultPane({
   draft,
   onDraftChange,
   pkColumns = [],
+  columnMeta,
   rowActions = false,
   browseMode = false,
   browseHasMore = false,
@@ -234,6 +236,7 @@ export function QueryResultPane({
               editable={editable}
               draft={activeDraft}
               onDraftChange={onDraftChange}
+              columnMeta={columnMeta}
               onNavigate={navigateRecord}
               canPrev={recordIndex > 0}
               canNext={recordIndex < result.rows.length - 1 || browseHasMore}
@@ -250,6 +253,7 @@ export function QueryResultPane({
               draft={activeDraft}
               onDraftChange={onDraftChange}
               pkColumns={pkColumns}
+              columnMeta={columnMeta}
               rowActions={rowActions}
               onActiveSourceIndexChange={setActiveSourceIndex}
               onSumSelectionChange={handleSumSelectionChange}

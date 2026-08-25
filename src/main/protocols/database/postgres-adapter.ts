@@ -1,3 +1,4 @@
+import { normalizeCharacterMaximumLength } from '@shared/lib/sql-char-length'
 import type { DatabaseIntrospection, DatabaseQueryResult, DatabaseTxState } from '@shared/protocols'
 import { Client } from 'pg'
 import { serializeRow } from './serialize'
@@ -49,13 +50,15 @@ export class PostgresAdapter implements DatabaseAdapter {
       column_name: string
       data_type: string
       is_nullable: string
+      character_maximum_length: number | null
     }>(
       `SELECT
          cols.table_schema,
          cols.table_name,
          cols.column_name,
          cols.data_type,
-         cols.is_nullable
+         cols.is_nullable,
+         cols.character_maximum_length
        FROM information_schema.columns cols
        WHERE cols.table_schema NOT IN ${SKIP_SCHEMAS}
        ORDER BY cols.table_schema, cols.table_name, cols.ordinal_position`
@@ -105,7 +108,8 @@ export class PostgresAdapter implements DatabaseAdapter {
           name: row.column_name,
           dataType: row.data_type,
           nullable: row.is_nullable === 'YES',
-          primaryKey: pkSet.has(key)
+          primaryKey: pkSet.has(key),
+          characterMaximumLength: normalizeCharacterMaximumLength(row.character_maximum_length)
         }
       })
     )

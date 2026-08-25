@@ -18,6 +18,19 @@ describe('sql update helpers', () => {
     expect(quoteSqlLiteral("O'Hara")).toBe("'O''Hara'")
   })
 
+  it('emits 1/0 for MSSQL boolean literals in UPDATE', () => {
+    expect(
+      buildRowUpdateSql({
+        engine: 'mssql',
+        schema: 'dbo',
+        table: 'flags',
+        pkColumns: ['id'],
+        original: { id: 1, ok: true },
+        changes: { ok: false }
+      })
+    ).toBe('UPDATE [dbo].[flags] SET [ok] = 0 WHERE [id] = 1')
+  })
+
   it('lists primary key columns', () => {
     expect(
       primaryKeyColumnNames([

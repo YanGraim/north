@@ -23,7 +23,8 @@ export const DatabaseColumnSchema = z.object({
   name: z.string().min(1),
   dataType: z.string().min(1),
   nullable: z.boolean(),
-  primaryKey: z.boolean()
+  primaryKey: z.boolean(),
+  characterMaximumLength: z.number().int().nullable().optional()
 })
 export type DatabaseColumn = z.infer<typeof DatabaseColumnSchema>
 

@@ -1,3 +1,4 @@
+import { normalizeCharacterMaximumLength } from '@shared/lib/sql-char-length'
 import type { DatabaseIntrospection, DatabaseQueryResult, DatabaseTxState } from '@shared/protocols'
 import mysql from 'mysql2/promise'
 import { serializeRow } from './serialize'
@@ -41,7 +42,7 @@ export class MysqlAdapter implements DatabaseAdapter {
        ORDER BY table_schema, table_name`
     )
     const [columnRows] = await connection.query(
-      `SELECT table_schema, table_name, column_name, data_type, is_nullable, column_key
+      `SELECT table_schema, table_name, column_name, data_type, is_nullable, column_key, character_maximum_length
        FROM information_schema.columns
        WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
        ORDER BY table_schema, table_name, ordinal_position`
@@ -69,7 +70,10 @@ export class MysqlAdapter implements DatabaseAdapter {
           name: String(record.column_name),
           dataType: String(record.data_type),
           nullable: String(record.is_nullable) === 'YES',
-          primaryKey: String(record.column_key).toUpperCase() === 'PRI'
+          primaryKey: String(record.column_key).toUpperCase() === 'PRI',
+          characterMaximumLength: normalizeCharacterMaximumLength(
+            record.character_maximum_length ?? record.CHARACTER_MAXIMUM_LENGTH
+          )
         }
       })
     )

@@ -8,6 +8,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { sql } from '@codemirror/lang-sql'
 import { Compartment, EditorState, type Extension, Prec } from '@codemirror/state'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
+import { sqlToExecute } from '@shared/lib/sql-statement'
 import type { DatabaseIntrospection, SqlStudioEngine } from '@shared/protocols'
 import { useEffect, useRef } from 'react'
 import {
@@ -23,6 +24,7 @@ import { formatStudioSql } from './sql-format'
 
 export type SqlEditorHandle = {
   format: () => boolean
+  runCurrent: () => boolean
 }
 
 type SqlEditorProps = {
@@ -98,12 +100,9 @@ export function SqlEditor({
             {
               key: 'Mod-Enter',
               run: (current) => {
-                const selected = current.state.sliceDoc(
-                  current.state.selection.main.from,
-                  current.state.selection.main.to
-                )
-                const sqlText = selected.trim() || current.state.doc.toString()
-                onRunRef.current(sqlText)
+                const sel = current.state.selection.main
+                const sqlText = sqlToExecute(current.state.doc.toString(), sel.from, sel.to)
+                if (sqlText) onRunRef.current(sqlText)
                 return true
               }
             },
@@ -130,7 +129,15 @@ export function SqlEditor({
       parent: parentRef.current
     })
     viewRef.current = view
-    const handle: SqlEditorHandle = { format: () => formatCurrent(view) }
+    const handle: SqlEditorHandle = {
+      format: () => formatCurrent(view),
+      runCurrent: () => {
+        const sel = view.state.selection.main
+        const sqlText = sqlToExecute(view.state.doc.toString(), sel.from, sel.to)
+        if (sqlText) onRunRef.current(sqlText)
+        return Boolean(sqlText)
+      }
+    }
     if (editorRefBox.current) editorRefBox.current.current = handle
     return () => {
       if (editorRefBox.current) editorRefBox.current.current = null

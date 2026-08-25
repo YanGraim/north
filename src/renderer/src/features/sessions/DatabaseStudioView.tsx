@@ -1,3 +1,13 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@renderer/components/ui/alert-dialog'
 import { Button } from '@renderer/components/ui/button'
 import {
   ResizableHandle,
@@ -20,13 +30,16 @@ import { StudioTabBar } from '@renderer/features/sessions/StudioTabBar'
 import { TableDataPane } from '@renderer/features/sessions/TableDataPane'
 import { toastError } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
+import { characterLimitForColumn } from '@shared/lib/sql-char-length'
 import {
   isFullSqlStatement,
   primaryKeyLookupSql,
+  queryResultPageSql,
   TABLE_BROWSE_PAGE_SIZE,
   TABLE_BROWSE_SOFT_CAP,
   tableBrowsePageSql
 } from '@shared/lib/sql-ident'
+import { isMutationWithoutWhere } from '@shared/lib/sql-unsafe'
 import {
   filterChangesToTableColumns,
   findRelation,
@@ -55,6 +68,12 @@ import {
   type StudioTab,
   type TableStudioTab
 } from './studio-tabs'
+
+type UnsafePending = {
+  tabId: string
+  sql: string
+  kind: 'query' | 'table-filter'
+}
 
 type DatabaseStudioViewProps = {
   sessionId: string
@@ -99,6 +118,7 @@ export function DatabaseStudioView({
   })
   const [txBusy, setTxBusy] = useState(false)
   const sqlEditorRef = useRef<SqlEditorHandle | null>(null)
+  const [unsafePending, setUnsafePending] = useState<UnsafePending | null>(null)
 
   tabsRef.current = tabs
   treeRef.current = tree
@@ -161,29 +181,108 @@ export function DatabaseStudioView({
     return pks.length > 0 ? pks : undefined
   }
 
-  async function runQuerySql(tabId: string, sqlText: string): Promise<void> {
+  async function runQuerySql(
+    tabId: string,
+    sqlText: string,
+    options?: { append?: boolean; confirmed?: boolean }
+  ): Promise<void> {
     const trimmed = sqlText.trim()
-    if (!trimmed || runningTabIdRef.current) return
+    if (!trimmed) return
+    const append = options?.append === true
+
+    if (!append && !options?.confirmed && isMutationWithoutWhere(trimmed)) {
+      setUnsafePending({ tabId, sql: trimmed, kind: 'query' })
+      return
+    }
+
+    const current = tabsRef.current.find((item) => item.id === tabId)
+    const originalSql = append
+      ? current?.kind === 'query'
+        ? (current.executedSql ?? trimmed)
+        : trimmed
+      : trimmed
+    const currentCount = current?.result?.rows.length ?? 0
+
+    if (append) {
+      if (
+        !current ||
+        current.kind !== 'query' ||
+        !current.hasMore ||
+        current.browseCapReached ||
+        loadingMoreRef.current ||
+        runningTabIdRef.current
+      ) {
+        return
+      }
+      if (currentCount >= TABLE_BROWSE_SOFT_CAP) {
+        patchTab(tabId, (item) =>
+          item.kind === 'query' ? { ...item, hasMore: false, browseCapReached: true } : item
+        )
+        return
+      }
+      loadingMoreRef.current = true
+    } else if (runningTabIdRef.current) {
+      return
+    }
+
+    const offset = append ? currentCount : 0
+    const remaining = TABLE_BROWSE_SOFT_CAP - offset
+    const limit = Math.min(TABLE_BROWSE_PAGE_SIZE, Math.max(remaining, 0))
+    if (append && limit <= 0) {
+      loadingMoreRef.current = false
+      patchTab(tabId, (item) =>
+        item.kind === 'query' ? { ...item, hasMore: false, browseCapReached: true } : item
+      )
+      return
+    }
+
+    const paged = queryResultPageSql(
+      engine,
+      originalSql,
+      offset,
+      append ? limit : TABLE_BROWSE_PAGE_SIZE
+    )
+    const sql = paged ?? originalSql
+    const pageable = paged != null
+
     runningTabIdRef.current = tabId
     setRunningTabId(tabId)
-    patchTab(tabId, (tab) => ({ ...tab, error: null }))
+    if (!append) {
+      patchTab(tabId, (item) => ({ ...item, error: null }))
+    }
+
     try {
-      const next = await window.north.db.query({ sessionId, sql: trimmed })
-      clearEdits(tabId)
-      patchTab(tabId, (tab) => ({ ...tab, result: next, error: null, pane: 'results' }))
+      const page = await window.north.db.query({ sessionId, sql })
+      if (!append) clearEdits(tabId)
+      patchTab(tabId, (item) => {
+        if (item.kind !== 'query') {
+          return { ...item, result: page, error: null, pane: 'results' }
+        }
+        return mergeQueryPage(item, page, {
+          append,
+          pageable,
+          executedSql: originalSql
+        })
+      })
       await refreshTxState()
     } catch (err) {
       const message = err instanceof Error ? err.message : t('database.studio.queryError')
-      patchTab(tabId, (tab) => ({ ...tab, error: message, pane: 'messages' }))
+      if (!append) {
+        patchTab(tabId, (item) => ({ ...item, error: message, pane: 'messages' }))
+      }
       toastError(err, t('database.studio.queryError'))
       await refreshTxState()
     } finally {
       runningTabIdRef.current = null
       setRunningTabId(null)
+      loadingMoreRef.current = false
     }
   }
 
-  async function runTableBrowse(tabId: string, options?: { append?: boolean }): Promise<void> {
+  async function runTableBrowse(
+    tabId: string,
+    options?: { append?: boolean; confirmed?: boolean }
+  ): Promise<void> {
     const tab = tabsRef.current.find((item) => item.id === tabId)
     if (!tab || tab.kind !== 'table') return
 
@@ -191,6 +290,11 @@ export function DatabaseStudioView({
     const filter = tab.filter
     const fullSql = Boolean(filter.trim() && isFullSqlStatement(filter.trim()))
     const currentCount = tab.result?.rows.length ?? 0
+
+    if (!append && fullSql && !options?.confirmed && isMutationWithoutWhere(filter.trim())) {
+      setUnsafePending({ tabId, sql: filter.trim(), kind: 'table-filter' })
+      return
+    }
 
     if (append) {
       if (fullSql || !tab.hasMore || tab.browseCapReached || loadingMoreRef.current) return
@@ -316,7 +420,7 @@ export function DatabaseStudioView({
 
   const parsedFrom = useMemo(() => {
     if (activeTab?.kind !== 'query') return null
-    return parsePrimaryFromRelation(activeTab.sql)
+    return parsePrimaryFromRelation(activeTab.executedSql ?? activeTab.sql)
   }, [activeTab])
 
   const relationPkKey = useMemo(() => {
@@ -340,7 +444,7 @@ export function DatabaseStudioView({
       )
     }
     return resolveUpdatableTarget(
-      { kind: 'query', sql: activeTab.sql },
+      { kind: 'query', sql: activeTab.executedSql ?? activeTab.sql },
       { tree, resultColumnNames: resultNames, pkOverride }
     )
   }, [activeTab, pkOverrideByRelation, relationPkKey, tree])
@@ -438,7 +542,7 @@ export function DatabaseStudioView({
         pkColumns: target.pkColumns,
         deletes: deleteRows,
         updates: persistableUpdates,
-        inserts: activeTab.kind === 'table' ? activeDraft.inserts : []
+        inserts: activeTab.kind === 'table' ? activeDraft.inserts.map((row) => row.values) : []
       })
       for (const sql of statements) {
         await window.north.db.query({ sessionId, sql })
@@ -448,7 +552,7 @@ export function DatabaseStudioView({
       if (activeTab.kind === 'table') {
         await runTableBrowse(activeTab.id)
       } else {
-        await runQuerySql(activeTab.id, activeTab.sql)
+        await runQuerySql(activeTab.id, activeTab.executedSql ?? activeTab.sql)
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : t('database.studio.saveError')
@@ -507,9 +611,9 @@ export function DatabaseStudioView({
     function onKeyDown(event: KeyboardEvent): void {
       if (!visible) return
       if (!(event.metaKey || event.ctrlKey) || event.code !== 'KeyS') return
-      if (!canSaveRef.current) return
       event.preventDefault()
       event.stopPropagation()
+      if (!canSaveRef.current) return
       void saveActiveTabRef.current()
     }
     window.addEventListener('keydown', onKeyDown, true)
@@ -526,6 +630,8 @@ export function DatabaseStudioView({
   const folderLabel = environmentName?.trim() || title || t('database.studio.title')
   const tableHasMore = activeTab?.kind === 'table' ? activeTab.hasMore : false
   const tableCapReached = activeTab?.kind === 'table' ? activeTab.browseCapReached : false
+  const queryHasMore = activeTab?.kind === 'query' ? activeTab.hasMore : false
+  const queryCapReached = activeTab?.kind === 'query' ? activeTab.browseCapReached : false
   const txActionHint = txState.autoCommit
     ? t('database.studio.txDisabledAutoCommit')
     : txState.inTransaction
@@ -536,6 +642,32 @@ export function DatabaseStudioView({
     if (activeTab?.kind !== 'table') return
     void runTableBrowse(activeTab.id, { append: true })
   }
+
+  function loadMoreActiveQuery(): void {
+    if (activeTab?.kind !== 'query' || !activeTab.executedSql) return
+    void runQuerySql(activeTab.id, activeTab.executedSql, { append: true })
+  }
+
+  const schemaRelation = useMemo((): DatabaseRelation | null => {
+    if (!tree) return null
+    if (activeTab?.kind === 'table') {
+      const schema = tree.schemas.find((node) => node.name === activeTab.schema)
+      return schema?.tables.find((relation) => relation.name === activeTab.table) ?? null
+    }
+    if (!parsedFrom) return null
+    return findRelation(tree, parsedFrom.schema, parsedFrom.table)?.relation ?? null
+  }, [tree, activeTab, parsedFrom])
+
+  const columnMeta = useMemo(() => {
+    const meta: Record<string, { maxLength: number | null; nullable: boolean }> = {}
+    for (const column of schemaRelation?.columns ?? []) {
+      meta[column.name] = {
+        maxLength: characterLimitForColumn(column),
+        nullable: column.nullable
+      }
+    }
+    return meta
+  }, [schemaRelation])
 
   return (
     <div
@@ -624,7 +756,14 @@ export function DatabaseStudioView({
               onClose={closeStudioTab}
               onNewQuery={addQuery}
               onRun={() => {
-                if (activeTab) void runTab(activeTab.id)
+                if (!activeTab) return
+                if (activeTab.kind === 'query') {
+                  if (!sqlEditorRef.current?.runCurrent()) {
+                    void runTab(activeTab.id)
+                  }
+                  return
+                }
+                void runTab(activeTab.id)
               }}
               onCancel={() => void cancel()}
               onFormat={
@@ -646,6 +785,7 @@ export function DatabaseStudioView({
                   canPersist={canPersist}
                   draft={activeDraft}
                   pkColumns={pkColumns}
+                  columnMeta={columnMeta}
                   canSave={canSave}
                   saveDisabledReason={saveDisabledReason}
                   browseHasMore={tableHasMore}
@@ -680,8 +820,12 @@ export function DatabaseStudioView({
                   canPersist={canPersist}
                   draft={activeDraft}
                   pkColumns={pkColumns}
+                  columnMeta={columnMeta}
                   canSave={canSave}
                   saveDisabledReason={saveDisabledReason}
+                  browseHasMore={queryHasMore}
+                  browseCapReached={queryCapReached}
+                  onLoadMore={loadMoreActiveQuery}
                   onDraftChange={(draft) =>
                     setEditsByTab((current) => ({ ...current, [activeTab.id]: draft }))
                   }
@@ -704,6 +848,38 @@ export function DatabaseStudioView({
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+      <AlertDialog
+        open={unsafePending != null}
+        onOpenChange={(open) => {
+          if (!open) setUnsafePending(null)
+        }}
+      >
+        <AlertDialogContent data-testid="unsafe-dml-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('database.studio.unsafeDmlTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('database.studio.unsafeDmlBody')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="unsafe-dml-confirm"
+              onClick={(event) => {
+                event.preventDefault()
+                const pending = unsafePending
+                setUnsafePending(null)
+                if (!pending) return
+                if (pending.kind === 'table-filter') {
+                  void runTableBrowse(pending.tabId, { confirmed: true })
+                } else {
+                  void runQuerySql(pending.tabId, pending.sql, { confirmed: true })
+                }
+              }}
+            >
+              {t('database.studio.unsafeDmlRun')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -754,6 +930,54 @@ function mergeBrowsePage(
   }
 }
 
+function mergeQueryPage(
+  tab: QueryStudioTab,
+  page: DatabaseQueryResult,
+  options: { append: boolean; pageable: boolean; executedSql: string }
+): QueryStudioTab {
+  const { append, pageable, executedSql } = options
+  if (!append || !tab.result) {
+    const hasMore = pageable && page.rows.length >= TABLE_BROWSE_PAGE_SIZE
+    const capped = page.rows.length >= TABLE_BROWSE_SOFT_CAP
+    return {
+      ...tab,
+      executedSql,
+      result: {
+        ...page,
+        rows: capped ? page.rows.slice(0, TABLE_BROWSE_SOFT_CAP) : page.rows,
+        rowCount: capped ? Math.min(page.rows.length, TABLE_BROWSE_SOFT_CAP) : page.rows.length
+      },
+      error: null,
+      pane: 'results',
+      hasMore: hasMore && !capped,
+      browseCapReached: capped
+    }
+  }
+
+  const mergedRows = [...tab.result.rows, ...page.rows]
+  const capped = mergedRows.length >= TABLE_BROWSE_SOFT_CAP
+  const rows = capped ? mergedRows.slice(0, TABLE_BROWSE_SOFT_CAP) : mergedRows
+  const hasMore = pageable && !capped && page.rows.length >= TABLE_BROWSE_PAGE_SIZE
+
+  return {
+    ...tab,
+    executedSql,
+    result: {
+      ...tab.result,
+      columns: tab.result.columns.length > 0 ? tab.result.columns : page.columns,
+      rows,
+      rowCount: rows.length,
+      durationMs: page.durationMs,
+      truncated: false,
+      affectedRows: null
+    },
+    error: null,
+    pane: 'results',
+    hasMore,
+    browseCapReached: capped
+  }
+}
+
 function QueryTabPane({
   tab,
   engine,
@@ -765,8 +989,12 @@ function QueryTabPane({
   canPersist,
   draft,
   pkColumns,
+  columnMeta,
   canSave,
   saveDisabledReason,
+  browseHasMore,
+  browseCapReached,
+  onLoadMore,
   onDraftChange,
   onSave,
   onDiscard,
@@ -784,8 +1012,12 @@ function QueryTabPane({
   canPersist: boolean
   draft: GridDraft
   pkColumns: readonly string[]
+  columnMeta: Record<string, { maxLength: number | null; nullable: boolean }>
   canSave: boolean
   saveDisabledReason: string | null
+  browseHasMore: boolean
+  browseCapReached: boolean
+  onLoadMore: () => void
   onDraftChange: (draft: GridDraft) => void
   onSave: () => void
   onDiscard: () => void
@@ -822,10 +1054,15 @@ function QueryTabPane({
           draft={draft}
           onDraftChange={onDraftChange}
           pkColumns={pkColumns}
+          columnMeta={columnMeta}
           canSave={canSave}
           saveDisabledReason={saveDisabledReason}
           onSave={onSave}
           onDiscard={onDiscard}
+          browseMode
+          browseHasMore={browseHasMore}
+          browseCapReached={browseCapReached}
+          onNearEnd={onLoadMore}
         />
       </ResizablePanel>
     </ResizablePanelGroup>

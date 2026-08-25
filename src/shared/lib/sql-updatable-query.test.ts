@@ -129,6 +129,16 @@ describe('analyzeUpdatableSql', () => {
       ).kind
     ).toBe('ok')
   })
+
+  it('parses T-SQL TOP, bracket names and table hints', () => {
+    expect(analyzeUpdatableSql('SELECT TOP 10 * FROM [dbo].[items]').kind).toBe('ok')
+    expect(analyzeUpdatableSql('SELECT TOP (10) * FROM [dbo].[items]').kind).toBe('ok')
+    expect(analyzeUpdatableSql('SELECT * FROM [dbo].[items] WITH (NOLOCK)').kind).toBe('ok')
+    expect(parsePrimaryFromRelation('SELECT TOP 5 id FROM [dbo].[items]')).toEqual({
+      schema: 'dbo',
+      table: 'items'
+    })
+  })
 })
 
 describe('resolveUpdatableTarget', () => {

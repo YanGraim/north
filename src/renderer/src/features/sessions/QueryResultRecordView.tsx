@@ -6,6 +6,7 @@ import {
   setCellEdit
 } from '@renderer/features/sessions/query-result-grid'
 import { cn } from '@renderer/lib/utils'
+import { applyCharacterMaxLength } from '@shared/lib/sql-char-length'
 import type { DatabaseCellValue, DatabaseQueryResult } from '@shared/protocols'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -17,6 +18,7 @@ type QueryResultRecordViewProps = {
   editable?: boolean
   draft?: GridDraft
   onDraftChange?: (draft: GridDraft) => void
+  columnMeta?: Record<string, { maxLength: number | null; nullable: boolean }>
   onNavigate: (direction: -1 | 1) => void
   canPrev: boolean
   canNext: boolean
@@ -29,6 +31,7 @@ export function QueryResultRecordView({
   editable = false,
   draft,
   onDraftChange,
+  columnMeta,
   onNavigate,
   canPrev,
   canNext,
@@ -114,6 +117,8 @@ export function QueryResultRecordView({
                     {isEditing ? (
                       <RecordCellEditor
                         initial={formatEditValue(value)}
+                        maxLength={columnMeta?.[column.name]?.maxLength ?? null}
+                        nullable={columnMeta?.[column.name]?.nullable ?? true}
                         onLiveChange={(raw) => applyEdit(column.name, raw)}
                         onCancel={(baseline) => {
                           applyEdit(column.name, baseline)
@@ -188,12 +193,16 @@ function formatEditValue(value: DatabaseCellValue | undefined): string {
 
 function RecordCellEditor({
   initial,
+  maxLength,
+  nullable,
   onLiveChange,
   onCancel,
   onCommit,
   onTab
 }: {
   initial: string
+  maxLength?: number | null
+  nullable?: boolean
   onLiveChange?: (raw: string) => void
   onCancel: (baseline: string) => void
   onCommit: (raw: string) => void
@@ -226,11 +235,22 @@ function RecordCellEditor({
       autoCapitalize="off"
       className="box-border w-full min-w-0 appearance-none bg-background px-3 py-1.5 font-mono text-[13px] leading-5 text-foreground outline-none ring-1 ring-accent"
       onChange={(event) => {
-        const next = event.target.value
+        const next = applyCharacterMaxLength(event.target.value, maxLength ?? null, {
+          nullable: nullable ?? true
+        })
         setValue(next)
         onLiveChange?.(next)
       }}
-      onBlur={() => finish(() => onCommit(value))}
+      onBlur={() =>
+        finish(() =>
+          onCommit(
+            applyCharacterMaxLength(value, maxLength ?? null, {
+              nullable: nullable ?? true,
+              committing: true
+            })
+          )
+        )
+      }
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.preventDefault()
@@ -240,12 +260,27 @@ function RecordCellEditor({
         }
         if (event.key === 'Enter') {
           event.preventDefault()
-          finish(() => onCommit(value))
+          finish(() =>
+            onCommit(
+              applyCharacterMaxLength(value, maxLength ?? null, {
+                nullable: nullable ?? true,
+                committing: true
+              })
+            )
+          )
           return
         }
         if (event.key === 'Tab') {
           event.preventDefault()
-          finish(() => onTab(value, event.shiftKey))
+          finish(() =>
+            onTab(
+              applyCharacterMaxLength(value, maxLength ?? null, {
+                nullable: nullable ?? true,
+                committing: true
+              }),
+              event.shiftKey
+            )
+          )
         }
       }}
     />
