@@ -518,6 +518,37 @@ function createInMemoryFs() {
   }
 }
 
+function createApiClientStub() {
+  const notImplemented = async (): Promise<never> => {
+    throw new Error('not implemented')
+  }
+  return {
+    send: notImplemented,
+    cancel: async () => undefined,
+    historyList: async () => [],
+    collectionList: async () => [],
+    collectionCreate: notImplemented,
+    collectionUpdate: notImplemented,
+    collectionDelete: async () => undefined,
+    collectionDuplicate: notImplemented,
+    collectionImport: async () => ({ canceled: true, collection: null }),
+    collectionExport: async () => ({ canceled: true, filePath: null }),
+    folderList: async () => [],
+    folderCreate: notImplemented,
+    folderUpdate: notImplemented,
+    folderDelete: async () => undefined,
+    requestList: async () => [],
+    requestCreate: notImplemented,
+    requestUpdate: notImplemented,
+    requestDelete: async () => undefined,
+    requestDuplicate: notImplemented,
+    requestMove: notImplemented,
+    variableList: async () => [],
+    variableSet: notImplemented,
+    variableDelete: async () => undefined
+  }
+}
+
 export function installMockNorth(opts?: {
   failSecondStep?: boolean
   failFirstStep?: boolean
@@ -539,6 +570,7 @@ export function installMockNorth(opts?: {
       : 'success'
 
   const workflowsApi = createWorkflowsApi(runScenario)
+  const apiClientApi = createApiClientStub()
 
   if (opts?.scenario === 'database') {
     installDatabaseMock()
@@ -709,7 +741,8 @@ export function installMockNorth(opts?: {
           throw new Error('not implemented')
         }
       },
-      workflows: workflowsApi
+      workflows: workflowsApi,
+      api: apiClientApi
     }
     ;(window as unknown as { north: typeof api }).north = api
     return
@@ -898,7 +931,8 @@ export function installMockNorth(opts?: {
       },
       getPathForFile: (file: File) => `/tmp/e2e/${file.name}`
     },
-    workflows: workflowsApi
+    workflows: workflowsApi,
+    api: apiClientApi
   }
 
   ;(window as unknown as { north: typeof api }).north = api
@@ -952,6 +986,7 @@ function installDatabaseMock(): void {
     port: 5432,
     database: 'wms',
     ssl: false,
+    apiConfig: null,
     createdAt: ts,
     updatedAt: ts
   }
@@ -1130,7 +1165,8 @@ function installDatabaseMock(): void {
       commit: async () => ({ autoCommit: false, inTransaction: false }),
       rollback: async () => ({ autoCommit: false, inTransaction: false }),
       pickFile: async () => null
-    }
+    },
+    api: createApiClientStub()
   }
 
   ;(window as unknown as { north: typeof api }).north = api

@@ -204,7 +204,8 @@ const api: NorthApi = {
     commit: (input) => ipcRenderer.invoke(IpcChannels.DB_COMMIT, input),
     rollback: (input) => ipcRenderer.invoke(IpcChannels.DB_ROLLBACK, input),
     // Session-level transaction controls (auto-commit / commit / rollback).
-    pickFile: () => ipcRenderer.invoke(IpcChannels.DB_PICK_FILE)
+    pickFile: () => ipcRenderer.invoke(IpcChannels.DB_PICK_FILE),
+    export: (input) => ipcRenderer.invoke(IpcChannels.DB_EXPORT, input)
   },
 
   stats: {
@@ -273,6 +274,33 @@ const api: NorthApi = {
       ipcRenderer.on(IpcChannels.WORKFLOWS_RUN_EVENT, handler)
       return () => ipcRenderer.removeListener(IpcChannels.WORKFLOWS_RUN_EVENT, handler)
     }
+  },
+
+  api: {
+    send: (input) => ipcRenderer.invoke(IpcChannels.API_SEND, input),
+    cancel: (input) => ipcRenderer.invoke(IpcChannels.API_CANCEL, input),
+    historyList: (input) => ipcRenderer.invoke(IpcChannels.API_HISTORY_LIST, input),
+    collectionList: (filter) => ipcRenderer.invoke(IpcChannels.API_COLLECTION_LIST, filter),
+    collectionCreate: (input) => ipcRenderer.invoke(IpcChannels.API_COLLECTION_CREATE, input),
+    collectionUpdate: (id, input) =>
+      ipcRenderer.invoke(IpcChannels.API_COLLECTION_UPDATE, id, input),
+    collectionDelete: (id) => ipcRenderer.invoke(IpcChannels.API_COLLECTION_DELETE, id),
+    collectionDuplicate: (id) => ipcRenderer.invoke(IpcChannels.API_COLLECTION_DUPLICATE, id),
+    collectionImport: (input) => ipcRenderer.invoke(IpcChannels.API_COLLECTION_IMPORT, input),
+    collectionExport: (id) => ipcRenderer.invoke(IpcChannels.API_COLLECTION_EXPORT, id),
+    folderList: (collectionId) => ipcRenderer.invoke(IpcChannels.API_FOLDER_LIST, collectionId),
+    folderCreate: (input) => ipcRenderer.invoke(IpcChannels.API_FOLDER_CREATE, input),
+    folderUpdate: (id, input) => ipcRenderer.invoke(IpcChannels.API_FOLDER_UPDATE, id, input),
+    folderDelete: (id) => ipcRenderer.invoke(IpcChannels.API_FOLDER_DELETE, id),
+    requestList: (collectionId) => ipcRenderer.invoke(IpcChannels.API_REQUEST_LIST, collectionId),
+    requestCreate: (input) => ipcRenderer.invoke(IpcChannels.API_REQUEST_CREATE, input),
+    requestUpdate: (id, input) => ipcRenderer.invoke(IpcChannels.API_REQUEST_UPDATE, id, input),
+    requestDelete: (id) => ipcRenderer.invoke(IpcChannels.API_REQUEST_DELETE, id),
+    requestDuplicate: (id) => ipcRenderer.invoke(IpcChannels.API_REQUEST_DUPLICATE, id),
+    requestMove: (input) => ipcRenderer.invoke(IpcChannels.API_REQUEST_MOVE, input),
+    variableList: (accessId) => ipcRenderer.invoke(IpcChannels.API_VARIABLE_LIST, accessId),
+    variableSet: (input) => ipcRenderer.invoke(IpcChannels.API_VARIABLE_SET, input),
+    variableDelete: (id) => ipcRenderer.invoke(IpcChannels.API_VARIABLE_DELETE, id)
   }
 }
 

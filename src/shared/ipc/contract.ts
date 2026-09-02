@@ -1,5 +1,9 @@
 import type { ThemePreference } from '../lib/theme'
 import type {
+  ApiCancelInput,
+  ApiHistoryListInput,
+  ApiSendInput,
+  ApiSendResult,
   DatabaseIntrospection,
   DatabaseQueryResult,
   DatabaseTestInput,
@@ -7,6 +11,8 @@ import type {
   DatabaseTxState,
   DbCancelInput,
   DbCommitInput,
+  DbExportInput,
+  DbExportResult,
   DbIntrospectInput,
   DbQueryInput,
   DbRollbackInput,
@@ -27,12 +33,24 @@ import type {
 } from '../protocols'
 import type {
   Access,
+  ApiCollection,
+  ApiCollectionExportResult,
+  ApiCollectionImportInput,
+  ApiCollectionImportResult,
+  ApiCollectionListFilter,
+  ApiFolder,
+  ApiRequest,
+  ApiRequestHistoryEntry,
+  ApiVariablePublic,
   Client,
   Connection,
   ConnectionHistoryEntry,
   ConnectionSecret,
   CopyWorkflowInput,
   CreateAccessInput,
+  CreateApiCollectionInput,
+  CreateApiFolderInput,
+  CreateApiRequestInput,
   CreateClientInput,
   CreateConnectionInput,
   CreateEnvironmentInput,
@@ -47,11 +65,13 @@ import type {
   ListAccessesFilter,
   ListConnectionsFilter,
   ListHistoryFilter,
+  MoveApiRequestInput,
   RecordConnectionInput,
   RevealSecretInput,
   SearchIndexItem,
   SerialPortInfo,
   SetAccessTagsInput,
+  SetApiVariableInput,
   SetConnectionSecretInput,
   SetConnectionTagsInput,
   SetSecretInput,
@@ -59,6 +79,9 @@ import type {
   StatsOverview,
   Tag,
   UpdateAccessInput,
+  UpdateApiCollectionInput,
+  UpdateApiFolderInput,
+  UpdateApiRequestInput,
   UpdateClientInput,
   UpdateConnectionInput,
   UpdateEnvironmentInput,
@@ -308,6 +331,10 @@ export interface IpcInvokeMap {
     args: []
     result: string | null
   }
+  [IpcChannels.DB_EXPORT]: {
+    args: [input: DbExportInput]
+    result: DbExportResult
+  }
 
   [IpcChannels.STATS_OVERVIEW]: {
     args: []
@@ -414,6 +441,99 @@ export interface IpcInvokeMap {
   }
   [IpcChannels.WORKFLOWS_DELETE_CONNECTION_SECRET]: {
     args: [connectionId: string, kind: string]
+    result: undefined
+  }
+
+  [IpcChannels.API_SEND]: {
+    args: [input: ApiSendInput]
+    result: ApiSendResult
+  }
+  [IpcChannels.API_CANCEL]: {
+    args: [input: ApiCancelInput]
+    result: undefined
+  }
+  [IpcChannels.API_HISTORY_LIST]: {
+    args: [input: ApiHistoryListInput]
+    result: ApiRequestHistoryEntry[]
+  }
+  [IpcChannels.API_COLLECTION_LIST]: {
+    args: [filter?: ApiCollectionListFilter]
+    result: ApiCollection[]
+  }
+  [IpcChannels.API_COLLECTION_CREATE]: {
+    args: [input: CreateApiCollectionInput]
+    result: ApiCollection
+  }
+  [IpcChannels.API_COLLECTION_UPDATE]: {
+    args: [id: string, input: UpdateApiCollectionInput]
+    result: ApiCollection
+  }
+  [IpcChannels.API_COLLECTION_DELETE]: {
+    args: [id: string]
+    result: undefined
+  }
+  [IpcChannels.API_COLLECTION_DUPLICATE]: {
+    args: [id: string]
+    result: ApiCollection
+  }
+  [IpcChannels.API_COLLECTION_IMPORT]: {
+    args: [input: ApiCollectionImportInput]
+    result: ApiCollectionImportResult
+  }
+  [IpcChannels.API_COLLECTION_EXPORT]: {
+    args: [id: string]
+    result: ApiCollectionExportResult
+  }
+  [IpcChannels.API_FOLDER_LIST]: {
+    args: [collectionId: string]
+    result: ApiFolder[]
+  }
+  [IpcChannels.API_FOLDER_CREATE]: {
+    args: [input: CreateApiFolderInput]
+    result: ApiFolder
+  }
+  [IpcChannels.API_FOLDER_UPDATE]: {
+    args: [id: string, input: UpdateApiFolderInput]
+    result: ApiFolder
+  }
+  [IpcChannels.API_FOLDER_DELETE]: {
+    args: [id: string]
+    result: undefined
+  }
+  [IpcChannels.API_REQUEST_LIST]: {
+    args: [collectionId: string]
+    result: ApiRequest[]
+  }
+  [IpcChannels.API_REQUEST_CREATE]: {
+    args: [input: CreateApiRequestInput]
+    result: ApiRequest
+  }
+  [IpcChannels.API_REQUEST_UPDATE]: {
+    args: [id: string, input: UpdateApiRequestInput]
+    result: ApiRequest
+  }
+  [IpcChannels.API_REQUEST_DELETE]: {
+    args: [id: string]
+    result: undefined
+  }
+  [IpcChannels.API_REQUEST_DUPLICATE]: {
+    args: [id: string]
+    result: ApiRequest
+  }
+  [IpcChannels.API_REQUEST_MOVE]: {
+    args: [input: MoveApiRequestInput]
+    result: ApiRequest
+  }
+  [IpcChannels.API_VARIABLE_LIST]: {
+    args: [accessId: string]
+    result: ApiVariablePublic[]
+  }
+  [IpcChannels.API_VARIABLE_SET]: {
+    args: [input: SetApiVariableInput]
+    result: ApiVariablePublic
+  }
+  [IpcChannels.API_VARIABLE_DELETE]: {
+    args: [id: string]
     result: undefined
   }
 }
@@ -533,6 +653,7 @@ export interface NorthApi {
     commit: (input: DbCommitInput) => Promise<DatabaseTxState>
     rollback: (input: DbRollbackInput) => Promise<DatabaseTxState>
     pickFile: () => Promise<string | null>
+    export: (input: DbExportInput) => Promise<DbExportResult>
   }
   stats: {
     overview: () => Promise<StatsOverview>
@@ -574,5 +695,30 @@ export interface NorthApi {
     onRunEvent: (
       listener: (payload: { runId: string; event: WorkflowRunEvent }) => void
     ) => () => void
+  }
+  api: {
+    send: (input: ApiSendInput) => Promise<ApiSendResult>
+    cancel: (input: ApiCancelInput) => Promise<void>
+    historyList: (input: ApiHistoryListInput) => Promise<ApiRequestHistoryEntry[]>
+    collectionList: (filter?: ApiCollectionListFilter) => Promise<ApiCollection[]>
+    collectionCreate: (input: CreateApiCollectionInput) => Promise<ApiCollection>
+    collectionUpdate: (id: string, input: UpdateApiCollectionInput) => Promise<ApiCollection>
+    collectionDelete: (id: string) => Promise<void>
+    collectionDuplicate: (id: string) => Promise<ApiCollection>
+    collectionImport: (input: ApiCollectionImportInput) => Promise<ApiCollectionImportResult>
+    collectionExport: (id: string) => Promise<ApiCollectionExportResult>
+    folderList: (collectionId: string) => Promise<ApiFolder[]>
+    folderCreate: (input: CreateApiFolderInput) => Promise<ApiFolder>
+    folderUpdate: (id: string, input: UpdateApiFolderInput) => Promise<ApiFolder>
+    folderDelete: (id: string) => Promise<void>
+    requestList: (collectionId: string) => Promise<ApiRequest[]>
+    requestCreate: (input: CreateApiRequestInput) => Promise<ApiRequest>
+    requestUpdate: (id: string, input: UpdateApiRequestInput) => Promise<ApiRequest>
+    requestDelete: (id: string) => Promise<void>
+    requestDuplicate: (id: string) => Promise<ApiRequest>
+    requestMove: (input: MoveApiRequestInput) => Promise<ApiRequest>
+    variableList: (accessId: string) => Promise<ApiVariablePublic[]>
+    variableSet: (input: SetApiVariableInput) => Promise<ApiVariablePublic>
+    variableDelete: (id: string) => Promise<void>
   }
 }

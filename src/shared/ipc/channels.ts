@@ -101,6 +101,7 @@ export const IpcChannels = {
   DB_COMMIT: 'db:commit',
   DB_ROLLBACK: 'db:rollback',
   DB_PICK_FILE: 'db:pick-file',
+  DB_EXPORT: 'db:export',
 
   STATS_OVERVIEW: 'stats:overview',
 
@@ -136,7 +137,31 @@ export const IpcChannels = {
   WORKFLOWS_SET_CONNECTION_SECRET: 'workflows:set-connection-secret',
   WORKFLOWS_DELETE_CONNECTION_SECRET: 'workflows:delete-connection-secret',
   /** Main → renderer (event): workflow run timeline event. */
-  WORKFLOWS_RUN_EVENT: 'workflows:run-event'
+  WORKFLOWS_RUN_EVENT: 'workflows:run-event',
+
+  API_SEND: 'api:send',
+  API_CANCEL: 'api:cancel',
+  API_HISTORY_LIST: 'api:history-list',
+  API_COLLECTION_LIST: 'api:collection-list',
+  API_COLLECTION_CREATE: 'api:collection-create',
+  API_COLLECTION_UPDATE: 'api:collection-update',
+  API_COLLECTION_DELETE: 'api:collection-delete',
+  API_COLLECTION_DUPLICATE: 'api:collection-duplicate',
+  API_COLLECTION_IMPORT: 'api:collection-import',
+  API_COLLECTION_EXPORT: 'api:collection-export',
+  API_FOLDER_LIST: 'api:folder-list',
+  API_FOLDER_CREATE: 'api:folder-create',
+  API_FOLDER_UPDATE: 'api:folder-update',
+  API_FOLDER_DELETE: 'api:folder-delete',
+  API_REQUEST_LIST: 'api:request-list',
+  API_REQUEST_CREATE: 'api:request-create',
+  API_REQUEST_UPDATE: 'api:request-update',
+  API_REQUEST_DELETE: 'api:request-delete',
+  API_REQUEST_DUPLICATE: 'api:request-duplicate',
+  API_REQUEST_MOVE: 'api:request-move',
+  API_VARIABLE_LIST: 'api:variable-list',
+  API_VARIABLE_SET: 'api:variable-set',
+  API_VARIABLE_DELETE: 'api:variable-delete'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
