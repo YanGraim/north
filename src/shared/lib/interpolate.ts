@@ -1,6 +1,5 @@
 /**
- * Variable interpolation for workflow steps.
- * Precedence (low → high): group → input defaults → run inputs → set.variable.
+ * Variable interpolation for workflows and the API client.
  * Syntax: {{KEY}} (literal substitution only).
  */
 

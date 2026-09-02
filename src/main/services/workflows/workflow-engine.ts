@@ -1,3 +1,4 @@
+import { buildRunVariables, type InterpolateContext } from '@shared/lib/interpolate'
 import type {
   RunMode,
   RunStatus,
@@ -6,7 +7,6 @@ import type {
   WorkflowRunEvent,
   WorkflowStep
 } from '@shared/types'
-import { buildRunVariables, type InterpolateContext } from './interpolate'
 import type { RemoteExecSession } from './remote-exec-service'
 import { defaultStepRegistry, type StepTypeRegistry } from './step-registry'
 

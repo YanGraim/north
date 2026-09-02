@@ -1,3 +1,4 @@
+import { type InterpolateContext, interpolateDeep } from '@shared/lib/interpolate'
 import {
   parseAuthHints,
   type StepPolicy,
@@ -5,8 +6,6 @@ import {
   type WorkflowStep
 } from '@shared/types'
 import { type AuthCredentials, wrapCommandForAuth } from './auth-wrap'
-import type { InterpolateContext } from './interpolate'
-import { interpolateDeep } from './interpolate'
 
 export type ResolvedStep = {
   step: WorkflowStep

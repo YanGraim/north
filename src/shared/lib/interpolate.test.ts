@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildRunVariables, interpolate, interpolateDeep } from './interpolate'
 
-describe('workflow interpolate', () => {
+describe('interpolate', () => {
   it('replaces {{KEY}} placeholders', () => {
     expect(interpolate('cd {{PROJECT_PATH}} && ls', { PROJECT_PATH: '/var/www' })).toBe(
       'cd /var/www && ls'
