@@ -17,7 +17,7 @@ describe('workflows copy-to-groups', () => {
     cy.get('[data-testid="workflow-hub-editor-title"]').should('contain', 'Editando: Deploy Shared')
 
     cy.get('[data-testid="workflow-hub-copy"]').click()
-    cy.get('[data-testid="workflow-group-targets"]').should('be.visible')
+    cy.get('[data-testid="workflow-group-targets"]').scrollIntoView().should('be.visible')
     cy.get('[data-testid="workflow-group-target-group-2"]').check()
     cy.get('[data-testid="workflow-hub-copy-confirm"]').click()
 

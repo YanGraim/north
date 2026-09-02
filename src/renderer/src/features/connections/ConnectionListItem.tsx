@@ -62,6 +62,7 @@ export function ConnectionListItem({
             onClick={onSelect}
             className="absolute inset-0 z-0"
             aria-label={`Selecionar ${connection.name}`}
+            data-testid={`inventory-item-connection-${connection.id}`}
           />
           <span
             className="relative z-10 mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-surface text-muted ring-1 ring-border/60"

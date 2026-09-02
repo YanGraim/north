@@ -145,7 +145,12 @@ export function QueryResultGrid({
     selectingKindRef.current = null
   }, [result.columns, result.rows])
 
-  const indices = orderedColumnIndices(result.columns.length, order)
+  // Must be memoized: every derived memo below (and the snapshot effects) depends on it,
+  // so a fresh array each render loops setState in the parent pane.
+  const indices = useMemo(
+    () => orderedColumnIndices(result.columns.length, order),
+    [result.columns.length, order]
+  )
   const columnNames = useMemo(() => result.columns.map((column) => column.name), [result.columns])
   const orderedNames = useMemo(
     () =>

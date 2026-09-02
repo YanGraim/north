@@ -68,6 +68,7 @@ function TabButton({
       role="tab"
       tabIndex={0}
       aria-selected={active}
+      data-testid={isWorkspace ? 'session-tab-workspace' : undefined}
       draggable={!isWorkspace}
       onDragStart={() => onDragStart(index)}
       onDragOver={(e) => {

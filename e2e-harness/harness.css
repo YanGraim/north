@@ -1,0 +1,5 @@
+@import "../src/renderer/src/assets/index.css";
+
+/* Vite root is e2e-harness/, so Tailwind must be told to scan the renderer too. */
+@source "../src/renderer/src";
+@source "./";

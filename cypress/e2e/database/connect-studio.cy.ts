@@ -18,7 +18,8 @@ describe('database studio', () => {
     cy.get('[data-testid="studio-result-status"]').should('be.visible').and('contain', '2')
     cy.contains('sku').should('be.visible')
     cy.get('[data-testid="session-identity-bar"]').should('be.visible')
-    cy.get('[data-testid="grid-row-0"]').click()
+    // Row selection lives on the gutter cell; other cells start a cell selection.
+    cy.get('[data-testid="grid-row-0"] td').first().click()
     cy.get('[data-testid="grid-row-0"]').should('have.attr', 'data-selected', 'true')
     cy.get('[data-testid="view-mode-record"]').click()
     cy.get('[data-testid="query-result-record"]').should('be.visible')

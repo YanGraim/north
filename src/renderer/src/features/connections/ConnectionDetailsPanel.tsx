@@ -133,7 +133,10 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
   return (
     <>
       <ConnectionContextMenu connection={connection}>
-        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+        <div
+          className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
+          data-testid="connection-details-panel"
+        >
           <header className="shrink-0 border-b border-border px-4 py-3">
             <div className="flex items-center gap-2">
               <span

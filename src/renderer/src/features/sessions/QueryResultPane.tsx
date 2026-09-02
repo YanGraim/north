@@ -18,7 +18,7 @@ import { isModPressed } from '@renderer/lib/shortcuts'
 import { cn } from '@renderer/lib/utils'
 import type { DatabaseCellValue, DatabaseQueryResult } from '@shared/protocols'
 import { Copy, Download, LayoutList, Loader2, Save, Sigma, Table2, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { StudioPane } from './studio-tabs'
 
@@ -90,7 +90,7 @@ export function QueryResultPane({
   const [selectedValues, setSelectedValues] = useState<DatabaseCellValue[]>([])
   const [exportSnapshot, setExportSnapshot] = useState<GridExportSnapshot | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
-  const activeDraft = draft ?? emptyGridDraft()
+  const activeDraft = useMemo(() => draft ?? emptyGridDraft(), [draft])
 
   useEffect(() => {
     setActiveSourceIndex(result && result.rows.length > 0 ? 0 : null)

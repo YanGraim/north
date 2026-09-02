@@ -30,3 +30,7 @@ cypress/videos/
 *.sqlite
 *.sqlite3
 north-export*.json
+
+# Local Cursor IDE config (shared rules stay tracked under .cursor/rules/)
+.cursor/agents/
+.cursor/rules/orchestrator.mdc

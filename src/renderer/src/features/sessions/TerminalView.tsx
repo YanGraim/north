@@ -225,6 +225,7 @@ export function TerminalView({
       className="flex h-full w-full flex-col overflow-hidden bg-background"
       style={{ display: visible ? 'flex' : 'none' }}
       data-session-id={sessionId}
+      data-testid="terminal-view"
     >
       <SessionIdentityBar
         username={username}

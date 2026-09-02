@@ -47,6 +47,10 @@ const DB_CLIENT_ID = 'b1000000-0000-4000-8000-000000000001'
 const DB_ENV_ID = 'b2000000-0000-4000-8000-000000000002'
 const DB_GROUP_ID = 'b3000000-0000-4000-8000-000000000003'
 const DB_ACCESS_ID = 'b4000000-0000-4000-8000-000000000004'
+const DB_SSH_CONNECTION_ID = 'b5000000-0000-4000-8000-000000000005'
+const DB_API_GROUP_ID = 'b6000000-0000-4000-8000-000000000006'
+const DB_SRV_GROUP_ID = 'b7000000-0000-4000-8000-000000000007'
+const DB_API_ACCESS_ID = 'b8000000-0000-4000-8000-000000000008'
 
 let workflows: Workflow[] = []
 let variables: GroupVariable[] = []
@@ -573,7 +577,7 @@ export function installMockNorth(opts?: {
   const apiClientApi = createApiClientStub()
 
   if (opts?.scenario === 'database') {
-    installDatabaseMock()
+    installDatabaseMock(workflowsApi)
     return
   }
 
@@ -938,7 +942,7 @@ export function installMockNorth(opts?: {
   ;(window as unknown as { north: typeof api }).north = api
 }
 
-function installDatabaseMock(): void {
+function installDatabaseMock(workflowsApi: ReturnType<typeof createWorkflowsApi>): void {
   const ts = now()
   const client: Client = {
     id: DB_CLIENT_ID,
@@ -961,9 +965,27 @@ function installDatabaseMock(): void {
   const group: Group = {
     id: DB_GROUP_ID,
     environmentId: DB_ENV_ID,
-    name: 'db-group',
+    name: 'Banco',
+    notes: null,
+    sortOrder: 1,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const apiGroup: Group = {
+    id: DB_API_GROUP_ID,
+    environmentId: DB_ENV_ID,
+    name: 'api',
     notes: null,
     sortOrder: 0,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const serverGroup: Group = {
+    id: DB_SRV_GROUP_ID,
+    environmentId: DB_ENV_ID,
+    name: 'Servidores',
+    notes: null,
+    sortOrder: 2,
     createdAt: ts,
     updatedAt: ts
   }
@@ -987,6 +1009,66 @@ function installDatabaseMock(): void {
     database: 'wms',
     ssl: false,
     apiConfig: null,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const apiAccess: Access = {
+    id: DB_API_ACCESS_ID,
+    groupId: DB_API_GROUP_ID,
+    type: 'api',
+    name: 'teste',
+    description: null,
+    notes: null,
+    username: null,
+    credentialRef: null,
+    url: 'https://api.example.test',
+    links: [],
+    icon: null,
+    color: null,
+    isFavorite: false,
+    engine: null,
+    host: null,
+    port: null,
+    database: null,
+    ssl: null,
+    apiConfig: {
+      schemaVersion: 1,
+      auth: { type: 'none' },
+      defaultHeaders: [],
+      timeoutMs: 30_000,
+      followRedirects: true,
+      verifyTls: true
+    },
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const sshConnection: Connection = {
+    id: DB_SSH_CONNECTION_ID,
+    groupId: DB_SRV_GROUP_ID,
+    name: 'app-server',
+    description: null,
+    protocol: 'ssh',
+    host: '10.1.1.20',
+    port: 22,
+    username: 'deploy',
+    authMethod: 'password',
+    credentialRef: crypto.randomUUID(),
+    privateKeyPath: null,
+    jumpHostId: null,
+    defaultCommand: null,
+    notes: null,
+    os: null,
+    icon: null,
+    color: null,
+    owner: null,
+    links: [],
+    vpnRequired: false,
+    checklist: [],
+    relatedFiles: [],
+    isFavorite: false,
+    accessCount: 0,
+    totalConnectedMs: 0,
+    lastConnectedAt: null,
     createdAt: ts,
     updatedAt: ts
   }
@@ -1018,8 +1100,9 @@ function installDatabaseMock(): void {
       delete: async () => undefined
     },
     groups: {
-      list: async () => [group],
-      get: async (id: string) => (id === group.id ? group : null),
+      list: async () => [apiGroup, group, serverGroup],
+      get: async (id: string) =>
+        [apiGroup, group, serverGroup].find((item) => item.id === id) ?? null,
       create: async () => {
         throw new Error('not implemented')
       },
@@ -1029,8 +1112,11 @@ function installDatabaseMock(): void {
       delete: async () => undefined
     },
     connections: {
-      list: async () => [],
-      get: async () => null,
+      list: async (filter?: { groupId?: string }) => {
+        if (filter?.groupId && filter.groupId !== sshConnection.groupId) return []
+        return [sshConnection]
+      },
+      get: async (id: string) => (id === sshConnection.id ? sshConnection : null),
       create: async () => {
         throw new Error('not implemented')
       },
@@ -1046,14 +1132,19 @@ function installDatabaseMock(): void {
       }
     },
     accesses: {
-      list: async () => [access],
-      get: async (id: string) => (id === access.id ? access : null),
+      list: async (filter?: { groupId?: string }) => {
+        const all = [access, apiAccess]
+        if (filter?.groupId) return all.filter((item) => item.groupId === filter.groupId)
+        return all
+      },
+      get: async (id: string) => [access, apiAccess].find((item) => item.id === id) ?? null,
       create: async () => access,
       update: async () => access,
       delete: async () => undefined,
       toggleFavorite: async (id: string) => {
-        if (id === access.id) access.isFavorite = !access.isFavorite
-        return access
+        const target = [access, apiAccess].find((item) => item.id === id) ?? access
+        target.isFavorite = !target.isFavorite
+        return target
       }
     },
     tags: {
@@ -1081,8 +1172,26 @@ function installDatabaseMock(): void {
       index: async () => []
     },
     sessions: {
-      open: async () => {
-        throw new Error('use openAccess')
+      open: async (
+        connectionId: string,
+        onPort: (port: MessagePort) => void
+      ): Promise<SessionDescriptor> => {
+        if (connectionId !== DB_SSH_CONNECTION_ID) throw new Error('Connection not found')
+        const channel = new MessageChannel()
+        onPort(channel.port2)
+        channel.port1.start()
+        const session: SessionDescriptor = {
+          id: crypto.randomUUID(),
+          connectionId: DB_SSH_CONNECTION_ID,
+          accessId: null,
+          kind: 'terminal',
+          protocol: 'ssh',
+          title: sshConnection.name,
+          state: 'connected',
+          errorMessage: null
+        }
+        openSessions.set(session.id, session)
+        return session
       },
       openAccess: async (accessId: string): Promise<SessionDescriptor> => {
         if (accessId !== DB_ACCESS_ID) throw new Error('Access not found')
@@ -1166,6 +1275,7 @@ function installDatabaseMock(): void {
       rollback: async () => ({ autoCommit: false, inTransaction: false }),
       pickFile: async () => null
     },
+    workflows: workflowsApi,
     api: createApiClientStub()
   }
 
@@ -1178,5 +1288,12 @@ export const harnessIds = {
   CONNECTION_ID,
   FTP_CONNECTION_ID,
   FTP_GROUP_ID,
-  DB_ACCESS_ID
+  DB_CLIENT_ID,
+  DB_ENV_ID,
+  DB_GROUP_ID,
+  DB_ACCESS_ID,
+  DB_SSH_CONNECTION_ID,
+  DB_API_GROUP_ID,
+  DB_SRV_GROUP_ID,
+  DB_API_ACCESS_ID
 }
