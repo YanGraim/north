@@ -1,6 +1,6 @@
 import type { Access } from '@shared/types'
 import { describe, expect, it } from 'vitest'
-import { configFromAccess, configFromTestInput } from './config'
+import { configFromAccess, configFromTestInput, exportLimitsForFormat } from './config'
 
 const base: Access = {
   id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -21,6 +21,7 @@ const base: Access = {
   port: 5432,
   database: 'app',
   ssl: true,
+  apiConfig: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z'
 }
@@ -54,5 +55,12 @@ describe('configFromTestInput', () => {
     expect(config.port).toBe(6543)
     expect(config.database).toBe('from_form')
     expect(config.password).toBe('secret')
+  })
+})
+
+describe('exportLimitsForFormat', () => {
+  it('uses the pdf row cap only for pdf exports', () => {
+    expect(exportLimitsForFormat('pdf').maxRows).toBe(5_000)
+    expect(exportLimitsForFormat('csv').maxRows).toBe(100_000)
   })
 })

@@ -1,6 +1,5 @@
 import type {
   DatabaseCapability,
-  DatabaseQueryResult,
   DatabaseTxState,
   ProtocolSession,
   SessionDataPort,
@@ -22,7 +21,8 @@ export class DatabaseProtocolSession implements ProtocolSession {
   ) {
     this.database = {
       introspect: () => this.adapter.introspect(),
-      query: (sql: string): Promise<DatabaseQueryResult> => this.adapter.query(sql, queryLimits),
+      query: (sql: string, options?: { maxRows: number; timeoutMs: number }) =>
+        this.adapter.query(sql, options ?? queryLimits),
       cancel: () => this.adapter.cancel(),
       getTxState: (): DatabaseTxState => this.adapter.getTxState(),
       setAutoCommit: (on: boolean) => this.adapter.setAutoCommit(on),

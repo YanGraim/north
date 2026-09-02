@@ -1,4 +1,11 @@
-import { DATABASE_MAX_ROWS, DATABASE_QUERY_TIMEOUT_MS, isSqlStudioEngine } from '@shared/protocols'
+import {
+  DATABASE_EXPORT_MAX_ROWS,
+  DATABASE_EXPORT_PDF_MAX_ROWS,
+  DATABASE_EXPORT_TIMEOUT_MS,
+  DATABASE_MAX_ROWS,
+  DATABASE_QUERY_TIMEOUT_MS,
+  isSqlStudioEngine
+} from '@shared/protocols'
 import type { Access } from '@shared/types'
 import type { ResolvedDatabaseConfig } from './types'
 
@@ -64,4 +71,21 @@ export function configFromTestInput(input: {
 export const queryLimits = {
   maxRows: DATABASE_MAX_ROWS,
   timeoutMs: DATABASE_QUERY_TIMEOUT_MS
+}
+
+export const exportQueryLimits = {
+  maxRows: DATABASE_EXPORT_MAX_ROWS,
+  timeoutMs: DATABASE_EXPORT_TIMEOUT_MS
+}
+
+export const exportPdfQueryLimits = {
+  maxRows: DATABASE_EXPORT_PDF_MAX_ROWS,
+  timeoutMs: DATABASE_EXPORT_TIMEOUT_MS
+}
+
+export function exportLimitsForFormat(format: 'pdf' | 'csv' | 'json' | 'xlsx' | 'sql'): {
+  maxRows: number
+  timeoutMs: number
+} {
+  return format === 'pdf' ? exportPdfQueryLimits : exportQueryLimits
 }

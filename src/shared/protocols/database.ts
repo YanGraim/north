@@ -8,6 +8,9 @@ export type SqlStudioEngine = z.infer<typeof SqlStudioEngineSchema>
 
 export const DATABASE_QUERY_TIMEOUT_MS = 30_000
 export const DATABASE_MAX_ROWS = 1_000
+export const DATABASE_EXPORT_MAX_ROWS = 100_000
+export const DATABASE_EXPORT_PDF_MAX_ROWS = 5_000
+export const DATABASE_EXPORT_TIMEOUT_MS = 5 * 60 * 1000
 
 export function isSqlStudioEngine(engine: string | null | undefined): engine is SqlStudioEngine {
   return (
@@ -67,6 +70,56 @@ export const DatabaseQueryResultSchema = z.object({
   truncated: z.boolean()
 })
 export type DatabaseQueryResult = z.infer<typeof DatabaseQueryResultSchema>
+
+export const DatabaseExportFormatSchema = z.enum(['csv', 'json', 'xlsx', 'pdf', 'sql'])
+export type DatabaseExportFormat = z.infer<typeof DatabaseExportFormatSchema>
+
+export const DatabaseExportOptionsSchema = z.object({
+  csvHeader: z.boolean().optional(),
+  csvDelimiter: z.enum([',', ';']).optional(),
+  csvBom: z.boolean().optional(),
+  xlsxHeader: z.boolean().optional(),
+  xlsxSheetName: z.string().optional(),
+  pdfLandscape: z.boolean().optional(),
+  pdfHeader: z.boolean().optional(),
+  sqlTableName: z.string().optional()
+})
+export type DatabaseExportOptions = z.infer<typeof DatabaseExportOptionsSchema>
+
+export const DbExportQueryInputSchema = z.object({
+  source: z.literal('query'),
+  sessionId: z.string().uuid(),
+  sql: z.string().min(1),
+  format: DatabaseExportFormatSchema,
+  options: DatabaseExportOptionsSchema,
+  suggestedName: z.string().min(1)
+})
+export type DbExportQueryInput = z.infer<typeof DbExportQueryInputSchema>
+
+export const DbExportRowsInputSchema = z.object({
+  source: z.literal('rows'),
+  columns: z.array(DatabaseQueryColumnSchema),
+  rows: z.array(z.record(z.string(), DatabaseCellValueSchema)),
+  format: DatabaseExportFormatSchema,
+  options: DatabaseExportOptionsSchema,
+  suggestedName: z.string().min(1),
+  engine: SqlStudioEngineSchema.optional()
+})
+export type DbExportRowsInput = z.infer<typeof DbExportRowsInputSchema>
+
+export const DbExportInputSchema = z.discriminatedUnion('source', [
+  DbExportQueryInputSchema,
+  DbExportRowsInputSchema
+])
+export type DbExportInput = z.infer<typeof DbExportInputSchema>
+
+export const DbExportResultSchema = z.object({
+  canceled: z.boolean(),
+  filePath: z.string().nullable(),
+  rowCount: z.number().int().nonnegative(),
+  truncated: z.boolean()
+})
+export type DbExportResult = z.infer<typeof DbExportResultSchema>
 
 export const DatabaseTestInputSchema = z.object({
   engine: DatabaseEngineSchema,

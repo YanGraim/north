@@ -1,4 +1,5 @@
 import type { AuthMethod, Connection } from '../types'
+import type { ApiSendInput, ApiSendResult } from './api'
 import type { DatabaseIntrospection, DatabaseQueryResult, DatabaseTxState } from './database'
 import type { FileTransferCapability } from './file-transfer'
 import type { SessionKind, SessionState } from './session'
@@ -28,14 +29,24 @@ export type TerminalCapability = {
   resize(cols: number, rows: number): void
 }
 
+export type DatabaseQueryOptions = {
+  maxRows: number
+  timeoutMs: number
+}
+
 export type DatabaseCapability = {
   introspect(): Promise<DatabaseIntrospection>
-  query(sql: string): Promise<DatabaseQueryResult>
+  query(sql: string, options?: DatabaseQueryOptions): Promise<DatabaseQueryResult>
   cancel(): Promise<void>
   getTxState(): DatabaseTxState
   setAutoCommit(on: boolean): Promise<void>
   commit(): Promise<void>
   rollback(): Promise<void>
+}
+
+export type ApiCapability = {
+  send(input: ApiSendInput): Promise<ApiSendResult>
+  cancel(requestId: string): void
 }
 
 /**
@@ -58,6 +69,7 @@ export type ProtocolSession = {
   readonly terminal?: TerminalCapability
   readonly fileTransfer?: FileTransferCapability
   readonly database?: DatabaseCapability
+  readonly api?: ApiCapability
   /**
    * Attach the main-side MessagePort. Outbound data/state go through this port;
    * inbound resize/data are handled by the driver.

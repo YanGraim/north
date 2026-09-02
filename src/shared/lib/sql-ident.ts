@@ -198,6 +198,28 @@ export function tableBrowseSql(
   return tableBrowsePageSql(engine, schema, table, filter, 0, TABLE_BROWSE_PAGE_SIZE, orderBy)
 }
 
+/**
+ * Full-table export SQL (no LIMIT/OFFSET). Full SQL in the filter bar is returned as-is.
+ * MSSQL adds ORDER BY when missing so exports are deterministic.
+ */
+export function tableExportSql(
+  engine: SqlStudioEngine,
+  schema: string | null,
+  table: string,
+  filter: string,
+  orderBy?: readonly string[]
+): string {
+  const trimmed = filter.trim()
+  if (trimmed && isFullSqlStatement(trimmed)) return trimmed
+  const ident = qualifyRelation(engine, schema, table)
+  const where = trimmed ? ` WHERE ${stripWhereKeyword(trimmed)}` : ''
+  if (engine === 'mssql') {
+    const order = mssqlOrderByClause(engine, orderBy)
+    return `SELECT * FROM ${ident}${where} ORDER BY ${order}`
+  }
+  return `SELECT * FROM ${ident}${where}`
+}
+
 function hasTopLevelPagingKeyword(sql: string): boolean {
   let blocked = false
   let afterSelect = false
