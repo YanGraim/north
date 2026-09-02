@@ -12,6 +12,9 @@ export type ShortcutId =
   | 'closeTab'
   | 'duplicateTab'
   | 'formatSql'
+  | 'sendRequest'
+  | 'saveRequest'
+  | 'focusUrl'
 
 export type ShortcutDefinition = {
   id: ShortcutId
@@ -69,6 +72,27 @@ export const SHORTCUTS: Record<ShortcutId, ShortcutDefinition> = {
     shift: true,
     label: '⌘⇧F',
     description: 'Formatar SQL'
+  },
+  sendRequest: {
+    id: 'sendRequest',
+    key: 'enter',
+    mod: true,
+    label: '⌘↵',
+    description: 'Enviar request HTTP'
+  },
+  saveRequest: {
+    id: 'saveRequest',
+    key: 's',
+    mod: true,
+    label: '⌘S',
+    description: 'Salvar request HTTP'
+  },
+  focusUrl: {
+    id: 'focusUrl',
+    key: 'l',
+    mod: true,
+    label: '⌘L',
+    description: 'Focar URL da request'
   }
 }
 

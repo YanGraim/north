@@ -194,6 +194,7 @@ describe('sessions-store optimistic open', () => {
       port: 5432,
       database: 'wms',
       ssl: false,
+      apiConfig: null,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z'
     }
@@ -218,6 +219,29 @@ describe('sessions-store optimistic open', () => {
     expect(tab?.port).toBeNull()
     expect(tab?.state).toBe('connected')
     expect(openAccessMock).toHaveBeenCalledWith(accessId)
+  })
+
+  it('opens an API access without a MessagePort', async () => {
+    const accessId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+    getAccessMock.mockResolvedValue({
+      id: accessId,
+      groupId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      type: 'api',
+      name: 'Petstore',
+      url: 'https://api.example.com',
+      username: null,
+      apiConfig: null
+    })
+    await openAccessSession(accessId, { title: 'Petstore' })
+
+    const tab = useSessionsStore.getState().tabs.find((item) => item.sessionKind === 'api')
+    expect(tab?.sessionKind).toBe('api')
+    expect(tab?.protocol).toBe('api')
+    expect(tab?.environmentAccessId).toBe(accessId)
+    expect(tab?.port).toBeUndefined()
+    expect(tab?.host).toBe('https://api.example.com')
+    expect(tab?.state).toBe('connected')
+    expect(openAccessMock).not.toHaveBeenCalled()
   })
 
   it('rejects Access engines that are not SQL studio', async () => {

@@ -1,4 +1,5 @@
 import { Button } from '@renderer/components/ui/button'
+import { ApiStudioView } from '@renderer/features/sessions/api/ApiStudioView'
 import { DatabaseStudioView } from '@renderer/features/sessions/DatabaseStudioView'
 import { FileBrowserView } from '@renderer/features/sessions/FileBrowserView'
 import { TerminalView } from '@renderer/features/sessions/TerminalView'
@@ -65,6 +66,21 @@ export function SessionView({ tab, visible }: SessionViewProps): React.JSX.Eleme
           </Button>
         </div>
       </div>
+    )
+  }
+
+  if (sessionKind === 'api') {
+    return (
+      <ApiStudioView
+        collectionId={tab.collectionId}
+        environmentAccessId={tab.environmentAccessId ?? tab.accessId ?? null}
+        clientId={tab.clientId}
+        visible={visible}
+        title={tab.title}
+        host={tab.host}
+        environmentName={tab.environmentName}
+        environmentColor={tab.environmentColor}
+      />
     )
   }
 

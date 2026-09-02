@@ -57,5 +57,12 @@ export const queryKeys = {
     runs: (groupId: string) => ['workflows', 'runs', groupId] as const,
     connectionSecrets: (connectionId: string) =>
       ['workflows', 'connection-secrets', connectionId] as const
+  },
+  api: {
+    collections: (scope: string) => ['api', 'collections', scope] as const,
+    folders: (collectionId: string) => ['api', 'folders', collectionId] as const,
+    requests: (collectionId: string) => ['api', 'requests', collectionId] as const,
+    variables: (accessId: string) => ['api', 'variables', accessId] as const,
+    history: (accessId: string) => ['api', 'history', accessId] as const
   }
 }

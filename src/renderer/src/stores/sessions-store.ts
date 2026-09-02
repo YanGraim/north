@@ -15,6 +15,9 @@ export type SessionTab = {
   sessionId?: string
   connectionId?: string | null
   accessId?: string | null
+  collectionId?: string | null
+  environmentAccessId?: string | null
+  clientId?: string | null
   sessionKind?: SessionKind
   protocol?: string
   username?: string | null
@@ -320,6 +323,19 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
   duplicateTab: async (tabId) => {
     const tab = get().tabs.find((t) => t.id === tabId)
     if (!tab || tab.kind === 'workflow-run') return
+    if (tab.sessionKind === 'api') {
+      openApiStudioTab({
+        collectionId: tab.collectionId,
+        collectionName: tab.title,
+        environmentAccessId: tab.environmentAccessId ?? tab.accessId,
+        clientId: tab.clientId,
+        title: tab.title,
+        host: tab.host,
+        environmentName: tab.environmentName,
+        environmentColor: tab.environmentColor
+      })
+      return
+    }
     if (tab.accessId) {
       await openAccessSession(tab.accessId, {
         title: tab.title,
@@ -458,6 +474,21 @@ export async function openAccessSession(
   if (!access) {
     throw new Error('Acesso não encontrado')
   }
+
+  if (access.type === 'api') {
+    const group = await window.north.groups.get(access.groupId)
+    const environment = group ? await window.north.environments.get(group.environmentId) : null
+    openApiStudioTab({
+      environmentAccessId: access.id,
+      clientId: environment?.clientId ?? null,
+      title: options?.title?.trim() || access.name,
+      host: options?.host ?? access.url,
+      environmentName: options?.environmentName ?? environment?.name ?? null,
+      environmentColor: options?.environmentColor ?? environment?.color ?? null
+    })
+    return
+  }
+
   if (access.type !== 'database' || !sessionKindForEngine(access.engine)) {
     throw new Error('Este engine não abre sessão SQL no North')
   }
@@ -502,6 +533,62 @@ export async function openAccessSession(
     store.failConnectingTab(tempId, message)
     throw error
   }
+}
+
+export function openApiStudioTab(input: {
+  collectionId?: string | null
+  collectionName?: string
+  environmentAccessId?: string | null
+  clientId?: string | null
+  title?: string
+  host?: string | null
+  environmentName?: string | null
+  environmentColor?: string | null
+}): void {
+  const store = useSessionsStore.getState()
+  if (input.collectionId) {
+    const existing = store.tabs.find(
+      (tab) => tab.sessionKind === 'api' && tab.collectionId === input.collectionId
+    )
+    if (existing) {
+      store.setActiveTab(existing.id)
+      if (input.environmentAccessId && existing.environmentAccessId !== input.environmentAccessId) {
+        useSessionsStore.setState((state) => ({
+          tabs: state.tabs.map((tab) =>
+            tab.id === existing.id
+              ? {
+                  ...tab,
+                  environmentAccessId: input.environmentAccessId,
+                  accessId: input.environmentAccessId
+                }
+              : tab
+          )
+        }))
+      }
+      return
+    }
+  }
+
+  const id = crypto.randomUUID()
+  const tab: SessionTab = {
+    id,
+    kind: 'session',
+    title: input.title?.trim() || input.collectionName || 'API',
+    sessionKind: 'api',
+    protocol: 'api',
+    state: 'connected',
+    accessId: input.environmentAccessId ?? null,
+    collectionId: input.collectionId ?? null,
+    environmentAccessId: input.environmentAccessId ?? null,
+    clientId: input.clientId ?? null,
+    host: input.host ?? null,
+    environmentName: input.environmentName ?? null,
+    environmentColor: input.environmentColor ?? null
+  }
+  useSessionsStore.setState((state) => ({
+    tabs: [...state.tabs, tab],
+    activeTabId: id
+  }))
 }
 
 async function resolveAccessEnvironment(

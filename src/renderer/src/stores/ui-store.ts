@@ -11,6 +11,9 @@ interface UiState {
   sidebarCollapsed: boolean
   expandedTreeNodes: Record<string, boolean>
   sidebarTagsExpanded: boolean
+  sidebarOverviewExpanded: boolean
+  sidebarClientsExpanded: boolean
+  sidebarApisExpanded: boolean
   listSort: ListSort
   theme: ThemePreference
   locale: LocaleCode
@@ -29,6 +32,9 @@ interface UiState {
   toggleTreeNode: (id: string) => void
   setTreeNodeExpanded: (id: string, expanded: boolean) => void
   setSidebarTagsExpanded: (expanded: boolean) => void
+  setSidebarOverviewExpanded: (expanded: boolean) => void
+  setSidebarClientsExpanded: (expanded: boolean) => void
+  setSidebarApisExpanded: (expanded: boolean) => void
   setListSort: (sort: ListSort) => void
   setTheme: (theme: ThemePreference) => void
   setLocale: (locale: LocaleCode) => void
@@ -58,6 +64,9 @@ export const useUiStore = create<UiState>()(
       sidebarCollapsed: false,
       expandedTreeNodes: {},
       sidebarTagsExpanded: true,
+      sidebarOverviewExpanded: true,
+      sidebarClientsExpanded: true,
+      sidebarApisExpanded: true,
       listSort: 'name',
       theme: 'dark',
       locale: 'pt-BR',
@@ -84,6 +93,9 @@ export const useUiStore = create<UiState>()(
           }
         })),
       setSidebarTagsExpanded: (expanded) => set({ sidebarTagsExpanded: expanded }),
+      setSidebarOverviewExpanded: (expanded) => set({ sidebarOverviewExpanded: expanded }),
+      setSidebarClientsExpanded: (expanded) => set({ sidebarClientsExpanded: expanded }),
+      setSidebarApisExpanded: (expanded) => set({ sidebarApisExpanded: expanded }),
       setListSort: (sort) => set({ listSort: sort }),
       setTheme: (theme) => set({ theme }),
       setLocale: (locale) => set({ locale }),
@@ -102,6 +114,9 @@ export const useUiStore = create<UiState>()(
         sidebarCollapsed: state.sidebarCollapsed,
         expandedTreeNodes: state.expandedTreeNodes,
         sidebarTagsExpanded: state.sidebarTagsExpanded,
+        sidebarOverviewExpanded: state.sidebarOverviewExpanded,
+        sidebarClientsExpanded: state.sidebarClientsExpanded,
+        sidebarApisExpanded: state.sidebarApisExpanded,
         listSort: state.listSort,
         theme: state.theme,
         locale: state.locale,

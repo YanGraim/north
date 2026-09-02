@@ -8,6 +8,9 @@ describe('shortcuts', () => {
     expect(SHORTCUTS.newConnection.key).toBe('n')
     expect(SHORTCUTS.closeTab.key).toBe('w')
     expect(SHORTCUTS.duplicateTab.shift).toBe(true)
+    expect(SHORTCUTS.sendRequest.key).toBe('enter')
+    expect(SHORTCUTS.saveRequest.key).toBe('s')
+    expect(SHORTCUTS.focusUrl.key).toBe('l')
   })
 
   it('matches mod+key combinations', () => {
