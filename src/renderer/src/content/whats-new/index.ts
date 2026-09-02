@@ -22,6 +22,9 @@ import notes018Pt from './0.1.18/pt-BR.md?raw'
 import notes019En from './0.1.19/en.md?raw'
 import notes019Es from './0.1.19/es.md?raw'
 import notes019Pt from './0.1.19/pt-BR.md?raw'
+import notes020En from './0.1.20/en.md?raw'
+import notes020Es from './0.1.20/es.md?raw'
+import notes020Pt from './0.1.20/pt-BR.md?raw'
 import { filterWhatsNewEntries } from './filter'
 
 export type WhatsNewEntry = {
@@ -94,6 +97,15 @@ export const WHATS_NEW_ENTRIES: readonly WhatsNewEntry[] = [
       'pt-BR': notes019Pt,
       en: notes019En,
       es: notes019Es
+    }
+  },
+  {
+    version: '0.1.20',
+    chapter: 'database',
+    bodies: {
+      'pt-BR': notes020Pt,
+      en: notes020En,
+      es: notes020Es
     }
   }
 ]
