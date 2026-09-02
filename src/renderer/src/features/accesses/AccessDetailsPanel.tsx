@@ -18,12 +18,14 @@ import { DetailField, DetailSection } from '@renderer/features/connections/Detai
 import { MarkdownNotes } from '@renderer/features/connections/MarkdownNotes'
 import { TagBadges } from '@renderer/features/connections/TagBadges'
 import { useAccess, useDeleteAccess, useToggleFavoriteAccess } from '@renderer/hooks/use-accesses'
+import { useApiCollections } from '@renderer/hooks/use-api'
 import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
 import { useSelectedAccessId } from '@renderer/hooks/use-route-selection'
 import { useAccessTags } from '@renderer/hooks/use-tags'
 import { useHasSecret, useRevealSecret } from '@renderer/hooks/use-vault'
 import {
   accessTypeLabel,
+  apiReady,
   buildConnectionString,
   engineLabel,
   sqlStudioReady,
@@ -35,7 +37,7 @@ import { queryKeys } from '@renderer/lib/query-keys'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { openAccessSession } from '@renderer/stores/sessions-store'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Copy,
   ExternalLink,
@@ -53,10 +55,24 @@ const REVEAL_TTL_MS = 15_000
 export function AccessDetailsPanel(): React.JSX.Element {
   const { accessId, setAccessId } = useSelectedAccessId()
   const { data: access, isLoading, isError } = useAccess(accessId ?? undefined)
+  const { resolveGroup } = useOrgLookup()
+  const accessClientId = access ? resolveGroup(access.groupId).client?.id : undefined
+  const { data: collections = [] } = useApiCollections(
+    access?.type === 'api' ? { clientId: accessClientId ?? null } : undefined
+  )
+  const { data: requestCount = 0 } = useQuery({
+    queryKey: ['api', 'request-count', access?.id, collections.map((item) => item.id)],
+    queryFn: async () => {
+      const lists = await Promise.all(
+        collections.map((item) => window.north.api.requestList(item.id))
+      )
+      return lists.reduce((sum, list) => sum + list.length, 0)
+    },
+    enabled: Boolean(access?.type === 'api')
+  })
   const { data: tags = [] } = useAccessTags(accessId ?? undefined)
   const { data: hasSecret = false } = useHasSecret(access?.credentialRef)
   const revealSecret = useRevealSecret()
-  const { resolveGroup } = useOrgLookup()
   const toggleFavorite = useToggleFavoriteAccess()
   const deleteAccess = useDeleteAccess()
   const openDialog = useInventoryDialogsStore((s) => s.open)
@@ -120,6 +136,26 @@ export function AccessDetailsPanel(): React.JSX.Element {
 
   async function handleConnect(): Promise<void> {
     if (!access) return
+    if (access.type === 'api') {
+      if (!apiReady(access)) {
+        openDialog({ type: 'access', mode: 'edit', id: access.id })
+        return
+      }
+      setConnecting(true)
+      try {
+        await openAccessSession(access.id, {
+          title: access.name,
+          sessionKind: 'api',
+          protocol: 'api',
+          host: access.url
+        })
+      } catch (error) {
+        toastError(error, 'Não foi possível abrir o cliente API.')
+      } finally {
+        setConnecting(false)
+      }
+      return
+    }
     if (!sqlStudioReady(access)) {
       openDialog({ type: 'access', mode: 'edit', id: access.id })
       return
@@ -269,15 +305,17 @@ export function AccessDetailsPanel(): React.JSX.Element {
           </div>
 
           <div className="mt-3 flex items-center gap-2">
-            {access.type === 'database' ? (
+            {access.type === 'database' || access.type === 'api' ? (
               <Button
                 type="button"
                 variant="default"
                 size="sm"
                 className="h-8 min-w-0 flex-1"
-                disabled={connecting || !supportsSqlStudio(access)}
+                disabled={connecting || (access.type === 'database' && !supportsSqlStudio(access))}
                 title={
-                  supportsSqlStudio(access) ? undefined : 'Este engine não abre sessão SQL no North'
+                  access.type === 'api' || supportsSqlStudio(access)
+                    ? undefined
+                    : 'Este engine não abre sessão SQL no North'
                 }
                 onClick={() => void handleConnect()}
                 data-testid="connect-button"
@@ -316,7 +354,9 @@ export function AccessDetailsPanel(): React.JSX.Element {
           <div className="min-w-0 space-y-5 overflow-x-hidden p-4">
             <DetailSection title="Credenciais">
               <dl className="min-w-0 space-y-2.5">
-                {access.url ? <DetailField label="URL" value={access.url} mono /> : null}
+                {access.url && access.type !== 'api' ? (
+                  <DetailField label="URL" value={access.url} mono />
+                ) : null}
                 {access.type === 'database' ? (
                   <>
                     <DetailField label="Engine" value={engineLabel(access.engine)} />
@@ -331,45 +371,59 @@ export function AccessDetailsPanel(): React.JSX.Element {
                     <DetailField label="SSL" value={access.ssl ? 'Sim' : 'Não'} />
                   </>
                 ) : null}
-                <DetailField label="Usuário" value={access.username ?? '—'} mono />
-                <div className="min-w-0">
-                  <dt className="text-xs text-muted">Senha</dt>
-                  <dd className="mt-1 flex min-w-0 items-center gap-2">
-                    <span className="truncate font-mono text-sm text-foreground">
-                      {maskedPassword}
-                    </span>
-                    {hasSecret ? (
-                      <>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-7"
-                          aria-label={shownSecret ? 'Ocultar senha' : 'Revelar senha'}
-                          disabled={revealSecret.isPending}
-                          onClick={() => void handleReveal()}
-                        >
-                          {shownSecret ? (
-                            <EyeOff className="size-3.5" />
-                          ) : (
-                            <Eye className="size-3.5" />
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-7"
-                          aria-label="Copiar senha"
-                          disabled={revealSecret.isPending}
-                          onClick={() => void handleCopyPassword()}
-                        >
-                          <Copy className="size-3.5" />
-                        </Button>
-                      </>
-                    ) : null}
-                  </dd>
-                </div>
+                {access.type === 'api' ? (
+                  <>
+                    <DetailField label="Base URL" value={access.url ?? '—'} mono />
+                    <DetailField label="Auth" value={access.apiConfig?.auth.type ?? 'none'} />
+                    <DetailField
+                      label="Collections / requests"
+                      value={`${collections.length} / ${requestCount}`}
+                    />
+                  </>
+                ) : null}
+                {access.type !== 'api' ? (
+                  <>
+                    <DetailField label="Usuário" value={access.username ?? '—'} mono />
+                    <div className="min-w-0">
+                      <dt className="text-xs text-muted">Senha</dt>
+                      <dd className="mt-1 flex min-w-0 items-center gap-2">
+                        <span className="truncate font-mono text-sm text-foreground">
+                          {maskedPassword}
+                        </span>
+                        {hasSecret ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7"
+                              aria-label={shownSecret ? 'Ocultar senha' : 'Revelar senha'}
+                              disabled={revealSecret.isPending}
+                              onClick={() => void handleReveal()}
+                            >
+                              {shownSecret ? (
+                                <EyeOff className="size-3.5" />
+                              ) : (
+                                <Eye className="size-3.5" />
+                              )}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7"
+                              aria-label="Copiar senha"
+                              disabled={revealSecret.isPending}
+                              onClick={() => void handleCopyPassword()}
+                            >
+                              <Copy className="size-3.5" />
+                            </Button>
+                          </>
+                        ) : null}
+                      </dd>
+                    </div>
+                  </>
+                ) : null}
                 {access.type === 'database' ? (
                   <div className="pt-1">
                     <Button

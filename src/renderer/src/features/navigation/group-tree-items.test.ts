@@ -55,6 +55,7 @@ function access(partial: Partial<Access> & Pick<Access, 'id' | 'name' | 'groupId
     port: 5432,
     database: null,
     ssl: false,
+    apiConfig: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...partial

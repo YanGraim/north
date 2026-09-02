@@ -243,6 +243,7 @@ export function ConnectionListPage({ mode }: ConnectionListPageProps): React.JSX
                     <DropdownMenuRadioItem value="connection">Servidor</DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="database">Banco</DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="login">Login</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="api">API</DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -293,6 +294,7 @@ export function ConnectionListPage({ mode }: ConnectionListPageProps): React.JSX
               <DropdownMenuItem onSelect={() => openCreateAccess('database')}>
                 Banco
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => openCreateAccess('api')}>API</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => openCreateAccess('login')}>
                 Acesso · login
               </DropdownMenuItem>

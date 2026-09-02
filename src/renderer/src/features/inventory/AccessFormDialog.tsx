@@ -38,6 +38,7 @@ import { useAccessTags, useSetAccessTags } from '@renderer/hooks/use-tags'
 import { useHasSecret, useVaultAvailable } from '@renderer/hooks/use-vault'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import type { CreateAccessInput } from '@shared/types'
+import { emptyApiConfig } from '@shared/types'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -47,8 +48,8 @@ const CREATE_CLIENT = '__create_client__'
 const CREATE_ENVIRONMENT = '__create_environment__'
 const CREATE_GROUP = '__create_group__'
 
-/** Login / other only — database uses DatabaseConnectionFormDialog. */
-const LoginAccessTypeSchema = z.enum(['login', 'other'])
+/** Login / other / API — database uses DatabaseConnectionFormDialog. */
+const LoginAccessTypeSchema = z.enum(['login', 'other', 'api'])
 
 const FormSchema = z
   .object({
@@ -58,6 +59,13 @@ const FormSchema = z
     username: z.string().nullable().optional(),
     password: z.string().optional(),
     url: z.string().nullable().optional(),
+    authType: z.enum(['none', 'bearer', 'basic', 'apiKey']),
+    authToken: z.string().optional(),
+    authUsername: z.string().optional(),
+    authPassword: z.string().optional(),
+    apiKeyName: z.string().optional(),
+    apiKeyValue: z.string().optional(),
+    apiKeyIn: z.enum(['header', 'query']),
     clientId: z.string().uuid('Selecione o cliente'),
     environmentId: z.string().uuid('Selecione o ambiente'),
     groupId: z.string().uuid('Selecione o grupo'),
@@ -67,8 +75,12 @@ const FormSchema = z
     tagIds: z.array(z.string().uuid())
   })
   .superRefine((values, ctx) => {
-    if (values.type === 'login' && !values.url?.trim()) {
-      ctx.addIssue({ code: 'custom', message: 'Informe a URL', path: ['url'] })
+    if ((values.type === 'login' || values.type === 'api') && !values.url?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: values.type === 'api' ? 'Informe a Base URL' : 'Informe a URL',
+        path: ['url']
+      })
     }
   })
 
@@ -119,6 +131,13 @@ export function AccessFormDialog(): React.JSX.Element | null {
       username: null,
       password: '',
       url: null,
+      authType: 'none',
+      authToken: '{{token}}',
+      authUsername: '{{username}}',
+      authPassword: '{{password}}',
+      apiKeyName: 'X-API-Key',
+      apiKeyValue: '{{apiKey}}',
+      apiKeyIn: 'header',
       clientId: '',
       environmentId: '',
       groupId: '',
@@ -163,13 +182,21 @@ export function AccessFormDialog(): React.JSX.Element | null {
     if (mode === 'edit' && existing) {
       if (existing.type === 'database') return
       const org = resolveGroup(existing.groupId)
+      const auth = existing.apiConfig?.auth
       form.reset({
         name: existing.name,
-        type: existing.type,
+        type: existing.type === 'api' ? 'api' : existing.type,
         description: existing.description,
         username: existing.username,
         password: '',
         url: existing.url,
+        authType: auth?.type ?? 'none',
+        authToken: auth?.type === 'bearer' ? auth.token : '{{token}}',
+        authUsername: auth?.type === 'basic' ? auth.username : '{{username}}',
+        authPassword: auth?.type === 'basic' ? auth.password : '{{password}}',
+        apiKeyName: auth?.type === 'apiKey' ? auth.key : 'X-API-Key',
+        apiKeyValue: auth?.type === 'apiKey' ? auth.value : '{{apiKey}}',
+        apiKeyIn: auth?.type === 'apiKey' ? auth.in : 'header',
         clientId: org.client?.id ?? '',
         environmentId: org.environment?.id ?? '',
         groupId: existing.groupId,
@@ -185,7 +212,8 @@ export function AccessFormDialog(): React.JSX.Element | null {
 
     const groupId = createGroupId
     const org = groupId ? resolveGroup(groupId) : null
-    const type = createAccessType === 'other' ? 'other' : 'login'
+    const type =
+      createAccessType === 'other' ? 'other' : createAccessType === 'api' ? 'api' : 'login'
     form.reset({
       name: '',
       type,
@@ -193,6 +221,13 @@ export function AccessFormDialog(): React.JSX.Element | null {
       username: null,
       password: '',
       url: null,
+      authType: 'none',
+      authToken: '{{token}}',
+      authUsername: '{{username}}',
+      authPassword: '{{password}}',
+      apiKeyName: 'X-API-Key',
+      apiKeyValue: '{{apiKey}}',
+      apiKeyIn: 'header',
       clientId: createClientId || org?.client?.id || '',
       environmentId: createEnvironmentId || org?.environment?.id || '',
       groupId,
@@ -234,17 +269,44 @@ export function AccessFormDialog(): React.JSX.Element | null {
   }
 
   async function onSubmit(values: FormValues): Promise<void> {
-    const credentialRef =
-      mode === 'edit'
+    const isApi = values.type === 'api'
+    const credentialRef = isApi
+      ? null
+      : mode === 'edit'
         ? await persistSecret(values.password, existing?.credentialRef ?? null)
         : await persistSecret(values.password, null)
+
+    const apiConfig = isApi
+      ? {
+          ...emptyApiConfig(),
+          ...(existing?.apiConfig ?? {}),
+          schemaVersion: 1 as const,
+          auth:
+            values.authType === 'bearer'
+              ? { type: 'bearer' as const, token: values.authToken || '{{token}}' }
+              : values.authType === 'basic'
+                ? {
+                    type: 'basic' as const,
+                    username: values.authUsername || '{{username}}',
+                    password: values.authPassword || '{{password}}'
+                  }
+                : values.authType === 'apiKey'
+                  ? {
+                      type: 'apiKey' as const,
+                      key: values.apiKeyName || 'X-API-Key',
+                      value: values.apiKeyValue || '{{apiKey}}',
+                      in: values.apiKeyIn
+                    }
+                  : { type: 'none' as const }
+        }
+      : null
 
     const payload: CreateAccessInput = {
       groupId: values.groupId,
       type: values.type,
       name: values.name,
       description: values.description ?? null,
-      username: values.username ?? null,
+      username: isApi ? null : (values.username ?? null),
       credentialRef,
       url: values.url ?? null,
       notes: values.notes ?? null,
@@ -254,7 +316,8 @@ export function AccessFormDialog(): React.JSX.Element | null {
       host: null,
       port: null,
       database: null,
-      ssl: null
+      ssl: null,
+      apiConfig
     }
 
     if (mode === 'edit' && editId) {
@@ -269,6 +332,9 @@ export function AccessFormDialog(): React.JSX.Element | null {
     close()
   }
 
+  const watchedType = form.watch('type')
+  const watchedAuthType = form.watch('authType')
+  const isApi = watchedType === 'api'
   const pending = createAccess.isPending || updateAccess.isPending || setAccessTags.isPending
 
   const showPasswordField = passwordMode === 'set' || passwordMode === 'replace' || !hasSecret
@@ -417,10 +483,14 @@ export function AccessFormDialog(): React.JSX.Element | null {
                     name="url"
                     render={({ field }) => (
                       <FormItem className="sm:col-span-2">
-                        <FormLabel>URL</FormLabel>
+                        <FormLabel>
+                          {isApi ? t('api.form.baseUrl') : t('access.form.url')}
+                        </FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="https://admin.cliente.com"
+                            placeholder={
+                              isApi ? 'https://api.cliente.com' : 'https://admin.cliente.com'
+                            }
                             value={field.value ?? ''}
                             onChange={(e) => field.onChange(e.target.value || null)}
                           />
@@ -430,89 +500,225 @@ export function AccessFormDialog(): React.JSX.Element | null {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Usuário</FormLabel>
-                        <FormControl>
-                          <Input
-                            value={field.value ?? ''}
-                            onChange={(e) => field.onChange(e.target.value || null)}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="space-y-2">
-                    {!vaultAvailable ? (
-                      <p className="rounded-md border border-border bg-surface-elevated px-3 py-2 text-xs text-muted">
-                        Vault indisponível neste ambiente.
-                      </p>
-                    ) : null}
-
-                    {mode === 'edit' && hasSecret && passwordMode === 'keep' && !removingSecret ? (
-                      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-elevated px-3 py-2">
-                        <span className="text-sm text-foreground">Senha definida</span>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          className="h-7"
-                          disabled={!vaultAvailable}
-                          onClick={() => setPasswordMode('replace')}
-                        >
-                          Trocar
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-red-400"
-                          onClick={() => {
-                            setRemovingSecret(true)
-                            setPasswordMode('set')
-                            form.setValue('password', '')
-                          }}
-                        >
-                          Remover
-                        </Button>
-                      </div>
-                    ) : null}
-
-                    {showPasswordField || removingSecret ? (
+                  {isApi ? (
+                    <>
                       <FormField
                         control={form.control}
-                        name="password"
+                        name="authType"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>
-                              {passwordMode === 'replace' ? 'Nova senha' : 'Senha'}
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                type="password"
-                                autoComplete="new-password"
-                                placeholder={
-                                  removingSecret ? 'Senha será removida' : 'Senha (vault)'
-                                }
-                                disabled={removingSecret || !vaultAvailable}
-                                {...field}
-                              />
-                            </FormControl>
-                            {vaultAvailable ? (
-                              <FormDescription>
-                                Write-only — a senha nunca é lida de volta do vault.
-                              </FormDescription>
-                            ) : null}
-                            <FormMessage />
+                            <FormLabel>{t('api.form.auth')}</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="none">{t('api.studio.authNone')}</SelectItem>
+                                <SelectItem value="bearer">Bearer</SelectItem>
+                                <SelectItem value="basic">Basic</SelectItem>
+                                <SelectItem value="apiKey">API Key</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </FormItem>
                         )}
                       />
-                    ) : null}
-                  </div>
+                      {watchedAuthType === 'bearer' ? (
+                        <FormField
+                          control={form.control}
+                          name="authToken"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t('api.form.tokenPlaceholder')}</FormLabel>
+                              <FormControl>
+                                <Input className="font-mono" placeholder="{{token}}" {...field} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      ) : null}
+                      {watchedAuthType === 'basic' ? (
+                        <>
+                          <FormField
+                            control={form.control}
+                            name="authUsername"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('api.form.usernamePlaceholder')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    className="font-mono"
+                                    placeholder="{{username}}"
+                                    {...field}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="authPassword"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('api.form.passwordPlaceholder')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    className="font-mono"
+                                    placeholder="{{password}}"
+                                    {...field}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </>
+                      ) : null}
+                      {watchedAuthType === 'apiKey' ? (
+                        <>
+                          <FormField
+                            control={form.control}
+                            name="apiKeyName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('api.studio.key')}</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="X-API-Key" {...field} />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="apiKeyValue"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('api.form.tokenPlaceholder')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    className="font-mono"
+                                    placeholder="{{apiKey}}"
+                                    {...field}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="apiKeyIn"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('api.form.apiKeyIn')}</FormLabel>
+                                <Select value={field.value} onValueChange={field.onChange}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="header">
+                                      {t('api.studio.headers')}
+                                    </SelectItem>
+                                    <SelectItem value="query">{t('api.studio.params')}</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormItem>
+                            )}
+                          />
+                        </>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Usuário</FormLabel>
+                            <FormControl>
+                              <Input
+                                value={field.value ?? ''}
+                                onChange={(e) => field.onChange(e.target.value || null)}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="space-y-2">
+                        {!vaultAvailable ? (
+                          <p className="rounded-md border border-border bg-surface-elevated px-3 py-2 text-xs text-muted">
+                            Vault indisponível neste ambiente.
+                          </p>
+                        ) : null}
+
+                        {mode === 'edit' &&
+                        hasSecret &&
+                        passwordMode === 'keep' &&
+                        !removingSecret ? (
+                          <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-elevated px-3 py-2">
+                            <span className="text-sm text-foreground">Senha definida</span>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="h-7"
+                              disabled={!vaultAvailable}
+                              onClick={() => setPasswordMode('replace')}
+                            >
+                              Trocar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-red-400"
+                              onClick={() => {
+                                setRemovingSecret(true)
+                                setPasswordMode('set')
+                                form.setValue('password', '')
+                              }}
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                        ) : null}
+
+                        {showPasswordField || removingSecret ? (
+                          <FormField
+                            control={form.control}
+                            name="password"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>
+                                  {passwordMode === 'replace' ? 'Nova senha' : 'Senha'}
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="password"
+                                    autoComplete="new-password"
+                                    placeholder={
+                                      removingSecret ? 'Senha será removida' : 'Senha (vault)'
+                                    }
+                                    disabled={removingSecret || !vaultAvailable}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                {vaultAvailable ? (
+                                  <FormDescription>
+                                    Write-only — a senha nunca é lida de volta do vault.
+                                  </FormDescription>
+                                ) : null}
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        ) : null}
+                      </div>
+                    </>
+                  )}
                 </div>
               </section>
 

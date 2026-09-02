@@ -12,7 +12,12 @@ import {
 import { TagBadges } from '@renderer/features/connections/TagBadges'
 import { useDeleteAccess, useToggleFavoriteAccess } from '@renderer/hooks/use-accesses'
 import { useAccessTags } from '@renderer/hooks/use-tags'
-import { accessTypeLabel, sqlStudioReady, supportsSqlStudio } from '@renderer/lib/access-ui'
+import {
+  accessTypeLabel,
+  apiReady,
+  sqlStudioReady,
+  supportsSqlStudio
+} from '@renderer/lib/access-ui'
 import { toastError } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
@@ -112,9 +117,24 @@ export function AccessListItem({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {supportsSqlStudio(access) ? (
+              {supportsSqlStudio(access) || access.type === 'api' ? (
                 <DropdownMenuItem
                   onSelect={() => {
+                    if (access.type === 'api') {
+                      if (!apiReady(access)) {
+                        openDialog({ type: 'access', mode: 'edit', id: access.id })
+                        return
+                      }
+                      void openAccessSession(access.id, {
+                        title: access.name,
+                        sessionKind: 'api',
+                        protocol: 'api',
+                        host: access.url
+                      }).catch((error: unknown) => {
+                        toastError(error, 'Não foi possível conectar')
+                      })
+                      return
+                    }
                     if (!sqlStudioReady(access)) {
                       openDialog({ type: 'access', mode: 'edit', id: access.id })
                       return

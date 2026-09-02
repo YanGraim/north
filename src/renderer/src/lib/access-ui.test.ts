@@ -1,6 +1,6 @@
 import type { Access } from '@shared/types'
 import { describe, expect, it } from 'vitest'
-import { buildConnectionString, sqlStudioReady, supportsSqlStudio } from './access-ui'
+import { apiReady, buildConnectionString, sqlStudioReady, supportsSqlStudio } from './access-ui'
 
 function access(partial: Partial<Access> & Pick<Access, 'engine' | 'host' | 'port'>): Access {
   return {
@@ -19,6 +19,7 @@ function access(partial: Partial<Access> & Pick<Access, 'engine' | 'host' | 'por
     isFavorite: false,
     database: 'app',
     ssl: false,
+    apiConfig: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...partial
@@ -53,5 +54,25 @@ describe('buildConnectionString', () => {
     expect(
       buildConnectionString(access({ engine: 'sqlite', host: '/tmp/app.db', port: null }))
     ).toBe('sqlite:/tmp/app.db')
+  })
+})
+
+describe('apiReady', () => {
+  it('requires type api and a base url', () => {
+    expect(
+      apiReady({
+        ...access({ engine: 'postgres', host: 'h', port: 5432 }),
+        type: 'api',
+        url: 'https://api.example.com'
+      })
+    ).toBe(true)
+    expect(
+      apiReady({
+        ...access({ engine: 'postgres', host: 'h', port: 5432 }),
+        type: 'api',
+        url: '  '
+      })
+    ).toBe(false)
+    expect(apiReady(access({ engine: 'postgres', host: 'h', port: 5432 }))).toBe(false)
   })
 })

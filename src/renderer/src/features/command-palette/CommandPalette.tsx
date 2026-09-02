@@ -56,6 +56,7 @@ import {
   Database,
   Download,
   FolderTree,
+  Globe,
   GraduationCap,
   KeyRound,
   Layers,
@@ -302,7 +303,9 @@ export function CommandPalette(): React.JSX.Element {
                             onSelect={() => goToItem(hit.item)}
                             onActions={
                               hit.item.kind === 'connection' ||
-                              (hit.item.kind === 'access' && hit.item.accessType === 'database')
+                              (hit.item.kind === 'access' &&
+                                (hit.item.accessType === 'database' ||
+                                  hit.item.accessType === 'api'))
                                 ? () => setActionsFor(hit.item)
                                 : undefined
                             }
@@ -410,6 +413,16 @@ export function CommandPalette(): React.JSX.Element {
                     >
                       <Database className="size-4 text-muted" />
                       Nova conexão · banco
+                    </CommandItem>
+                    <CommandItem
+                      value="action-new-api"
+                      onSelect={() => {
+                        close()
+                        openDialog({ type: 'access', mode: 'create', accessType: 'api' })
+                      }}
+                    >
+                      <Globe className="size-4 text-muted" />
+                      Nova API
                     </CommandItem>
                     <CommandItem
                       value="action-new-client"
@@ -644,7 +657,7 @@ function AccessActions({
       <CommandItem value="action-back" onSelect={onBack}>
         Voltar
       </CommandItem>
-      {isSqlStudioEngine(item.engine) ? (
+      {isSqlStudioEngine(item.engine) || item.accessType === 'api' ? (
         <CommandItem value="action-connect" onSelect={onConnect}>
           Conectar
         </CommandItem>

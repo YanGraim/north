@@ -21,6 +21,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Clock3,
   Database,
+  Globe,
   LayoutDashboard,
   Plus,
   Search,
@@ -116,6 +117,14 @@ export function DashboardPage(): React.JSX.Element {
                     >
                       <Database className="size-3.5" />
                       Banco
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        openDialog({ type: 'access', mode: 'create', accessType: 'api' })
+                      }
+                    >
+                      <Globe className="size-3.5" />
+                      API
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

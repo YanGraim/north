@@ -2,7 +2,7 @@ import { resolveEntityIcon } from '@renderer/lib/entity-icons'
 import { isSqlStudioEngine } from '@shared/protocols'
 import type { Access, DatabaseEngine } from '@shared/types'
 import type { LucideIcon } from 'lucide-react'
-import { Database, KeyRound, Link2 } from 'lucide-react'
+import { Database, Globe, KeyRound, Link2 } from 'lucide-react'
 
 export function accessTypeLabel(type: Access['type']): string {
   switch (type) {
@@ -12,6 +12,8 @@ export function accessTypeLabel(type: Access['type']): string {
       return 'Login'
     case 'other':
       return 'Outro'
+    case 'api':
+      return 'API'
   }
 }
 
@@ -23,6 +25,8 @@ export function accessTypeIcon(type: Access['type']): LucideIcon {
       return KeyRound
     case 'other':
       return Link2
+    case 'api':
+      return Globe
   }
 }
 
@@ -114,4 +118,8 @@ export function sqlStudioReady(access: Pick<Access, 'type' | 'engine' | 'host' |
   if (!supportsSqlStudio(access)) return false
   if (access.engine === 'sqlite') return Boolean(access.host?.trim())
   return Boolean(access.host?.trim() && access.port)
+}
+
+export function apiReady(access: Pick<Access, 'type' | 'url'>): boolean {
+  return access.type === 'api' && Boolean(access.url?.trim())
 }

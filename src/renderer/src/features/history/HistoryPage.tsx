@@ -21,7 +21,7 @@ export function HistoryPage(): React.JSX.Element {
     const connectionsMap = new Map(connections.map((c) => [c.id, c.name]))
     const accessesMap = new Map(accesses.map((a) => [a.id, a.name]))
     return (entry: ConnectionHistoryEntry): string => {
-      if (entry.accessId) return accessesMap.get(entry.accessId) ?? 'Banco removido'
+      if (entry.accessId) return accessesMap.get(entry.accessId) ?? 'Acesso removido'
       if (entry.connectionId) return connectionsMap.get(entry.connectionId) ?? 'Conexão removida'
       return 'Sessão'
     }
