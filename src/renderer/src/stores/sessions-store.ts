@@ -1,4 +1,5 @@
 import { formatIpcError } from '@renderer/lib/ipc-error'
+import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import {
   resolveConnectionEnvironment,
   resolveOrgContext
@@ -123,7 +124,10 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
   tabs: [workspaceTab()],
   activeTabId: WORKSPACE_TAB_ID,
 
-  setActiveTab: (id) => set({ activeTabId: id }),
+  setActiveTab: (id) => {
+    set({ activeTabId: id })
+    window.setTimeout(releaseStaleBodyPointerEvents, 0)
+  },
 
   reorderTabs: (fromIndex, toIndex) => {
     set((state) => {

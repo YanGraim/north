@@ -9,6 +9,7 @@ import { HostKeyDialog } from '@renderer/features/sessions/HostKeyDialog'
 import { SessionTabs } from '@renderer/features/sessions/SessionTabs'
 import { SessionView } from '@renderer/features/sessions/SessionView'
 import { WorkflowRunView } from '@renderer/features/workflows/WorkflowRunView'
+import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import { matchesShortcut } from '@renderer/lib/shortcuts'
 import { toastError } from '@renderer/lib/toast'
 import { useCommandPaletteStore } from '@renderer/stores/command-palette-store'
@@ -31,6 +32,11 @@ export function AppShell(): React.JSX.Element {
   const manualMatch = useMatch('/settings/manual')
   const isFullBleed = Boolean(dashboardMatch || historyMatch || manualMatch)
   const workspaceActive = activeTabId === WORKSPACE_TAB_ID
+
+  useEffect(() => {
+    if (!workspaceActive) return
+    window.setTimeout(releaseStaleBodyPointerEvents, 0)
+  }, [workspaceActive])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {

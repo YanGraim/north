@@ -1,3 +1,4 @@
+import { forceReleaseBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import type { AccessType } from '@shared/types'
 import { create } from 'zustand'
 
@@ -41,10 +42,7 @@ interface InventoryDialogsState {
  * disabled (clicks pass through to the overlay). Defer + clear the style.
  */
 function releaseBodyPointerEvents(): void {
-  if (typeof document === 'undefined') return
-  if (document.body.style.pointerEvents === 'none') {
-    document.body.style.removeProperty('pointer-events')
-  }
+  forceReleaseBodyPointerEvents()
 }
 
 export const useInventoryDialogsStore = create<InventoryDialogsState>((set) => ({

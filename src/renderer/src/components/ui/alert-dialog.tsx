@@ -1,5 +1,6 @@
+import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import { AlertDialog as AlertDialogPrimitive } from 'radix-ui'
-import type * as React from 'react'
+import * as React from 'react'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -36,8 +37,15 @@ function AlertDialogOverlay({
 
 function AlertDialogContent({
   className,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content>): React.JSX.Element {
+  React.useEffect(() => {
+    return () => {
+      window.setTimeout(releaseStaleBodyPointerEvents, 0)
+    }
+  }, [])
+
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
@@ -47,6 +55,12 @@ function AlertDialogContent({
           'fixed top-1/2 left-1/2 z-50 grid w-full max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-surface p-5 shadow-lg outline-none',
           className
         )}
+        style={{ pointerEvents: 'auto' }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event)
+          if (!event.defaultPrevented) event.preventDefault()
+          window.setTimeout(releaseStaleBodyPointerEvents, 0)
+        }}
         {...props}
       />
     </AlertDialogPortal>

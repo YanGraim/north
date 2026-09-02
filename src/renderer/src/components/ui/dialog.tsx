@@ -1,3 +1,4 @@
+import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
@@ -37,14 +38,6 @@ function DialogOverlay({
       {...props}
     />
   )
-}
-
-function releaseStaleBodyPointerEvents(): void {
-  if (document.body.style.pointerEvents !== 'none') return
-  const openDialogs = document.querySelectorAll('[data-slot="dialog-content"]')
-  if (openDialogs.length === 0) {
-    document.body.style.removeProperty('pointer-events')
-  }
 }
 
 function isPortaledUiTarget(target: EventTarget | null): boolean {

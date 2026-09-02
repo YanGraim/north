@@ -54,6 +54,7 @@ import {
 } from '@renderer/hooks/use-api'
 import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
 import { queryKeys } from '@renderer/lib/query-keys'
+import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import { matchesShortcut } from '@renderer/lib/shortcuts'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
@@ -386,6 +387,18 @@ export function ApiStudioView({
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [saveActive, sendActive, visible])
+
+  useEffect(() => {
+    if (visible) {
+      window.setTimeout(releaseStaleBodyPointerEvents, 0)
+      return
+    }
+    setTransferOpen(false)
+    setPendingDelete(null)
+    setNameKind(null)
+    setPendingCloseId(null)
+    window.setTimeout(releaseStaleBodyPointerEvents, 0)
+  }, [visible])
 
   const folderLabel = title || t('api.studio.title')
   const canSend = Boolean(activeTab && !activeTab.sending)
