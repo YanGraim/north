@@ -10,6 +10,7 @@ import type { StudioPane } from './studio-tabs'
 import { TableFilterInput } from './TableFilterInput'
 
 type TableDataPaneProps = {
+  visible?: boolean
   filter: string
   engine: SqlStudioEngine
   /** Column names for the open table (introspection + result headers). */
@@ -27,6 +28,9 @@ type TableDataPaneProps = {
   saveDisabledReason: string | null
   browseHasMore: boolean
   browseCapReached: boolean
+  browseTotalCount?: number | null
+  browseCountLoading?: boolean
+  onFetchTotalCount?: () => void
   onFilterChange: (value: string) => void
   onRun: () => void
   onLoadMore: () => void
@@ -39,6 +43,7 @@ type TableDataPaneProps = {
 }
 
 export function TableDataPane({
+  visible = true,
   filter,
   engine,
   columns,
@@ -55,6 +60,9 @@ export function TableDataPane({
   saveDisabledReason,
   browseHasMore,
   browseCapReached,
+  browseTotalCount = null,
+  browseCountLoading = false,
+  onFetchTotalCount,
   onFilterChange,
   onRun,
   onLoadMore,
@@ -96,6 +104,7 @@ export function TableDataPane({
       </form>
       <div className="min-h-0 flex-1">
         <QueryResultPane
+          visible={visible}
           result={result}
           error={error}
           pane={pane}
@@ -112,6 +121,9 @@ export function TableDataPane({
           browseMode
           browseHasMore={browseHasMore}
           browseCapReached={browseCapReached}
+          browseTotalCount={browseTotalCount}
+          browseCountLoading={browseCountLoading}
+          onFetchTotalCount={onFetchTotalCount}
           onNearEnd={onLoadMore}
           canSave={canSave}
           saveDisabledReason={saveDisabledReason}

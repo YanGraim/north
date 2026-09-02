@@ -29,15 +29,18 @@ import { SessionIdentityBar } from '@renderer/features/sessions/SessionIdentityB
 import { SqlEditor, type SqlEditorHandle } from '@renderer/features/sessions/SqlEditor'
 import { StudioTabBar } from '@renderer/features/sessions/StudioTabBar'
 import { TableDataPane } from '@renderer/features/sessions/TableDataPane'
+import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import { toastError } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 import { characterLimitForColumn } from '@shared/lib/sql-char-length'
 import {
   isFullSqlStatement,
   primaryKeyLookupSql,
+  queryResultCountSql,
   queryResultPageSql,
   TABLE_BROWSE_PAGE_SIZE,
   TABLE_BROWSE_SOFT_CAP,
+  tableBrowseCountSql,
   tableBrowsePageSql,
   tableExportSql
 } from '@shared/lib/sql-ident'
@@ -121,6 +124,7 @@ export function DatabaseStudioView({
   const [txBusy, setTxBusy] = useState(false)
   const sqlEditorRef = useRef<SqlEditorHandle | null>(null)
   const [unsafePending, setUnsafePending] = useState<UnsafePending | null>(null)
+  const [countLoadingTabId, setCountLoadingTabId] = useState<string | null>(null)
 
   tabsRef.current = tabs
   treeRef.current = tree
@@ -384,6 +388,42 @@ export function DatabaseStudioView({
     }
   }
 
+  async function fetchTotalRowCount(tabId: string): Promise<void> {
+    if (countLoadingTabId) return
+    const tab = tabsRef.current.find((item) => item.id === tabId)
+    if (!tab) return
+
+    let countSql: string | null = null
+    if (tab.kind === 'table') {
+      countSql = tableBrowseCountSql(engine, tab.schema, tab.table, tab.filter)
+    } else if (tab.executedSql) {
+      countSql = queryResultCountSql(engine, tab.executedSql)
+    }
+    if (!countSql) return
+
+    setCountLoadingTabId(tabId)
+    try {
+      const result = await window.north.db.query({ sessionId, sql: countSql })
+      const row = result.rows[0]
+      const raw = row?.cnt ?? row?.CNT ?? (row ? Object.values(row)[0] : undefined)
+      const count =
+        typeof raw === 'number'
+          ? raw
+          : typeof raw === 'string'
+            ? Number.parseInt(raw, 10)
+            : Number.NaN
+      if (!Number.isFinite(count)) {
+        toastError(t('database.studio.countError'))
+        return
+      }
+      patchTab(tabId, (current) => ({ ...current, totalRowCount: count }))
+    } catch (err) {
+      toastError(err, t('database.studio.countError'))
+    } finally {
+      setCountLoadingTabId(null)
+    }
+  }
+
   function openTable(schema: string, table: string): void {
     const resolved = resolveOpenTable(tabsRef.current, schema, table)
     tabsRef.current = resolved.tabs
@@ -621,6 +661,15 @@ export function DatabaseStudioView({
     return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [visible])
 
+  useEffect(() => {
+    if (visible) {
+      window.setTimeout(releaseStaleBodyPointerEvents, 0)
+      return
+    }
+    setUnsafePending(null)
+    window.setTimeout(releaseStaleBodyPointerEvents, 0)
+  }, [visible])
+
   const selectedTable =
     activeTab?.kind === 'table' ? { schema: activeTab.schema, table: activeTab.table } : null
   const canRun =
@@ -813,6 +862,7 @@ export function DatabaseStudioView({
               activeTab.kind === 'table' ? (
                 <TableDataPane
                   key={activeTab.id}
+                  visible={visible}
                   filter={activeTab.filter}
                   engine={engine}
                   columns={tableColumnNames}
@@ -829,6 +879,9 @@ export function DatabaseStudioView({
                   saveDisabledReason={saveDisabledReason}
                   browseHasMore={tableHasMore}
                   browseCapReached={tableCapReached}
+                  browseTotalCount={activeTab.totalRowCount}
+                  browseCountLoading={countLoadingTabId === activeTab.id}
+                  onFetchTotalCount={() => void fetchTotalRowCount(activeTab.id)}
                   onFilterChange={(filter) =>
                     patchTab(activeTab.id, (current) =>
                       current.kind === 'table' ? { ...current, filter } : current
@@ -865,6 +918,9 @@ export function DatabaseStudioView({
                   saveDisabledReason={saveDisabledReason}
                   browseHasMore={queryHasMore}
                   browseCapReached={queryCapReached}
+                  browseTotalCount={activeTab.totalRowCount}
+                  browseCountLoading={countLoadingTabId === activeTab.id}
+                  onFetchTotalCount={() => void fetchTotalRowCount(activeTab.id)}
                   onLoadMore={loadMoreActiveQuery}
                   onDraftChange={(draft) =>
                     setEditsByTab((current) => ({ ...current, [activeTab.id]: draft }))
@@ -936,6 +992,7 @@ function mergeBrowsePage(
     const capped = page.rows.length >= TABLE_BROWSE_SOFT_CAP
     return {
       ...tab,
+      totalRowCount: null,
       result: {
         ...page,
         rows: capped ? page.rows.slice(0, TABLE_BROWSE_SOFT_CAP) : page.rows,
@@ -983,6 +1040,7 @@ function mergeQueryPage(
     return {
       ...tab,
       executedSql,
+      totalRowCount: null,
       result: {
         ...page,
         rows: capped ? page.rows.slice(0, TABLE_BROWSE_SOFT_CAP) : page.rows,
@@ -1035,6 +1093,9 @@ function QueryTabPane({
   saveDisabledReason,
   browseHasMore,
   browseCapReached,
+  browseTotalCount,
+  browseCountLoading,
+  onFetchTotalCount,
   onLoadMore,
   onDraftChange,
   onSave,
@@ -1059,6 +1120,9 @@ function QueryTabPane({
   saveDisabledReason: string | null
   browseHasMore: boolean
   browseCapReached: boolean
+  browseTotalCount: number | null
+  browseCountLoading: boolean
+  onFetchTotalCount: () => void
   onLoadMore: () => void
   onDraftChange: (draft: GridDraft) => void
   onSave: () => void
@@ -1086,6 +1150,7 @@ function QueryTabPane({
       <ResizableHandle />
       <ResizablePanel id={`results-${tab.id}`} defaultSize="58%" minSize="20%" className="min-h-0">
         <QueryResultPane
+          visible={visible}
           result={tab.result}
           error={tab.error}
           pane={tab.pane}
@@ -1105,6 +1170,9 @@ function QueryTabPane({
           browseMode
           browseHasMore={browseHasMore}
           browseCapReached={browseCapReached}
+          browseTotalCount={browseTotalCount}
+          browseCountLoading={browseCountLoading}
+          onFetchTotalCount={onFetchTotalCount}
           onNearEnd={onLoadMore}
           exportContext={exportContext}
         />

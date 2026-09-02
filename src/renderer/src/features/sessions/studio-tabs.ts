@@ -7,6 +7,8 @@ type StudioTabCommon = {
   result: DatabaseQueryResult | null
   error: string | null
   pane: StudioPane
+  /** Fetched total when browse uses pagination (DBeaver-style count). */
+  totalRowCount: number | null
 }
 
 export type TableStudioTab = StudioTabCommon & {
@@ -43,7 +45,8 @@ export function emptyQueryTab(queryNumber: number): QueryStudioTab {
     pane: 'results',
     executedSql: null,
     hasMore: false,
-    browseCapReached: false
+    browseCapReached: false,
+    totalRowCount: null
   }
 }
 
@@ -58,7 +61,8 @@ export function emptyTableTab(schema: string, table: string): TableStudioTab {
     error: null,
     pane: 'results',
     hasMore: false,
-    browseCapReached: false
+    browseCapReached: false,
+    totalRowCount: null
   }
 }
 

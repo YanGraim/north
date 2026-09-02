@@ -269,6 +269,40 @@ function isPageableResultSql(sql: string): boolean {
   return !hasTopLevelPagingKeyword(text)
 }
 
+/** Wrap a SELECT in COUNT(*) for total-row fetch (DBeaver-style). */
+export function wrapCountSql(_engine: SqlStudioEngine, innerSql: string): string {
+  const body = innerSql.trim().replace(/;\s*$/, '')
+  return `SELECT COUNT(*) AS cnt FROM (${body}) AS _north_count`
+}
+
+/**
+ * COUNT for table-tab browse (WHERE filter or full SQL in the filter bar).
+ */
+export function tableBrowseCountSql(
+  engine: SqlStudioEngine,
+  schema: string | null,
+  table: string,
+  filter: string
+): string {
+  const trimmed = filter.trim()
+  if (trimmed && isFullSqlStatement(trimmed)) {
+    return wrapCountSql(engine, trimmed)
+  }
+  const ident = qualifyRelation(engine, schema, table)
+  const where = trimmed ? ` WHERE ${stripWhereKeyword(trimmed)}` : ''
+  return `SELECT COUNT(*) AS cnt FROM ${ident}${where}`
+}
+
+/**
+ * COUNT for a pageable query tab (original SQL without LIMIT/OFFSET).
+ * Returns null when the statement is not pageable.
+ */
+export function queryResultCountSql(engine: SqlStudioEngine, sql: string): string | null {
+  const trimmed = sql.trim().replace(/^\uFEFF/, '')
+  if (!isPageableResultSql(trimmed)) return null
+  return wrapCountSql(engine, trimmed)
+}
+
 /**
  * Append LIMIT/OFFSET (or MSSQL OFFSET/FETCH) to a single SELECT/WITH.
  * Returns null when the SQL already pages, has multiple statements, or is not a SELECT.

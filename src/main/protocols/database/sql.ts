@@ -4,13 +4,16 @@ export {
   previewSelectSql,
   primaryKeyLookupSql,
   qualifyRelation,
+  queryResultCountSql,
   queryResultPageSql,
   quoteIdent,
   quoteLiteral,
   TABLE_BROWSE_PAGE_SIZE,
   TABLE_BROWSE_SOFT_CAP,
+  tableBrowseCountSql,
   tableBrowsePageSql,
-  tableBrowseSql
+  tableBrowseSql,
+  wrapCountSql
 } from '@shared/lib/sql-ident'
 
 export function pingSql(): string {

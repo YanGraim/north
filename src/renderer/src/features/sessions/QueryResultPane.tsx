@@ -13,10 +13,11 @@ import {
   sumNumericCells
 } from '@renderer/features/sessions/query-result-grid'
 import { copyToClipboard } from '@renderer/lib/clipboard'
+import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import { isModPressed } from '@renderer/lib/shortcuts'
 import { cn } from '@renderer/lib/utils'
 import type { DatabaseCellValue, DatabaseQueryResult } from '@shared/protocols'
-import { Download, LayoutList, Loader2, Save, Sigma, Table2, X } from 'lucide-react'
+import { Copy, Download, LayoutList, Loader2, Save, Sigma, Table2, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { StudioPane } from './studio-tabs'
@@ -24,6 +25,7 @@ import type { StudioPane } from './studio-tabs'
 export type ResultViewMode = 'grid' | 'record'
 
 type QueryResultPaneProps = {
+  visible?: boolean
   result: DatabaseQueryResult | null
   error: string | null
   pane: StudioPane
@@ -41,6 +43,9 @@ type QueryResultPaneProps = {
   browseMode?: boolean
   browseHasMore?: boolean
   browseCapReached?: boolean
+  browseTotalCount?: number | null
+  browseCountLoading?: boolean
+  onFetchTotalCount?: () => void
   onNearEnd?: () => void
   canSave?: boolean
   saveDisabledReason?: string | null
@@ -50,6 +55,7 @@ type QueryResultPaneProps = {
 }
 
 export function QueryResultPane({
+  visible = true,
   result,
   error,
   pane,
@@ -66,6 +72,9 @@ export function QueryResultPane({
   browseMode = false,
   browseHasMore = false,
   browseCapReached = false,
+  browseTotalCount = null,
+  browseCountLoading = false,
+  onFetchTotalCount,
   onNearEnd,
   canSave = false,
   saveDisabledReason,
@@ -118,6 +127,7 @@ export function QueryResultPane({
   useEffect(() => {
     if (!exportContext) return
     function onKeyDown(event: KeyboardEvent): void {
+      if (!visible) return
       if (!isModPressed(event) || !event.shiftKey || event.code !== 'KeyE') return
       const active = document.activeElement
       if (
@@ -132,7 +142,13 @@ export function QueryResultPane({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [exportContext, openExportDialog])
+  }, [exportContext, openExportDialog, visible])
+
+  useEffect(() => {
+    if (visible) return
+    setExportOpen(false)
+    window.setTimeout(releaseStaleBodyPointerEvents, 0)
+  }, [visible])
 
   const recordIndex =
     activeSourceIndex && result?.rows[activeSourceIndex]
@@ -153,6 +169,7 @@ export function QueryResultPane({
             result.rows.length + activeDraft.inserts.length,
             browseHasMore,
             browseCapReached,
+            browseTotalCount,
             result.durationMs
           )
         : t('database.studio.rowMeta', {
@@ -161,6 +178,12 @@ export function QueryResultPane({
             ms: Math.round(result.durationMs)
           })
     : null
+
+  const canFetchTotalCount =
+    browseMode &&
+    browseTotalCount == null &&
+    (browseHasMore || browseCapReached) &&
+    Boolean(onFetchTotalCount)
 
   function navigateRecord(direction: -1 | 1): void {
     if (!result || recordIndex == null) return
@@ -173,9 +196,13 @@ export function QueryResultPane({
   }
 
   const recordTotalLabel =
-    browseMode && browseHasMore
-      ? t('database.studio.browseCountMore', { count: result?.rows.length ?? 0 })
-      : String(result?.rows.length ?? 0)
+    browseTotalCount != null
+      ? t('database.studio.browseCountExact', {
+          count: browseTotalCount + activeDraft.inserts.length
+        })
+      : browseMode && (browseHasMore || browseCapReached)
+        ? t('database.studio.browseCountMore', { count: result?.rows.length ?? 0 })
+        : String(result?.rows.length ?? 0)
 
   const dirty = hasDirtyDraft(activeDraft)
   const showFooterActions = dirty && Boolean(onSave && onDiscard)
@@ -223,7 +250,17 @@ export function QueryResultPane({
             />
           </button>
         ) : null}
-        {activePane === 'results' && result && result.columns.length > 0 ? (
+        {activePane === 'messages' && error ? (
+          <button
+            type="button"
+            className="ml-auto inline-flex h-7 items-center gap-1 rounded-sm px-2 text-[11px] text-muted hover:bg-surface-elevated hover:text-foreground"
+            data-testid="studio-copy-error"
+            onClick={() => void copyToClipboard(error, t('database.studio.errorCopied'))}
+          >
+            <Copy className="size-3" />
+            {t('database.studio.copyError')}
+          </button>
+        ) : activePane === 'results' && result && result.columns.length > 0 ? (
           <div className="ml-auto flex items-center gap-0.5">
             {exportContext ? (
               <button
@@ -271,12 +308,12 @@ export function QueryResultPane({
       </div>
       <div className="min-h-0 flex-1">
         {activePane === 'messages' && error ? (
-          <p
-            className="whitespace-pre-wrap px-3 py-4 font-mono text-xs text-foreground"
+          <pre
+            className="select-text whitespace-pre-wrap px-3 py-4 font-mono text-xs text-foreground"
             data-testid="studio-messages"
           >
             {error}
-          </p>
+          </pre>
         ) : result ? (
           viewMode === 'record' && result.columns.length > 0 && recordIndex != null ? (
             <QueryResultRecordView
@@ -397,9 +434,36 @@ export function QueryResultPane({
             </button>
           ) : null}
           {!running && !hasError && statusMeta ? (
-            <span className="truncate tabular-nums" data-dirty={dirty ? 'true' : undefined}>
-              {statusMeta}
-            </span>
+            canFetchTotalCount ? (
+              <button
+                type="button"
+                className="inline-flex max-w-full items-center gap-1 truncate tabular-nums hover:text-foreground hover:underline"
+                data-testid="studio-fetch-total-count"
+                disabled={browseCountLoading}
+                title={t('database.studio.fetchTotalCount')}
+                onClick={onFetchTotalCount}
+              >
+                {browseCountLoading ? (
+                  <Loader2 className="size-3 shrink-0 animate-spin" aria-hidden />
+                ) : null}
+                <span data-dirty={dirty ? 'true' : undefined}>{statusMeta}</span>
+              </button>
+            ) : (
+              <span className="truncate tabular-nums" data-dirty={dirty ? 'true' : undefined}>
+                {statusMeta}
+              </span>
+            )
+          ) : null}
+          {hasError && error ? (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-muted hover:text-foreground"
+              data-testid="studio-copy-error-footer"
+              onClick={() => void copyToClipboard(error, t('database.studio.errorCopied'))}
+            >
+              <Copy className="size-3" />
+              {t('database.studio.copyError')}
+            </button>
           ) : null}
         </div>
       </div>
@@ -420,14 +484,18 @@ function formatBrowseStatus(
   count: number,
   hasMore: boolean,
   capReached: boolean,
+  totalCount: number | null,
   durationMs: number
 ): string {
   const ms = Math.round(durationMs)
-  const countLabel = hasMore
-    ? t('database.studio.browseCountMore', { count })
-    : t('database.studio.browseCountExact', { count })
+  const countLabel =
+    totalCount != null
+      ? t('database.studio.browseCountExact', { count: totalCount })
+      : hasMore || capReached
+        ? t('database.studio.browseCountMore', { count })
+        : t('database.studio.browseCountExact', { count })
   const base = t('database.studio.browseMeta', { count: countLabel, ms })
-  if (capReached) {
+  if (capReached && totalCount == null) {
     return `${base}${t('database.studio.browseCap')}`
   }
   return base
