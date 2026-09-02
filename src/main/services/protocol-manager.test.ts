@@ -367,4 +367,29 @@ describe('ProtocolManager', () => {
 
     await expect(manager.openAccess(access.id)).rejects.toThrow(/não abre sessão SQL/)
   })
+
+  it('opens an API session from an Access and records access history', async () => {
+    const { manager, repos } = setup()
+    const client = repos.clients.create({ name: 'C' })
+    const env = repos.environments.create({ clientId: client.id, name: 'E' })
+    const group = repos.groups.create({ environmentId: env.id, name: 'G' })
+    const access = repos.accesses.create({
+      groupId: group.id,
+      type: 'api',
+      name: 'Petstore',
+      url: 'https://api.example.com'
+    })
+
+    const { descriptor } = await manager.openAccess(access.id)
+    expect(descriptor.kind).toBe('api')
+    expect(descriptor.protocol).toBe('api')
+    expect(descriptor.accessId).toBe(access.id)
+    expect(descriptor.state).toBe('connected')
+    expect(manager.getActiveSession(descriptor.id)?.api).toBeTruthy()
+
+    await manager.close(descriptor.id)
+    const history = repos.history.list({ accessId: access.id })
+    expect(history).toHaveLength(1)
+    expect(history[0]?.success).toBe(true)
+  })
 })

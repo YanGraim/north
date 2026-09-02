@@ -16,6 +16,22 @@ export function deleteSecretsForConnections(
   }
 }
 
+/** Delete vault secrets for a single access (credential + API variable secrets). */
+export function deleteSecretsForAccess(
+  repos: Repositories,
+  vault: CredentialVault,
+  access: { id: string; credentialRef: string | null }
+): void {
+  if (access.credentialRef) {
+    vault.deleteSecret(access.credentialRef)
+  }
+  for (const variable of repos.apiVariables.listByAccess(access.id)) {
+    if (variable.credentialRef) {
+      vault.deleteSecret(variable.credentialRef)
+    }
+  }
+}
+
 /** Delete vault secrets for every access matching the filter (before cascade delete). */
 export function deleteSecretsForAccesses(
   repos: Repositories,
@@ -24,9 +40,7 @@ export function deleteSecretsForAccesses(
 ): void {
   const accesses = repos.accesses.list(filter)
   for (const access of accesses) {
-    if (access.credentialRef) {
-      vault.deleteSecret(access.credentialRef)
-    }
+    deleteSecretsForAccess(repos, vault, access)
   }
 }
 

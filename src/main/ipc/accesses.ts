@@ -8,6 +8,7 @@ import {
 import { ipcMain } from 'electron'
 import type { Repositories } from '../repositories'
 import type { CredentialVault } from '../vault'
+import { deleteSecretsForAccess } from './vault-cleanup'
 
 function requireEntity<T>(entity: T | null, label: string): T {
   if (!entity) {
@@ -42,9 +43,7 @@ export function registerAccessHandlers(repos: Repositories, vault: CredentialVau
     if (!existing) {
       throw new Error('Access not found')
     }
-    if (existing.credentialRef) {
-      vault.deleteSecret(existing.credentialRef)
-    }
+    deleteSecretsForAccess(repos, vault, existing)
     repos.accesses.delete(accessId)
   })
 

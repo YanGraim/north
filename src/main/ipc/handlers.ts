@@ -6,6 +6,7 @@ import { maybeSeedDevData } from '../database/seed'
 import { createRepositories, type Repositories } from '../repositories'
 import { CredentialVault, SafeStorageEncryptor } from '../vault'
 import { registerAccessHandlers } from './accesses'
+import { registerApiHandlers } from './api'
 import { registerClientHandlers } from './clients'
 import { registerConnectionHandlers } from './connections'
 import { registerDatabaseHandlers } from './db'
@@ -67,6 +68,7 @@ export function registerIpcHandlers(): void {
   registerSearchHandlers(repositories)
   registerSessionHandlers(repositories, vault)
   registerDatabaseHandlers(repositories, vault)
+  registerApiHandlers(repositories, vault)
   registerFsHandlers()
   registerSerialHandlers()
   registerStatsHandlers(repositories)

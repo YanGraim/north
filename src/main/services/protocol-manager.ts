@@ -12,6 +12,7 @@ import {
 } from '@shared/protocols'
 import type { MessagePortMain, WebContents } from 'electron'
 import { MessageChannelMain } from 'electron'
+import { ApiProtocolSession } from '../protocols/api/session'
 import { configFromAccess } from '../protocols/database/config'
 import { connectAdapter } from '../protocols/database/registry'
 import { DatabaseProtocolSession } from '../protocols/database/session'
@@ -232,12 +233,84 @@ export class ProtocolManager {
     if (!access) {
       throw new Error('Acesso não encontrado')
     }
-    if (access.type !== 'database' || !isSqlStudioEngine(access.engine)) {
-      throw new Error('Este acesso não abre sessão SQL no North')
+
+    if (access.type === 'api') {
+      return this.openApiAccess(accessId, access.name)
     }
 
+    if (access.type === 'database' && isSqlStudioEngine(access.engine)) {
+      return this.openDatabaseAccess(accessId, access)
+    }
+
+    throw new Error('Este acesso não abre sessão SQL no North')
+  }
+
+  private async openApiAccess(
+    accessId: string,
+    title: string
+  ): Promise<{ descriptor: SessionDescriptor }> {
     const sessionId = randomUUID()
-    const protocol = access.engine
+    const descriptor: SessionDescriptor = {
+      id: sessionId,
+      connectionId: null,
+      accessId,
+      kind: 'api',
+      protocol: 'api',
+      title,
+      state: 'connecting',
+      errorMessage: null
+    }
+
+    const placeholder: ActiveSession = {
+      session: {
+        id: sessionId,
+        kind: 'api',
+        protocol: 'api',
+        state: 'connecting',
+        attachPort: () => undefined,
+        dispose: async () => undefined
+      },
+      descriptor,
+      connectionId: null,
+      accessId,
+      startedAt: Date.now(),
+      portMain: null,
+      historyRecorded: false,
+      everConnected: false
+    }
+    this.sessions.set(sessionId, placeholder)
+    this.emitState(descriptor)
+
+    try {
+      const session = new ApiProtocolSession(sessionId, accessId, this.repositories, this.vault)
+      session.state = 'connected'
+
+      const active = this.sessions.get(sessionId)
+      if (!active) {
+        await session.dispose()
+        throw new Error('Sessão cancelada')
+      }
+
+      active.session = session
+      active.everConnected = true
+      this.updateState(sessionId, 'connected')
+      this.watchSessionLifecycle(sessionId)
+
+      return { descriptor: { ...active.descriptor } }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao abrir sessão'
+      this.updateState(sessionId, 'error', message)
+      this.finishWithHistory(sessionId, false, message)
+      throw error
+    }
+  }
+
+  private async openDatabaseAccess(
+    accessId: string,
+    access: { name: string; engine: string | null; credentialRef: string | null }
+  ): Promise<{ descriptor: SessionDescriptor }> {
+    const sessionId = randomUUID()
+    const protocol = access.engine as string
     const descriptor: SessionDescriptor = {
       id: sessionId,
       connectionId: null,
@@ -270,11 +343,13 @@ export class ProtocolManager {
     this.emitState(descriptor)
 
     try {
+      const full = this.repositories.accesses.get(accessId)
+      if (!full) throw new Error('Acesso não encontrado')
       let password: string | null = null
-      if (access.credentialRef) {
-        password = await this.vault.resolveSecret(access.credentialRef)
+      if (full.credentialRef) {
+        password = await this.vault.resolveSecret(full.credentialRef)
       }
-      const config = configFromAccess(access, password)
+      const config = configFromAccess(full, password)
       const adapter = await connectAdapter(config)
       const session = new DatabaseProtocolSession(sessionId, protocol, adapter)
       session.state = 'connected'
