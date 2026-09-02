@@ -21,6 +21,7 @@ import {
   reorderList,
   rowsToTsv,
   selectIndexRange,
+  selectionToRows,
   selectionToTsv,
   selectRange,
   setCellEdit,
@@ -73,6 +74,44 @@ describe('query result grid helpers', () => {
     ]
     expect(rowsToTsv(rows, ['name', 'id'])).toBe('ada\t1\ngrace\t2')
     expect(rowsToTsv([{ id: 1, name: 'a\tb' }], ['name'])).toBe('"a\tb"')
+  })
+
+  it('exports selection rows, columns and cell rectangles', () => {
+    const rows = [
+      { id: 1, name: 'a', qty: 2 },
+      { id: 2, name: 'b', qty: 3 }
+    ]
+    const resultColumns = [{ name: 'id' }, { name: 'name' }, { name: 'qty' }]
+    const rowSelection = selectionToRows({
+      mode: 'rows',
+      displayRows: rows,
+      orderedColumnNames: ['id', 'name', 'qty'],
+      selectedRowIndices: new Set([0]),
+      selectedColumnNames: [],
+      resultColumns
+    })
+    expect(rowSelection.rows).toEqual([rows[0]])
+
+    const columnSelection = selectionToRows({
+      mode: 'columns',
+      displayRows: rows,
+      orderedColumnNames: ['id', 'name', 'qty'],
+      selectedRowIndices: new Set(),
+      selectedColumnNames: ['name'],
+      resultColumns
+    })
+    expect(columnSelection.columns.map((column) => column.name)).toEqual(['name'])
+    expect(columnSelection.rows).toEqual(rows)
+
+    const cellSelection = selectionToRows({
+      mode: 'cells',
+      displayRows: rows,
+      orderedColumnNames: ['id', 'name', 'qty'],
+      selectedRowIndices: new Set([0]),
+      selectedColumnNames: ['id', 'qty'],
+      resultColumns
+    })
+    expect(cellSelection.rows).toEqual([{ id: 1, qty: 2 }])
   })
 
   it('toggles and ranges row selection', () => {

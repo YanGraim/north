@@ -1,4 +1,5 @@
 import { Input } from '@renderer/components/ui/input'
+import type { DatabaseExportContext } from '@renderer/features/sessions/ExportResultDialog'
 import { QueryResultPane } from '@renderer/features/sessions/QueryResultPane'
 import type { GridDraft } from '@renderer/features/sessions/query-result-grid'
 import type { DatabaseQueryResult, SqlStudioEngine } from '@shared/protocols'
@@ -34,6 +35,7 @@ type TableDataPaneProps = {
   onSave: () => void
   onDiscard: () => void
   rowActions?: boolean
+  exportContext?: DatabaseExportContext
 }
 
 export function TableDataPane({
@@ -60,7 +62,8 @@ export function TableDataPane({
   onDraftChange,
   onSave,
   onDiscard,
-  rowActions = true
+  rowActions = true,
+  exportContext
 }: TableDataPaneProps): React.JSX.Element {
   const { t } = useTranslation()
   const filterColumns = useMemo(() => {
@@ -114,6 +117,7 @@ export function TableDataPane({
           saveDisabledReason={saveDisabledReason}
           onSave={onSave}
           onDiscard={onDiscard}
+          exportContext={exportContext}
         />
       </div>
     </div>

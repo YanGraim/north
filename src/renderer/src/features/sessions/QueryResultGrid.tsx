@@ -27,6 +27,7 @@ import {
   removeInserts,
   reorderList,
   selectIndexRange,
+  selectionToRows,
   selectionToTsv,
   selectRange,
   setCellEdit,
@@ -36,7 +37,7 @@ import {
 } from '@renderer/features/sessions/query-result-grid'
 import { cn } from '@renderer/lib/utils'
 import { applyCharacterMaxLength } from '@shared/lib/sql-char-length'
-import type { DatabaseCellValue, DatabaseQueryResult } from '@shared/protocols'
+import type { DatabaseCellValue, DatabaseQueryColumn, DatabaseQueryResult } from '@shared/protocols'
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -59,6 +60,20 @@ type QueryResultGridProps = {
   onNearEnd?: () => void
   /** Visible values in the current column/cell selection (for footer Sum). */
   onSumSelectionChange?: (values: DatabaseCellValue[]) => void
+  /** Current selection/visible rows for export. */
+  onExportSnapshotChange?: (snapshot: {
+    hasSelection: boolean
+    selection: {
+      columns: DatabaseQueryColumn[]
+      rows: Array<Record<string, DatabaseCellValue>>
+    } | null
+    visible: {
+      columns: DatabaseQueryColumn[]
+      rows: Array<Record<string, DatabaseCellValue>>
+    }
+  }) => void
+  /** Open the export dialog (context menu). */
+  onExportRequest?: () => void
 }
 
 type EditingCell =
@@ -80,7 +95,9 @@ export function QueryResultGrid({
   onActiveSourceIndexChange,
   rowActions = false,
   onNearEnd,
-  onSumSelectionChange
+  onSumSelectionChange,
+  onExportSnapshotChange,
+  onExportRequest
 }: QueryResultGridProps): React.JSX.Element {
   const { t } = useTranslation()
   const [order, setOrder] = useState<number[]>(() => result.columns.map((_, index) => index))
@@ -201,6 +218,48 @@ export function QueryResultGrid({
   useEffect(() => {
     onSumSelectionChange?.(sumSelectionValues)
   }, [onSumSelectionChange, sumSelectionValues])
+
+  const hasExportSelection =
+    selectionMode === 'cells'
+      ? Boolean(cellRect && cellRect.displayIndices.length > 0 && selectedColumnNames.length > 0)
+      : selected.size > 0
+
+  const exportSnapshot = useMemo(() => {
+    const visibleColumns = orderedNames.map((name) => {
+      const found = result.columns.find((column) => column.name === name)
+      return found ?? { name }
+    })
+    const selection = hasExportSelection
+      ? selectionToRows({
+          mode: selectionMode,
+          displayRows: displayRecords,
+          orderedColumnNames: orderedNames,
+          selectedRowIndices,
+          selectedColumnNames,
+          resultColumns: result.columns
+        })
+      : null
+    return {
+      hasSelection: hasExportSelection,
+      selection,
+      visible: {
+        columns: visibleColumns,
+        rows: displayRecords
+      }
+    }
+  }, [
+    displayRecords,
+    hasExportSelection,
+    orderedNames,
+    result.columns,
+    selectedColumnNames,
+    selectedRowIndices,
+    selectionMode
+  ])
+
+  useEffect(() => {
+    onExportSnapshotChange?.(exportSnapshot)
+  }, [exportSnapshot, onExportSnapshotChange])
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -563,7 +622,7 @@ export function QueryResultGrid({
 
   const dirty = hasDirtyDraft(draft)
   const hasSelection = selectedRowIndices.size > 0
-  const showContextMenu = editable && Boolean(onDraftChange)
+  const showContextMenu = Boolean(onExportRequest) || (editable && Boolean(onDraftChange))
   const setNullColumns =
     selectionMode === 'cells' && selectedColumnNames.length > 0
       ? selectedColumnNames
@@ -996,7 +1055,15 @@ export function QueryResultGrid({
             <div className="min-h-full">{table}</div>
           </ContextMenuTrigger>
           <ContextMenuContent data-testid="grid-row-context-menu">
-            {rowActions ? (
+            {onExportRequest ? (
+              <>
+                <ContextMenuItem data-testid="grid-export" onSelect={() => onExportRequest()}>
+                  {t('database.studio.export')}
+                </ContextMenuItem>
+                {editable && onDraftChange ? <ContextMenuSeparator /> : null}
+              </>
+            ) : null}
+            {rowActions && editable && onDraftChange ? (
               <>
                 <ContextMenuItem data-testid="grid-insert-row" onSelect={() => insertEmptyRow()}>
                   {t('database.studio.insertRow')}
@@ -1011,14 +1078,16 @@ export function QueryResultGrid({
                 <ContextMenuSeparator />
               </>
             ) : null}
-            <ContextMenuItem
-              data-testid="grid-set-null"
-              disabled={setNullDisabled || (!hasSelection && selectionMode !== 'cells')}
-              onSelect={() => setSelectedCellsNull()}
-            >
-              {t('database.studio.setNull')}
-            </ContextMenuItem>
-            {rowActions ? (
+            {editable && onDraftChange ? (
+              <ContextMenuItem
+                data-testid="grid-set-null"
+                disabled={setNullDisabled || (!hasSelection && selectionMode !== 'cells')}
+                onSelect={() => setSelectedCellsNull()}
+              >
+                {t('database.studio.setNull')}
+              </ContextMenuItem>
+            ) : null}
+            {rowActions && editable && onDraftChange ? (
               <>
                 <ContextMenuSeparator />
                 <ContextMenuItem

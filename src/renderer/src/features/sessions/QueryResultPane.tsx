@@ -1,4 +1,9 @@
 import { Button } from '@renderer/components/ui/button'
+import {
+  type DatabaseExportContext,
+  ExportResultDialog,
+  type GridExportSnapshot
+} from '@renderer/features/sessions/ExportResultDialog'
 import { QueryResultGrid } from '@renderer/features/sessions/QueryResultGrid'
 import { QueryResultRecordView } from '@renderer/features/sessions/QueryResultRecordView'
 import {
@@ -8,9 +13,10 @@ import {
   sumNumericCells
 } from '@renderer/features/sessions/query-result-grid'
 import { copyToClipboard } from '@renderer/lib/clipboard'
+import { isModPressed } from '@renderer/lib/shortcuts'
 import { cn } from '@renderer/lib/utils'
 import type { DatabaseCellValue, DatabaseQueryResult } from '@shared/protocols'
-import { LayoutList, Loader2, Save, Sigma, Table2, X } from 'lucide-react'
+import { Download, LayoutList, Loader2, Save, Sigma, Table2, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { StudioPane } from './studio-tabs'
@@ -40,6 +46,7 @@ type QueryResultPaneProps = {
   saveDisabledReason?: string | null
   onSave?: () => void
   onDiscard?: () => void
+  exportContext?: DatabaseExportContext
 }
 
 export function QueryResultPane({
@@ -63,7 +70,8 @@ export function QueryResultPane({
   canSave = false,
   saveDisabledReason,
   onSave,
-  onDiscard
+  onDiscard,
+  exportContext
 }: QueryResultPaneProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const hasError = Boolean(error)
@@ -71,6 +79,8 @@ export function QueryResultPane({
   const [viewMode, setViewMode] = useState<ResultViewMode>('grid')
   const [activeSourceIndex, setActiveSourceIndex] = useState<number | null>(null)
   const [selectedValues, setSelectedValues] = useState<DatabaseCellValue[]>([])
+  const [exportSnapshot, setExportSnapshot] = useState<GridExportSnapshot | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
   const activeDraft = draft ?? emptyGridDraft()
 
   useEffect(() => {
@@ -96,8 +106,36 @@ export function QueryResultPane({
     })
   }, [])
 
+  const handleExportSnapshotChange = useCallback((snapshot: GridExportSnapshot) => {
+    setExportSnapshot(snapshot)
+  }, [])
+
+  const openExportDialog = useCallback(() => {
+    if (!exportContext) return
+    setExportOpen(true)
+  }, [exportContext])
+
+  useEffect(() => {
+    if (!exportContext) return
+    function onKeyDown(event: KeyboardEvent): void {
+      if (!isModPressed(event) || !event.shiftKey || event.code !== 'KeyE') return
+      const active = document.activeElement
+      if (
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        active?.getAttribute('contenteditable') === 'true'
+      ) {
+        return
+      }
+      event.preventDefault()
+      openExportDialog()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [exportContext, openExportDialog])
+
   const recordIndex =
-    activeSourceIndex != null && result && result.rows[activeSourceIndex]
+    activeSourceIndex && result?.rows[activeSourceIndex]
       ? activeSourceIndex
       : result && result.rows.length > 0
         ? 0
@@ -187,6 +225,17 @@ export function QueryResultPane({
         ) : null}
         {activePane === 'results' && result && result.columns.length > 0 ? (
           <div className="ml-auto flex items-center gap-0.5">
+            {exportContext ? (
+              <button
+                type="button"
+                className="inline-flex size-7 items-center justify-center rounded-sm text-muted hover:bg-surface-elevated hover:text-foreground"
+                aria-label={t('database.studio.export')}
+                data-testid="export-results"
+                onClick={openExportDialog}
+              >
+                <Download className="size-3.5" />
+              </button>
+            ) : null}
             <button
               type="button"
               className={cn(
@@ -257,6 +306,8 @@ export function QueryResultPane({
               rowActions={rowActions}
               onActiveSourceIndexChange={setActiveSourceIndex}
               onSumSelectionChange={handleSumSelectionChange}
+              onExportSnapshotChange={exportContext ? handleExportSnapshotChange : undefined}
+              onExportRequest={exportContext ? openExportDialog : undefined}
               onNearEnd={browseMode ? onNearEnd : undefined}
             />
           )
@@ -320,32 +371,30 @@ export function QueryResultPane({
             </button>
           ) : null}
           {result && result.columns.length > 0 && viewMode === 'grid' ? (
-            <>
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex h-5 items-center gap-1 rounded-sm px-1.5 text-[11px]',
-                  canSum ? 'text-foreground hover:bg-surface-elevated' : 'cursor-default text-muted'
-                )}
-                data-testid="studio-column-sum"
-                disabled={!canSum}
-                aria-label={canSum ? t('database.studio.copySum') : undefined}
-                title={canSum ? t('database.studio.copySum') : t('database.studio.sumHint')}
-                onClick={() => {
-                  if (clipboardSum == null) return
-                  void copyToClipboard(clipboardSum, t('database.studio.sum'))
-                }}
-              >
-                <Sigma className="size-3" />
-                {formattedSum != null ? (
-                  <span className="tabular-nums" data-testid="studio-column-sum-total">
-                    {t('database.studio.sumTotal', { value: formattedSum })}
-                  </span>
-                ) : (
-                  t('database.studio.sum')
-                )}
-              </button>
-            </>
+            <button
+              type="button"
+              className={cn(
+                'inline-flex h-5 items-center gap-1 rounded-sm px-1.5 text-[11px]',
+                canSum ? 'text-foreground hover:bg-surface-elevated' : 'cursor-default text-muted'
+              )}
+              data-testid="studio-column-sum"
+              disabled={!canSum}
+              aria-label={canSum ? t('database.studio.copySum') : undefined}
+              title={canSum ? t('database.studio.copySum') : t('database.studio.sumHint')}
+              onClick={() => {
+                if (clipboardSum == null) return
+                void copyToClipboard(clipboardSum, t('database.studio.sum'))
+              }}
+            >
+              <Sigma className="size-3" />
+              {formattedSum != null ? (
+                <span className="tabular-nums" data-testid="studio-column-sum-total">
+                  {t('database.studio.sumTotal', { value: formattedSum })}
+                </span>
+              ) : (
+                t('database.studio.sum')
+              )}
+            </button>
           ) : null}
           {!running && !hasError && statusMeta ? (
             <span className="truncate tabular-nums" data-dirty={dirty ? 'true' : undefined}>
@@ -354,6 +403,14 @@ export function QueryResultPane({
           ) : null}
         </div>
       </div>
+      {exportContext ? (
+        <ExportResultDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          context={exportContext}
+          snapshot={exportSnapshot}
+        />
+      ) : null}
     </div>
   )
 }

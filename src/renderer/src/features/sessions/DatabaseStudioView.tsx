@@ -16,6 +16,7 @@ import {
 } from '@renderer/components/ui/resizable'
 import { Switch } from '@renderer/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
+import type { DatabaseExportContext } from '@renderer/features/sessions/ExportResultDialog'
 import { QueryResultPane } from '@renderer/features/sessions/QueryResultPane'
 import {
   collectUpdatePayloads,
@@ -37,7 +38,8 @@ import {
   queryResultPageSql,
   TABLE_BROWSE_PAGE_SIZE,
   TABLE_BROWSE_SOFT_CAP,
-  tableBrowsePageSql
+  tableBrowsePageSql,
+  tableExportSql
 } from '@shared/lib/sql-ident'
 import { isMutationWithoutWhere } from '@shared/lib/sql-unsafe'
 import {
@@ -205,8 +207,7 @@ export function DatabaseStudioView({
 
     if (append) {
       if (
-        !current ||
-        current.kind !== 'query' ||
+        current?.kind !== 'query' ||
         !current.hasMore ||
         current.browseCapReached ||
         loadingMoreRef.current ||
@@ -284,7 +285,7 @@ export function DatabaseStudioView({
     options?: { append?: boolean; confirmed?: boolean }
   ): Promise<void> {
     const tab = tabsRef.current.find((item) => item.id === tabId)
-    if (!tab || tab.kind !== 'table') return
+    if (tab?.kind !== 'table') return
 
     const append = options?.append === true
     const filter = tab.filter
@@ -669,6 +670,44 @@ export function DatabaseStudioView({
     return meta
   }, [schemaRelation])
 
+  const exportContext = useMemo((): DatabaseExportContext | undefined => {
+    if (!activeTab?.result || activeTab.result.columns.length === 0) return undefined
+    if (activeTab.kind === 'table') {
+      return {
+        sessionId,
+        engine,
+        fullQuerySql: tableExportSql(
+          engine,
+          activeTab.schema,
+          activeTab.table,
+          activeTab.filter,
+          orderByForTable(activeTab.schema, activeTab.table)
+        ),
+        suggestedName: activeTab.table,
+        defaultSqlTableName: `${activeTab.schema}.${activeTab.table}`
+      }
+    }
+    const sql = (activeTab.executedSql ?? activeTab.sql).trim()
+    if (!sql) return undefined
+    const parsed = parsePrimaryFromRelation(sql)
+    let defaultSqlTableName = 'query'
+    let suggestedName = 'query'
+    if (parsed) {
+      const found = findRelation(tree, parsed.schema, parsed.table)
+      const schema = found?.schema ?? parsed.schema ?? ''
+      const table = found?.relation.name ?? parsed.table
+      defaultSqlTableName = schema ? `${schema}.${table}` : table
+      suggestedName = table
+    }
+    return {
+      sessionId,
+      engine,
+      fullQuerySql: sql,
+      suggestedName,
+      defaultSqlTableName
+    }
+  }, [activeTab, engine, sessionId, tree, orderByForTable])
+
   return (
     <div
       className="flex h-full min-h-0 flex-col bg-background"
@@ -806,6 +845,7 @@ export function DatabaseStudioView({
                   onSave={() => void saveActiveTab()}
                   onDiscard={() => discardEdits(activeTab.id)}
                   rowActions={!isView}
+                  exportContext={exportContext}
                 />
               ) : (
                 <QueryTabPane
@@ -840,6 +880,7 @@ export function DatabaseStudioView({
                   onPaneChange={(pane) =>
                     patchTab(activeTab.id, (current) => ({ ...current, pane }))
                   }
+                  exportContext={exportContext}
                 />
               )
             ) : (
@@ -1000,7 +1041,8 @@ function QueryTabPane({
   onDiscard,
   onSqlChange,
   onRun,
-  onPaneChange
+  onPaneChange,
+  exportContext
 }: {
   tab: QueryStudioTab
   engine: SqlStudioEngine
@@ -1024,6 +1066,7 @@ function QueryTabPane({
   onSqlChange: (sql: string) => void
   onRun: (sql: string) => void
   onPaneChange: (pane: StudioPane) => void
+  exportContext?: DatabaseExportContext
 }): React.JSX.Element {
   const { t } = useTranslation()
 
@@ -1063,6 +1106,7 @@ function QueryTabPane({
           browseHasMore={browseHasMore}
           browseCapReached={browseCapReached}
           onNearEnd={onLoadMore}
+          exportContext={exportContext}
         />
       </ResizablePanel>
     </ResizablePanelGroup>

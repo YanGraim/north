@@ -196,6 +196,42 @@ export function selectionToTsv(input: {
   return rowsToTsv(rows, columns)
 }
 
+export function selectionToRows(input: {
+  mode: 'rows' | 'columns' | 'cells'
+  displayRows: Array<Record<string, DatabaseCellValue>>
+  orderedColumnNames: readonly string[]
+  selectedRowIndices: ReadonlySet<number>
+  selectedColumnNames: readonly string[]
+  resultColumns: readonly { name: string; dataType?: string }[]
+}): {
+  columns: Array<{ name: string; dataType?: string }>
+  rows: Array<Record<string, DatabaseCellValue>>
+} {
+  const columnNames =
+    input.mode === 'columns' || input.mode === 'cells'
+      ? input.selectedColumnNames
+      : input.orderedColumnNames
+  const columns = columnNames.map((name) => {
+    const found = input.resultColumns.find((column) => column.name === name)
+    return found ?? { name }
+  })
+  const sourceRows =
+    input.mode === 'columns'
+      ? input.displayRows
+      : input.displayRows.filter((_, index) => input.selectedRowIndices.has(index))
+  const rows =
+    input.mode === 'cells'
+      ? sourceRows.map((row) => {
+          const next: Record<string, DatabaseCellValue> = {}
+          for (const name of columnNames) {
+            next[name] = row[name] ?? null
+          }
+          return next
+        })
+      : sourceRows
+  return { columns, rows }
+}
+
 export function collectRectValues(
   displayRows: Array<Record<string, DatabaseCellValue>>,
   displayIndices: readonly number[],
