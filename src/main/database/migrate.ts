@@ -8,7 +8,8 @@ export type Migration = {
 
 /**
  * Applies pending migrations in order, controlled by PRAGMA user_version.
- * Each batch runs inside a single transaction.
+ * Each migration runs in its own transaction with foreign keys off so table
+ * rebuilds (SQLite ALTER TABLE pattern) can drop/rename parents safely.
  */
 export function migrate(db: SqliteDatabase, migrations: Migration[]): void {
   const currentVersion = Number(db.pragma('user_version', { simple: true }))
@@ -16,18 +17,15 @@ export function migrate(db: SqliteDatabase, migrations: Migration[]): void {
     .filter((migration) => migration.version > currentVersion)
     .sort((a, b) => a.version - b.version)
 
-  if (pending.length === 0) {
-    return
-  }
-
-  const apply = db.transaction(() => {
-    for (const migration of pending) {
+  for (const migration of pending) {
+    db.pragma('foreign_keys = OFF')
+    const apply = db.transaction(() => {
       migration.up(db)
       db.pragma(`user_version = ${migration.version}`)
-    }
-  })
-
-  apply()
+    })
+    apply()
+    db.pragma('foreign_keys = ON')
+  }
 }
 
 export function getUserVersion(db: SqliteDatabase): number {

@@ -6,6 +6,8 @@ import { migration004Accesses } from './004-accesses'
 import { migration005EnvironmentColor } from './005-environment-color'
 import { migration006Workflows } from './006-workflows'
 import { migration007AccessHistory } from './007-access-history'
+import { migration008ApiClient } from './008-api-client'
+import { migration009ApiCollectionsClient } from './009-api-collections-client'
 
 /** Ordered list of schema migrations. Append new ones; never reorder or reuse versions. */
 export const migrations: Migration[] = [
@@ -15,5 +17,7 @@ export const migrations: Migration[] = [
   migration004Accesses,
   migration005EnvironmentColor,
   migration006Workflows,
-  migration007AccessHistory
+  migration007AccessHistory,
+  migration008ApiClient,
+  migration009ApiCollectionsClient
 ]

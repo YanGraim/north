@@ -1,5 +1,9 @@
 import type { SqliteDatabase } from '../database/connection'
 import { AccessesRepository } from './accesses-repository'
+import { ApiCollectionsRepository } from './api-collections-repository'
+import { ApiRequestHistoryRepository } from './api-request-history-repository'
+import { ApiRequestsRepository } from './api-requests-repository'
+import { ApiVariablesRepository } from './api-variables-repository'
 import { ClientsRepository } from './clients-repository'
 import { ConnectionSecretsRepository } from './connection-secrets-repository'
 import { ConnectionsRepository } from './connections-repository'
@@ -27,6 +31,10 @@ export type Repositories = {
   workflows: WorkflowsRepository
   workflowRuns: WorkflowRunsRepository
   connectionSecrets: ConnectionSecretsRepository
+  apiCollections: ApiCollectionsRepository
+  apiRequests: ApiRequestsRepository
+  apiVariables: ApiVariablesRepository
+  apiRequestHistory: ApiRequestHistoryRepository
 }
 
 export function createRepositories(db: SqliteDatabase): Repositories {
@@ -43,12 +51,20 @@ export function createRepositories(db: SqliteDatabase): Repositories {
     groupVariables: new GroupVariablesRepository(db),
     workflows: new WorkflowsRepository(db),
     workflowRuns: new WorkflowRunsRepository(db),
-    connectionSecrets: new ConnectionSecretsRepository(db)
+    connectionSecrets: new ConnectionSecretsRepository(db),
+    apiCollections: new ApiCollectionsRepository(db),
+    apiRequests: new ApiRequestsRepository(db),
+    apiVariables: new ApiVariablesRepository(db),
+    apiRequestHistory: new ApiRequestHistoryRepository(db)
   }
 }
 
 export {
   AccessesRepository,
+  ApiCollectionsRepository,
+  ApiRequestHistoryRepository,
+  ApiRequestsRepository,
+  ApiVariablesRepository,
   ClientsRepository,
   ConnectionSecretsRepository,
   ConnectionsRepository,

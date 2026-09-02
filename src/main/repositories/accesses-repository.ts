@@ -5,6 +5,7 @@ import type {
   ListAccessesFilter,
   UpdateAccessInput
 } from '@shared/types'
+import { ApiConfigSchema, emptyApiConfig } from '@shared/types'
 import type { SqliteDatabase } from '../database/connection'
 import { boolToInt, intToBool, newId, nowIso, parseJsonArray, toJson } from './row-utils'
 
@@ -27,14 +28,26 @@ type AccessRow = {
   port: number | null
   database_name: string | null
   ssl: number | null
+  api_config: string | null
   created_at: string
   updated_at: string
 }
 
 const ACCESS_COLUMNS = `
   id, group_id, type, name, description, notes, username, credential_ref, url, links,
-  icon, color, is_favorite, engine, host, port, database_name, ssl, created_at, updated_at
+  icon, color, is_favorite, engine, host, port, database_name, ssl, api_config, created_at, updated_at
 `
+
+function parseApiConfig(raw: string | null, type: Access['type']): Access['apiConfig'] {
+  if (!raw) {
+    return type === 'api' ? emptyApiConfig() : null
+  }
+  try {
+    return ApiConfigSchema.parse(JSON.parse(raw))
+  } catch {
+    return type === 'api' ? emptyApiConfig() : null
+  }
+}
 
 function mapAccess(row: AccessRow): Access {
   return {
@@ -56,6 +69,7 @@ function mapAccess(row: AccessRow): Access {
     port: row.port,
     database: row.database_name,
     ssl: row.ssl === null ? null : intToBool(row.ssl),
+    apiConfig: parseApiConfig(row.api_config, row.type),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -81,6 +95,7 @@ function toInsertParams(access: Access): Record<string, unknown> {
     port: access.port,
     database_name: access.database,
     ssl: access.ssl === null ? null : boolToInt(access.ssl),
+    api_config: access.apiConfig ? JSON.stringify(access.apiConfig) : null,
     created_at: access.createdAt,
     updated_at: access.updatedAt
   }
@@ -103,10 +118,10 @@ export class AccessesRepository {
     this.insertStmt = db.prepare(`
       INSERT INTO accesses (
         id, group_id, type, name, description, notes, username, credential_ref, url, links,
-        icon, color, is_favorite, engine, host, port, database_name, ssl, created_at, updated_at
+        icon, color, is_favorite, engine, host, port, database_name, ssl, api_config, created_at, updated_at
       ) VALUES (
         @id, @group_id, @type, @name, @description, @notes, @username, @credential_ref, @url, @links,
-        @icon, @color, @is_favorite, @engine, @host, @port, @database_name, @ssl, @created_at, @updated_at
+        @icon, @color, @is_favorite, @engine, @host, @port, @database_name, @ssl, @api_config, @created_at, @updated_at
       )
     `)
     this.updateStmt = db.prepare(`
@@ -128,6 +143,7 @@ export class AccessesRepository {
         port = @port,
         database_name = @database_name,
         ssl = @ssl,
+        api_config = @api_config,
         updated_at = @updated_at
       WHERE id = @id
     `)
@@ -224,6 +240,12 @@ export class AccessesRepository {
       port: input.port ?? null,
       database: input.database ?? null,
       ssl: input.ssl ?? null,
+      apiConfig:
+        input.apiConfig !== undefined
+          ? input.apiConfig
+          : input.type === 'api'
+            ? emptyApiConfig()
+            : null,
       createdAt: now,
       updatedAt: now
     }
@@ -256,6 +278,7 @@ export class AccessesRepository {
       port: input.port === undefined ? existing.port : input.port,
       database: input.database === undefined ? existing.database : input.database,
       ssl: input.ssl === undefined ? existing.ssl : input.ssl,
+      apiConfig: input.apiConfig === undefined ? existing.apiConfig : input.apiConfig,
       updatedAt: nowIso()
     }
     this.updateStmt.run(toInsertParams(updated))

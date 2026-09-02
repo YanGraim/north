@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(7)
+    expect(getUserVersion(db)).toBe(9)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -35,7 +35,12 @@ describe('migrations', () => {
         'group_variables',
         'workflows',
         'workflow_runs',
-        'connection_secrets'
+        'connection_secrets',
+        'api_collections',
+        'api_folders',
+        'api_requests',
+        'api_variables',
+        'api_request_history'
       ])
     )
   })
@@ -44,7 +49,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(7)
+    expect(getUserVersion(db)).toBe(9)
   })
 
   it('adds color column to environments from 005', () => {
@@ -138,7 +143,8 @@ describe('migrations', () => {
         'host',
         'port',
         'database_name',
-        'ssl'
+        'ssl',
+        'api_config'
       ])
     )
     expect(columns.map((c) => c.name)).not.toContain('password')
@@ -173,5 +179,85 @@ describe('migrations', () => {
         'status'
       ])
     )
+  })
+
+  it('creates api client tables and api_config on accesses from 008', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+
+    for (const table of [
+      'api_collections',
+      'api_folders',
+      'api_requests',
+      'api_variables',
+      'api_request_history'
+    ]) {
+      const found = db
+        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`)
+        .get(table) as { name: string } | undefined
+      expect(found?.name).toBe(table)
+    }
+
+    const columns = db.prepare(`PRAGMA table_info(accesses)`).all() as Array<{ name: string }>
+    expect(columns.map((c) => c.name)).toContain('api_config')
+  })
+
+  it('009 scopes collections to client_id and drops access_id', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+
+    const columns = db.prepare(`PRAGMA table_info(api_collections)`).all() as Array<{
+      name: string
+    }>
+    const names = columns.map((c) => c.name)
+    expect(names).toContain('client_id')
+    expect(names).not.toContain('access_id')
+  })
+
+  it('009 keeps folders when rebuilding collections that already exist', () => {
+    const db = openDatabase(':memory:')
+    migrate(
+      db,
+      migrations.filter((migration) => migration.version <= 8)
+    )
+
+    const now = '2026-01-01T00:00:00.000Z'
+    db.exec(`
+      INSERT INTO clients (id, name, notes, color, created_at, updated_at)
+      VALUES ('c1', 'Acme', NULL, NULL, '${now}', '${now}');
+      INSERT INTO environments (id, client_id, name, notes, sort_order, color, created_at, updated_at)
+      VALUES ('e1', 'c1', 'HML', NULL, 0, NULL, '${now}', '${now}');
+      INSERT INTO groups (id, environment_id, name, notes, sort_order, created_at, updated_at)
+      VALUES ('g1', 'e1', 'api', NULL, 0, '${now}', '${now}');
+      INSERT INTO accesses (
+        id, group_id, type, name, url, is_favorite, created_at, updated_at
+      ) VALUES (
+        'a1', 'g1', 'api', 'Petstore', 'https://api.example.com', 0, '${now}', '${now}'
+      );
+      INSERT INTO api_collections (
+        id, access_id, name, sort_order, created_at, updated_at
+      ) VALUES (
+        'col1', 'a1', 'WMS', 0, '${now}', '${now}'
+      );
+      INSERT INTO api_folders (
+        id, collection_id, name, sort_order, created_at, updated_at
+      ) VALUES (
+        'f1', 'col1', 'Auth', 0, '${now}', '${now}'
+      );
+    `)
+
+    migrate(db, migrations)
+
+    const collection = db
+      .prepare(`SELECT client_id, name FROM api_collections WHERE id = 'col1'`)
+      .get() as {
+      client_id: string
+      name: string
+    }
+    expect(collection).toEqual({ client_id: 'c1', name: 'WMS' })
+    const folder = db.prepare(`SELECT collection_id FROM api_folders WHERE id = 'f1'`).get() as {
+      collection_id: string
+    }
+    expect(folder.collection_id).toBe('col1')
   })
 })
