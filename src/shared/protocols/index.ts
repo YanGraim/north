@@ -1,11 +1,33 @@
+export {
+  API_MAX_RESPONSE_BYTES,
+  type ApiCancelInput,
+  ApiCancelInputSchema,
+  type ApiErrorKind,
+  ApiErrorKindSchema,
+  type ApiHeader,
+  ApiHeaderSchema,
+  type ApiHistoryListInput,
+  ApiHistoryListInputSchema,
+  type ApiSendInput,
+  ApiSendInputSchema,
+  type ApiSendResult,
+  ApiSendResultSchema
+} from './api'
 export { coerceBytes } from './bytes'
 export {
+  DATABASE_EXPORT_MAX_ROWS,
+  DATABASE_EXPORT_PDF_MAX_ROWS,
+  DATABASE_EXPORT_TIMEOUT_MS,
   DATABASE_MAX_ROWS,
   DATABASE_QUERY_TIMEOUT_MS,
   type DatabaseCellValue,
   DatabaseCellValueSchema,
   type DatabaseColumn,
   DatabaseColumnSchema,
+  type DatabaseExportFormat,
+  DatabaseExportFormatSchema,
+  type DatabaseExportOptions,
+  DatabaseExportOptionsSchema,
   type DatabaseIntrospection,
   DatabaseIntrospectionSchema,
   type DatabaseQueryColumn,
@@ -28,6 +50,10 @@ export {
   DbCancelInputSchema,
   type DbCommitInput,
   DbCommitInputSchema,
+  type DbExportInput,
+  DbExportInputSchema,
+  type DbExportResult,
+  DbExportResultSchema,
   type DbIntrospectInput,
   DbIntrospectInputSchema,
   type DbQueryInput,
@@ -46,9 +72,11 @@ export {
   SqlStudioEngineSchema
 } from './database'
 export type {
+  ApiCapability,
   AuthConfig,
   ConnectOptions,
   DatabaseCapability,
+  DatabaseQueryOptions,
   ProtocolDriver,
   ProtocolSession,
   SecretResolver,

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const SessionKindSchema = z.enum(['terminal', 'desktop', 'file-transfer', 'database'])
+export const SessionKindSchema = z.enum(['terminal', 'desktop', 'file-transfer', 'database', 'api'])
 export type SessionKind = z.infer<typeof SessionKindSchema>
 
 export const SessionStateSchema = z.enum([
