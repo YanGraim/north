@@ -5,10 +5,11 @@ Los accesos guardan credenciales en la misma jerarquía Cliente → Ambiente →
 - **Login** — usuario/contraseña y URL (portal, panel) — **sin** sesión remota
 - **Base de datos** — motor, host, puerto, database, SSL. PostgreSQL, MySQL/MariaDB, SQL Server y SQLite abren el [estudio SQL](database); en la UI aparecen con la **marca del motor** (salvo icono personalizado)
 - **Otro** — secreto genérico con notas
+- **API** — Base URL y cliente HTTP in-app; ver [Cliente API](api)
 
 ## Acciones en el panel
 
-- **Conectar** — solo en bancos con motor soportado; abre el editor in-app
+- **Conectar** — bancos con motor soportado (estudio SQL) y Access **API** (cliente HTTP)
 - **Revelar / ocultar contraseña** — muestra el secreto solo cuando lo pides
 - **Copiar contraseña** — para pegar en el destino
 - **Copiar connection string** — útil en accesos de base de datos

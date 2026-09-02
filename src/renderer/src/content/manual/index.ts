@@ -1,6 +1,7 @@
 import type { LocaleCode } from '@renderer/stores/ui-store'
 
 import accessesEn from './en/accesses.md?raw'
+import apiEn from './en/api.md?raw'
 import commandPaletteEn from './en/command-palette.md?raw'
 import connectEn from './en/connect.md?raw'
 import databaseEn from './en/database.md?raw'
@@ -12,6 +13,7 @@ import securityEn from './en/security.md?raw'
 import workflowsEn from './en/workflows.md?raw'
 
 import accessesEs from './es/accesses.md?raw'
+import apiEs from './es/api.md?raw'
 import commandPaletteEs from './es/command-palette.md?raw'
 import connectEs from './es/connect.md?raw'
 import databaseEs from './es/database.md?raw'
@@ -23,6 +25,7 @@ import securityEs from './es/security.md?raw'
 import workflowsEs from './es/workflows.md?raw'
 
 import accessesPt from './pt-BR/accesses.md?raw'
+import apiPt from './pt-BR/api.md?raw'
 import commandPalettePt from './pt-BR/command-palette.md?raw'
 import connectPt from './pt-BR/connect.md?raw'
 import databasePt from './pt-BR/database.md?raw'
@@ -40,6 +43,7 @@ export const MANUAL_CHAPTER_IDS = [
   'connect',
   'accesses',
   'database',
+  'api',
   'workflows',
   'command-palette',
   'import-export',
@@ -63,6 +67,7 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     connect: connectPt,
     accesses: accessesPt,
     database: databasePt,
+    api: apiPt,
     workflows: workflowsPt,
     'command-palette': commandPalettePt,
     'import-export': importExportPt,
@@ -75,6 +80,7 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     connect: connectEn,
     accesses: accessesEn,
     database: databaseEn,
+    api: apiEn,
     workflows: workflowsEn,
     'command-palette': commandPaletteEn,
     'import-export': importExportEn,
@@ -87,6 +93,7 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     connect: connectEs,
     accesses: accessesEs,
     database: databaseEs,
+    api: apiEs,
     workflows: workflowsEs,
     'command-palette': commandPaletteEs,
     'import-export': importExportEs,

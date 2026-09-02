@@ -5,10 +5,11 @@ Accesses store credentials in the same Client → Environment → Group hierarch
 - **Login** — username/password and URL (portal, panel) — **no** remote session
 - **Database** — engine, host, port, database, SSL. PostgreSQL, MySQL/MariaDB, SQL Server and SQLite open the [SQL studio](database); the UI shows the **engine brand** (unless a custom icon is set)
 - **Other** — generic secret with notes
+- **API** — Base URL and in-app HTTP client; see [API client](api)
 
 ## Panel actions
 
-- **Connect** — only for supported database engines; opens the in-app editor
+- **Connect** — supported database engines (SQL studio) and **API** Accesses (HTTP client)
 - **Reveal / hide password** — shows the secret only when you ask
 - **Copy password** — paste into the destination
 - **Copy connection string** — useful for database accesses

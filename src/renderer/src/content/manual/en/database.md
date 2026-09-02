@@ -22,6 +22,7 @@ On the database detail panel, **Connect** opens a tab with:
 - table/column autocomplete in the editor (Ctrl/⌘+Space): matches prefix and name fragments (`users` finds `log_users` and `users_companies`); the popup shows the suggested alias and kind (`Table`) in color; accepting (or Tab on the name) inserts the alias (`balances` → `balances b`)
 - **Results** grid at 13px: click the header **name** to select the whole column (Shift / ⌘/Ctrl for range or toggle); drag **cells** (up/down or a rectangle) for just some values; the **icon** cycles sort; drag the header to reorder; drag the header **right edge** to resize (double-click the edge auto-fits visible content). Clicking a table loads immediately (**100 rows** per page) and fetches more as you scroll (footer shows `100+`, then the exact total when the end is reached). The Query tab pages `SELECT`/`WITH` the same way when there is no `LIMIT`/`TOP`/`FETCH`; the original SQL stays in the editor (Save never uses the `OFFSET` form)
 - click `#` to select rows (Shift / ⌘/Ctrl / drag); ⌘/Ctrl+C copies TSV — rows (all visible columns), a whole column, or only the cells in the range
+- **Export** on the results pane (⌘/Ctrl+Shift+E) or right-click the grid: dialog with source (**Selection** = same slice as ⌘/Ctrl+C, including draft edits; **Visible** = rows loaded in the grid; **Full query/table** = re-runs on the server), formats CSV, JSON, Excel, PDF and SQL INSERT; full query up to **100k** rows (PDF **5k**)
 - with column(s) or a cell range selected, **Sum** in the footer totals visible numbers immediately (skips NULL and non-numeric text; includes `numeric`/`decimal`/`bigint` and pending edits). Click the total to copy; it stays next to the row count until the selection changes
 - **Grid | Record** toggle on the results pane: Record shows the selected row (or the first) as field | value (selectable text), with arrows to move between rows; double-click, F2 or Enter edits a field
 - on any result set (table, free query, JOIN or view), double-click, **F2** or **Enter** opens the cell editor; a single click still selects the row. `CHAR`/`VARCHAR` columns honor schema length (you can still type `NULL` on nullable fields). Insert / Duplicate / Delete (right-click) only on a **table** tab that is not a view — **Duplicate** places the copy right below the source; **Set NULL** clears the selected cells (or the focused one)
@@ -36,5 +37,5 @@ The password **never** reaches the session UI — main resolves it from the vaul
 ## Limits in this version
 
 - No SSH tunnel via the group’s Connection — the database host must be reachable from your machine
-- No CSV export; tables without a primary key cannot be saved from the grid
+- Tables without a primary key cannot be saved from the grid
 - Queries time out after 30s; free-form INSERT/UPDATE/DELETE remain available as SQL
