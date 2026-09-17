@@ -37,13 +37,13 @@ export async function resolveOrgContext(input: {
   }
 }
 
-/** Resolve nome e cor do ambiente de uma conexão. */
+/** Resolve nome/cor do ambiente e nome do cliente de uma conexão. */
 export async function resolveConnectionEnvironment(
   connectionId: string
-): Promise<{ name: string; color: string | null } | null> {
+): Promise<{ name: string; color: string | null; clientName: string | null } | null> {
   const ctx = await resolveOrgContext({ connectionId })
   if (!ctx?.environmentName) return null
-  return { name: ctx.environmentName, color: ctx.environmentColor }
+  return { name: ctx.environmentName, color: ctx.environmentColor, clientName: ctx.clientName }
 }
 
 /** @deprecated Prefer resolveConnectionEnvironment */
@@ -52,6 +52,15 @@ export async function resolveConnectionEnvironmentName(
 ): Promise<string | null> {
   const resolved = await resolveConnectionEnvironment(connectionId)
   return resolved?.name ?? null
+}
+
+/** Resolve nome/cor do ambiente e nome do cliente a partir de um grupo (Access). */
+export async function resolveAccessEnvironment(
+  groupId: string
+): Promise<{ name: string; color: string | null; clientName: string | null } | null> {
+  const ctx = await resolveOrgContext({ groupId })
+  if (!ctx?.environmentName) return null
+  return { name: ctx.environmentName, color: ctx.environmentColor, clientName: ctx.clientName }
 }
 
 /** Folder chip for a workflow run: client (or connection), with env name if the badge is hidden. */

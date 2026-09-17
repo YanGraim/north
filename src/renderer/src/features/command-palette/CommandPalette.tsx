@@ -43,6 +43,7 @@ import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-sto
 import {
   openAccessSession,
   openConnectionSession,
+  openLocalTerminalSession,
   sessionKindForProtocol
 } from '@renderer/stores/sessions-store'
 import { useWhatsNewStore } from '@renderer/stores/whats-new-store'
@@ -66,6 +67,7 @@ import {
   Sparkles,
   Star,
   Tag,
+  TerminalSquare,
   Upload,
   Workflow as WorkflowIcon
 } from 'lucide-react'
@@ -403,6 +405,18 @@ export function CommandPalette(): React.JSX.Element {
                       <Server className="size-4 text-muted" />
                       Nova conexão · servidor
                       <CommandShortcut>{shortcutDisplayLabel('newConnection')}</CommandShortcut>
+                    </CommandItem>
+                    <CommandItem
+                      value="action-open-local-terminal"
+                      onSelect={() => {
+                        close()
+                        void openLocalTerminalSession().catch((error) => {
+                          toastError(error, 'Não foi possível abrir o terminal local.')
+                        })
+                      }}
+                    >
+                      <TerminalSquare className="size-4 text-muted" />
+                      Terminal local
                     </CommandItem>
                     <CommandItem
                       value="action-new-database"

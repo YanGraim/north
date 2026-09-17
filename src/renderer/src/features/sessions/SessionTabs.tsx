@@ -3,6 +3,7 @@ import {
   environmentStatusColor,
   hasEnvironmentContext
 } from '@renderer/lib/environment-color'
+import { workflowRunFolderLabel } from '@renderer/lib/resolve-connection-environment'
 import { cn } from '@renderer/lib/utils'
 import {
   type SessionTab,
@@ -62,12 +63,16 @@ function TabButton({
   const accent = hasContext
     ? environmentStatusColor(tab.environmentName ?? '', tab.environmentColor)
     : null
+  const clientLabel = !isWorkspace
+    ? workflowRunFolderLabel(tab.clientName, tab.environmentName)
+    : ''
 
   return (
     <div
       role="tab"
       tabIndex={0}
       aria-selected={active}
+      title={clientLabel ? `${clientLabel} — ${tab.title}` : undefined}
       data-testid={isWorkspace ? 'session-tab-workspace' : undefined}
       draggable={!isWorkspace}
       onDragStart={() => onDragStart(index)}
@@ -128,6 +133,11 @@ function TabButton({
           style={{ color: accent ?? undefined }}
         >
           {environmentBadgeLabel(tab.environmentName)}
+        </span>
+      ) : null}
+      {clientLabel ? (
+        <span className="shrink-0 truncate text-[10px] text-muted" style={{ maxWidth: '4.5rem' }}>
+          {clientLabel}
         </span>
       ) : null}
       <span className="min-w-0 flex-1 truncate">{isWorkspace ? 'Workspace' : tab.title}</span>

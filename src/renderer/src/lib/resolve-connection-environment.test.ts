@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  resolveAccessEnvironment,
   resolveConnectionEnvironment,
   resolveOrgContext,
   workflowRunFolderLabel
@@ -87,7 +88,7 @@ describe('resolveOrgContext', () => {
 })
 
 describe('resolveConnectionEnvironment', () => {
-  it('keeps { name, color } for session tabs', async () => {
+  it('keeps { name, color, clientName } for session tabs', async () => {
     Object.assign(globalThis, {
       window: {
         north: {
@@ -110,7 +111,35 @@ describe('resolveConnectionEnvironment', () => {
 
     await expect(resolveConnectionEnvironment('c1')).resolves.toEqual({
       name: 'Prod',
-      color: '#ef4444'
+      color: '#ef4444',
+      clientName: 'Acme'
+    })
+  })
+})
+
+describe('resolveAccessEnvironment', () => {
+  it('resolves { name, color, clientName } from a groupId', async () => {
+    Object.assign(globalThis, {
+      window: {
+        north: {
+          groups: { get: vi.fn().mockResolvedValue({ id: 'g1', environmentId: 'e1' }) },
+          environments: {
+            get: vi.fn().mockResolvedValue({
+              id: 'e1',
+              clientId: 'cl1',
+              name: 'Staging',
+              color: '#f59e0b'
+            })
+          },
+          clients: { get: vi.fn().mockResolvedValue({ id: 'cl1', name: 'Globex' }) }
+        }
+      }
+    })
+
+    await expect(resolveAccessEnvironment('g1')).resolves.toEqual({
+      name: 'Staging',
+      color: '#f59e0b',
+      clientName: 'Globex'
     })
   })
 })

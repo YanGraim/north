@@ -1,6 +1,7 @@
 import { formatIpcError } from '@renderer/lib/ipc-error'
 import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import {
+  resolveAccessEnvironment,
   resolveConnectionEnvironment,
   resolveOrgContext
 } from '@renderer/lib/resolve-connection-environment'
@@ -47,6 +48,7 @@ export type OpenSessionOptions = {
   host?: string | null
   environmentName?: string | null
   environmentColor?: string | null
+  clientName?: string | null
 }
 
 type SessionsState = {
@@ -65,6 +67,7 @@ type SessionsState = {
     host?: string | null
     environmentName?: string | null
     environmentColor?: string | null
+    clientName?: string | null
   }) => void
   attachSessionPort: (input: {
     tempId: string
@@ -97,6 +100,7 @@ export function sessionKindForProtocol(protocol: string): SessionKind | undefine
     case 'ssh':
     case 'telnet':
     case 'serial':
+    case 'local-shell':
       return 'terminal'
     case 'sftp':
     case 'ftp':
@@ -152,7 +156,8 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
     username,
     host,
     environmentName,
-    environmentColor
+    environmentColor,
+    clientName
   }) => {
     const tab: SessionTab = {
       id,
@@ -166,6 +171,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       host: host ?? null,
       environmentName: environmentName ?? null,
       environmentColor: environmentColor ?? null,
+      clientName: clientName ?? null,
       state: 'connecting',
       errorMessage: null,
       awaitingHostKey: false,
@@ -336,7 +342,8 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
         title: tab.title,
         host: tab.host,
         environmentName: tab.environmentName,
-        environmentColor: tab.environmentColor
+        environmentColor: tab.environmentColor,
+        clientName: tab.clientName
       })
       return
     }
@@ -348,8 +355,13 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
         username: tab.username,
         host: tab.host,
         environmentName: tab.environmentName,
-        environmentColor: tab.environmentColor
+        environmentColor: tab.environmentColor,
+        clientName: tab.clientName
       })
+      return
+    }
+    if (tab.protocol === 'local-shell') {
+      await openLocalTerminalSession()
       return
     }
     if (!tab.connectionId) return
@@ -360,7 +372,8 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       username: tab.username,
       host: tab.host,
       environmentName: tab.environmentName,
-      environmentColor: tab.environmentColor
+      environmentColor: tab.environmentColor,
+      clientName: tab.clientName
     })
   },
 
@@ -434,7 +447,8 @@ export async function openConnectionSession(
     username: options?.username,
     host: options?.host,
     environmentName: options?.environmentName ?? null,
-    environmentColor: options?.environmentColor ?? null
+    environmentColor: options?.environmentColor ?? null,
+    clientName: options?.clientName ?? null
   })
 
   if (!options?.environmentName) {
@@ -446,7 +460,8 @@ export async function openConnectionSession(
             ? {
                 ...tab,
                 environmentName: resolved.name,
-                environmentColor: resolved.color
+                environmentColor: resolved.color,
+                clientName: resolved.clientName
               }
             : tab
         )
@@ -470,6 +485,33 @@ export async function openConnectionSession(
   }
 }
 
+/** Opens a local shell — no Connection/Access, no host, no credentials. */
+export async function openLocalTerminalSession(): Promise<void> {
+  const store = useSessionsStore.getState()
+  const tempId = crypto.randomUUID()
+  store.beginConnectingTab({
+    id: tempId,
+    title: 'Terminal local',
+    sessionKind: 'terminal',
+    protocol: 'local-shell'
+  })
+
+  try {
+    let port: MessagePort | null = null
+    const session = await window.north.sessions.openLocal((received) => {
+      port = received
+    })
+    if (!port) {
+      throw new Error('Session MessagePort missing')
+    }
+    store.attachSessionPort({ tempId, session, port })
+  } catch (error) {
+    const message = formatIpcError(error, 'Falha ao abrir terminal local')
+    store.failConnectingTab(tempId, message)
+    throw error
+  }
+}
+
 export async function openAccessSession(
   accessId: string,
   options?: OpenSessionOptions
@@ -482,9 +524,11 @@ export async function openAccessSession(
   if (access.type === 'api') {
     const group = await window.north.groups.get(access.groupId)
     const environment = group ? await window.north.environments.get(group.environmentId) : null
+    const client = environment ? await window.north.clients.get(environment.clientId) : null
     openApiStudioTab({
       environmentAccessId: access.id,
       clientId: environment?.clientId ?? null,
+      clientName: options?.clientName ?? client?.name ?? null,
       title: options?.title?.trim() || access.name,
       host: options?.host ?? access.url,
       environmentName: options?.environmentName ?? environment?.name ?? null,
@@ -509,7 +553,8 @@ export async function openAccessSession(
     username: options?.username ?? access.username,
     host: options?.host ?? access.host,
     environmentName: options?.environmentName ?? null,
-    environmentColor: options?.environmentColor ?? null
+    environmentColor: options?.environmentColor ?? null,
+    clientName: options?.clientName ?? null
   })
 
   if (!options?.environmentName) {
@@ -521,7 +566,8 @@ export async function openAccessSession(
             ? {
                 ...tab,
                 environmentName: resolved.name,
-                environmentColor: resolved.color
+                environmentColor: resolved.color,
+                clientName: resolved.clientName
               }
             : tab
         )
@@ -544,6 +590,7 @@ export function openApiStudioTab(input: {
   collectionName?: string
   environmentAccessId?: string | null
   clientId?: string | null
+  clientName?: string | null
   title?: string
   host?: string | null
   environmentName?: string | null
@@ -585,6 +632,7 @@ export function openApiStudioTab(input: {
     collectionId: input.collectionId ?? null,
     environmentAccessId: input.environmentAccessId ?? null,
     clientId: input.clientId ?? null,
+    clientName: input.clientName ?? null,
     host: input.host ?? null,
     environmentName: input.environmentName ?? null,
     environmentColor: input.environmentColor ?? null
@@ -593,14 +641,4 @@ export function openApiStudioTab(input: {
     tabs: [...state.tabs, tab],
     activeTabId: id
   }))
-}
-
-async function resolveAccessEnvironment(
-  groupId: string
-): Promise<{ name: string; color: string | null } | null> {
-  const group = await window.north.groups.get(groupId)
-  if (!group) return null
-  const environment = await window.north.environments.get(group.environmentId)
-  if (!environment) return null
-  return { name: environment.name, color: environment.color }
 }

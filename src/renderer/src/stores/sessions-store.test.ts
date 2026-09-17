@@ -120,6 +120,40 @@ describe('sessions-store optimistic open', () => {
     expect(done.activeTabId).toBe(tempTabId)
   })
 
+  it('hydrates clientName from the group chain for a connection tab', async () => {
+    const connectionId = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
+    const session: SessionDescriptor = {
+      id: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      connectionId,
+      kind: 'terminal',
+      protocol: 'ssh',
+      title: 'web-01',
+      state: 'connected',
+      errorMessage: null
+    }
+    const port = { close: vi.fn() } as unknown as MessagePort
+    openMock.mockImplementation((_connectionId: string, onPort: (p: MessagePort) => void) => {
+      onPort(port)
+      return Promise.resolve(session)
+    })
+    window.north.connections.get = vi
+      .fn()
+      .mockResolvedValue({ id: connectionId, groupId: 'g1', name: 'web-01' })
+    window.north.groups.get = vi.fn().mockResolvedValue({ id: 'g1', environmentId: 'e1' })
+    window.north.environments.get = vi
+      .fn()
+      .mockResolvedValue({ id: 'e1', clientId: 'cl1', name: 'Prod', color: '#ef4444' })
+    window.north.clients.get = vi.fn().mockResolvedValue({ id: 'cl1', name: 'Acme' })
+
+    await openConnectionSession(connectionId, { title: 'web-01' })
+
+    await vi.waitFor(() => {
+      const tab = useSessionsStore.getState().tabs.find((t) => t.sessionId === session.id)
+      expect(tab?.clientName).toBe('Acme')
+      expect(tab?.environmentName).toBe('Prod')
+    })
+  })
+
   it('marks the optimistic tab as error when open fails', async () => {
     openMock.mockRejectedValue(new Error('Senha não configurada para esta conexão'))
 
