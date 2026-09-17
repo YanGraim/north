@@ -26,6 +26,7 @@ export type InventoryDialog =
       environmentId?: string
       clientId?: string
       accessType?: AccessType
+      presetExposeAsVariable?: boolean
     }
   | { type: 'access'; mode: 'edit'; id: string }
   | null

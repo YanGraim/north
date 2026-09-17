@@ -175,4 +175,36 @@ describe('api repositories', () => {
     expect(repos.apiCollections.getCollection(global.id)?.name).toBe('Global')
     expect(repos.apiCollections.getCollection(otherCollection.id)?.name).toBe('Other client')
   })
+
+  it('CRUDs global presets independent of any client/access', () => {
+    const { repos } = createTestRepositories()
+
+    const headersPreset = repos.apiPresets.create({
+      name: 'Common headers',
+      headers: [{ key: 'X-Trace-Id', value: '{{traceId}}', enabled: true }],
+      auth: null
+    })
+    const authPreset = repos.apiPresets.create({
+      name: 'Bearer token',
+      headers: [],
+      auth: { type: 'bearer', token: '{{token}}' }
+    })
+
+    expect(repos.apiPresets.list().map((preset) => preset.name)).toEqual([
+      'Bearer token',
+      'Common headers'
+    ])
+    expect(repos.apiPresets.get(headersPreset.id)?.headers).toHaveLength(1)
+    expect(repos.apiPresets.get(authPreset.id)?.auth).toEqual({
+      type: 'bearer',
+      token: '{{token}}'
+    })
+
+    const renamed = repos.apiPresets.update(headersPreset.id, { name: 'Trace headers' })
+    expect(renamed?.name).toBe('Trace headers')
+    expect(repos.apiPresets.update('missing-id', { name: 'Nope' })).toBeNull()
+
+    expect(repos.apiPresets.delete(authPreset.id)).toBe(true)
+    expect(repos.apiPresets.get(authPreset.id)).toBeNull()
+  })
 })

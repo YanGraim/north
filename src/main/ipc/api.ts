@@ -13,12 +13,14 @@ import {
   type ApiVariablePublic,
   CreateApiCollectionInputSchema,
   CreateApiFolderInputSchema,
+  CreateApiPresetInputSchema,
   CreateApiRequestInputSchema,
   IdSchema,
   MoveApiRequestInputSchema,
   SetApiVariableInputSchema,
   UpdateApiCollectionInputSchema,
   UpdateApiFolderInputSchema,
+  UpdateApiPresetInputSchema,
   UpdateApiRequestInputSchema
 } from '@shared/types'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
@@ -47,6 +49,7 @@ function toPublicVariable(variable: ApiVariable): ApiVariablePublic {
       value: null,
       isSecret: true,
       hasSecret: Boolean(variable.credentialRef),
+      credentialRef: variable.credentialRef,
       description: variable.description,
       createdAt: variable.createdAt,
       updatedAt: variable.updatedAt
@@ -59,6 +62,7 @@ function toPublicVariable(variable: ApiVariable): ApiVariablePublic {
     value: variable.value,
     isSecret: false,
     hasSecret: false,
+    credentialRef: null,
     description: variable.description,
     createdAt: variable.createdAt,
     updatedAt: variable.updatedAt
@@ -284,5 +288,28 @@ export function registerApiHandlers(repos: Repositories, vault: CredentialVault)
       vault.deleteSecret(existing.credentialRef)
     }
     repos.apiVariables.delete(variableId)
+  })
+
+  ipcMain.handle(IpcChannels.API_PRESET_LIST, () => {
+    return repos.apiPresets.list()
+  })
+
+  ipcMain.handle(IpcChannels.API_PRESET_CREATE, (_event, input: unknown) => {
+    return repos.apiPresets.create(CreateApiPresetInputSchema.parse(input))
+  })
+
+  ipcMain.handle(IpcChannels.API_PRESET_UPDATE, (_event, id: unknown, input: unknown) => {
+    return requireEntity(
+      repos.apiPresets.update(IdSchema.parse(id), UpdateApiPresetInputSchema.parse(input)),
+      'ApiPreset'
+    )
+  })
+
+  ipcMain.handle(IpcChannels.API_PRESET_DELETE, (_event, id: unknown) => {
+    const presetId = IdSchema.parse(id)
+    if (!repos.apiPresets.get(presetId)) {
+      throw new Error('ApiPreset not found')
+    }
+    repos.apiPresets.delete(presetId)
   })
 }

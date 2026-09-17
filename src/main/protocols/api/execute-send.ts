@@ -1,5 +1,5 @@
 import type { ApiSendInput, ApiSendResult } from '@shared/protocols'
-import { emptyApiConfig } from '@shared/types'
+import { type ApiConfig, emptyApiConfig } from '@shared/types'
 import type { Repositories } from '../../repositories'
 import type { CredentialVault } from '../../vault'
 import { type BuiltApiRequest, buildApiRequest } from './build-request'
@@ -18,6 +18,62 @@ export function clientIdForAccess(repos: Repositories, accessId: string): string
   if (!group) return null
   const environment = repos.environments.get(group.environmentId)
   return environment?.clientId ?? null
+}
+
+type EnvContext = {
+  apiConfig: ApiConfig
+  baseUrl: string
+  variables: Record<string, string>
+  secrets: string[]
+  accessId: string | undefined
+}
+
+function resolveEnvContext(
+  repos: Repositories,
+  vault: CredentialVault,
+  accessId?: string
+): EnvContext {
+  if (!accessId) {
+    return {
+      apiConfig: emptyApiConfig(),
+      baseUrl: '',
+      variables: {},
+      secrets: [],
+      accessId: undefined
+    }
+  }
+
+  const environment = repos.accesses.get(accessId)
+  if (environment?.type !== 'api') {
+    throw new Error('Ambiente inválido')
+  }
+
+  const variables: Record<string, string> = {
+    ...repos.groupVariables.toRecord(environment.groupId)
+  }
+  const secrets: string[] = []
+  for (const variable of repos.apiVariables.listByAccess(environment.id)) {
+    if (variable.isSecret) {
+      if (variable.credentialRef) {
+        const secret = vault.resolveSecret(variable.credentialRef)
+        variables[variable.key] = secret
+        secrets.push(secret)
+      }
+    } else if (variable.value !== null) {
+      variables[variable.key] = variable.value
+    }
+  }
+  if (environment.url?.trim() && !Object.hasOwn(variables, 'baseUrl')) {
+    variables.baseUrl = environment.url.trim()
+  }
+
+  return {
+    apiConfig: environment.apiConfig ?? emptyApiConfig(),
+    baseUrl: environment.url ?? '',
+    variables,
+    secrets,
+    accessId: environment.id
+  }
 }
 
 function maskSecrets(echoed: ApiSendResult['echoed'], secrets: string[]): ApiSendResult['echoed'] {
@@ -84,59 +140,38 @@ export async function executeApiSend(
   vault: CredentialVault,
   input: ApiSendInput
 ): Promise<ApiSendResult> {
-  const environment = repos.accesses.get(input.environmentAccessId)
-  if (environment?.type !== 'api') {
-    throw new Error('Ambiente inválido')
-  }
+  const ctx = resolveEnvContext(repos, vault, input.environmentAccessId)
 
+  // Environments are global: an Access from any client can be used to send
+  // a request in any collection, regardless of the collection's own client.
   if (input.collectionId) {
     const collection = repos.apiCollections.getCollection(input.collectionId)
     if (!collection) {
       throw new Error('Collection não encontrada')
     }
-    if (collection.clientId) {
-      const envClient = clientIdForAccess(repos, environment.id)
-      if (envClient !== collection.clientId) {
-        throw new Error('O ambiente precisa ser um Access API do mesmo cliente')
-      }
-    }
   }
 
-  const variables: Record<string, string> = {
-    ...repos.groupVariables.toRecord(environment.groupId)
-  }
-  const secrets: string[] = []
-  for (const variable of repos.apiVariables.listByAccess(environment.id)) {
-    if (variable.isSecret) {
-      if (variable.credentialRef) {
-        const secret = vault.resolveSecret(variable.credentialRef)
-        variables[variable.key] = secret
-        secrets.push(secret)
-      }
-    } else if (variable.value !== null) {
-      variables[variable.key] = variable.value
-    }
-  }
-  if (environment.url?.trim() && !Object.hasOwn(variables, 'baseUrl')) {
-    variables.baseUrl = environment.url.trim()
-  }
-
-  const apiConfig = environment.apiConfig ?? emptyApiConfig()
-  const timeoutMs = apiConfig.timeoutMs === 30_000 ? 0 : apiConfig.timeoutMs
+  const timeoutMs = ctx.accessId
+    ? ctx.apiConfig.timeoutMs === 30_000
+      ? 0
+      : ctx.apiConfig.timeoutMs
+    : 0
   let built: BuiltApiRequest
   try {
     built = buildApiRequest({
       definition: input.definition,
-      apiConfig,
-      baseUrl: environment.url ?? '',
+      apiConfig: ctx.apiConfig,
+      baseUrl: ctx.baseUrl,
       method: input.method,
       url: input.url,
-      variables
+      variables: ctx.variables
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'URL inválida'
     const failed = failedResult(input, message)
-    recordHistory(repos, environment.id, input, failed)
+    if (ctx.accessId) {
+      recordHistory(repos, ctx.accessId, input, failed)
+    }
     return failed
   }
 
@@ -149,16 +184,19 @@ export async function executeApiSend(
       headers: built.headers,
       body: built.body,
       timeoutMs,
-      followRedirects: apiConfig.followRedirects,
-      verifyTls: apiConfig.verifyTls,
+      followRedirects: ctx.apiConfig.followRedirects,
+      verifyTls: ctx.apiConfig.verifyTls,
       signal: controller.signal,
       requestId: input.requestId
     })
     const masked: ApiSendResult = {
       ...result,
-      echoed: maskSecrets(result.echoed, secrets)
+      echoed: maskSecrets(result.echoed, ctx.secrets)
     }
-    recordHistory(repos, environment.id, input, masked)
+    // Skip history without an Access: api_request_history.access_id is NOT NULL.
+    if (ctx.accessId) {
+      recordHistory(repos, ctx.accessId, input, masked)
+    }
     return masked
   } finally {
     abortControllers.delete(input.requestId)

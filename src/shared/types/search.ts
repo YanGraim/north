@@ -31,6 +31,7 @@ export const SearchIndexItemSchema = z.object({
   url: z.string().nullable(),
   database: z.string().nullable(),
   accessType: z.enum(['database', 'login', 'other', 'api']).nullable(),
+  apiEnvironmentEnabled: z.boolean().nullable(),
   engine: DatabaseEngineSchema.nullable(),
   clientId: z.string().uuid().nullable(),
   environmentId: z.string().uuid().nullable(),

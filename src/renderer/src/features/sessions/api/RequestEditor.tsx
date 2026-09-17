@@ -8,22 +8,42 @@ import {
   SelectValue
 } from '@renderer/components/ui/select'
 import { Separator } from '@renderer/components/ui/separator'
+import { useApiPresets, useCreateApiPreset } from '@renderer/hooks/use-api'
 import { cn } from '@renderer/lib/utils'
-import type { ApiAuth, ApiHttpMethod, ApiKeyValue, ApiRequestDefinition } from '@shared/types'
+import type {
+  ApiAuth,
+  ApiHttpMethod,
+  ApiKeyValue,
+  ApiPreset,
+  ApiRequestDefinition
+} from '@shared/types'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { JsonEditor } from './JsonEditor'
 import { KeyValueEditor } from './KeyValueEditor'
+import { PresetMenu } from './PresetMenu'
+import { VariableInput, type VariableInputHandle } from './VariableInput'
 
 const METHODS: ApiHttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
 
 type EditorTab = 'params' | 'headers' | 'body' | 'auth'
 
+/** Applies a preset's headers on top of the current list, replacing same-key entries. */
+function mergeHeaders(current: ApiKeyValue[], incoming: ApiKeyValue[]): ApiKeyValue[] {
+  const byKey = new Map(current.map((item) => [item.key, item]))
+  for (const item of incoming) byKey.set(item.key, item)
+  return Array.from(byKey.values())
+}
+
 type RequestEditorProps = {
   method: ApiHttpMethod
   url: string
   definition: ApiRequestDefinition
-  urlInputRef?: React.RefObject<HTMLInputElement | null>
+  /** Names resolvable for the currently selected environment — drives autocomplete + highlighting. */
+  variables: readonly string[]
+  /** Resolved value per variable name, shown in the hover tooltip over a `{{var}}` token. */
+  variableValues?: Readonly<Record<string, string>>
+  urlInputRef?: React.RefObject<VariableInputHandle | null>
   onMethodChange: (method: ApiHttpMethod) => void
   onUrlChange: (url: string) => void
   onDefinitionChange: (definition: ApiRequestDefinition) => void
@@ -33,6 +53,8 @@ export function RequestEditor({
   method,
   url,
   definition,
+  variables,
+  variableValues,
   urlInputRef,
   onMethodChange,
   onUrlChange,
@@ -40,6 +62,8 @@ export function RequestEditor({
 }: RequestEditorProps): React.JSX.Element {
   const { t } = useTranslation()
   const [tab, setTab] = useState<EditorTab>('params')
+  const { data: presets = [] } = useApiPresets()
+  const createPreset = useCreateApiPreset()
 
   function patch(next: Partial<ApiRequestDefinition>): void {
     onDefinitionChange({ ...definition, ...next })
@@ -60,10 +84,12 @@ export function RequestEditor({
             ))}
           </SelectContent>
         </Select>
-        <Input
+        <VariableInput
           ref={urlInputRef}
           value={url}
-          onChange={(event) => onUrlChange(event.target.value)}
+          variables={variables}
+          variableValues={variableValues}
+          onChange={onUrlChange}
           placeholder={t('api.studio.urlPlaceholder')}
           className="h-7 flex-1 font-mono text-xs"
           data-testid="api-url"
@@ -98,15 +124,50 @@ export function RequestEditor({
         {tab === 'params' ? (
           <KeyValueEditor
             items={definition.queryParams}
+            variables={variables}
+            variableValues={variableValues}
             onChange={(queryParams) => patch({ queryParams })}
           />
         ) : null}
         {tab === 'headers' ? (
-          <KeyValueEditor items={definition.headers} onChange={(headers) => patch({ headers })} />
+          <div className="flex h-full min-h-0 flex-col">
+            <PresetMenu
+              presets={presets}
+              kind="headers"
+              onApply={(preset) =>
+                patch({ headers: mergeHeaders(definition.headers, preset.headers) })
+              }
+              onSave={(name) =>
+                createPreset.mutate({ name, headers: definition.headers, auth: null })
+              }
+            />
+            <KeyValueEditor
+              items={definition.headers}
+              variables={variables}
+              variableValues={variableValues}
+              onChange={(headers) => patch({ headers })}
+            />
+          </div>
         ) : null}
-        {tab === 'body' ? <BodyEditor definition={definition} onChange={patch} /> : null}
+        {tab === 'body' ? (
+          <BodyEditor
+            definition={definition}
+            variables={variables}
+            variableValues={variableValues}
+            onChange={patch}
+          />
+        ) : null}
         {tab === 'auth' ? (
-          <AuthEditor auth={definition.auth} onChange={(auth) => patch({ auth })} />
+          <AuthEditor
+            auth={definition.auth}
+            variables={variables}
+            variableValues={variableValues}
+            presets={presets}
+            onSavePreset={(name) =>
+              createPreset.mutate({ name, headers: [], auth: definition.auth })
+            }
+            onChange={(auth) => patch({ auth })}
+          />
         ) : null}
       </div>
     </div>
@@ -115,9 +176,13 @@ export function RequestEditor({
 
 function BodyEditor({
   definition,
+  variables,
+  variableValues,
   onChange
 }: {
   definition: ApiRequestDefinition
+  variables: readonly string[]
+  variableValues?: Readonly<Record<string, string>>
   onChange: (next: Partial<ApiRequestDefinition>) => void
 }): React.JSX.Element {
   const { t } = useTranslation()
@@ -176,6 +241,8 @@ function BodyEditor({
       {body.type === 'form-urlencoded' || body.type === 'multipart' ? (
         <KeyValueEditor
           items={body.fields}
+          variables={variables}
+          variableValues={variableValues}
           onChange={(fields) => onChange({ body: { ...body, fields } })}
         />
       ) : null}
@@ -185,9 +252,17 @@ function BodyEditor({
 
 function AuthEditor({
   auth,
+  variables,
+  variableValues,
+  presets,
+  onSavePreset,
   onChange
 }: {
   auth: ApiAuth | null
+  variables: readonly string[]
+  variableValues?: Readonly<Record<string, string>>
+  presets: ApiPreset[]
+  onSavePreset: (name: string) => void
   onChange: (auth: ApiAuth | null) => void
 }): React.JSX.Element {
   const { t } = useTranslation()
@@ -196,6 +271,12 @@ function AuthEditor({
 
   return (
     <div className="space-y-3">
+      <PresetMenu
+        presets={presets}
+        kind="auth"
+        onApply={(preset) => onChange(preset.auth)}
+        onSave={onSavePreset}
+      />
       <Select
         value={type}
         onValueChange={(value) => {
@@ -219,24 +300,30 @@ function AuthEditor({
         </SelectContent>
       </Select>
       {current?.type === 'bearer' ? (
-        <Input
+        <VariableInput
           value={current.token}
-          onChange={(event) => onChange({ type: 'bearer', token: event.target.value })}
+          variables={variables}
+          variableValues={variableValues}
+          onChange={(value) => onChange({ type: 'bearer', token: value })}
           placeholder="{{token}}"
           className="h-7 font-mono text-xs"
         />
       ) : null}
       {current?.type === 'basic' ? (
         <div className="grid grid-cols-2 gap-2">
-          <Input
+          <VariableInput
             value={current.username}
-            onChange={(event) => onChange({ ...current, username: event.target.value })}
+            variables={variables}
+            variableValues={variableValues}
+            onChange={(value) => onChange({ ...current, username: value })}
             placeholder="{{username}}"
             className="h-7 font-mono text-xs"
           />
-          <Input
+          <VariableInput
             value={current.password}
-            onChange={(event) => onChange({ ...current, password: event.target.value })}
+            variables={variables}
+            variableValues={variableValues}
+            onChange={(value) => onChange({ ...current, password: value })}
             placeholder="{{password}}"
             className="h-7 font-mono text-xs"
           />
@@ -250,9 +337,11 @@ function AuthEditor({
             placeholder={t('api.studio.key')}
             className="h-7 text-xs"
           />
-          <Input
+          <VariableInput
             value={current.value}
-            onChange={(event) => onChange({ ...current, value: event.target.value })}
+            variables={variables}
+            variableValues={variableValues}
+            onChange={(value) => onChange({ ...current, value })}
             placeholder="{{apiKey}}"
             className="h-7 font-mono text-xs"
           />

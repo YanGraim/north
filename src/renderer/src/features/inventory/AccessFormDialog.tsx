@@ -30,6 +30,7 @@ import {
 } from '@renderer/components/ui/select'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { useAccess, useCreateAccess, useUpdateAccess } from '@renderer/hooks/use-accesses'
+import { useSetApiVariable } from '@renderer/hooks/use-api'
 import { useCreateClient } from '@renderer/hooks/use-clients'
 import { useCreateEnvironment } from '@renderer/hooks/use-environments'
 import { useCreateGroup } from '@renderer/hooks/use-groups'
@@ -72,7 +73,9 @@ const FormSchema = z
     icon: z.string().nullable().optional(),
     color: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
-    tagIds: z.array(z.string().uuid())
+    tagIds: z.array(z.string().uuid()),
+    exposeAsVariable: z.boolean(),
+    variableName: z.string()
   })
   .superRefine((values, ctx) => {
     if ((values.type === 'login' || values.type === 'api') && !values.url?.trim()) {
@@ -80,6 +83,13 @@ const FormSchema = z
         code: 'custom',
         message: values.type === 'api' ? 'Informe a Base URL' : 'Informe a URL',
         path: ['url']
+      })
+    }
+    if (values.type === 'api' && values.exposeAsVariable && !values.variableName.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Informe o nome da variável',
+        path: ['variableName']
       })
     }
   })
@@ -98,6 +108,8 @@ export function AccessFormDialog(): React.JSX.Element | null {
   const createClientId = open && dialog.mode === 'create' ? (dialog.clientId ?? '') : ''
   const createAccessType =
     open && dialog.mode === 'create' ? (dialog.accessType ?? 'login') : 'login'
+  const createPresetExposeAsVariable =
+    open && dialog.mode === 'create' ? Boolean(dialog.presetExposeAsVariable) : false
 
   const { clients, environments, groups, resolveGroup } = useOrgLookup()
   const { data: existing } = useAccess(editId)
@@ -109,6 +121,7 @@ export function AccessFormDialog(): React.JSX.Element | null {
   const createAccess = useCreateAccess()
   const updateAccess = useUpdateAccess()
   const setAccessTags = useSetAccessTags()
+  const setApiVariable = useSetApiVariable()
   const { data: vaultAvailable = false } = useVaultAvailable()
   const { data: hasSecret = false } = useHasSecret(existing?.credentialRef)
 
@@ -144,7 +157,9 @@ export function AccessFormDialog(): React.JSX.Element | null {
       icon: null,
       color: null,
       notes: null,
-      tagIds: []
+      tagIds: [],
+      exposeAsVariable: false,
+      variableName: 'baseUrl'
     },
     mode: 'onSubmit',
     reValidateMode: 'onChange',
@@ -203,7 +218,9 @@ export function AccessFormDialog(): React.JSX.Element | null {
         icon: existing.icon,
         color: existing.color,
         notes: existing.notes,
-        tagIds: existingTagIdsKey ? existingTagIdsKey.split(',') : []
+        tagIds: existingTagIdsKey ? existingTagIdsKey.split(',') : [],
+        exposeAsVariable: existing.apiEnvironmentEnabled,
+        variableName: 'baseUrl'
       })
       setPasswordMode(existing.credentialRef ? 'keep' : 'set')
       setRemovingSecret(false)
@@ -234,7 +251,9 @@ export function AccessFormDialog(): React.JSX.Element | null {
       icon: null,
       color: null,
       notes: null,
-      tagIds: []
+      tagIds: [],
+      exposeAsVariable: createPresetExposeAsVariable,
+      variableName: 'baseUrl'
     })
     setPasswordMode('set')
     setRemovingSecret(false)
@@ -247,6 +266,7 @@ export function AccessFormDialog(): React.JSX.Element | null {
     createEnvironmentId,
     createClientId,
     createAccessType,
+    createPresetExposeAsVariable,
     form,
     resolveGroup
   ])
@@ -317,23 +337,39 @@ export function AccessFormDialog(): React.JSX.Element | null {
       port: null,
       database: null,
       ssl: null,
-      apiConfig
+      apiConfig,
+      apiEnvironmentEnabled: isApi && values.exposeAsVariable
     }
 
+    let accessId: string
     if (mode === 'edit' && editId) {
       await updateAccess.mutateAsync({ id: editId, input: payload })
       await setAccessTags.mutateAsync({ accessId: editId, tagIds: values.tagIds })
+      accessId = editId
     } else {
       const created = await createAccess.mutateAsync(payload)
       if (values.tagIds.length > 0) {
         await setAccessTags.mutateAsync({ accessId: created.id, tagIds: values.tagIds })
       }
+      accessId = created.id
     }
+
+    if (isApi && values.exposeAsVariable && values.url?.trim()) {
+      await setApiVariable.mutateAsync({
+        accessId,
+        key: values.variableName.trim(),
+        value: values.url.trim(),
+        isSecret: false
+      })
+    }
+
     close()
   }
 
   const watchedType = form.watch('type')
   const watchedAuthType = form.watch('authType')
+  const watchedExposeAsVariable = form.watch('exposeAsVariable')
+  const watchedVariableName = form.watch('variableName')
   const isApi = watchedType === 'api'
   const pending = createAccess.isPending || updateAccess.isPending || setAccessTags.isPending
 
@@ -721,6 +757,56 @@ export function AccessFormDialog(): React.JSX.Element | null {
                   )}
                 </div>
               </section>
+
+              {isApi ? (
+                <section className="space-y-3 rounded-md border border-border bg-surface-elevated/40 p-3">
+                  <FormField
+                    control={form.control}
+                    name="exposeAsVariable"
+                    render={({ field }) => (
+                      <FormItem>
+                        <label className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                            className="mt-0.5 size-3.5 accent-current"
+                          />
+                          <span className="space-y-0.5">
+                            <span className="block text-sm font-medium text-foreground">
+                              {t('access.form.exposeAsVariable')}
+                            </span>
+                            <FormDescription>
+                              {t('access.form.exposeAsVariableHint')}
+                            </FormDescription>
+                          </span>
+                        </label>
+                      </FormItem>
+                    )}
+                  />
+                  {watchedExposeAsVariable ? (
+                    <div className="pl-6">
+                      <FormField
+                        control={form.control}
+                        name="variableName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('access.form.variableName')}</FormLabel>
+                            <FormControl>
+                              <Input className="font-mono" placeholder="baseUrl" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              {t('access.form.variableNameHint')}{' '}
+                              <code className="font-mono">{`{{${watchedVariableName || 'baseUrl'}}}`}</code>
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
 
               <section className="space-y-3">
                 <h3 className="text-xs font-medium uppercase tracking-wider text-muted">

@@ -300,7 +300,11 @@ const api: NorthApi = {
     requestMove: (input) => ipcRenderer.invoke(IpcChannels.API_REQUEST_MOVE, input),
     variableList: (accessId) => ipcRenderer.invoke(IpcChannels.API_VARIABLE_LIST, accessId),
     variableSet: (input) => ipcRenderer.invoke(IpcChannels.API_VARIABLE_SET, input),
-    variableDelete: (id) => ipcRenderer.invoke(IpcChannels.API_VARIABLE_DELETE, id)
+    variableDelete: (id) => ipcRenderer.invoke(IpcChannels.API_VARIABLE_DELETE, id),
+    presetList: () => ipcRenderer.invoke(IpcChannels.API_PRESET_LIST),
+    presetCreate: (input) => ipcRenderer.invoke(IpcChannels.API_PRESET_CREATE, input),
+    presetUpdate: (id, input) => ipcRenderer.invoke(IpcChannels.API_PRESET_UPDATE, id, input),
+    presetDelete: (id) => ipcRenderer.invoke(IpcChannels.API_PRESET_DELETE, id)
   }
 }
 

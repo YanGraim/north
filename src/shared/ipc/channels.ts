@@ -161,7 +161,11 @@ export const IpcChannels = {
   API_REQUEST_MOVE: 'api:request-move',
   API_VARIABLE_LIST: 'api:variable-list',
   API_VARIABLE_SET: 'api:variable-set',
-  API_VARIABLE_DELETE: 'api:variable-delete'
+  API_VARIABLE_DELETE: 'api:variable-delete',
+  API_PRESET_LIST: 'api:preset-list',
+  API_PRESET_CREATE: 'api:preset-create',
+  API_PRESET_UPDATE: 'api:preset-update',
+  API_PRESET_DELETE: 'api:preset-delete'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

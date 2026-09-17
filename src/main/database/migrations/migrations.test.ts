@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(9)
+    expect(getUserVersion(db)).toBe(11)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -40,7 +40,8 @@ describe('migrations', () => {
         'api_folders',
         'api_requests',
         'api_variables',
-        'api_request_history'
+        'api_request_history',
+        'api_presets'
       ])
     )
   })
@@ -49,7 +50,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(9)
+    expect(getUserVersion(db)).toBe(11)
   })
 
   it('adds color column to environments from 005', () => {
@@ -212,6 +213,19 @@ describe('migrations', () => {
     const names = columns.map((c) => c.name)
     expect(names).toContain('client_id')
     expect(names).not.toContain('access_id')
+  })
+
+  it('010 adds api_environment_enabled to accesses, defaulting to off', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+
+    const columns = db.prepare(`PRAGMA table_info(accesses)`).all() as Array<{
+      name: string
+      dflt_value: string | null
+    }>
+    const column = columns.find((c) => c.name === 'api_environment_enabled')
+    expect(column).toBeDefined()
+    expect(column?.dflt_value).toBe('0')
   })
 
   it('009 keeps folders when rebuilding collections that already exist', () => {

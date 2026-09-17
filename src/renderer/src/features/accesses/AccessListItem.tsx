@@ -117,7 +117,8 @@ export function AccessListItem({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {supportsSqlStudio(access) || access.type === 'api' ? (
+              {supportsSqlStudio(access) ||
+              (access.type === 'api' && access.apiEnvironmentEnabled) ? (
                 <DropdownMenuItem
                   onSelect={() => {
                     if (access.type === 'api') {

@@ -20,6 +20,7 @@ function access(partial: Partial<Access> & Pick<Access, 'engine' | 'host' | 'por
     database: 'app',
     ssl: false,
     apiConfig: null,
+    apiEnvironmentEnabled: false,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...partial
@@ -58,19 +59,29 @@ describe('buildConnectionString', () => {
 })
 
 describe('apiReady', () => {
-  it('requires type api and a base url', () => {
+  it('requires type api, a base url and apiEnvironmentEnabled', () => {
     expect(
       apiReady({
         ...access({ engine: 'postgres', host: 'h', port: 5432 }),
         type: 'api',
-        url: 'https://api.example.com'
+        url: 'https://api.example.com',
+        apiEnvironmentEnabled: true
       })
     ).toBe(true)
     expect(
       apiReady({
         ...access({ engine: 'postgres', host: 'h', port: 5432 }),
         type: 'api',
-        url: '  '
+        url: 'https://api.example.com',
+        apiEnvironmentEnabled: false
+      })
+    ).toBe(false)
+    expect(
+      apiReady({
+        ...access({ engine: 'postgres', host: 'h', port: 5432 }),
+        type: 'api',
+        url: '  ',
+        apiEnvironmentEnabled: true
       })
     ).toBe(false)
     expect(apiReady(access({ engine: 'postgres', host: 'h', port: 5432 }))).toBe(false)

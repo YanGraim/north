@@ -9,7 +9,7 @@ export function accessTypeLabel(type: Access['type']): string {
     case 'database':
       return 'Banco'
     case 'login':
-      return 'Login'
+      return 'Login Web'
     case 'other':
       return 'Outro'
     case 'api':
@@ -120,6 +120,8 @@ export function sqlStudioReady(access: Pick<Access, 'type' | 'engine' | 'host' |
   return Boolean(access.host?.trim() && access.port)
 }
 
-export function apiReady(access: Pick<Access, 'type' | 'url'>): boolean {
-  return access.type === 'api' && Boolean(access.url?.trim())
+export function apiReady(access: Pick<Access, 'type' | 'url' | 'apiEnvironmentEnabled'>): boolean {
+  return (
+    access.type === 'api' && Boolean(access.url?.trim()) && access.apiEnvironmentEnabled === true
+  )
 }

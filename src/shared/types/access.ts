@@ -82,6 +82,7 @@ export const AccessSchema = z.object({
   database: z.string().nullable(),
   ssl: z.boolean().nullable(),
   apiConfig: ApiConfigSchema.nullable(),
+  apiEnvironmentEnabled: z.boolean(),
   createdAt: IsoDateSchema,
   updatedAt: IsoDateSchema
 })
@@ -106,7 +107,8 @@ export const CreateAccessInputSchema = z.object({
   port: z.number().int().positive().nullable().optional(),
   database: z.string().nullable().optional(),
   ssl: z.boolean().nullable().optional(),
-  apiConfig: ApiConfigSchema.nullable().optional()
+  apiConfig: ApiConfigSchema.nullable().optional(),
+  apiEnvironmentEnabled: z.boolean().optional()
 })
 
 export type CreateAccessInput = z.infer<typeof CreateAccessInputSchema>
@@ -127,7 +129,8 @@ export const ListAccessesFilterSchema = z.object({
   clientId: IdSchema.optional(),
   isFavorite: z.boolean().optional(),
   tagId: IdSchema.optional(),
-  type: AccessTypeSchema.optional()
+  type: AccessTypeSchema.optional(),
+  apiEnvironmentEnabled: z.boolean().optional()
 })
 
 export type ListAccessesFilter = z.infer<typeof ListAccessesFilterSchema>

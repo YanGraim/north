@@ -58,11 +58,12 @@ import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointe
 import { matchesShortcut } from '@renderer/lib/shortcuts'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
+import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import type { ApiCollection, ApiFolder, ApiRequest, ApiRequestHistoryEntry } from '@shared/types'
 import { emptyApiRequestDefinition } from '@shared/types'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FolderInput, Globe, Plus, Search } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDefaultLayout } from 'react-resizable-panels'
 import { type ApiStudioTab, emptyScratchTab, neighborTabId } from '../api-studio-tabs'
@@ -70,8 +71,16 @@ import { ApiHistoryPanel } from './ApiHistoryPanel'
 import { ApiStudioTabBar } from './ApiStudioTabBar'
 import { ApiVariablesPanel } from './ApiVariablesPanel'
 import { CollectionsTree } from './CollectionsTree'
+import {
+  autoSelectAccessId,
+  CREATE_ENVIRONMENT,
+  type EnvironmentSelectValue,
+  NO_ENVIRONMENT,
+  toSendAccessId
+} from './environment-select'
 import { RequestEditor } from './RequestEditor'
 import { ResponseViewer } from './ResponseViewer'
+import type { VariableInputHandle } from './VariableInput'
 
 type SidebarPane = 'collections' | 'history' | 'variables'
 
@@ -99,6 +108,7 @@ export function ApiStudioView({
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { resolveGroup } = useOrgLookup()
+  const openDialog = useInventoryDialogsStore((s) => s.open)
   const { data: allCollections = [] } = useApiCollections()
   const focused = collectionId ? allCollections.find((item) => item.id === collectionId) : undefined
   const scopeClientId = focused?.clientId ?? clientId ?? null
@@ -106,11 +116,21 @@ export function ApiStudioView({
     scopeClientId == null
       ? allCollections
       : allCollections.filter((item) => item.clientId === null || item.clientId === scopeClientId)
-  const { data: envAccesses = [] } = useAccesses(
-    scopeClientId ? { clientId: scopeClientId, type: 'api' } : { type: 'api' }
+  // Environments are global: any client's enabled API Access can be used as
+  // the environment for any collection, regardless of the collection's own
+  // client scope.
+  const {
+    data: envAccesses = [],
+    isLoading: envAccessesLoading,
+    error: envAccessesError
+  } = useAccesses({ type: 'api', apiEnvironmentEnabled: true })
+  const [environmentAccessValue, setEnvironmentAccessValue] = useState<EnvironmentSelectValue>(
+    initialEnvironmentId ?? NO_ENVIRONMENT
   )
-  const [environmentAccessId, setEnvironmentAccessId] = useState(initialEnvironmentId ?? '')
+  const sendAccessId = toSendAccessId(environmentAccessValue)
   const environmentTriggerRef = useRef<HTMLButtonElement>(null)
+  const autoSelectedRef = useRef(Boolean(initialEnvironmentId))
+  const lastScopeRef = useRef(scopeClientId)
   const [nameKind, setNameKind] = useState<
     'collection' | 'folder' | 'rename-collection' | 'rename-folder' | 'rename-request' | null
   >(null)
@@ -149,13 +169,34 @@ export function ApiStudioView({
     enabled: collectionIds.length > 0
   })
   const { data: history = [], refetch: refetchHistory } = useApiHistory(
-    environmentAccessId || undefined
+    environmentAccessValue !== NO_ENVIRONMENT ? environmentAccessValue : undefined
   )
   const { data: variables = [] } = useQuery({
-    queryKey: queryKeys.api.variables(environmentAccessId),
-    queryFn: () => window.north.api.variableList(environmentAccessId),
-    enabled: Boolean(environmentAccessId)
+    queryKey: queryKeys.api.variables(sendAccessId ?? ''),
+    queryFn: () => window.north.api.variableList(sendAccessId as string),
+    enabled: environmentAccessValue !== NO_ENVIRONMENT && Boolean(sendAccessId)
   })
+  // Names resolvable while sending: the selected environment's named
+  // variables, plus the implicit `baseUrl` it always provides. Drives the
+  // {{var}} autocomplete + highlighting in the URL/headers/params/auth fields.
+  const variableNames = useMemo(() => {
+    const names = new Set(variables.map((item) => item.key))
+    if (sendAccessId) names.add('baseUrl')
+    return Array.from(names)
+  }, [variables, sendAccessId])
+  // Resolved value per variable name, shown in the hover tooltip over a
+  // `{{var}}` token — secrets are never revealed here, only flagged.
+  const variableValues = useMemo(() => {
+    const values: Record<string, string> = {}
+    for (const item of variables) {
+      values[item.key] = item.isSecret ? t('api.studio.secretPlaceholder') : (item.value ?? '')
+    }
+    if (sendAccessId) {
+      const access = envAccesses.find((item) => item.id === sendAccessId)
+      if (access?.url) values.baseUrl = access.url
+    }
+    return values
+  }, [variables, sendAccessId, envAccesses, t])
 
   const createCollection = useCreateApiCollection()
   const updateCollection = useUpdateApiCollection()
@@ -179,7 +220,7 @@ export function ApiStudioView({
   const [collectionQuery, setCollectionQuery] = useState('')
   const [pendingCloseId, setPendingCloseId] = useState<string | null>(null)
   const tabsRef = useRef(tabs)
-  const urlInputRef = useRef<HTMLInputElement>(null)
+  const urlInputRef = useRef<VariableInputHandle>(null)
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: 'north-api-studio-h',
     storage: localStorage
@@ -189,8 +230,24 @@ export function ApiStudioView({
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0] ?? null
 
   useEffect(() => {
-    if (initialEnvironmentId) setEnvironmentAccessId(initialEnvironmentId)
+    if (initialEnvironmentId) {
+      setEnvironmentAccessValue(initialEnvironmentId)
+      autoSelectedRef.current = true
+    }
   }, [initialEnvironmentId])
+
+  useEffect(() => {
+    if (lastScopeRef.current !== scopeClientId) {
+      lastScopeRef.current = scopeClientId
+      autoSelectedRef.current = false
+    }
+    if (autoSelectedRef.current) return
+    const next = autoSelectAccessId(envAccesses, environmentAccessValue)
+    if (next) {
+      autoSelectedRef.current = true
+      setEnvironmentAccessValue(next)
+    }
+  }, [envAccesses, scopeClientId, environmentAccessValue])
 
   const patchTab = useCallback((id: string, updater: (tab: ApiStudioTab) => ApiStudioTab): void => {
     setTabs((current) => current.map((tab) => (tab.id === id ? updater(tab) : tab)))
@@ -239,8 +296,9 @@ export function ApiStudioView({
   const sendActive = useCallback(async (): Promise<void> => {
     const tab = tabsRef.current.find((item) => item.id === activeId)
     if (!tab || tab.sending) return
-    if (!environmentAccessId) {
-      toast.error(t('api.studio.selectEnvironment'))
+    const isAbsolute = /^https?:\/\//i.test(tab.url.trim())
+    if (!sendAccessId && !isAbsolute) {
+      toast.error(t('api.studio.selectEnvironmentRelative'))
       environmentTriggerRef.current?.focus()
       return
     }
@@ -257,9 +315,9 @@ export function ApiStudioView({
         method: tab.method,
         url: tab.url,
         definition: tab.definition,
-        environmentAccessId,
+        environmentAccessId: sendAccessId,
         persistedRequestId: tab.requestId,
-        collectionId: collectionId ?? collections[0]?.id
+        collectionId: sendAccessId ? (collectionId ?? collections[0]?.id) : undefined
       })
       patchTab(tab.id, (current) => ({
         ...current,
@@ -277,7 +335,7 @@ export function ApiStudioView({
         error: error instanceof Error ? error.message : t('api.errors.network')
       }))
     }
-  }, [activeId, collectionId, collections, environmentAccessId, patchTab, refetchHistory, t])
+  }, [activeId, collectionId, collections, patchTab, refetchHistory, sendAccessId, t])
 
   const saveTab = useCallback(
     async (tab: ApiStudioTab): Promise<boolean> => {
@@ -412,8 +470,29 @@ export function ApiStudioView({
   }
 
   function envLabel(access: (typeof envAccesses)[number]): string {
-    const environment = resolveGroup(access.groupId).environment
-    return environment?.name ? `${environment.name} — ${access.name}` : access.name
+    const org = resolveGroup(access.groupId)
+    const parts = [org.client?.name, org.environment?.name].filter((part): part is string =>
+      Boolean(part)
+    )
+    return parts.length > 0 ? `${parts.join(' / ')} — ${access.name}` : access.name
+  }
+
+  function handleEnvChange(value: string): void {
+    if (value === CREATE_ENVIRONMENT) {
+      openDialog({
+        type: 'access',
+        mode: 'create',
+        accessType: 'api',
+        clientId: scopeClientId ?? undefined,
+        presetExposeAsVariable: true
+      })
+      return
+    }
+    if (value === NO_ENVIRONMENT) {
+      setEnvironmentAccessValue(NO_ENVIRONMENT)
+      return
+    }
+    setEnvironmentAccessValue(value)
   }
 
   async function handleExport(collection: ApiCollection): Promise<void> {
@@ -447,20 +526,36 @@ export function ApiStudioView({
         environmentName={environmentName}
         environmentColor={environmentColor}
       >
-        <Select value={environmentAccessId || undefined} onValueChange={setEnvironmentAccessId}>
+        <Select value={environmentAccessValue} onValueChange={handleEnvChange}>
           <SelectTrigger
             ref={environmentTriggerRef}
             className="h-7 w-56 text-xs"
             data-testid="api-environment"
           >
-            <SelectValue placeholder={t('api.studio.selectEnvironment')} />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {envAccesses.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {envLabel(item)}
-              </SelectItem>
-            ))}
+            <SelectItem value={NO_ENVIRONMENT}>{t('api.studio.noEnvironment')}</SelectItem>
+            {envAccessesError ? (
+              <div className="px-2 py-1.5 text-xs text-red-400">
+                {t('api.studio.environmentsError')}
+              </div>
+            ) : (
+              envAccesses.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {envLabel(item)}
+                </SelectItem>
+              ))
+            )}
+            <div className="my-1 h-px bg-border" />
+            <SelectItem value={CREATE_ENVIRONMENT} className="text-accent">
+              {t('api.studio.createEnvironment')}
+            </SelectItem>
+            {envAccesses.length === 0 && !envAccessesError && !envAccessesLoading ? (
+              <div className="px-2 py-1.5 text-[11px] text-muted">
+                {t('api.studio.emptyEnvironmentsHint')}
+              </div>
+            ) : null}
           </SelectContent>
         </Select>
       </SessionIdentityBar>
@@ -657,11 +752,17 @@ export function ApiStudioView({
                 <ApiHistoryPanel entries={history} onOpen={openHistory} />
               ) : null}
               {sidebar === 'variables' ? (
-                <ApiVariablesPanel
-                  variables={variables}
-                  onSet={(input) => setVariable.mutate({ accessId: environmentAccessId, ...input })}
-                  onDelete={(id) => deleteVariable.mutate({ id, accessId: environmentAccessId })}
-                />
+                sendAccessId ? (
+                  <ApiVariablesPanel
+                    variables={variables}
+                    onSet={(input) => setVariable.mutate({ accessId: sendAccessId, ...input })}
+                    onDelete={(id) => deleteVariable.mutate({ id, accessId: sendAccessId })}
+                  />
+                ) : (
+                  <p className="px-2 py-2 text-[11px] text-muted">
+                    {t('api.studio.variablesNeedEnvironment')}
+                  </p>
+                )
               ) : null}
             </div>
           </div>
@@ -699,6 +800,8 @@ export function ApiStudioView({
                       method={activeTab.method}
                       url={activeTab.url}
                       definition={activeTab.definition}
+                      variables={variableNames}
+                      variableValues={variableValues}
                       urlInputRef={urlInputRef}
                       onMethodChange={(method) =>
                         patchTab(activeTab.id, (tab) => ({ ...tab, method, dirty: true }))

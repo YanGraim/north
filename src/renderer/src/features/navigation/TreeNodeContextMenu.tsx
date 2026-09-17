@@ -129,7 +129,7 @@ export function TreeNodeContextMenu(props: TreeNodeContextMenuProps): React.JSX.
                   })
                 }
               >
-                Novo acesso
+                Novo Login Web
               </ContextMenuItem>
               <ContextMenuItem
                 onSelect={() =>

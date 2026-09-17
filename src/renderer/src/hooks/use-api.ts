@@ -4,16 +4,19 @@ import { toastError, toastSuccess } from '@renderer/lib/toast'
 import type {
   ApiCollection,
   ApiFolder,
+  ApiPreset,
   ApiRequest,
   ApiRequestHistoryEntry,
   ApiVariablePublic,
   CreateApiCollectionInput,
   CreateApiFolderInput,
+  CreateApiPresetInput,
   CreateApiRequestInput,
   MoveApiRequestInput,
   SetApiVariableInput,
   UpdateApiCollectionInput,
   UpdateApiFolderInput,
+  UpdateApiPresetInput,
   UpdateApiRequestInput
 } from '@shared/types'
 import {
@@ -290,5 +293,52 @@ export function useDeleteApiVariable(): UseMutationResult<
       await queryClient.invalidateQueries({ queryKey: queryKeys.api.variables(vars.accessId) })
     },
     onError: (error) => toastError(error, t('api.studio.deleteVariableError'))
+  })
+}
+
+export function useApiPresets(): UseQueryResult<ApiPreset[], Error> {
+  return useQuery({
+    queryKey: queryKeys.api.presets(),
+    queryFn: () => window.north.api.presetList()
+  })
+}
+
+export function useCreateApiPreset(): UseMutationResult<ApiPreset, Error, CreateApiPresetInput> {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input) => window.north.api.presetCreate(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.api.presets() })
+    },
+    onError: (error) => toastError(error, t('api.studio.savePresetError'))
+  })
+}
+
+export function useUpdateApiPreset(): UseMutationResult<
+  ApiPreset,
+  Error,
+  { id: string; input: UpdateApiPresetInput }
+> {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }) => window.north.api.presetUpdate(id, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.api.presets() })
+    },
+    onError: (error) => toastError(error, t('api.studio.savePresetError'))
+  })
+}
+
+export function useDeleteApiPreset(): UseMutationResult<void, Error, { id: string }> {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id }) => window.north.api.presetDelete(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.api.presets() })
+    },
+    onError: (error) => toastError(error, t('api.studio.deletePresetError'))
   })
 }

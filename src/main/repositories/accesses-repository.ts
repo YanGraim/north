@@ -29,13 +29,15 @@ type AccessRow = {
   database_name: string | null
   ssl: number | null
   api_config: string | null
+  api_environment_enabled: number
   created_at: string
   updated_at: string
 }
 
 const ACCESS_COLUMNS = `
   id, group_id, type, name, description, notes, username, credential_ref, url, links,
-  icon, color, is_favorite, engine, host, port, database_name, ssl, api_config, created_at, updated_at
+  icon, color, is_favorite, engine, host, port, database_name, ssl, api_config, api_environment_enabled,
+  created_at, updated_at
 `
 
 function parseApiConfig(raw: string | null, type: Access['type']): Access['apiConfig'] {
@@ -70,6 +72,7 @@ function mapAccess(row: AccessRow): Access {
     database: row.database_name,
     ssl: row.ssl === null ? null : intToBool(row.ssl),
     apiConfig: parseApiConfig(row.api_config, row.type),
+    apiEnvironmentEnabled: intToBool(row.api_environment_enabled),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -96,6 +99,7 @@ function toInsertParams(access: Access): Record<string, unknown> {
     database_name: access.database,
     ssl: access.ssl === null ? null : boolToInt(access.ssl),
     api_config: access.apiConfig ? JSON.stringify(access.apiConfig) : null,
+    api_environment_enabled: boolToInt(access.apiEnvironmentEnabled),
     created_at: access.createdAt,
     updated_at: access.updatedAt
   }
@@ -118,10 +122,12 @@ export class AccessesRepository {
     this.insertStmt = db.prepare(`
       INSERT INTO accesses (
         id, group_id, type, name, description, notes, username, credential_ref, url, links,
-        icon, color, is_favorite, engine, host, port, database_name, ssl, api_config, created_at, updated_at
+        icon, color, is_favorite, engine, host, port, database_name, ssl, api_config, api_environment_enabled,
+        created_at, updated_at
       ) VALUES (
         @id, @group_id, @type, @name, @description, @notes, @username, @credential_ref, @url, @links,
-        @icon, @color, @is_favorite, @engine, @host, @port, @database_name, @ssl, @api_config, @created_at, @updated_at
+        @icon, @color, @is_favorite, @engine, @host, @port, @database_name, @ssl, @api_config, @api_environment_enabled,
+        @created_at, @updated_at
       )
     `)
     this.updateStmt = db.prepare(`
@@ -144,6 +150,7 @@ export class AccessesRepository {
         database_name = @database_name,
         ssl = @ssl,
         api_config = @api_config,
+        api_environment_enabled = @api_environment_enabled,
         updated_at = @updated_at
       WHERE id = @id
     `)
@@ -185,6 +192,10 @@ export class AccessesRepository {
     if (filter.type) {
       clauses.push('a.type = ?')
       params.push(filter.type)
+    }
+    if (filter.apiEnvironmentEnabled !== undefined) {
+      clauses.push('a.api_environment_enabled = ?')
+      params.push(boolToInt(filter.apiEnvironmentEnabled))
     }
     if (filter.tagId) {
       clauses.push(`EXISTS (
@@ -246,6 +257,7 @@ export class AccessesRepository {
           : input.type === 'api'
             ? emptyApiConfig()
             : null,
+      apiEnvironmentEnabled: input.apiEnvironmentEnabled ?? false,
       createdAt: now,
       updatedAt: now
     }
@@ -279,6 +291,10 @@ export class AccessesRepository {
       database: input.database === undefined ? existing.database : input.database,
       ssl: input.ssl === undefined ? existing.ssl : input.ssl,
       apiConfig: input.apiConfig === undefined ? existing.apiConfig : input.apiConfig,
+      apiEnvironmentEnabled:
+        input.apiEnvironmentEnabled === undefined
+          ? existing.apiEnvironmentEnabled
+          : input.apiEnvironmentEnabled,
       updatedAt: nowIso()
     }
     this.updateStmt.run(toInsertParams(updated))

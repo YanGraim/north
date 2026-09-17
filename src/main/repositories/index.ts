@@ -1,6 +1,7 @@
 import type { SqliteDatabase } from '../database/connection'
 import { AccessesRepository } from './accesses-repository'
 import { ApiCollectionsRepository } from './api-collections-repository'
+import { ApiPresetsRepository } from './api-presets-repository'
 import { ApiRequestHistoryRepository } from './api-request-history-repository'
 import { ApiRequestsRepository } from './api-requests-repository'
 import { ApiVariablesRepository } from './api-variables-repository'
@@ -35,6 +36,7 @@ export type Repositories = {
   apiRequests: ApiRequestsRepository
   apiVariables: ApiVariablesRepository
   apiRequestHistory: ApiRequestHistoryRepository
+  apiPresets: ApiPresetsRepository
 }
 
 export function createRepositories(db: SqliteDatabase): Repositories {
@@ -55,13 +57,15 @@ export function createRepositories(db: SqliteDatabase): Repositories {
     apiCollections: new ApiCollectionsRepository(db),
     apiRequests: new ApiRequestsRepository(db),
     apiVariables: new ApiVariablesRepository(db),
-    apiRequestHistory: new ApiRequestHistoryRepository(db)
+    apiRequestHistory: new ApiRequestHistoryRepository(db),
+    apiPresets: new ApiPresetsRepository(db)
   }
 }
 
 export {
   AccessesRepository,
   ApiCollectionsRepository,
+  ApiPresetsRepository,
   ApiRequestHistoryRepository,
   ApiRequestsRepository,
   ApiVariablesRepository,

@@ -308,7 +308,8 @@ export function AccessDetailsPanel(): React.JSX.Element {
           </div>
 
           <div className="mt-3 flex items-center gap-2">
-            {access.type === 'database' || access.type === 'api' ? (
+            {access.type === 'database' ||
+            (access.type === 'api' && access.apiEnvironmentEnabled) ? (
               <Button
                 type="button"
                 variant="default"
@@ -377,11 +378,20 @@ export function AccessDetailsPanel(): React.JSX.Element {
                 {access.type === 'api' ? (
                   <>
                     <DetailField label="Base URL" value={access.url ?? '—'} mono />
-                    <DetailField label="Auth" value={access.apiConfig?.auth.type ?? 'none'} />
-                    <DetailField
-                      label="Collections / requests"
-                      value={`${collections.length} / ${requestCount}`}
-                    />
+                    {access.apiEnvironmentEnabled ? (
+                      <>
+                        <DetailField label="Auth" value={access.apiConfig?.auth.type ?? 'none'} />
+                        <DetailField
+                          label="Collections / requests"
+                          value={`${collections.length} / ${requestCount}`}
+                        />
+                      </>
+                    ) : (
+                      <DetailField
+                        label="Variável / ambiente"
+                        value="Desativado — marque a opção na edição para conectar"
+                      />
+                    )}
                   </>
                 ) : null}
                 {access.type !== 'api' ? (

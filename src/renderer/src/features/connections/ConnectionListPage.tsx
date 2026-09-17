@@ -242,7 +242,7 @@ export function ConnectionListPage({ mode }: ConnectionListPageProps): React.JSX
                     <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="connection">Servidor</DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="database">Banco</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="login">Login</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="login">Login Web</DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="api">API</DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
@@ -296,7 +296,7 @@ export function ConnectionListPage({ mode }: ConnectionListPageProps): React.JSX
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => openCreateAccess('api')}>API</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => openCreateAccess('login')}>
-                Acesso · login
+                Acesso · Login Web
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => openCreateAccess('other')}>
                 Acesso · outro

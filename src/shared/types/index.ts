@@ -36,6 +36,8 @@ export {
   ApiFolderSchema,
   type ApiHttpMethod,
   ApiHttpMethodSchema,
+  type ApiPreset,
+  ApiPresetSchema,
   type ApiRequest,
   type ApiRequestDefinition,
   ApiRequestDefinitionSchema,
@@ -50,6 +52,8 @@ export {
   CreateApiCollectionInputSchema,
   type CreateApiFolderInput,
   CreateApiFolderInputSchema,
+  type CreateApiPresetInput,
+  CreateApiPresetInputSchema,
   type CreateApiRequestInput,
   CreateApiRequestInputSchema,
   emptyApiRequestDefinition,
@@ -63,6 +67,8 @@ export {
   UpdateApiCollectionInputSchema,
   type UpdateApiFolderInput,
   UpdateApiFolderInputSchema,
+  type UpdateApiPresetInput,
+  UpdateApiPresetInputSchema,
   type UpdateApiRequestInput,
   UpdateApiRequestInputSchema
 } from './api'

@@ -39,6 +39,7 @@ import type {
   ApiCollectionImportResult,
   ApiCollectionListFilter,
   ApiFolder,
+  ApiPreset,
   ApiRequest,
   ApiRequestHistoryEntry,
   ApiVariablePublic,
@@ -50,6 +51,7 @@ import type {
   CreateAccessInput,
   CreateApiCollectionInput,
   CreateApiFolderInput,
+  CreateApiPresetInput,
   CreateApiRequestInput,
   CreateClientInput,
   CreateConnectionInput,
@@ -81,6 +83,7 @@ import type {
   UpdateAccessInput,
   UpdateApiCollectionInput,
   UpdateApiFolderInput,
+  UpdateApiPresetInput,
   UpdateApiRequestInput,
   UpdateClientInput,
   UpdateConnectionInput,
@@ -536,6 +539,22 @@ export interface IpcInvokeMap {
     args: [id: string]
     result: undefined
   }
+  [IpcChannels.API_PRESET_LIST]: {
+    args: []
+    result: ApiPreset[]
+  }
+  [IpcChannels.API_PRESET_CREATE]: {
+    args: [input: CreateApiPresetInput]
+    result: ApiPreset
+  }
+  [IpcChannels.API_PRESET_UPDATE]: {
+    args: [id: string, input: UpdateApiPresetInput]
+    result: ApiPreset
+  }
+  [IpcChannels.API_PRESET_DELETE]: {
+    args: [id: string]
+    result: undefined
+  }
 }
 
 export type InvokeChannel = keyof IpcInvokeMap
@@ -720,5 +739,9 @@ export interface NorthApi {
     variableList: (accessId: string) => Promise<ApiVariablePublic[]>
     variableSet: (input: SetApiVariableInput) => Promise<ApiVariablePublic>
     variableDelete: (id: string) => Promise<void>
+    presetList: () => Promise<ApiPreset[]>
+    presetCreate: (input: CreateApiPresetInput) => Promise<ApiPreset>
+    presetUpdate: (id: string, input: UpdateApiPresetInput) => Promise<ApiPreset>
+    presetDelete: (id: string) => Promise<void>
   }
 }

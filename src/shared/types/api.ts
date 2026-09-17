@@ -187,7 +187,11 @@ export const ApiVariableSchema = z.object({
 })
 export type ApiVariable = z.infer<typeof ApiVariableSchema>
 
-/** Renderer-safe variable: secrets never include plaintext. */
+/**
+ * Renderer-safe variable: secrets never include plaintext. `credentialRef` is
+ * just an opaque vault row id (same precedent as Access.credentialRef) — the
+ * renderer uses it with `vault:reveal-secret` to reveal on demand.
+ */
 export const ApiVariablePublicSchema = z.object({
   id: IdSchema,
   accessId: IdSchema,
@@ -195,6 +199,7 @@ export const ApiVariablePublicSchema = z.object({
   value: z.string().nullable(),
   isSecret: z.boolean(),
   hasSecret: z.boolean(),
+  credentialRef: z.string().nullable(),
   description: z.string().nullable(),
   createdAt: IsoDateSchema,
   updatedAt: IsoDateSchema
@@ -209,6 +214,31 @@ export const SetApiVariableInputSchema = z.object({
   description: z.string().nullable().optional()
 })
 export type SetApiVariableInput = z.infer<typeof SetApiVariableInputSchema>
+
+/** Reusable Headers/Auth preset, global — not tied to a Collection/Client/Access. */
+export const ApiPresetSchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1),
+  headers: z.array(ApiKeyValueSchema),
+  auth: ApiAuthSchema.nullable(),
+  createdAt: IsoDateSchema,
+  updatedAt: IsoDateSchema
+})
+export type ApiPreset = z.infer<typeof ApiPresetSchema>
+
+export const CreateApiPresetInputSchema = z.object({
+  name: z.string().min(1),
+  headers: z.array(ApiKeyValueSchema).default([]),
+  auth: ApiAuthSchema.nullable().default(null)
+})
+export type CreateApiPresetInput = z.infer<typeof CreateApiPresetInputSchema>
+
+export const UpdateApiPresetInputSchema = z.object({
+  name: z.string().min(1).optional(),
+  headers: z.array(ApiKeyValueSchema).optional(),
+  auth: ApiAuthSchema.nullable().optional()
+})
+export type UpdateApiPresetInput = z.infer<typeof UpdateApiPresetInputSchema>
 
 export const ApiRequestHistoryEntrySchema = z.object({
   id: IdSchema,

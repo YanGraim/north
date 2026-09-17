@@ -174,4 +174,89 @@ describe('executeApiSend', () => {
 
     expect(executeHttpRequest).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 5_000 }))
   })
+
+  it('send sem environmentAccessId com URL absoluta chama executeHttpRequest com essa URL, sem variáveis', async () => {
+    const { repos, vault, access } = seed()
+    repos.apiVariables.upsert({
+      accessId: access.id,
+      key: 'version',
+      value: 'v1',
+      isSecret: false
+    })
+    const getSpy = vi.spyOn(repos.accesses, 'get')
+    vi.mocked(executeHttpRequest).mockResolvedValue({
+      requestId: '11111111-1111-1111-1111-111111111111',
+      status: 200,
+      statusText: 'OK',
+      headers: [],
+      bodyText: '{}',
+      truncated: false,
+      durationMs: 1,
+      sizeBytes: 2,
+      errorKind: null,
+      errorMessage: null,
+      echoed: {
+        method: 'GET',
+        url: 'https://httpbin.org/get',
+        headers: []
+      }
+    })
+
+    await executeApiSend(repos, vault, {
+      requestId: '11111111-1111-1111-1111-111111111111',
+      method: 'GET',
+      url: 'https://httpbin.org/get',
+      definition: emptyApiRequestDefinition()
+    })
+
+    expect(getSpy).not.toHaveBeenCalled()
+    expect(executeHttpRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'https://httpbin.org/get',
+        timeoutMs: 0
+      })
+    )
+  })
+
+  it('send sem environmentAccessId com URL relativa retorna failedResult com errorKind: invalid-url', async () => {
+    const { repos, vault } = seed()
+
+    const result = await executeApiSend(repos, vault, {
+      requestId: '11111111-1111-1111-1111-111111111111',
+      method: 'GET',
+      url: '/health',
+      definition: emptyApiRequestDefinition()
+    })
+
+    expect(result.errorKind).toBe('invalid-url')
+    expect(result.errorMessage).toMatch(/URL inválida/)
+    expect(executeHttpRequest).not.toHaveBeenCalled()
+  })
+
+  it('send sem environmentAccessId não grava histórico', async () => {
+    const { repos, vault } = seed()
+    const insertSpy = vi.spyOn(repos.apiRequestHistory, 'insert')
+    vi.mocked(executeHttpRequest).mockResolvedValue({
+      requestId: '11111111-1111-1111-1111-111111111111',
+      status: 200,
+      statusText: 'OK',
+      headers: [],
+      bodyText: '{}',
+      truncated: false,
+      durationMs: 1,
+      sizeBytes: 2,
+      errorKind: null,
+      errorMessage: null,
+      echoed: { method: 'GET', url: 'https://example.com/health', headers: [] }
+    })
+
+    await executeApiSend(repos, vault, {
+      requestId: '11111111-1111-1111-1111-111111111111',
+      method: 'GET',
+      url: 'https://example.com/health',
+      definition: emptyApiRequestDefinition()
+    })
+
+    expect(insertSpy).not.toHaveBeenCalled()
+  })
 })

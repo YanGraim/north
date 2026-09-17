@@ -657,7 +657,8 @@ function AccessActions({
       <CommandItem value="action-back" onSelect={onBack}>
         Voltar
       </CommandItem>
-      {isSqlStudioEngine(item.engine) || item.accessType === 'api' ? (
+      {isSqlStudioEngine(item.engine) ||
+      (item.accessType === 'api' && item.apiEnvironmentEnabled) ? (
         <CommandItem value="action-connect" onSelect={onConnect}>
           Conectar
         </CommandItem>
