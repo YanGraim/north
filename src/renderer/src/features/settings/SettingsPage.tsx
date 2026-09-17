@@ -35,7 +35,13 @@ import {
   installAndRestart,
   updatesLikelyDisabledInDev
 } from '@renderer/lib/update-actions'
-import { type LocaleCode, type ThemePreference, useUiStore } from '@renderer/stores/ui-store'
+import {
+  type LocaleCode,
+  MONO_FONT_FAMILY_STACKS,
+  type MonoFontFamily,
+  type ThemePreference,
+  useUiStore
+} from '@renderer/stores/ui-store'
 import { useWhatsNewStore } from '@renderer/stores/whats-new-store'
 import type { UpdateStatus } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
@@ -67,6 +73,15 @@ const LOCALE_OPTIONS: Array<{ value: LocaleCode; label: string }> = [
   { value: 'es', label: 'Español' }
 ]
 
+const MONO_FONT_SIZE_OPTIONS = [11, 12, 12.5, 13, 14, 15, 16] as const
+const MONO_FONT_FAMILY_LABEL_KEYS: Record<MonoFontFamily, string> = {
+  'ibm-plex-mono': 'settings.editor.fontFamilyIbmPlexMono',
+  'jetbrains-mono': 'settings.editor.fontFamilyJetbrainsMono',
+  'ui-monospace': 'settings.editor.fontFamilyUiMonospace',
+  'menlo-consolas': 'settings.editor.fontFamilyMenloConsolas',
+  courier: 'settings.editor.fontFamilyCourier'
+}
+
 export function SettingsPage(): React.JSX.Element {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -80,6 +95,10 @@ export function SettingsPage(): React.JSX.Element {
   const setLocale = useUiStore((s) => s.setLocale)
   const terminalCopyOnSelect = useUiStore((s) => s.terminalCopyOnSelect)
   const setTerminalCopyOnSelect = useUiStore((s) => s.setTerminalCopyOnSelect)
+  const monoFontSize = useUiStore((s) => s.monoFontSize)
+  const setMonoFontSize = useUiStore((s) => s.setMonoFontSize)
+  const monoFontFamily = useUiStore((s) => s.monoFontFamily)
+  const setMonoFontFamily = useUiStore((s) => s.setMonoFontFamily)
   const openWhatsNew = useWhatsNewStore((s) => s.openWhatsNew)
   const [busy, setBusy] = useState<
     'export' | 'import' | 'importCsv' | 'template' | 'check' | 'install' | null
@@ -269,6 +288,57 @@ export function SettingsPage(): React.JSX.Element {
                 aria-label={t('settings.terminal.copyOnSelect')}
               />
             </Row>
+          </SettingsSection>
+
+          <Separator />
+
+          <SettingsSection
+            title={t('settings.editor.title')}
+            description={t('settings.editor.description')}
+          >
+            <Row label={t('settings.editor.fontFamily')}>
+              <Select
+                value={monoFontFamily}
+                onValueChange={(value) => setMonoFontFamily(value as MonoFontFamily)}
+              >
+                <SelectTrigger className="w-56">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(MONO_FONT_FAMILY_LABEL_KEYS).map(([family, labelKey]) => (
+                    <SelectItem key={family} value={family}>
+                      {t(labelKey)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Row>
+            <Row label={t('settings.editor.fontSize')}>
+              <Select
+                value={String(monoFontSize)}
+                onValueChange={(value) => setMonoFontSize(Number(value))}
+              >
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONO_FONT_SIZE_OPTIONS.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}px
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Row>
+            <p
+              className="mt-3 rounded-md border border-border bg-surface px-3 py-2 text-foreground"
+              style={{
+                fontFamily: MONO_FONT_FAMILY_STACKS[monoFontFamily],
+                fontSize: `${monoFontSize}px`
+              }}
+            >
+              {t('settings.editor.preview')}
+            </p>
           </SettingsSection>
 
           <Separator />

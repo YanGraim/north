@@ -46,6 +46,18 @@
       "description": "Preferências do terminal embutido.",
       "copyOnSelect": "Copiar ao selecionar"
     },
+    "editor": {
+      "title": "Fonte do app",
+      "description": "Aplicada em todo o app: textos da interface, terminal, editores de código (SQL Studio, API Studio), hosts/portas e atalhos.",
+      "fontFamily": "Família da fonte",
+      "fontSize": "Tamanho da fonte",
+      "fontFamilyIbmPlexMono": "IBM Plex Mono (padrão)",
+      "fontFamilyJetbrainsMono": "JetBrains Mono",
+      "fontFamilyUiMonospace": "Monoespaçada do sistema",
+      "fontFamilyMenloConsolas": "Menlo / Consolas",
+      "fontFamilyCourier": "Courier New",
+      "preview": "console.log(\"Olá, North!\")"
+    },
     "general": {
       "title": "Geral",
       "description": "Versão do app e atalhos principais.",

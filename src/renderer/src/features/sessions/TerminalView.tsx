@@ -9,7 +9,7 @@ import {
   writelnFollowing
 } from '@renderer/lib/terminal/follow-output'
 import { getXtermTheme, useResolvedTheme } from '@renderer/lib/xterm-theme'
-import { useUiStore } from '@renderer/stores/ui-store'
+import { MONO_FONT_FAMILY_STACKS, useUiStore } from '@renderer/stores/ui-store'
 import '@xterm/xterm/css/xterm.css'
 import { coerceBytes } from '@shared/protocols'
 import { FitAddon } from '@xterm/addon-fit'
@@ -50,6 +50,8 @@ export function TerminalView({
   const resolvedTheme = useResolvedTheme()
   const themeRef = useRef(resolvedTheme)
   themeRef.current = resolvedTheme
+  const monoFontFamily = useUiStore((s) => s.monoFontFamily)
+  const monoFontSize = useUiStore((s) => s.monoFontSize)
   visibleRef.current = visible
   findOpenRef.current = findOpen
 
@@ -61,8 +63,8 @@ export function TerminalView({
 
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily: '"IBM Plex Mono", "SF Mono", ui-monospace, monospace',
-      fontSize: 13,
+      fontFamily: MONO_FONT_FAMILY_STACKS[useUiStore.getState().monoFontFamily],
+      fontSize: useUiStore.getState().monoFontSize,
       lineHeight: 1.2,
       theme: getXtermTheme(themeRef.current),
       allowProposedApi: true,
@@ -186,6 +188,15 @@ export function TerminalView({
       term.options.theme = getXtermTheme(resolvedTheme)
     }
   }, [resolvedTheme])
+
+  useEffect(() => {
+    const term = termRef.current
+    const fit = fitRef.current
+    if (!term || !fit) return
+    term.options.fontFamily = MONO_FONT_FAMILY_STACKS[monoFontFamily]
+    term.options.fontSize = monoFontSize
+    requestAnimationFrame(() => fit.fit())
+  }, [monoFontFamily, monoFontSize])
 
   useEffect(() => {
     if (!visible) return

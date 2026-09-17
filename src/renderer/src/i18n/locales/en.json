@@ -46,6 +46,18 @@
       "description": "Built-in terminal preferences.",
       "copyOnSelect": "Copy on select"
     },
+    "editor": {
+      "title": "App font",
+      "description": "Applied to the whole app: interface text, terminal, code editors (SQL Studio, API Studio), hosts/ports and shortcuts.",
+      "fontFamily": "Font family",
+      "fontSize": "Font size",
+      "fontFamilyIbmPlexMono": "IBM Plex Mono (default)",
+      "fontFamilyJetbrainsMono": "JetBrains Mono",
+      "fontFamilyUiMonospace": "System monospace",
+      "fontFamilyMenloConsolas": "Menlo / Consolas",
+      "fontFamilyCourier": "Courier New",
+      "preview": "console.log(\"Hello, North!\")"
+    },
     "general": {
       "title": "General",
       "description": "App version and primary shortcuts.",

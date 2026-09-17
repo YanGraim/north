@@ -6,6 +6,23 @@ export type { ResolvedTheme, ThemePreference }
 
 export type LocaleCode = 'pt-BR' | 'en' | 'es'
 export type ListSort = 'name' | 'lastAccess'
+export type MonoFontFamily =
+  | 'ibm-plex-mono'
+  | 'jetbrains-mono'
+  | 'ui-monospace'
+  | 'menlo-consolas'
+  | 'courier'
+
+/** Original default size (px); the whole app's rem-based scale is relative to this baseline. */
+export const DEFAULT_MONO_FONT_SIZE = 12.5
+
+export const MONO_FONT_FAMILY_STACKS: Record<MonoFontFamily, string> = {
+  'ibm-plex-mono': '"IBM Plex Mono", "SF Mono", ui-monospace, monospace',
+  'jetbrains-mono': '"JetBrains Mono", "SF Mono", ui-monospace, monospace',
+  'ui-monospace': 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+  'menlo-consolas': 'Menlo, Consolas, "SF Mono", monospace',
+  courier: '"Courier New", Courier, monospace'
+}
 
 interface UiState {
   sidebarCollapsed: boolean
@@ -24,6 +41,10 @@ interface UiState {
   /** One-time seed from `app:get-identity` on first launch. */
   profileSeeded: boolean
   terminalCopyOnSelect: boolean
+  /** Monospace font size (px) applied app-wide: terminal, code editors (SQL/API Studio), hosts/ports/shortcuts. */
+  monoFontSize: number
+  /** Monospace font family applied app-wide. */
+  monoFontFamily: MonoFontFamily
   /** Last app version for which the what's-new dialog was dismissed (or silently marked). */
   lastSeenWhatsNewVersion: string | null
   toggleSidebar: () => void
@@ -42,6 +63,8 @@ interface UiState {
   setProfileEmail: (email: string) => void
   seedProfileFromOs: (username: string) => void
   setTerminalCopyOnSelect: (enabled: boolean) => void
+  setMonoFontSize: (size: number) => void
+  setMonoFontFamily: (family: MonoFontFamily) => void
   setLastSeenWhatsNewVersion: (version: string) => void
 }
 
@@ -74,6 +97,8 @@ export const useUiStore = create<UiState>()(
       profileEmail: '',
       profileSeeded: false,
       terminalCopyOnSelect: true,
+      monoFontSize: DEFAULT_MONO_FONT_SIZE,
+      monoFontFamily: 'ibm-plex-mono',
       lastSeenWhatsNewVersion: null,
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
@@ -106,6 +131,8 @@ export const useUiStore = create<UiState>()(
           state.profileSeeded ? state : { displayName: username.trim(), profileSeeded: true }
         ),
       setTerminalCopyOnSelect: (enabled) => set({ terminalCopyOnSelect: enabled }),
+      setMonoFontSize: (size) => set({ monoFontSize: size }),
+      setMonoFontFamily: (family) => set({ monoFontFamily: family }),
       setLastSeenWhatsNewVersion: (version) => set({ lastSeenWhatsNewVersion: version })
     }),
     {
@@ -124,6 +151,8 @@ export const useUiStore = create<UiState>()(
         profileEmail: state.profileEmail,
         profileSeeded: state.profileSeeded,
         terminalCopyOnSelect: state.terminalCopyOnSelect,
+        monoFontSize: state.monoFontSize,
+        monoFontFamily: state.monoFontFamily,
         lastSeenWhatsNewVersion: state.lastSeenWhatsNewVersion
       })
     }

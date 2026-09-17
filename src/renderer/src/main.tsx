@@ -6,6 +6,7 @@ import App from './App'
 import { Toaster } from './components/ui/sonner'
 import { TooltipProvider } from './components/ui/tooltip'
 import { useAppUpdates } from './hooks/use-app-updates'
+import { useCodeFontEffect } from './hooks/use-code-font-effect'
 import { useLocaleEffect } from './hooks/use-locale-effect'
 import { useThemeEffect } from './hooks/use-theme-effect'
 import './i18n'
@@ -15,6 +16,8 @@ import '@fontsource/ibm-plex-sans/600.css'
 import '@fontsource/ibm-plex-sans/700.css'
 import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
+import '@fontsource/jetbrains-mono/400.css'
+import '@fontsource/jetbrains-mono/500.css'
 import './assets/index.css'
 
 const queryClient = new QueryClient({
@@ -29,6 +32,7 @@ const queryClient = new QueryClient({
 function Bootstrap(): React.JSX.Element {
   useThemeEffect()
   useLocaleEffect()
+  useCodeFontEffect()
   useAppUpdates()
   return (
     <>

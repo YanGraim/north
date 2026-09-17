@@ -12,3 +12,4 @@ Organiza clientes, entornos, conexiones remotas y accesos (credenciales de base 
 - Workflows del grupo para acciones repetibles (deploy, restart, health-check)
 - Command Palette y atajos para ir del inventario a la sesión en segundos
 - Perfil local (nombre y correo opcional) en **Ajustes** — solo en este equipo, visible en el chip de la barra lateral
+- Fuente de la app (familia y tamaño) en **Ajustes → Fuente de la app** — se aplica a toda la interfaz, terminal, editores de código, hosts/puertos y atajos
