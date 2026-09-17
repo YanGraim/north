@@ -62,6 +62,7 @@ export const IpcChannels = {
 
   SESSIONS_OPEN: 'sessions:open',
   SESSIONS_OPEN_ACCESS: 'sessions:open-access',
+  SESSIONS_OPEN_LOCAL: 'sessions:open-local',
   SESSIONS_CLOSE: 'sessions:close',
   SESSIONS_LIST: 'sessions:list',
   SESSIONS_RESPOND_HOST_KEY: 'sessions:respond-host-key',

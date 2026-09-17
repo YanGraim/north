@@ -14,13 +14,8 @@ import type {
 import type { AppIdentity, UpdateStatus } from '@shared/types'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
-function openSession(
-  connectionId: string,
-  onPort: (port: MessagePort) => void
-): Promise<SessionDescriptor> {
-  const requestId = crypto.randomUUID()
-
-  const portPromise = new Promise<void>((resolve, reject) => {
+function waitForSessionPort(requestId: string, onPort: (port: MessagePort) => void): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
       ipcRenderer.removeListener(IpcChannels.SESSIONS_PORT, onPortMessage)
       reject(new Error('Timeout waiting for session MessagePort'))
@@ -42,6 +37,14 @@ function openSession(
 
     ipcRenderer.on(IpcChannels.SESSIONS_PORT, onPortMessage)
   })
+}
+
+function openSession(
+  connectionId: string,
+  onPort: (port: MessagePort) => void
+): Promise<SessionDescriptor> {
+  const requestId = crypto.randomUUID()
+  const portPromise = waitForSessionPort(requestId, onPort)
 
   return Promise.all([
     ipcRenderer.invoke(
@@ -49,6 +52,16 @@ function openSession(
       connectionId,
       requestId
     ) as Promise<SessionDescriptor>,
+    portPromise
+  ]).then(([session]) => session)
+}
+
+function openLocalSession(onPort: (port: MessagePort) => void): Promise<SessionDescriptor> {
+  const requestId = crypto.randomUUID()
+  const portPromise = waitForSessionPort(requestId, onPort)
+
+  return Promise.all([
+    ipcRenderer.invoke(IpcChannels.SESSIONS_OPEN_LOCAL, requestId) as Promise<SessionDescriptor>,
     portPromise
   ]).then(([session]) => session)
 }
@@ -134,6 +147,7 @@ const api: NorthApi = {
   sessions: {
     open: openSession,
     openAccess: (accessId) => ipcRenderer.invoke(IpcChannels.SESSIONS_OPEN_ACCESS, accessId),
+    openLocal: openLocalSession,
     close: (sessionId) => ipcRenderer.invoke(IpcChannels.SESSIONS_CLOSE, sessionId),
     list: () => ipcRenderer.invoke(IpcChannels.SESSIONS_LIST),
     respondHostKey: (response: HostKeyResponse) =>

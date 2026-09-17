@@ -255,6 +255,10 @@ export interface IpcInvokeMap {
     args: [accessId: string]
     result: SessionDescriptor
   }
+  [IpcChannels.SESSIONS_OPEN_LOCAL]: {
+    args: [requestId: string]
+    result: SessionDescriptor
+  }
   [IpcChannels.SESSIONS_CLOSE]: {
     args: [sessionId: string]
     result: undefined
@@ -636,6 +640,8 @@ export interface NorthApi {
      */
     open: (connectionId: string, onPort: (port: MessagePort) => void) => Promise<SessionDescriptor>
     openAccess: (accessId: string) => Promise<SessionDescriptor>
+    /** Opens a local shell (no host, no credentials) — same MessagePort caveat as `open`. */
+    openLocal: (onPort: (port: MessagePort) => void) => Promise<SessionDescriptor>
     close: (sessionId: string) => Promise<void>
     list: () => Promise<SessionDescriptor[]>
     respondHostKey: (response: HostKeyResponse) => Promise<void>

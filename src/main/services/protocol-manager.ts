@@ -16,6 +16,7 @@ import { ApiProtocolSession } from '../protocols/api/session'
 import { configFromAccess } from '../protocols/database/config'
 import { connectAdapter } from '../protocols/database/registry'
 import { DatabaseProtocolSession } from '../protocols/database/session'
+import { LocalShellDriver } from '../protocols/local-shell-driver'
 import { fingerprintHostKey, parseHostKeyType } from '../protocols/ssh-utils'
 import type { Repositories } from '../repositories'
 import type { CredentialVault } from '../vault'
@@ -59,6 +60,7 @@ export class ProtocolManager {
 
   private events: ProtocolManagerEvents | null = null
   private readonly createChannel: MessageChannelFactory
+  private readonly localShellDriver = new LocalShellDriver()
 
   constructor(
     private readonly repositories: Repositories,
@@ -198,6 +200,82 @@ export class ProtocolManager {
         active.everConnected = true
       }
       this.updateState(sessionId, session.state)
+
+      const { port1, port2 } = this.createChannel()
+      active.portMain = port1
+      session.attachPort({
+        postMessage: (message) => {
+          try {
+            port1.postMessage(message)
+          } catch {
+            // ignore closed port
+          }
+          this.emitSessionMessage(sessionId, message as SessionPortMessage)
+        },
+        close: () => port1.close(),
+        start: () => port1.start(),
+        on: (event, listener) => {
+          port1.on(event, listener as (...args: unknown[]) => void)
+        }
+      })
+
+      this.watchSessionLifecycle(sessionId)
+
+      return { descriptor: { ...active.descriptor }, port: port2 }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao abrir sessão'
+      this.updateState(sessionId, 'error', message)
+      this.finishWithHistory(sessionId, false, message)
+      throw error
+    }
+  }
+
+  /** Local shell — no Connection/Access row, no credentials, no host-key verification. */
+  async openLocal(): Promise<{ descriptor: SessionDescriptor; port: MessagePortMain }> {
+    const sessionId = randomUUID()
+    const descriptor: SessionDescriptor = {
+      id: sessionId,
+      connectionId: null,
+      accessId: null,
+      kind: 'terminal',
+      protocol: 'local-shell',
+      title: 'Terminal local',
+      state: 'connecting',
+      errorMessage: null
+    }
+
+    const placeholder: ActiveSession = {
+      session: {
+        id: sessionId,
+        kind: 'terminal',
+        protocol: 'local-shell',
+        state: 'connecting',
+        attachPort: () => undefined,
+        dispose: async () => undefined
+      },
+      descriptor,
+      connectionId: null,
+      accessId: null,
+      startedAt: Date.now(),
+      portMain: null,
+      historyRecorded: false,
+      everConnected: false
+    }
+    this.sessions.set(sessionId, placeholder)
+    this.emitState(descriptor)
+
+    try {
+      const session = await this.localShellDriver.createSession(sessionId)
+
+      const active = this.sessions.get(sessionId)
+      if (!active) {
+        await session.dispose()
+        throw new Error('Sessão cancelada')
+      }
+
+      active.session = session
+      active.everConnected = true
+      this.updateState(sessionId, 'connected')
 
       const { port1, port2 } = this.createChannel()
       active.portMain = port1
