@@ -34,3 +34,6 @@ north-export*.json
 # Local Cursor IDE config (shared rules stay tracked under .cursor/rules/)
 .cursor/agents/
 .cursor/rules/orchestrator.mdc
+
+# Local Claude Code guidance — not shared with the team
+CLAUDE.md
