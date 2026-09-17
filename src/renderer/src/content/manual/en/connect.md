@@ -20,10 +20,14 @@ On the first SSH connection, North asks you to confirm the host key. Accept only
 
 In a terminal session tab:
 
-- The top bar shows `user@host`, the **environment** folder, and an **HML** / **PROD** / **DEV** badge when the name has context — the tab also carries the short label.
+- The top bar shows `user@host`, the **environment** folder, and an **HML** / **PROD** / **DEV** badge when the name has context — the tab also carries the short label, together with the **client** name, to tell apart tabs from the same environment across different clients.
 - The terminal follows output while you are at the bottom; if you scroll up the history, it does not jump back.
 - Click on the current command line to place the cursor (no arrow keys needed). Dragging still selects text.
 - **⌘A** (macOS) or **Ctrl+A** (Windows/Linux) selects the typed text on the line (not the prompt); press again to select the whole scrollback. With a selection, **Backspace** / **Delete** removes that text; **⌘X** / **Ctrl+X** cuts (copy and delete). On Mac, **Ctrl+A** still goes to the shell (beginning of line).
+
+## Local terminal
+
+The Command Palette (**⌘/Ctrl+K**) has a **Local terminal** item that opens a shell on your own machine — no host, no credential, no saved Connection. It runs in the main process, just like other terminal sessions; closing the tab ends the shell process.
 
 ## Favorites and tabs
 

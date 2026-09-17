@@ -32,7 +32,7 @@ Arquivo: [`electron-builder.yml`](../electron-builder.yml) (fonte única — nã
 | macOS | DMG (primário) + zip (útil para updater/GitHub); `notarize: false` |
 | Windows | NSIS (`North-${version}-setup.exe`) |
 | Linux | AppImage (`North-${version}.AppImage`) |
-| Nativos | `npmRebuild: true` (`better-sqlite3`, `serialport`) |
+| Nativos | `npmRebuild: true` (`better-sqlite3`, `serialport`, `node-pty`) |
 | Publish | `provider: github`, `owner: YanGraim`, `repo: north` |
 
 Recursos em `build/`:
@@ -97,7 +97,7 @@ O job `release` junta os artefatos e cria um **draft release** no GitHub. Revise
 
 ### Gerar `.exe` estando no Mac
 
-Não use `npm run dist:win` localmente — módulos nativos (`better-sqlite3`, `serialport`) exigem build no SO alvo. No Mac:
+Não use `npm run dist:win` localmente — módulos nativos (`better-sqlite3`, `serialport`, `node-pty`) exigem build no SO alvo. No Mac:
 
 ```bash
 git tag v0.1.0          # versão alinhada a package.json
