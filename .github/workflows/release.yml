@@ -43,7 +43,9 @@ jobs:
       matrix:
         include:
           - target: mac
-            os: macos-latest
+            # macos-latest is macOS 26; electron-builder then unlocks the
+            # temp keychain with the .p12 password and signing fails.
+            os: macos-15
             dist_command: dist:mac
             artifact_name: north-mac
             artifact_glob: |
