@@ -32,6 +32,7 @@ export class ApiVariablesRepository {
   private readonly listByAccessStmt
   private readonly getStmt
   private readonly getByKeyStmt
+  private readonly getByCredentialRefStmt
   private readonly insertStmt
   private readonly updateStmt
   private readonly deleteStmt
@@ -52,6 +53,11 @@ export class ApiVariablesRepository {
       SELECT id, access_id, key, value, is_secret, credential_ref, description, created_at, updated_at
       FROM api_variables
       WHERE access_id = ? AND key = ?
+    `)
+    this.getByCredentialRefStmt = db.prepare(`
+      SELECT id, access_id, key, value, is_secret, credential_ref, description, created_at, updated_at
+      FROM api_variables
+      WHERE credential_ref = ?
     `)
     this.insertStmt = db.prepare(`
       INSERT INTO api_variables (
@@ -80,6 +86,11 @@ export class ApiVariablesRepository {
 
   getByKey(accessId: string, key: string): ApiVariable | null {
     const row = this.getByKeyStmt.get(accessId, key) as VariableRow | undefined
+    return row ? mapVariable(row) : null
+  }
+
+  findByCredentialRef(credentialRef: string): ApiVariable | null {
+    const row = this.getByCredentialRefStmt.get(credentialRef) as VariableRow | undefined
     return row ? mapVariable(row) : null
   }
 

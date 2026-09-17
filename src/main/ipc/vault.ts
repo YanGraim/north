@@ -13,6 +13,8 @@ function assertCredentialOwnership(repos: Repositories, credentialRef: string): 
   if (ownedByAccess) return
   const ownedByConnection = repos.connections.findByCredentialRef(credentialRef)
   if (ownedByConnection) return
+  const ownedByApiVariable = repos.apiVariables.findByCredentialRef(credentialRef)
+  if (ownedByApiVariable) return
   throw new Error('Credential ref is not owned by an access or connection')
 }
 

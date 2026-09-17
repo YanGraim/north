@@ -1,12 +1,14 @@
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
+import { toastSuccess } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 import type { ApiSendResult } from '@shared/protocols'
 import { ChevronDown, ChevronUp, Copy, Loader2, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { JsonEditor } from './JsonEditor'
+import { findMatches, stepMatchIndex, type TextMatch } from './find-in-text'
+import { JsonEditor, type JsonEditorHandle } from './JsonEditor'
 
 type ResponseViewerProps = {
   response: ApiSendResult | null
@@ -47,7 +49,9 @@ export function ResponseViewer({
   const [findQuery, setFindQuery] = useState('')
   const [errorOpen, setErrorOpen] = useState(true)
   const [elapsedMs, setElapsedMs] = useState(0)
-  const findIndexRef = useRef(0)
+  const [matches, setMatches] = useState<TextMatch[]>([])
+  const [activeMatch, setActiveMatch] = useState(-1)
+  const editorRef = useRef<JsonEditorHandle>(null)
 
   useEffect(() => {
     if (!sending) {
@@ -68,28 +72,41 @@ export function ResponseViewer({
       ? t(`api.errors.${errorKind}`)
       : (error ?? response?.errorMessage ?? null)
 
+  const prettyBody = useMemo(() => (response ? prettyJson(response.bodyText) : null), [response])
+  const canPretty = prettyBody !== null
   const body = useMemo(() => {
     if (!response) return ''
-    if (!pretty) return response.bodyText
-    return prettyJson(response.bodyText) ?? response.bodyText
-  }, [pretty, response])
+    if (!pretty || !canPretty) return response.bodyText
+    return prettyBody ?? response.bodyText
+  }, [pretty, canPretty, prettyBody, response])
 
   function copyBody(): void {
     if (!response) return
-    void navigator.clipboard.writeText(pretty ? body : response.bodyText)
+    void navigator.clipboard.writeText(body).then(() => toastSuccess(t('api.studio.copied')))
   }
 
+  // Recompute matches (and highlight the first one) whenever the query or the body text changes.
+  useEffect(() => {
+    if (!findOpen) return
+    const next = findMatches(body, findQuery)
+    const nextActive = next.length > 0 ? 0 : -1
+    setMatches(next)
+    setActiveMatch(nextActive)
+    editorRef.current?.highlightMatches(next, nextActive)
+  }, [findOpen, findQuery, body])
+
+  useEffect(() => {
+    if (findOpen) return
+    editorRef.current?.clearMatches()
+    setMatches([])
+    setActiveMatch(-1)
+  }, [findOpen])
+
   function runFind(direction: 'next' | 'prev'): void {
-    if (!findQuery || !body) return
-    const hay = body.toLowerCase()
-    const needle = findQuery.toLowerCase()
-    const from = findIndexRef.current
-    let index =
-      direction === 'next' ? hay.indexOf(needle, from + 1) : hay.lastIndexOf(needle, from - 1)
-    if (index < 0) {
-      index = direction === 'next' ? hay.indexOf(needle) : hay.lastIndexOf(needle)
-    }
-    findIndexRef.current = index
+    if (matches.length === 0) return
+    const next = stepMatchIndex(matches.length, activeMatch, direction)
+    setActiveMatch(next)
+    editorRef.current?.highlightMatches(matches, next)
   }
 
   if (!response && !error && !sending) {
@@ -119,27 +136,51 @@ export function ResponseViewer({
               {Math.round(response.durationMs)} ms · {response.sizeBytes} B
               {response.truncated ? ` · ${t('api.studio.truncated')}` : ''}
             </span>
-            <div className="ml-auto flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-xs"
-                onClick={() => setPretty(true)}
-                disabled={pretty}
-              >
-                {t('api.studio.pretty')}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-6 px-2 text-xs"
-                onClick={() => setPretty(false)}
-                disabled={!pretty}
-              >
-                {t('api.studio.raw')}
-              </Button>
+            <div className="ml-auto flex items-center gap-1.5">
+              {!canPretty ? (
+                <span
+                  className="text-[11px] text-muted"
+                  title={
+                    response.truncated
+                      ? t('api.studio.prettyUnavailableTruncated')
+                      : t('api.studio.prettyUnavailable')
+                  }
+                >
+                  {response.truncated ? t('api.studio.truncated') : t('api.studio.notJson')}
+                </span>
+              ) : null}
+              <div className="flex items-center gap-0.5 rounded-md bg-surface p-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    'h-5 px-2 text-xs',
+                    pretty
+                      ? 'bg-surface-elevated text-foreground'
+                      : 'text-muted hover:text-foreground'
+                  )}
+                  aria-pressed={pretty}
+                  onClick={() => setPretty(true)}
+                >
+                  {t('api.studio.pretty')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    'h-5 px-2 text-xs',
+                    !pretty
+                      ? 'bg-surface-elevated text-foreground'
+                      : 'text-muted hover:text-foreground'
+                  )}
+                  aria-pressed={!pretty}
+                  onClick={() => setPretty(false)}
+                >
+                  {t('api.studio.raw')}
+                </Button>
+              </div>
               <Button
                 type="button"
                 variant="ghost"
@@ -180,7 +221,7 @@ export function ResponseViewer({
 
         {response ? (
           <div className="min-h-0 flex-1">
-            <JsonEditor value={body} readOnly fold />
+            <JsonEditor ref={editorRef} value={body} readOnly fold json={canPretty} />
           </div>
         ) : null}
 
@@ -192,11 +233,7 @@ export function ResponseViewer({
           >
             <Input
               value={findQuery}
-              onChange={(event) => {
-                setFindQuery(event.target.value)
-                findIndexRef.current = -1
-                runFind('next')
-              }}
+              onChange={(event) => setFindQuery(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault()
@@ -208,11 +245,20 @@ export function ResponseViewer({
               className="h-7 w-40 text-xs"
               autoFocus
             />
+            <span className="w-12 shrink-0 text-center font-mono text-[11px] text-muted">
+              {findQuery.trim()
+                ? matches.length > 0
+                  ? t('api.studio.findMatches', { current: activeMatch + 1, total: matches.length })
+                  : t('api.studio.findNoMatches')
+                : ''}
+            </span>
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="size-6"
+              disabled={matches.length === 0}
+              aria-label={t('api.studio.findPrevious')}
               onClick={() => runFind('prev')}
             >
               <ChevronUp className="size-3.5" />
@@ -222,6 +268,8 @@ export function ResponseViewer({
               variant="ghost"
               size="icon"
               className="size-6"
+              disabled={matches.length === 0}
+              aria-label={t('api.studio.findNext')}
               onClick={() => runFind('next')}
             >
               <ChevronDown className="size-3.5" />

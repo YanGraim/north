@@ -12,7 +12,7 @@ import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { cn } from '@renderer/lib/utils'
 import type { ApiCollection, ApiFolder, ApiHttpMethod, ApiRequest } from '@shared/types'
 import { ChevronDown, ChevronRight, FileText, Folder, FolderPlus } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { filterCollectionTree } from './filter-collection-tree'
 
@@ -73,6 +73,24 @@ export function CollectionsTree({
 }: CollectionsTreeProps): React.JSX.Element {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const seededCollectionIds = useRef<Set<string>>(new Set())
+
+  // New collections default to open; once seeded, a collection's open state is
+  // tracked explicitly so toggling one folder/collection never affects others.
+  useEffect(() => {
+    setExpanded((prev) => {
+      let changed = false
+      const next = new Set(prev)
+      for (const collection of collections) {
+        if (!seededCollectionIds.current.has(collection.id)) {
+          seededCollectionIds.current.add(collection.id)
+          next.add(collection.id)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [collections])
 
   function toggle(key: string): void {
     setExpanded((prev) => {
@@ -139,7 +157,7 @@ export function CollectionsTree({
           {visibleCollections.map((collection) => {
             const open = searching
               ? filtered.expandedIds.has(collection.id)
-              : expanded.has(collection.id) || expanded.size === 0
+              : expanded.has(collection.id)
             const folders = visibleFolders[collection.id] ?? []
             const requests = visibleRequests[collection.id] ?? []
             return (
