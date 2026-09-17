@@ -100,15 +100,17 @@ export const sqlEditorTheme = EditorView.theme(
   {
     '&': {
       height: '100%',
-      fontSize: '12.5px',
+      fontSize: 'var(--code-font-size, 12.5px)',
       backgroundColor: 'transparent',
       color: 'var(--color-foreground)'
     },
     '.cm-scroller': {
-      fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)',
-      lineHeight: '1.55'
+      fontFamily:
+        'var(--code-font-family, var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace))',
+      lineHeight: '1.65'
     },
-    '.cm-content': { caretColor: 'var(--color-foreground)' },
+    '.cm-content': { caretColor: 'var(--color-foreground)', padding: '0.4rem 0' },
+    '.cm-line': { padding: '0 0.75rem' },
     '.cm-gutters': {
       backgroundColor: 'transparent',
       color: 'var(--color-muted)',

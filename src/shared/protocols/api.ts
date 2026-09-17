@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { ApiHttpMethodSchema, ApiRequestDefinitionSchema } from '../types/api'
 
-export const API_MAX_RESPONSE_BYTES = 1_000_000
+export const API_MAX_RESPONSE_BYTES = 10_000_000
 
 export const ApiErrorKindSchema = z.enum([
   'invalid-url',
@@ -25,7 +25,7 @@ export const ApiSendInputSchema = z.object({
   method: ApiHttpMethodSchema,
   url: z.string(),
   definition: ApiRequestDefinitionSchema,
-  environmentAccessId: z.string().uuid(),
+  environmentAccessId: z.string().uuid().optional(),
   persistedRequestId: z.string().uuid().nullable().optional(),
   collectionId: z.string().uuid().optional()
 })
