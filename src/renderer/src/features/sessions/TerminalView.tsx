@@ -1,14 +1,19 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { SessionIdentityBar } from '@renderer/features/sessions/SessionIdentityBar'
 import { TerminalContextMenu } from '@renderer/features/sessions/TerminalContextMenu'
 import { TerminalFindBar } from '@renderer/features/sessions/TerminalFindBar'
+import { useClaudeUsage } from '@renderer/hooks/use-claude-usage'
 import { copyToClipboard } from '@renderer/lib/clipboard'
+import { environmentStatusColor, hasEnvironmentContext } from '@renderer/lib/environment-color'
 import { attachTerminalInteraction } from '@renderer/lib/terminal/attach-interaction'
 import {
   fitFollowing,
   writeFollowing,
   writelnFollowing
 } from '@renderer/lib/terminal/follow-output'
+import { cn } from '@renderer/lib/utils'
 import { getXtermTheme, useResolvedTheme } from '@renderer/lib/xterm-theme'
+import { useSessionsStore } from '@renderer/stores/sessions-store'
 import { MONO_FONT_FAMILY_STACKS, useUiStore } from '@renderer/stores/ui-store'
 import '@xterm/xterm/css/xterm.css'
 import { coerceBytes } from '@shared/protocols'
@@ -30,6 +35,8 @@ type TerminalViewProps = {
   agentRepoName?: string | null
   agentBranch?: string | null
   agentTaskNote?: string | null
+  /** True for local-shell/agent-workspace sessions — gates the Claude usage poll. */
+  isLocalShell?: boolean
 }
 
 export function TerminalView({
@@ -42,8 +49,10 @@ export function TerminalView({
   environmentColor,
   agentRepoName,
   agentBranch,
-  agentTaskNote
+  agentTaskNote,
+  isLocalShell
 }: TerminalViewProps): React.JSX.Element {
+  const { data: claudeUsage } = useClaudeUsage(sessionId, Boolean(isLocalShell))
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -58,6 +67,12 @@ export function TerminalView({
   const resolvedTheme = useResolvedTheme()
   const themeRef = useRef(resolvedTheme)
   themeRef.current = resolvedTheme
+  const cursorAccent =
+    environmentName && hasEnvironmentContext(environmentName)
+      ? environmentStatusColor(environmentName, environmentColor)
+      : null
+  const cursorAccentRef = useRef(cursorAccent)
+  cursorAccentRef.current = cursorAccent
   const monoFontFamily = useUiStore((s) => s.monoFontFamily)
   const monoFontSize = useUiStore((s) => s.monoFontSize)
   visibleRef.current = visible
@@ -74,7 +89,7 @@ export function TerminalView({
       fontFamily: MONO_FONT_FAMILY_STACKS[useUiStore.getState().monoFontFamily],
       fontSize: useUiStore.getState().monoFontSize,
       lineHeight: 1.2,
-      theme: getXtermTheme(themeRef.current),
+      theme: getXtermTheme(themeRef.current, cursorAccentRef.current),
       allowProposedApi: true,
       rightClickSelectsWord: true,
       scrollback: 5000
@@ -151,6 +166,10 @@ export function TerminalView({
 
       if (message.type === 'state' && message.state === 'closed') {
         writelnFollowing(term, '\r\n\x1b[33mSessão encerrada.\x1b[0m')
+        window.setTimeout(() => {
+          const tab = useSessionsStore.getState().tabs.find((t) => t.sessionId === sessionId)
+          if (tab) void useSessionsStore.getState().closeTab(tab.id)
+        }, 700)
       }
     })
 
@@ -193,9 +212,9 @@ export function TerminalView({
   useEffect(() => {
     const term = termRef.current
     if (term) {
-      term.options.theme = getXtermTheme(resolvedTheme)
+      term.options.theme = getXtermTheme(resolvedTheme, cursorAccent)
     }
-  }, [resolvedTheme])
+  }, [resolvedTheme, cursorAccent])
 
   useEffect(() => {
     const term = termRef.current
@@ -264,6 +283,50 @@ export function TerminalView({
             <StickyNote className="size-3 shrink-0 text-muted" aria-hidden />
             <span className="truncate">{agentTaskNote}</span>
           </span>
+        ) : null}
+        {claudeUsage ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-elevated px-2 py-1 font-mono text-[11px] text-foreground">
+                <span
+                  className={cn(
+                    'size-2 shrink-0 rounded-full',
+                    claudeUsage.percentOfWindow >= 90
+                      ? 'bg-red-500'
+                      : claudeUsage.percentOfWindow >= 70
+                        ? 'bg-yellow-500'
+                        : 'bg-emerald-500'
+                  )}
+                  aria-hidden
+                />
+                {claudeUsage.percentOfWindow}%
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="end" className="font-mono text-[11px]">
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">
+                  Contexto: {claudeUsage.totalTokens.toLocaleString('pt-BR')} /{' '}
+                  {claudeUsage.contextWindow.toLocaleString('pt-BR')} tok (
+                  {claudeUsage.percentOfWindow}%)
+                </p>
+                <ul className="space-y-0.5 text-muted">
+                  <li>Entrada: {claudeUsage.inputTokens.toLocaleString('pt-BR')} tok</li>
+                  <li>Cache lido: {claudeUsage.cacheReadTokens.toLocaleString('pt-BR')} tok</li>
+                  <li>
+                    Cache criado: {claudeUsage.cacheCreationTokens.toLocaleString('pt-BR')} tok
+                  </li>
+                  <li>
+                    Saída (última resposta): {claudeUsage.outputTokens.toLocaleString('pt-BR')} tok
+                  </li>
+                </ul>
+                <p className="pt-0.5 text-muted">
+                  Tokens são exatos, lidos do transcript local do Claude Code. A % assume a janela
+                  de 1M do Sonnet 5 (padrão do modelo) — se sua conta não tiver esse limite, a %
+                  real é menor que a mostrada.
+                </p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
         ) : null}
       </SessionIdentityBar>
       <div className="relative min-h-0 flex-1 p-1">

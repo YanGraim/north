@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import {
+  type ClaudeUsage,
   coerceBytes,
   type HostKeyPrompt,
   type HostKeyResponse,
@@ -12,6 +13,12 @@ import {
 } from '@shared/protocols'
 import type { MessagePortMain, WebContents } from 'electron'
 import { MessageChannelMain } from 'electron'
+import {
+  cwdForPid,
+  findActiveClaudeSessionFile,
+  findClaudeDescendantPid,
+  readLatestClaudeUsage
+} from '../lib/claude-usage'
 import { ApiProtocolSession } from '../protocols/api/session'
 import { configFromAccess } from '../protocols/database/config'
 import { connectAdapter } from '../protocols/database/registry'
@@ -111,6 +118,29 @@ export class ProtocolManager {
     const safeCols = Math.max(2, Math.min(cols || 80, 512))
     const safeRows = Math.max(1, Math.min(rows || 24, 256))
     session.terminal.resize(safeCols, safeRows)
+  }
+
+  /**
+   * Best-effort Claude Code context/token usage for this session — works for
+   * any local-shell/agent-workspace session where a `claude` process is
+   * currently running somewhere under the shell (typed by the user or set
+   * as the workspace's agent command), null otherwise or if Claude Code
+   * hasn't written a transcript yet.
+   */
+  async getClaudeUsage(sessionId: string): Promise<ClaudeUsage | null> {
+    const active = this.sessions.get(sessionId)
+    const pid = active?.session.pid
+    if (!pid) return null
+
+    const claudePid = await findClaudeDescendantPid(pid)
+    if (!claudePid) return null
+
+    const cwd = await cwdForPid(claudePid)
+    if (!cwd) return null
+
+    const file = findActiveClaudeSessionFile(cwd, active.startedAt)
+    if (!file) return null
+    return readLatestClaudeUsage(file)
   }
 
   /** Renderer terminal mounted — flush any stdout buffered during handshake. */

@@ -4,6 +4,7 @@ import type {
   ApiHistoryListInput,
   ApiSendInput,
   ApiSendResult,
+  ClaudeUsage,
   DatabaseIntrospection,
   DatabaseQueryResult,
   DatabaseTestInput,
@@ -280,6 +281,10 @@ export interface IpcInvokeMap {
   [IpcChannels.SESSIONS_RESPOND_HOST_KEY]: {
     args: [response: HostKeyResponse]
     result: undefined
+  }
+  [IpcChannels.SESSIONS_CLAUDE_USAGE]: {
+    args: [sessionId: string]
+    result: ClaudeUsage | null
   }
 
   [IpcChannels.FS_LIST]: {
@@ -702,6 +707,8 @@ export interface NorthApi {
     close: (sessionId: string) => Promise<void>
     list: () => Promise<SessionDescriptor[]>
     respondHostKey: (response: HostKeyResponse) => Promise<void>
+    /** Best-effort Claude Code context/token usage — null unless it's a `claude` agent session. */
+    getClaudeUsage: (sessionId: string) => Promise<ClaudeUsage | null>
     /** Terminal stdin (IPC — reliable under sandbox). */
     write: (sessionId: string, data: number[]) => void
     resize: (sessionId: string, cols: number, rows: number) => void

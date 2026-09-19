@@ -49,8 +49,15 @@ const LIGHT_THEME: ITheme = {
   brightWhite: '#ffffff'
 }
 
-export function getXtermTheme(resolved: 'dark' | 'light'): ITheme {
-  return resolved === 'light' ? LIGHT_THEME : DARK_THEME
+/**
+ * `accentColor` overrides the cursor color — e.g. the environment's accent
+ * (HML yellow, PROD red, or a custom color) so the cursor tells you at a
+ * glance which environment a terminal session belongs to.
+ */
+export function getXtermTheme(resolved: 'dark' | 'light', accentColor?: string | null): ITheme {
+  const base = resolved === 'light' ? LIGHT_THEME : DARK_THEME
+  if (!accentColor) return base
+  return { ...base, cursor: accentColor }
 }
 
 export function useResolvedTheme(): 'dark' | 'light' {

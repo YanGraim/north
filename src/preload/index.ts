@@ -170,6 +170,7 @@ const api: NorthApi = {
     list: () => ipcRenderer.invoke(IpcChannels.SESSIONS_LIST),
     respondHostKey: (response: HostKeyResponse) =>
       ipcRenderer.invoke(IpcChannels.SESSIONS_RESPOND_HOST_KEY, response),
+    getClaudeUsage: (sessionId) => ipcRenderer.invoke(IpcChannels.SESSIONS_CLAUDE_USAGE, sessionId),
     write: (sessionId, data) => {
       ipcRenderer.send(IpcChannels.SESSIONS_STDIN, sessionId, data)
     },

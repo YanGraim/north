@@ -66,6 +66,8 @@ export type ProtocolSession = {
   readonly kind: SessionKind
   readonly protocol: string
   readonly state: SessionState
+  /** OS pid of the underlying local process (shell/pty) — set only by local-shell sessions. */
+  readonly pid?: number
   readonly terminal?: TerminalCapability
   readonly fileTransfer?: FileTransferCapability
   readonly database?: DatabaseCapability

@@ -112,6 +112,10 @@ export function registerSessionHandlers(repositories: Repositories, vault: Crede
     protocolManager!.respondHostKey(response)
   })
 
+  ipcMain.handle(IpcChannels.SESSIONS_CLAUDE_USAGE, (_event, sessionId: string) => {
+    return protocolManager?.getClaudeUsage(sessionId) ?? null
+  })
+
   ipcMain.on(IpcChannels.SESSIONS_STDIN, (_event, sessionId: string, data: unknown) => {
     protocolManager?.writeStdin(sessionId, data)
   })

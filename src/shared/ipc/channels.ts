@@ -82,6 +82,7 @@ export const IpcChannels = {
   SESSIONS_STDIN: 'sessions:stdin',
   SESSIONS_RESIZE: 'sessions:resize',
   SESSIONS_STDOUT_READY: 'sessions:stdout-ready',
+  SESSIONS_CLAUDE_USAGE: 'sessions:claude-usage',
 
   FS_LIST: 'fs:list',
   FS_MKDIR: 'fs:mkdir',

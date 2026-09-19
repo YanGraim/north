@@ -105,6 +105,7 @@ export {
   TransferProgressSchema
 } from './file-transfer'
 export {
+  type ClaudeUsage,
   type HostKeyPrompt,
   HostKeyPromptSchema,
   type HostKeyResponse,

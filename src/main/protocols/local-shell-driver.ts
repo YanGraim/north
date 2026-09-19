@@ -27,6 +27,7 @@ class LocalShellProtocolSession implements ProtocolSession {
   readonly id: string
   readonly kind = 'terminal' as const
   readonly protocol = 'local-shell'
+  readonly pid: number
   private _state: SessionState = 'connected'
   private port: SessionDataPort | null = null
   private readonly outlet = new SessionPortOutlet()
@@ -50,6 +51,7 @@ class LocalShellProtocolSession implements ProtocolSession {
 
   constructor(id: string, ptyProcess: pty.IPty) {
     this.id = id
+    this.pid = ptyProcess.pid
     this.ptyProcess = ptyProcess
 
     ptyProcess.onData((data) => {

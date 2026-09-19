@@ -1,6 +1,8 @@
 import { ConfirmDeleteDialog } from '@renderer/components/ConfirmDeleteDialog'
 import { Button } from '@renderer/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useDeleteAgentWorkspace } from '@renderer/hooks/use-agent-workspaces'
+import { useClaudeUsage } from '@renderer/hooks/use-claude-usage'
 import { cn } from '@renderer/lib/utils'
 import { openAgentWorkspaceSession, useSessionsStore } from '@renderer/stores/sessions-store'
 import type { AgentWorkspace } from '@shared/types'
@@ -20,9 +22,11 @@ export function AgentWorkspaceCard({
   const { t } = useTranslation()
   const deleteWorkspace = useDeleteAgentWorkspace()
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const hasSession = useSessionsStore((s) =>
-    s.tabs.some((tab) => tab.agentWorkspaceId === workspace.id)
+  const openTab = useSessionsStore((s) =>
+    s.tabs.find((tab) => tab.agentWorkspaceId === workspace.id)
   )
+  const hasSession = Boolean(openTab)
+  const { data: claudeUsage } = useClaudeUsage(openTab?.sessionId, Boolean(openTab?.sessionId))
 
   return (
     <li
@@ -46,7 +50,34 @@ export function AgentWorkspaceCard({
           title={hasSession ? t('agents.hasSession') : t('agents.noSession')}
         />
       </div>
-      <span className="truncate font-mono text-[11px] text-muted">{workspace.branch}</span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate font-mono text-[11px] text-muted">{workspace.branch}</span>
+        {claudeUsage ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] text-muted">
+                <span
+                  className={cn(
+                    'size-1.5 rounded-full',
+                    claudeUsage.percentOfWindow >= 90
+                      ? 'bg-red-500'
+                      : claudeUsage.percentOfWindow >= 70
+                        ? 'bg-yellow-500'
+                        : 'bg-emerald-500'
+                  )}
+                  aria-hidden
+                />
+                {claudeUsage.percentOfWindow}%
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="font-mono text-[11px]">
+              Contexto: {claudeUsage.totalTokens.toLocaleString('pt-BR')} /{' '}
+              {claudeUsage.contextWindow.toLocaleString('pt-BR')} tok ({claudeUsage.percentOfWindow}
+              %)
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+      </div>
       {workspace.taskNote ? (
         <p className="line-clamp-2 text-xs text-muted">{workspace.taskNote}</p>
       ) : null}

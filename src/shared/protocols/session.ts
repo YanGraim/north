@@ -103,3 +103,23 @@ export const OpenSessionInputSchema = z.object({
   connectionId: z.string().uuid()
 })
 export type OpenSessionInput = z.infer<typeof OpenSessionInputSchema>
+
+/**
+ * Context usage for a Claude Code agent session, read verbatim from the
+ * transcript Claude Code itself writes to `~/.claude/projects/<slug>/<id>.jsonl`
+ * — never parsed from terminal output. Token counts are exact, directly
+ * sourced. `percentOfWindow`/`contextWindow` are an estimate: the transcript
+ * never records the session's actual context window size, so we assume the
+ * model's documented max (`CLAUDE_SONNET_5_CONTEXT_WINDOW`) — right for most
+ * sessions, but a plan/account without the long-context tier would see a
+ * lower real percentage than shown.
+ */
+export type ClaudeUsage = {
+  totalTokens: number
+  percentOfWindow: number
+  contextWindow: number
+  inputTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
+  outputTokens: number
+}
