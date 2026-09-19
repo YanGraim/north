@@ -65,5 +65,11 @@ export const queryKeys = {
     variables: (accessId: string) => ['api', 'variables', accessId] as const,
     history: (accessId: string) => ['api', 'history', accessId] as const,
     presets: () => ['api', 'presets'] as const
+  },
+  agentWorkspaces: {
+    list: () => ['agent-workspaces'] as const
+  },
+  agentBoardColumns: {
+    list: () => ['agent-board-columns'] as const
   }
 }

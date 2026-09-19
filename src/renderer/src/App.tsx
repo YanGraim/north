@@ -1,4 +1,5 @@
 import { AppShell } from '@renderer/components/layout/AppShell'
+import { AgentsBoard } from '@renderer/features/agents/AgentsBoard'
 import { ConnectionListPage } from '@renderer/features/connections/ConnectionListPage'
 import { DashboardPage } from '@renderer/features/dashboard/DashboardPage'
 import { ManualPage } from '@renderer/features/help/ManualPage'
@@ -18,6 +19,7 @@ function App(): React.JSX.Element {
         <Route path="clients/:clientId" element={<ConnectionListPage mode="client" />} />
         <Route path="tags/:tagId" element={<ConnectionListPage mode="tag" />} />
         <Route path="history" element={<HistoryPage />} />
+        <Route path="agents" element={<AgentsBoard />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/manual" element={<ManualPage />} />
         <Route path="help" element={<Navigate to="/settings/manual" replace />} />

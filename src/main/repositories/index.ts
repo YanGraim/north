@@ -1,5 +1,7 @@
 import type { SqliteDatabase } from '../database/connection'
 import { AccessesRepository } from './accesses-repository'
+import { AgentBoardColumnsRepository } from './agent-board-columns-repository'
+import { AgentWorkspacesRepository } from './agent-workspaces-repository'
 import { ApiCollectionsRepository } from './api-collections-repository'
 import { ApiPresetsRepository } from './api-presets-repository'
 import { ApiRequestHistoryRepository } from './api-request-history-repository'
@@ -24,6 +26,8 @@ export type Repositories = {
   groups: GroupsRepository
   connections: ConnectionsRepository
   accesses: AccessesRepository
+  agentWorkspaces: AgentWorkspacesRepository
+  agentBoardColumns: AgentBoardColumnsRepository
   credentials: CredentialsRepository
   tags: TagsRepository
   history: HistoryRepository
@@ -46,6 +50,8 @@ export function createRepositories(db: SqliteDatabase): Repositories {
     groups: new GroupsRepository(db),
     connections: new ConnectionsRepository(db),
     accesses: new AccessesRepository(db),
+    agentWorkspaces: new AgentWorkspacesRepository(db),
+    agentBoardColumns: new AgentBoardColumnsRepository(db),
     credentials: new CredentialsRepository(db),
     tags: new TagsRepository(db),
     history: new HistoryRepository(db),
@@ -64,6 +70,8 @@ export function createRepositories(db: SqliteDatabase): Repositories {
 
 export {
   AccessesRepository,
+  AgentBoardColumnsRepository,
+  AgentWorkspacesRepository,
   ApiCollectionsRepository,
   ApiPresetsRepository,
   ApiRequestHistoryRepository,

@@ -31,6 +31,7 @@ interface UiState {
   sidebarOverviewExpanded: boolean
   sidebarClientsExpanded: boolean
   sidebarApisExpanded: boolean
+  sidebarAgentsExpanded: boolean
   listSort: ListSort
   theme: ThemePreference
   locale: LocaleCode
@@ -56,6 +57,7 @@ interface UiState {
   setSidebarOverviewExpanded: (expanded: boolean) => void
   setSidebarClientsExpanded: (expanded: boolean) => void
   setSidebarApisExpanded: (expanded: boolean) => void
+  setSidebarAgentsExpanded: (expanded: boolean) => void
   setListSort: (sort: ListSort) => void
   setTheme: (theme: ThemePreference) => void
   setLocale: (locale: LocaleCode) => void
@@ -90,6 +92,7 @@ export const useUiStore = create<UiState>()(
       sidebarOverviewExpanded: true,
       sidebarClientsExpanded: true,
       sidebarApisExpanded: true,
+      sidebarAgentsExpanded: true,
       listSort: 'name',
       theme: 'dark',
       locale: 'pt-BR',
@@ -121,6 +124,7 @@ export const useUiStore = create<UiState>()(
       setSidebarOverviewExpanded: (expanded) => set({ sidebarOverviewExpanded: expanded }),
       setSidebarClientsExpanded: (expanded) => set({ sidebarClientsExpanded: expanded }),
       setSidebarApisExpanded: (expanded) => set({ sidebarApisExpanded: expanded }),
+      setSidebarAgentsExpanded: (expanded) => set({ sidebarAgentsExpanded: expanded }),
       setListSort: (sort) => set({ listSort: sort }),
       setTheme: (theme) => set({ theme }),
       setLocale: (locale) => set({ locale }),
@@ -144,6 +148,7 @@ export const useUiStore = create<UiState>()(
         sidebarOverviewExpanded: state.sidebarOverviewExpanded,
         sidebarClientsExpanded: state.sidebarClientsExpanded,
         sidebarApisExpanded: state.sidebarApisExpanded,
+        sidebarAgentsExpanded: state.sidebarAgentsExpanded,
         listSort: state.listSort,
         theme: state.theme,
         locale: state.locale,

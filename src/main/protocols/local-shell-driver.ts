@@ -17,6 +17,12 @@ function defaultShell(): string {
   return process.env.SHELL || '/bin/zsh'
 }
 
+/** Runs `command` through the shell (so quoting/PATH/aliases work like a user typing it). */
+function shellArgsFor(command: string | undefined): string[] {
+  if (!command) return []
+  return process.platform === 'win32' ? ['/c', command] : ['-lc', command]
+}
+
 class LocalShellProtocolSession implements ProtocolSession {
   readonly id: string
   readonly kind = 'terminal' as const
@@ -108,15 +114,22 @@ class LocalShellProtocolSession implements ProtocolSession {
  * Not a `ProtocolDriver`: `createSession` doesn't take a `Connection`, so it's invoked
  * directly by `ProtocolManager.openLocal()` rather than registered/dispatched by protocol name.
  */
+export type LocalShellOptions = {
+  /** Working directory; defaults to the user's home. */
+  cwd?: string
+  /** If set, run through the shell (`-lc`/`/c`) instead of opening a bare interactive shell. */
+  command?: string
+}
+
 export class LocalShellDriver {
   readonly kind = 'terminal' as const
 
-  async createSession(sessionId: string): Promise<ProtocolSession> {
-    const ptyProcess = pty.spawn(defaultShell(), [], {
+  async createSession(sessionId: string, opts?: LocalShellOptions): Promise<ProtocolSession> {
+    const ptyProcess = pty.spawn(defaultShell(), shellArgsFor(opts?.command), {
       name: 'xterm-256color',
       cols: 80,
       rows: 24,
-      cwd: os.homedir(),
+      cwd: opts?.cwd ?? os.homedir(),
       env: process.env as Record<string, string>
     })
 

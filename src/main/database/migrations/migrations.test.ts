@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(11)
+    expect(getUserVersion(db)).toBe(12)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -41,7 +41,9 @@ describe('migrations', () => {
         'api_requests',
         'api_variables',
         'api_request_history',
-        'api_presets'
+        'api_presets',
+        'agent_workspaces',
+        'agent_board_columns'
       ])
     )
   })
@@ -50,7 +52,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(11)
+    expect(getUserVersion(db)).toBe(12)
   })
 
   it('adds color column to environments from 005', () => {

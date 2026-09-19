@@ -15,6 +15,7 @@ import { coerceBytes } from '@shared/protocols'
 import { FitAddon } from '@xterm/addon-fit'
 import type { SearchAddon } from '@xterm/addon-search'
 import { Terminal } from '@xterm/xterm'
+import { GitBranch, StickyNote } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 type TerminalViewProps = {
@@ -25,6 +26,10 @@ type TerminalViewProps = {
   host?: string | null
   environmentName?: string | null
   environmentColor?: string | null
+  /** Agent workspace context — repo/branch/task chips above the terminal. */
+  agentRepoName?: string | null
+  agentBranch?: string | null
+  agentTaskNote?: string | null
 }
 
 export function TerminalView({
@@ -34,7 +39,10 @@ export function TerminalView({
   username,
   host,
   environmentName,
-  environmentColor
+  environmentColor,
+  agentRepoName,
+  agentBranch,
+  agentTaskNote
 }: TerminalViewProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
@@ -241,10 +249,23 @@ export function TerminalView({
       <SessionIdentityBar
         username={username}
         host={host}
-        folderLabel={environmentName?.trim() || title || 'session'}
+        folderLabel={agentRepoName || environmentName?.trim() || title || 'session'}
         environmentName={environmentName}
         environmentColor={environmentColor}
-      />
+      >
+        {agentBranch ? (
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-elevated px-2 py-1 font-mono text-[11px] text-foreground">
+            <GitBranch className="size-3 text-muted" aria-hidden />
+            {agentBranch}
+          </span>
+        ) : null}
+        {agentTaskNote ? (
+          <span className="inline-flex max-w-xs items-center gap-1.5 truncate rounded-md bg-surface-elevated px-2 py-1 text-[11px] text-foreground">
+            <StickyNote className="size-3 shrink-0 text-muted" aria-hidden />
+            <span className="truncate">{agentTaskNote}</span>
+          </span>
+        ) : null}
+      </SessionIdentityBar>
       <div className="relative min-h-0 flex-1 p-1">
         <TerminalContextMenu
           hasSelection={hasSelection}

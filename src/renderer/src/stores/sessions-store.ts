@@ -6,6 +6,7 @@ import {
   resolveOrgContext
 } from '@renderer/lib/resolve-connection-environment'
 import type { SessionDescriptor, SessionKind, SessionState } from '@shared/protocols'
+import type { AgentWorkspace } from '@shared/types'
 import { create } from 'zustand'
 
 export const WORKSPACE_TAB_ID = 'workspace'
@@ -38,6 +39,11 @@ export type SessionTab = {
   workflowId?: string
   workflowRunId?: string
   workflowName?: string
+  /** Agent workspace tab fields (protocol === 'agent-workspace') */
+  agentWorkspaceId?: string | null
+  agentRepoName?: string | null
+  agentBranch?: string | null
+  agentTaskNote?: string | null
 }
 
 export type OpenSessionOptions = {
@@ -68,6 +74,10 @@ type SessionsState = {
     environmentName?: string | null
     environmentColor?: string | null
     clientName?: string | null
+    agentWorkspaceId?: string | null
+    agentRepoName?: string | null
+    agentBranch?: string | null
+    agentTaskNote?: string | null
   }) => void
   attachSessionPort: (input: {
     tempId: string
@@ -101,6 +111,7 @@ export function sessionKindForProtocol(protocol: string): SessionKind | undefine
     case 'telnet':
     case 'serial':
     case 'local-shell':
+    case 'agent-workspace':
       return 'terminal'
     case 'sftp':
     case 'ftp':
@@ -157,7 +168,11 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
     host,
     environmentName,
     environmentColor,
-    clientName
+    clientName,
+    agentWorkspaceId,
+    agentRepoName,
+    agentBranch,
+    agentTaskNote
   }) => {
     const tab: SessionTab = {
       id,
@@ -172,6 +187,10 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       environmentName: environmentName ?? null,
       environmentColor: environmentColor ?? null,
       clientName: clientName ?? null,
+      agentWorkspaceId: agentWorkspaceId ?? null,
+      agentRepoName: agentRepoName ?? null,
+      agentBranch: agentBranch ?? null,
+      agentTaskNote: agentTaskNote ?? null,
       state: 'connecting',
       errorMessage: null,
       awaitingHostKey: false,
@@ -364,6 +383,15 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
       await openLocalTerminalSession()
       return
     }
+    if (tab.protocol === 'agent-workspace' && tab.agentWorkspaceId) {
+      await openAgentWorkspaceSession({
+        id: tab.agentWorkspaceId,
+        repoName: tab.agentRepoName ?? '',
+        branch: tab.agentBranch ?? '',
+        taskNote: tab.agentTaskNote ?? null
+      })
+      return
+    }
     if (!tab.connectionId) return
     await openConnectionSession(tab.connectionId, {
       title: tab.title,
@@ -507,6 +535,45 @@ export async function openLocalTerminalSession(): Promise<void> {
     store.attachSessionPort({ tempId, session, port })
   } catch (error) {
     const message = formatIpcError(error, 'Falha ao abrir terminal local')
+    store.failConnectingTab(tempId, message)
+    throw error
+  }
+}
+
+/** Opens an agent workspace's shell — cwd = worktree, initial command = the agent CLI. */
+export async function openAgentWorkspaceSession(
+  workspace: Pick<AgentWorkspace, 'id' | 'repoName' | 'branch' | 'taskNote'>
+): Promise<void> {
+  const store = useSessionsStore.getState()
+  const existing = store.tabs.find((tab) => tab.agentWorkspaceId === workspace.id)
+  if (existing) {
+    store.setActiveTab(existing.id)
+    return
+  }
+
+  const tempId = crypto.randomUUID()
+  store.beginConnectingTab({
+    id: tempId,
+    title: `${workspace.repoName} · ${workspace.branch}`,
+    sessionKind: 'terminal',
+    protocol: 'agent-workspace',
+    agentWorkspaceId: workspace.id,
+    agentRepoName: workspace.repoName,
+    agentBranch: workspace.branch,
+    agentTaskNote: workspace.taskNote
+  })
+
+  try {
+    let port: MessagePort | null = null
+    const session = await window.north.sessions.openAgentWorkspace(workspace.id, (received) => {
+      port = received
+    })
+    if (!port) {
+      throw new Error('Session MessagePort missing')
+    }
+    store.attachSessionPort({ tempId, session, port })
+  } catch (error) {
+    const message = formatIpcError(error, 'Falha ao abrir o workspace do agente')
     store.failConnectingTab(tempId, message)
     throw error
   }

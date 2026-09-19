@@ -89,6 +89,17 @@ export function registerSessionHandlers(repositories: Repositories, vault: Crede
     return descriptor
   })
 
+  ipcMain.handle(
+    IpcChannels.SESSIONS_OPEN_AGENT_WORKSPACE,
+    async (event, workspaceId: string, requestId: string) => {
+      const { descriptor, port } = await protocolManager!.openAgentWorkspace(workspaceId)
+      event.sender.postMessage(IpcChannels.SESSIONS_PORT, { requestId, sessionId: descriptor.id }, [
+        port
+      ])
+      return descriptor
+    }
+  )
+
   ipcMain.handle(IpcChannels.SESSIONS_CLOSE, async (_event, sessionId: string) => {
     await protocolManager!.close(sessionId)
   })

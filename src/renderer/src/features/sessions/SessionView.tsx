@@ -114,6 +114,9 @@ export function SessionView({ tab, visible }: SessionViewProps): React.JSX.Eleme
         host={tab.host}
         environmentName={tab.environmentName}
         environmentColor={tab.environmentColor}
+        agentRepoName={tab.agentRepoName}
+        agentBranch={tab.agentBranch}
+        agentTaskNote={tab.agentTaskNote}
       />
     )
   }

@@ -10,6 +10,7 @@ import { migration008ApiClient } from './008-api-client'
 import { migration009ApiCollectionsClient } from './009-api-collections-client'
 import { migration010ApiEnvironmentEnabled } from './010-api-environment-enabled'
 import { migration011ApiPresets } from './011-api-presets'
+import { migration012AgentWorkspaces } from './012-agent-workspaces'
 
 /** Ordered list of schema migrations. Append new ones; never reorder or reuse versions. */
 export const migrations: Migration[] = [
@@ -23,5 +24,6 @@ export const migrations: Migration[] = [
   migration008ApiClient,
   migration009ApiCollectionsClient,
   migration010ApiEnvironmentEnabled,
-  migration011ApiPresets
+  migration011ApiPresets,
+  migration012AgentWorkspaces
 ]

@@ -232,14 +232,39 @@ export class ProtocolManager {
 
   /** Local shell — no Connection/Access row, no credentials, no host-key verification. */
   async openLocal(): Promise<{ descriptor: SessionDescriptor; port: MessagePortMain }> {
+    return this.openLocalShellSession({ title: 'Terminal local', protocol: 'local-shell' })
+  }
+
+  /** Agent workspace shell — cwd = worktree, initial command = the agent CLI. */
+  async openAgentWorkspace(
+    workspaceId: string
+  ): Promise<{ descriptor: SessionDescriptor; port: MessagePortMain }> {
+    const workspace = this.repositories.agentWorkspaces.get(workspaceId)
+    if (!workspace) {
+      throw new Error('Workspace de agente não encontrado')
+    }
+    return this.openLocalShellSession({
+      title: `${workspace.repoName} · ${workspace.branch}`,
+      protocol: 'agent-workspace',
+      cwd: workspace.worktreePath,
+      command: workspace.agentCommand
+    })
+  }
+
+  private async openLocalShellSession(input: {
+    title: string
+    protocol: string
+    cwd?: string
+    command?: string
+  }): Promise<{ descriptor: SessionDescriptor; port: MessagePortMain }> {
     const sessionId = randomUUID()
     const descriptor: SessionDescriptor = {
       id: sessionId,
       connectionId: null,
       accessId: null,
       kind: 'terminal',
-      protocol: 'local-shell',
-      title: 'Terminal local',
+      protocol: input.protocol,
+      title: input.title,
       state: 'connecting',
       errorMessage: null
     }
@@ -248,7 +273,7 @@ export class ProtocolManager {
       session: {
         id: sessionId,
         kind: 'terminal',
-        protocol: 'local-shell',
+        protocol: input.protocol,
         state: 'connecting',
         attachPort: () => undefined,
         dispose: async () => undefined
@@ -265,7 +290,10 @@ export class ProtocolManager {
     this.emitState(descriptor)
 
     try {
-      const session = await this.localShellDriver.createSession(sessionId)
+      const session = await this.localShellDriver.createSession(sessionId, {
+        cwd: input.cwd,
+        command: input.command
+      })
 
       const active = this.sessions.get(sessionId)
       if (!active) {

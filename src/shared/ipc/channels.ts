@@ -63,6 +63,7 @@ export const IpcChannels = {
   SESSIONS_OPEN: 'sessions:open',
   SESSIONS_OPEN_ACCESS: 'sessions:open-access',
   SESSIONS_OPEN_LOCAL: 'sessions:open-local',
+  SESSIONS_OPEN_AGENT_WORKSPACE: 'sessions:open-agent-workspace',
   SESSIONS_CLOSE: 'sessions:close',
   SESSIONS_LIST: 'sessions:list',
   SESSIONS_RESPOND_HOST_KEY: 'sessions:respond-host-key',
@@ -166,7 +167,18 @@ export const IpcChannels = {
   API_PRESET_LIST: 'api:preset-list',
   API_PRESET_CREATE: 'api:preset-create',
   API_PRESET_UPDATE: 'api:preset-update',
-  API_PRESET_DELETE: 'api:preset-delete'
+  API_PRESET_DELETE: 'api:preset-delete',
+
+  AGENT_WORKSPACES_LIST: 'agent-workspaces:list',
+  AGENT_WORKSPACES_CREATE: 'agent-workspaces:create',
+  AGENT_WORKSPACES_UPDATE: 'agent-workspaces:update',
+  AGENT_WORKSPACES_DELETE: 'agent-workspaces:delete',
+  AGENT_WORKSPACES_PICK_REPO: 'agent-workspaces:pick-repo',
+  AGENT_WORKSPACES_CHECK_BRANCH: 'agent-workspaces:check-branch',
+  AGENT_BOARD_COLUMNS_LIST: 'agent-board-columns:list',
+  AGENT_BOARD_COLUMNS_CREATE: 'agent-board-columns:create',
+  AGENT_BOARD_COLUMNS_UPDATE: 'agent-board-columns:update',
+  AGENT_BOARD_COLUMNS_DELETE: 'agent-board-columns:delete'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

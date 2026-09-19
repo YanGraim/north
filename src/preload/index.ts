@@ -66,6 +66,23 @@ function openLocalSession(onPort: (port: MessagePort) => void): Promise<SessionD
   ]).then(([session]) => session)
 }
 
+function openAgentWorkspaceSession(
+  workspaceId: string,
+  onPort: (port: MessagePort) => void
+): Promise<SessionDescriptor> {
+  const requestId = crypto.randomUUID()
+  const portPromise = waitForSessionPort(requestId, onPort)
+
+  return Promise.all([
+    ipcRenderer.invoke(
+      IpcChannels.SESSIONS_OPEN_AGENT_WORKSPACE,
+      workspaceId,
+      requestId
+    ) as Promise<SessionDescriptor>,
+    portPromise
+  ]).then(([session]) => session)
+}
+
 const api: NorthApi = {
   getVersion: (): Promise<string> => ipcRenderer.invoke(IpcChannels.APP_GET_VERSION),
   getIdentity: (): Promise<AppIdentity> => ipcRenderer.invoke(IpcChannels.APP_GET_IDENTITY),
@@ -148,6 +165,7 @@ const api: NorthApi = {
     open: openSession,
     openAccess: (accessId) => ipcRenderer.invoke(IpcChannels.SESSIONS_OPEN_ACCESS, accessId),
     openLocal: openLocalSession,
+    openAgentWorkspace: openAgentWorkspaceSession,
     close: (sessionId) => ipcRenderer.invoke(IpcChannels.SESSIONS_CLOSE, sessionId),
     list: () => ipcRenderer.invoke(IpcChannels.SESSIONS_LIST),
     respondHostKey: (response: HostKeyResponse) =>
@@ -319,6 +337,21 @@ const api: NorthApi = {
     presetCreate: (input) => ipcRenderer.invoke(IpcChannels.API_PRESET_CREATE, input),
     presetUpdate: (id, input) => ipcRenderer.invoke(IpcChannels.API_PRESET_UPDATE, id, input),
     presetDelete: (id) => ipcRenderer.invoke(IpcChannels.API_PRESET_DELETE, id)
+  },
+  agentWorkspaces: {
+    list: () => ipcRenderer.invoke(IpcChannels.AGENT_WORKSPACES_LIST),
+    create: (input) => ipcRenderer.invoke(IpcChannels.AGENT_WORKSPACES_CREATE, input),
+    update: (id, input) => ipcRenderer.invoke(IpcChannels.AGENT_WORKSPACES_UPDATE, id, input),
+    delete: (id) => ipcRenderer.invoke(IpcChannels.AGENT_WORKSPACES_DELETE, id),
+    pickRepo: () => ipcRenderer.invoke(IpcChannels.AGENT_WORKSPACES_PICK_REPO),
+    checkBranch: (repoPath, branch) =>
+      ipcRenderer.invoke(IpcChannels.AGENT_WORKSPACES_CHECK_BRANCH, repoPath, branch)
+  },
+  agentBoardColumns: {
+    list: () => ipcRenderer.invoke(IpcChannels.AGENT_BOARD_COLUMNS_LIST),
+    create: (input) => ipcRenderer.invoke(IpcChannels.AGENT_BOARD_COLUMNS_CREATE, input),
+    update: (id, input) => ipcRenderer.invoke(IpcChannels.AGENT_BOARD_COLUMNS_UPDATE, id, input),
+    delete: (id) => ipcRenderer.invoke(IpcChannels.AGENT_BOARD_COLUMNS_DELETE, id)
   }
 }
 

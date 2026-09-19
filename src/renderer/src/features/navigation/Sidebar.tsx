@@ -1,6 +1,8 @@
 import { NameDialog } from '@renderer/components/NameDialog'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
+import { CreateAgentWorkspaceDialog } from '@renderer/features/agents/CreateAgentWorkspaceDialog'
 import { CollectionTransferDialog } from '@renderer/features/api/CollectionTransferDialog'
+import { AgentWorkspacesList } from '@renderer/features/navigation/AgentWorkspacesList'
 import { ApisTree } from '@renderer/features/navigation/ApisTree'
 import { ClientTree } from '@renderer/features/navigation/ClientTree'
 import { NavItem } from '@renderer/features/navigation/NavItem'
@@ -22,15 +24,18 @@ export function Sidebar(): React.JSX.Element {
   const overviewExpanded = useUiStore((s) => s.sidebarOverviewExpanded)
   const clientsExpanded = useUiStore((s) => s.sidebarClientsExpanded)
   const apisExpanded = useUiStore((s) => s.sidebarApisExpanded)
+  const agentsExpanded = useUiStore((s) => s.sidebarAgentsExpanded)
   const tagsExpanded = useUiStore((s) => s.sidebarTagsExpanded)
   const setSidebarOverviewExpanded = useUiStore((s) => s.setSidebarOverviewExpanded)
   const setSidebarClientsExpanded = useUiStore((s) => s.setSidebarClientsExpanded)
   const setSidebarApisExpanded = useUiStore((s) => s.setSidebarApisExpanded)
+  const setSidebarAgentsExpanded = useUiStore((s) => s.setSidebarAgentsExpanded)
   const setSidebarTagsExpanded = useUiStore((s) => s.setSidebarTagsExpanded)
   const openDialog = useInventoryDialogsStore((s) => s.open)
   const createCollection = useCreateApiCollection()
   const [nameKind, setNameKind] = useState<'create' | null>(null)
   const [transferOpen, setTransferOpen] = useState(false)
+  const [agentDialogOpen, setAgentDialogOpen] = useState(false)
 
   return (
     <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-surface">
@@ -135,6 +140,23 @@ export function Sidebar(): React.JSX.Element {
           />
 
           <SidebarSection
+            title={t('nav.agents')}
+            collapsed={collapsed}
+            addLabel={t('agents.newWorkspace')}
+            onAdd={() => setAgentDialogOpen(true)}
+            expandable
+            expanded={agentsExpanded}
+            onExpandedChange={setSidebarAgentsExpanded}
+          >
+            <AgentWorkspacesList collapsed={collapsed} />
+          </SidebarSection>
+
+          <div
+            className={cn('h-px shrink-0 bg-border/60', collapsed ? 'w-6' : 'w-full')}
+            aria-hidden
+          />
+
+          <SidebarSection
             title={t('nav.tags')}
             collapsed={collapsed}
             addLabel={t('nav.newTag')}
@@ -189,6 +211,7 @@ export function Sidebar(): React.JSX.Element {
         }}
       />
       <CollectionTransferDialog open={transferOpen} onOpenChange={setTransferOpen} />
+      <CreateAgentWorkspaceDialog open={agentDialogOpen} onOpenChange={setAgentDialogOpen} />
     </aside>
   )
 }

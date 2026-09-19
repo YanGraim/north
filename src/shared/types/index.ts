@@ -20,6 +20,20 @@ export {
   UpdateAccessInputSchema
 } from './access'
 export {
+  type AgentBoardColumn,
+  AgentBoardColumnSchema,
+  type AgentWorkspace,
+  AgentWorkspaceSchema,
+  type CreateAgentBoardColumnInput,
+  CreateAgentBoardColumnInputSchema,
+  type CreateAgentWorkspaceInput,
+  CreateAgentWorkspaceInputSchema,
+  type UpdateAgentBoardColumnInput,
+  UpdateAgentBoardColumnInputSchema,
+  type UpdateAgentWorkspaceInput,
+  UpdateAgentWorkspaceInputSchema
+} from './agent-workspace'
+export {
   type ApiBody,
   ApiBodySchema,
   type ApiCollection,

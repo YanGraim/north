@@ -3,6 +3,7 @@ import type { Access } from '@shared/types'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   openAccessSession,
+  openAgentWorkspaceSession,
   openConnectionSession,
   sessionKindForProtocol,
   useSessionsStore,
@@ -353,5 +354,75 @@ describe('openWorkflowRunTab org hydrate', () => {
 
     expect(connectionsGet).not.toHaveBeenCalled()
     expect(groupsGet).toHaveBeenCalledWith(groupId)
+  })
+})
+
+describe('openAgentWorkspaceSession', () => {
+  it('creates a tab with agent context and calls sessions.openAgentWorkspace', async () => {
+    resetStore()
+    const session: SessionDescriptor = {
+      id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+      connectionId: null,
+      kind: 'terminal',
+      protocol: 'agent-workspace',
+      title: 'north · feature-agents',
+      state: 'connected',
+      errorMessage: null
+    }
+    const port = { close: vi.fn() } as unknown as MessagePort
+    const openAgentWorkspaceMock = vi.fn(
+      (_workspaceId: string, onPort: (p: MessagePort) => void) => {
+        onPort(port)
+        return Promise.resolve(session)
+      }
+    )
+    Object.assign(globalThis, {
+      window: { north: { sessions: { openAgentWorkspace: openAgentWorkspaceMock } } }
+    })
+
+    await openAgentWorkspaceSession({
+      id: 'workspace-1',
+      repoName: 'north',
+      branch: 'feature-agents',
+      taskNote: 'Build the Kanban board'
+    })
+
+    expect(openAgentWorkspaceMock).toHaveBeenCalledWith('workspace-1', expect.any(Function))
+    const tab = useSessionsStore.getState().tabs.find((t) => t.sessionId === session.id)
+    expect(tab?.agentWorkspaceId).toBe('workspace-1')
+    expect(tab?.agentRepoName).toBe('north')
+    expect(tab?.agentBranch).toBe('feature-agents')
+    expect(tab?.agentTaskNote).toBe('Build the Kanban board')
+    expect(tab?.protocol).toBe('agent-workspace')
+  })
+
+  it('focuses the existing tab instead of opening a second session for the same workspace', async () => {
+    resetStore()
+    const openAgentWorkspaceMock = vi.fn()
+    Object.assign(globalThis, {
+      window: {
+        setTimeout: globalThis.setTimeout.bind(globalThis),
+        north: { sessions: { openAgentWorkspace: openAgentWorkspaceMock } }
+      }
+    })
+
+    const otherTabId = 'other-tab'
+    useSessionsStore.setState((state) => ({
+      tabs: [
+        ...state.tabs,
+        { id: otherTabId, kind: 'session', title: 'x', agentWorkspaceId: 'workspace-1' }
+      ],
+      activeTabId: WORKSPACE_TAB_ID
+    }))
+
+    await openAgentWorkspaceSession({
+      id: 'workspace-1',
+      repoName: 'north',
+      branch: 'feature-agents',
+      taskNote: null
+    })
+
+    expect(openAgentWorkspaceMock).not.toHaveBeenCalled()
+    expect(useSessionsStore.getState().activeTabId).toBe(otherTabId)
   })
 })

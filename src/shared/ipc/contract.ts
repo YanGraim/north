@@ -33,6 +33,8 @@ import type {
 } from '../protocols'
 import type {
   Access,
+  AgentBoardColumn,
+  AgentWorkspace,
   ApiCollection,
   ApiCollectionExportResult,
   ApiCollectionImportInput,
@@ -49,6 +51,8 @@ import type {
   ConnectionSecret,
   CopyWorkflowInput,
   CreateAccessInput,
+  CreateAgentBoardColumnInput,
+  CreateAgentWorkspaceInput,
   CreateApiCollectionInput,
   CreateApiFolderInput,
   CreateApiPresetInput,
@@ -81,6 +85,8 @@ import type {
   StatsOverview,
   Tag,
   UpdateAccessInput,
+  UpdateAgentBoardColumnInput,
+  UpdateAgentWorkspaceInput,
   UpdateApiCollectionInput,
   UpdateApiFolderInput,
   UpdateApiPresetInput,
@@ -257,6 +263,10 @@ export interface IpcInvokeMap {
   }
   [IpcChannels.SESSIONS_OPEN_LOCAL]: {
     args: [requestId: string]
+    result: SessionDescriptor
+  }
+  [IpcChannels.SESSIONS_OPEN_AGENT_WORKSPACE]: {
+    args: [workspaceId: string, requestId: string]
     result: SessionDescriptor
   }
   [IpcChannels.SESSIONS_CLOSE]: {
@@ -559,6 +569,48 @@ export interface IpcInvokeMap {
     args: [id: string]
     result: undefined
   }
+
+  [IpcChannels.AGENT_WORKSPACES_LIST]: {
+    args: []
+    result: AgentWorkspace[]
+  }
+  [IpcChannels.AGENT_WORKSPACES_CREATE]: {
+    args: [input: CreateAgentWorkspaceInput]
+    result: AgentWorkspace
+  }
+  [IpcChannels.AGENT_WORKSPACES_UPDATE]: {
+    args: [id: string, input: UpdateAgentWorkspaceInput]
+    result: AgentWorkspace
+  }
+  [IpcChannels.AGENT_WORKSPACES_DELETE]: {
+    args: [id: string]
+    result: undefined
+  }
+  [IpcChannels.AGENT_WORKSPACES_PICK_REPO]: {
+    args: []
+    result: string | null
+  }
+  [IpcChannels.AGENT_WORKSPACES_CHECK_BRANCH]: {
+    args: [repoPath: string, branch: string]
+    result: boolean
+  }
+
+  [IpcChannels.AGENT_BOARD_COLUMNS_LIST]: {
+    args: []
+    result: AgentBoardColumn[]
+  }
+  [IpcChannels.AGENT_BOARD_COLUMNS_CREATE]: {
+    args: [input: CreateAgentBoardColumnInput]
+    result: AgentBoardColumn
+  }
+  [IpcChannels.AGENT_BOARD_COLUMNS_UPDATE]: {
+    args: [id: string, input: UpdateAgentBoardColumnInput]
+    result: AgentBoardColumn
+  }
+  [IpcChannels.AGENT_BOARD_COLUMNS_DELETE]: {
+    args: [id: string]
+    result: undefined
+  }
 }
 
 export type InvokeChannel = keyof IpcInvokeMap
@@ -642,6 +694,11 @@ export interface NorthApi {
     openAccess: (accessId: string) => Promise<SessionDescriptor>
     /** Opens a local shell (no host, no credentials) — same MessagePort caveat as `open`. */
     openLocal: (onPort: (port: MessagePort) => void) => Promise<SessionDescriptor>
+    /** Opens an agent workspace's shell (cwd = worktree, initial command = agent CLI). */
+    openAgentWorkspace: (
+      workspaceId: string,
+      onPort: (port: MessagePort) => void
+    ) => Promise<SessionDescriptor>
     close: (sessionId: string) => Promise<void>
     list: () => Promise<SessionDescriptor[]>
     respondHostKey: (response: HostKeyResponse) => Promise<void>
@@ -749,5 +806,21 @@ export interface NorthApi {
     presetCreate: (input: CreateApiPresetInput) => Promise<ApiPreset>
     presetUpdate: (id: string, input: UpdateApiPresetInput) => Promise<ApiPreset>
     presetDelete: (id: string) => Promise<void>
+  }
+  agentWorkspaces: {
+    list: () => Promise<AgentWorkspace[]>
+    create: (input: CreateAgentWorkspaceInput) => Promise<AgentWorkspace>
+    update: (id: string, input: UpdateAgentWorkspaceInput) => Promise<AgentWorkspace>
+    delete: (id: string) => Promise<void>
+    /** Native folder picker for choosing the git repo. */
+    pickRepo: () => Promise<string | null>
+    /** True if `branch` already exists locally in `repoPath` — used to warn before creating. */
+    checkBranch: (repoPath: string, branch: string) => Promise<boolean>
+  }
+  agentBoardColumns: {
+    list: () => Promise<AgentBoardColumn[]>
+    create: (input: CreateAgentBoardColumnInput) => Promise<AgentBoardColumn>
+    update: (id: string, input: UpdateAgentBoardColumnInput) => Promise<AgentBoardColumn>
+    delete: (id: string) => Promise<void>
   }
 }
