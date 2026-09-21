@@ -14,6 +14,7 @@ type RequestRow = {
   collection_id: string
   folder_id: string | null
   name: string
+  description: string | null
   method: ApiRequest['method']
   url: string
   definition: string
@@ -36,6 +37,7 @@ function mapRequest(row: RequestRow): ApiRequest {
     collectionId: row.collection_id,
     folderId: row.folder_id,
     name: row.name,
+    description: row.description,
     method: row.method,
     url: row.url,
     definition: parseDefinition(row.definition),
@@ -55,25 +57,25 @@ export class ApiRequestsRepository {
 
   constructor(db: SqliteDatabase) {
     this.listByCollectionStmt = db.prepare(`
-      SELECT id, collection_id, folder_id, name, method, url, definition, sort_order,
-             created_at, updated_at
+      SELECT id, collection_id, folder_id, name, description, method, url, definition,
+             sort_order, created_at, updated_at
       FROM api_requests
       WHERE collection_id = ?
       ORDER BY sort_order ASC, name COLLATE NOCASE ASC
     `)
     this.getStmt = db.prepare(`
-      SELECT id, collection_id, folder_id, name, method, url, definition, sort_order,
-             created_at, updated_at
+      SELECT id, collection_id, folder_id, name, description, method, url, definition,
+             sort_order, created_at, updated_at
       FROM api_requests
       WHERE id = ?
     `)
     this.insertStmt = db.prepare(`
       INSERT INTO api_requests (
-        id, collection_id, folder_id, name, method, url, definition, sort_order,
+        id, collection_id, folder_id, name, description, method, url, definition, sort_order,
         created_at, updated_at
       ) VALUES (
-        @id, @collection_id, @folder_id, @name, @method, @url, @definition, @sort_order,
-        @created_at, @updated_at
+        @id, @collection_id, @folder_id, @name, @description, @method, @url, @definition,
+        @sort_order, @created_at, @updated_at
       )
     `)
     this.updateStmt = db.prepare(`
@@ -81,6 +83,7 @@ export class ApiRequestsRepository {
       SET collection_id = @collection_id,
           folder_id = @folder_id,
           name = @name,
+          description = @description,
           method = @method,
           url = @url,
           definition = @definition,
@@ -115,6 +118,7 @@ export class ApiRequestsRepository {
       collectionId: input.collectionId,
       folderId,
       name: input.name,
+      description: input.description ?? null,
       method: input.method ?? 'GET',
       url: input.url ?? '',
       definition: input.definition ?? emptyApiRequestDefinition(),
@@ -127,6 +131,7 @@ export class ApiRequestsRepository {
       collection_id: request.collectionId,
       folder_id: request.folderId,
       name: request.name,
+      description: request.description,
       method: request.method,
       url: request.url,
       definition: JSON.stringify(request.definition),
@@ -145,6 +150,7 @@ export class ApiRequestsRepository {
       collectionId: input.collectionId ?? existing.collectionId,
       folderId: input.folderId === undefined ? existing.folderId : input.folderId,
       name: input.name ?? existing.name,
+      description: input.description === undefined ? existing.description : input.description,
       method: input.method ?? existing.method,
       url: input.url === undefined ? existing.url : input.url,
       definition: input.definition ?? existing.definition,
@@ -156,6 +162,7 @@ export class ApiRequestsRepository {
       collection_id: updated.collectionId,
       folder_id: updated.folderId,
       name: updated.name,
+      description: updated.description,
       method: updated.method,
       url: updated.url,
       definition: JSON.stringify(updated.definition),
@@ -176,6 +183,7 @@ export class ApiRequestsRepository {
       collectionId: existing.collectionId,
       folderId: existing.folderId,
       name: `${existing.name} (cópia)`,
+      description: existing.description,
       method: existing.method,
       url: existing.url,
       definition: structuredClone(existing.definition)

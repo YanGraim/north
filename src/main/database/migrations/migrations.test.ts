@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(13)
+    expect(getUserVersion(db)).toBe(14)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -53,7 +53,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(13)
+    expect(getUserVersion(db)).toBe(14)
   })
 
   it('adds color column to environments from 005', () => {
@@ -255,6 +255,16 @@ describe('migrations', () => {
         'files_changed'
       ])
     )
+  })
+
+  it('adds description column to api_requests from 014', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+
+    const columns = db.prepare(`PRAGMA table_info(api_requests)`).all() as Array<{
+      name: string
+    }>
+    expect(columns.map((c) => c.name)).toEqual(expect.arrayContaining(['description']))
   })
 
   it('009 keeps folders when rebuilding collections that already exist', () => {

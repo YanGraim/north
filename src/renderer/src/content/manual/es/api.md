@@ -37,6 +37,10 @@ El body JSON acepta comentarios `//` y `/* */` (JSONC) — útil para dejarte un
 
 La búsqueda en Collections filtra por nombre, método, URL y carpetas/collections. El Historial filtra por método, URL y estado. Cerrar una pestaña con cambios sin guardar pide guardar, descartar o quedarse.
 
+## Notas de la request
+
+La pestaña **Notas**, en una request, guarda texto libre para documentar qué hace esa request — se muestra como tooltip al pasar el mouse en el árbol de Collections. Separado de la descripción de la collection (que está a nivel de carpeta).
+
 ## Variables
 
 Escribe `{{` en la URL, params, headers o en los campos de Auth (Bearer, Basic, API Key) para ver un autocompletado con las variables del entorno seleccionado (más `{{baseUrl}}`, siempre disponible cuando hay entorno). Una `{{variable}}` reconocida aparece resaltada en color de acento; una desconocida aparece subrayada en rojo.

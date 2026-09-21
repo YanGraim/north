@@ -11,5 +11,6 @@ See the [Connect](connect) and [Agents](agents) manual chapters.
 ## API client
 
 - **Comments in JSON:** the JSON body now accepts `//` and `/* */` — North strips them before sending, so the target API always receives valid JSON
+- **Request notes:** new **Notes** tab to document what a request does, shown as a tooltip in the Collections tree
 
 See the [API client](api) manual chapter.

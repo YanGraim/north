@@ -37,6 +37,10 @@ The JSON body accepts `//` and `/* */` comments (JSONC) — handy for leaving yo
 
 Search in Collections filters by name, method, URL, and folder/collection names. History filters by method, URL, and status. Closing a tab with unsaved edits asks to save, discard, or stay.
 
+## Request notes
+
+The **Notes** tab, on a request, holds free text to document what that request does — shown as a tooltip when hovering it in the Collections tree. Separate from a collection's description (which lives at the folder level).
+
 ## Variables
 
 Type `{{` in the URL, params, headers, or Auth fields (Bearer, Basic, API Key) to get autocomplete suggestions from the selected environment's variables (plus `{{baseUrl}}`, always available when an environment is set). A recognized `{{variable}}` is highlighted in accent color; an unrecognized one is underlined in red.

@@ -37,6 +37,10 @@ O body JSON aceita comentários `//` e `/* */` (JSONC) — útil pra deixar uma 
 
 A busca em Collections filtra por nome, método, URL e pastas/collections. O Histórico filtra por método, URL e status. Fechar uma aba com edições não salvas pede para salvar, descartar ou ficar.
 
+## Notas da request
+
+A aba **Notas**, na request, guarda um texto livre pra documentar o que aquela request faz — visível ao passar o mouse sobre ela na árvore de Collections. Separado da descrição da collection (que fica no nível da pasta).
+
 ## Variáveis
 
 Digite `{{` em URL, params, headers ou nos campos de Auth (Bearer, Basic, API Key) para ver um autocomplete com as variáveis do ambiente selecionado (mais `{{baseUrl}}`, sempre disponível quando há ambiente). `{{variavel}}` reconhecida aparece destacada em cor de acento; `{{variavel}}` desconhecida aparece sublinhada em vermelho.

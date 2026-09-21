@@ -6,6 +6,7 @@ export type ApiStudioTab = {
   id: string
   requestId: string | null
   name: string
+  description: string | null
   method: ApiHttpMethod
   url: string
   definition: ApiRequestDefinition
@@ -21,6 +22,7 @@ export function emptyScratchTab(name = 'Nova request'): ApiStudioTab {
     id: crypto.randomUUID(),
     requestId: null,
     name,
+    description: null,
     method: 'GET',
     url: '',
     definition: emptyApiRequestDefinition(),

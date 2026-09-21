@@ -8,6 +8,7 @@ import {
   SelectValue
 } from '@renderer/components/ui/select'
 import { Separator } from '@renderer/components/ui/separator'
+import { Textarea } from '@renderer/components/ui/textarea'
 import { useApiPresets, useCreateApiPreset } from '@renderer/hooks/use-api'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
@@ -29,7 +30,7 @@ import { VariableInput, type VariableInputHandle } from './VariableInput'
 
 const METHODS: ApiHttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
 
-type EditorTab = 'params' | 'headers' | 'body' | 'auth'
+type EditorTab = 'params' | 'headers' | 'body' | 'auth' | 'notes'
 
 /** Applies a preset's headers on top of the current list, replacing same-key entries. */
 function mergeHeaders(current: ApiKeyValue[], incoming: ApiKeyValue[]): ApiKeyValue[] {
@@ -41,6 +42,8 @@ function mergeHeaders(current: ApiKeyValue[], incoming: ApiKeyValue[]): ApiKeyVa
 type RequestEditorProps = {
   method: ApiHttpMethod
   url: string
+  /** Free-text notes about what this request does. */
+  description: string | null
   definition: ApiRequestDefinition
   /** Names resolvable for the currently selected environment — drives autocomplete + highlighting. */
   variables: readonly string[]
@@ -49,18 +52,21 @@ type RequestEditorProps = {
   urlInputRef?: React.RefObject<VariableInputHandle | null>
   onMethodChange: (method: ApiHttpMethod) => void
   onUrlChange: (url: string) => void
+  onDescriptionChange: (description: string | null) => void
   onDefinitionChange: (definition: ApiRequestDefinition) => void
 }
 
 export function RequestEditor({
   method,
   url,
+  description,
   definition,
   variables,
   variableValues,
   urlInputRef,
   onMethodChange,
   onUrlChange,
+  onDescriptionChange,
   onDefinitionChange
 }: RequestEditorProps): React.JSX.Element {
   const { t } = useTranslation()
@@ -104,7 +110,8 @@ export function RequestEditor({
             ['params', t('api.studio.params')],
             ['headers', t('api.studio.headers')],
             ['body', t('api.studio.body')],
-            ['auth', t('api.studio.auth')]
+            ['auth', t('api.studio.auth')],
+            ['notes', t('api.studio.notes')]
           ] as const
         ).map(([id, label]) => (
           <Button
@@ -170,6 +177,14 @@ export function RequestEditor({
               createPreset.mutate({ name, headers: [], auth: definition.auth })
             }
             onChange={(auth) => patch({ auth })}
+          />
+        ) : null}
+        {tab === 'notes' ? (
+          <Textarea
+            value={description ?? ''}
+            onChange={(event) => onDescriptionChange(event.target.value || null)}
+            placeholder={t('api.studio.notesPlaceholder')}
+            className="h-full min-h-32 resize-none text-xs"
           />
         ) : null}
       </div>

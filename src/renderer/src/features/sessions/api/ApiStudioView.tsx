@@ -263,6 +263,7 @@ export function ApiStudioView({
       id: crypto.randomUUID(),
       requestId: request.id,
       name: request.name,
+      description: request.description,
       method: request.method,
       url: request.url,
       definition: request.definition,
@@ -351,6 +352,7 @@ export function ApiStudioView({
             collectionId,
             input: {
               name: tab.name,
+              description: tab.description,
               method: tab.method,
               url: tab.url,
               definition: tab.definition
@@ -368,6 +370,7 @@ export function ApiStudioView({
         const created = await createRequest.mutateAsync({
           collectionId: collection.id,
           name: tab.name,
+          description: tab.description,
           method: tab.method,
           url: tab.url,
           definition: tab.definition
@@ -799,6 +802,7 @@ export function ApiStudioView({
                     <RequestEditor
                       method={activeTab.method}
                       url={activeTab.url}
+                      description={activeTab.description}
                       definition={activeTab.definition}
                       variables={variableNames}
                       variableValues={variableValues}
@@ -808,6 +812,9 @@ export function ApiStudioView({
                       }
                       onUrlChange={(url) =>
                         patchTab(activeTab.id, (tab) => ({ ...tab, url, dirty: true }))
+                      }
+                      onDescriptionChange={(description) =>
+                        patchTab(activeTab.id, (tab) => ({ ...tab, description, dirty: true }))
                       }
                       onDefinitionChange={(definition) =>
                         patchTab(activeTab.id, (tab) => ({ ...tab, definition, dirty: true }))

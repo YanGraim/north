@@ -328,6 +328,7 @@ function FolderList(props: FolderListProps): React.JSX.Element {
                   'flex w-full items-center gap-1.5 rounded-sm px-1.5 py-1 text-left text-xs hover:bg-surface-elevated',
                   props.activeRequestId === request.id && 'bg-surface-elevated text-foreground'
                 )}
+                title={request.description ?? undefined}
                 onClick={() => props.onOpenRequest(request)}
               >
                 <FileText className="size-3 shrink-0 text-muted" />

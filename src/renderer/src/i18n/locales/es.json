@@ -416,6 +416,8 @@
       "headers": "Headers",
       "body": "Body",
       "auth": "Auth",
+      "notes": "Notas",
+      "notesPlaceholder": "Describe qué hace esta request (opcional)",
       "authInherit": "Heredar del Access",
       "authNone": "Ninguna",
       "bodyNone": "Ninguno",

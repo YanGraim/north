@@ -416,6 +416,8 @@
       "headers": "Headers",
       "body": "Body",
       "auth": "Auth",
+      "notes": "Notes",
+      "notesPlaceholder": "Describe what this request does (optional)",
       "authInherit": "Inherit from Access",
       "authNone": "None",
       "bodyNone": "None",

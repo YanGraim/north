@@ -47,6 +47,7 @@ function request(
     collectionId,
     folderId,
     name,
+    description: null,
     method,
     url,
     definition: emptyApiRequestDefinition(),

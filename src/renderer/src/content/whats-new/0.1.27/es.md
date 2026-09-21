@@ -11,5 +11,6 @@ Ver los capítulos [Conectar](connect) y [Agentes](agents) en el manual.
 ## Cliente API
 
 - **Comentarios en JSON:** el body JSON ahora acepta `//` y `/* */` — North los quita antes de enviar, así que la API de destino siempre recibe JSON válido
+- **Notas en la request:** nueva pestaña **Notas** para documentar qué hace una request, visible como tooltip en el árbol de Collections
 
 Ver el capítulo [Cliente API](api) en el manual.
