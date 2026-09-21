@@ -29,7 +29,7 @@ Na aba de sessão terminal:
 
 ## Terminal local
 
-A Command Palette (**⌘/Ctrl+K**) tem um item **Terminal local** que abre o shell da própria máquina — sem host, sem credencial, sem Connection cadastrada. Roda no processo main, igual às demais sessões de terminal; fechar a aba encerra o processo do shell.
+**Terminal local**, no topo da sidebar (Visão geral) ou pela Command Palette (**⌘/Ctrl+K**), abre o shell da própria máquina — sem host, sem credencial, sem Connection cadastrada. Roda no processo main, igual às demais sessões de terminal; fechar a aba encerra o processo do shell.
 
 ## Favoritos e abas
 

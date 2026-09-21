@@ -1,6 +1,7 @@
 ## Terminal
 
 - **Paste image:** paste an image from the clipboard (e.g. a screenshot) straight into the terminal — North saves it to a temp file and pastes the path, the same way iTerm2/Terminal.app do it. Handy for agent CLIs like Claude Code.
+- **Local terminal in the sidebar:** now one of the first items in Overview, not just the Command Palette
 
 ## Agents
 

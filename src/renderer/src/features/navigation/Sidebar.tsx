@@ -5,6 +5,7 @@ import { CollectionTransferDialog } from '@renderer/features/api/CollectionTrans
 import { AgentWorkspacesList } from '@renderer/features/navigation/AgentWorkspacesList'
 import { ApisTree } from '@renderer/features/navigation/ApisTree'
 import { ClientTree } from '@renderer/features/navigation/ClientTree'
+import { LocalTerminalNavItem } from '@renderer/features/navigation/LocalTerminalNavItem'
 import { NavItem } from '@renderer/features/navigation/NavItem'
 import { ProfileChip } from '@renderer/features/navigation/ProfileChip'
 import { SidebarSection } from '@renderer/features/navigation/SidebarSection'
@@ -14,7 +15,7 @@ import { cn } from '@renderer/lib/utils'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { openApiStudioTab } from '@renderer/stores/sessions-store'
 import { useUiStore } from '@renderer/stores/ui-store'
-import { Clock3, FolderInput, History, LayoutDashboard, Server, Settings, Star } from 'lucide-react'
+import { FolderInput, History, LayoutDashboard, Server, Settings, Star } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -53,6 +54,7 @@ export function Sidebar(): React.JSX.Element {
             expanded={overviewExpanded}
             onExpandedChange={setSidebarOverviewExpanded}
           >
+            <LocalTerminalNavItem label={t('nav.localTerminal')} collapsed={collapsed} />
             <NavItem
               to="/dashboard"
               label={t('nav.dashboard')}
@@ -72,13 +74,6 @@ export function Sidebar(): React.JSX.Element {
               to="/favorites"
               label={t('nav.favorites')}
               icon={Star}
-              collapsed={collapsed}
-              plain={collapsed}
-            />
-            <NavItem
-              to="/recents"
-              label={t('nav.recents')}
-              icon={Clock3}
               collapsed={collapsed}
               plain={collapsed}
             />

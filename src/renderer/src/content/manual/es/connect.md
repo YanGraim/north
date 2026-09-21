@@ -29,7 +29,7 @@ En una pestaña de sesión terminal:
 
 ## Terminal local
 
-La Command Palette (**⌘/Ctrl+K**) tiene un ítem **Terminal local** que abre el shell de tu propia máquina — sin host, sin credencial, sin Connection guardada. Corre en el proceso main, igual que las demás sesiones de terminal; cerrar la pestaña termina el proceso del shell.
+**Terminal local**, arriba en la barra lateral (Visión general) o por la Command Palette (**⌘/Ctrl+K**), abre el shell de tu propia máquina — sin host, sin credencial, sin Connection guardada. Corre en el proceso main, igual que las demás sesiones de terminal; cerrar la pestaña termina el proceso del shell.
 
 ## Favoritos y pestañas
 

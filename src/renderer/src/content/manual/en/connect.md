@@ -29,7 +29,7 @@ In a terminal session tab:
 
 ## Local terminal
 
-The Command Palette (**⌘/Ctrl+K**) has a **Local terminal** item that opens a shell on your own machine — no host, no credential, no saved Connection. It runs in the main process, just like other terminal sessions; closing the tab ends the shell process.
+**Local terminal**, at the top of the sidebar (Overview) or via the Command Palette (**⌘/Ctrl+K**), opens a shell on your own machine — no host, no credential, no saved Connection. It runs in the main process, just like other terminal sessions; closing the tab ends the shell process.
 
 ## Favorites and tabs
 

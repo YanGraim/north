@@ -1,6 +1,7 @@
 ## Terminal
 
 - **Colar imagem:** cole uma imagem do clipboard (ex.: um screenshot) direto no terminal — o North salva num arquivo temporário e cola o caminho, do jeito que iTerm2/Terminal.app fazem. Útil pra CLIs de agente como Claude Code.
+- **Terminal local na sidebar:** agora é um dos primeiros itens em Visão geral, não só na Command Palette
 
 ## Agentes
 

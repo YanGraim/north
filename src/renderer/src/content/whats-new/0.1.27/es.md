@@ -1,6 +1,7 @@
 ## Terminal
 
 - **Pegar imagen:** pegá una imagen del portapapeles (ej.: un screenshot) directo en la terminal — North la guarda en un archivo temporal y pega la ruta, igual que hacen iTerm2/Terminal.app. Útil para CLIs de agente como Claude Code.
+- **Terminal local en la barra lateral:** ahora es uno de los primeros ítems en Visión general, no solo en la Command Palette
 
 ## Agentes
 
