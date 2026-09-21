@@ -124,6 +124,16 @@ export {
   UpdateEnvironmentInputSchema
 } from './environment'
 export {
+  type CreateEnvironmentUpdateInput,
+  CreateEnvironmentUpdateInputSchema,
+  type EnvironmentUpdate,
+  type EnvironmentUpdateCommit,
+  EnvironmentUpdateCommitSchema,
+  EnvironmentUpdateSchema,
+  type EnvironmentUpdateStatus,
+  EnvironmentUpdateStatusSchema
+} from './environment-update'
+export {
   type CreateGroupInput,
   CreateGroupInputSchema,
   type Group,
@@ -259,5 +269,7 @@ export {
   type WorkflowStep,
   WorkflowStepSchema,
   type WorkflowStepType,
-  WorkflowStepTypeSchema
+  WorkflowStepTypeSchema,
+  type WorkflowTracking,
+  WorkflowTrackingSchema
 } from './workflow'

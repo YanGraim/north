@@ -66,6 +66,7 @@ import type {
   CreateTagInput,
   CreateWorkflowInput,
   Environment,
+  EnvironmentUpdate,
   Group,
   GroupVariable,
   ImportReport,
@@ -616,6 +617,15 @@ export interface IpcInvokeMap {
     args: [id: string]
     result: undefined
   }
+
+  [IpcChannels.ENVIRONMENT_UPDATES_LIST]: {
+    args: [environmentId: string, limit?: number]
+    result: EnvironmentUpdate[]
+  }
+  [IpcChannels.ENVIRONMENT_UPDATES_LIST_RECENT]: {
+    args: [limit?: number]
+    result: EnvironmentUpdate[]
+  }
 }
 
 export type InvokeChannel = keyof IpcInvokeMap
@@ -829,5 +839,11 @@ export interface NorthApi {
     create: (input: CreateAgentBoardColumnInput) => Promise<AgentBoardColumn>
     update: (id: string, input: UpdateAgentBoardColumnInput) => Promise<AgentBoardColumn>
     delete: (id: string) => Promise<void>
+  }
+  environmentUpdates: {
+    /** Git-tracked workflow update history for an environment, newest first. */
+    list: (environmentId: string, limit?: number) => Promise<EnvironmentUpdate[]>
+    /** Global feed across every environment — powers the Dashboard widget. */
+    listRecent: (limit?: number) => Promise<EnvironmentUpdate[]>
   }
 }

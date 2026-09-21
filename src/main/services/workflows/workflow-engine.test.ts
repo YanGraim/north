@@ -353,4 +353,112 @@ describe('WorkflowEngine', () => {
     const executed = (session.exec as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string
     expect(executed).toContain('vaulted')
   })
+
+  it('records tracking data when the repo commit changes during a run', async () => {
+    const gitResponses: Record<string, { exitCode: number; stdout: string }> = {
+      'rev-parse HEAD': { exitCode: 0, stdout: 'b2\n' }, // same answer before/after would be a no-op...
+      'branch --show-current': { exitCode: 0, stdout: 'release\n' },
+      'log --oneline': { exitCode: 0, stdout: 'b2 fix: thing\n' },
+      'diff --name-only': { exitCode: 0, stdout: 'a.php\n' }
+    }
+    let revParseCalls = 0
+    const session: RemoteExecSession = {
+      exec: vi.fn(async (command: string) => {
+        if (command.includes('rev-parse HEAD')) {
+          revParseCalls++
+          // first call (before) -> a1, second call (after) -> b2
+          return { exitCode: 0, stdout: revParseCalls === 1 ? 'a1\n' : 'b2\n', stderr: '' }
+        }
+        for (const [match, result] of Object.entries(gitResponses)) {
+          if (command.includes(match)) return { ...result, stderr: '' }
+        }
+        return { exitCode: 0, stdout: '', stderr: '' }
+      }),
+      dispose: vi.fn(async () => undefined)
+    }
+
+    const onTrackingComplete = vi.fn()
+    const engine = new WorkflowEngine({
+      onEvent: () => undefined,
+      openExecSession: async () => session,
+      persistStatus: () => undefined,
+      onTrackingComplete
+    })
+
+    const status = await engine.run({
+      runId: 'run-tracking',
+      mode: 'live',
+      definition: {
+        schemaVersion: 1,
+        inputs: [],
+        steps: [
+          {
+            id: 's1',
+            type: 'ssh.exec',
+            name: 'Pull',
+            policy: { onFailure: 'stop' },
+            config: { command: 'git pull' }
+          }
+        ],
+        tracking: { type: 'git-update', repositoryPath: '/var/www/html/wms-api' }
+      },
+      groupVariables: {},
+      inputValues: {}
+    })
+
+    expect(status).toBe('succeeded')
+    expect(onTrackingComplete).toHaveBeenCalledOnce()
+    const payload = onTrackingComplete.mock.calls[0]?.[0]
+    expect(payload.before).toEqual({ commit: 'a1', branch: 'release' })
+    expect(payload.currentCommit).toBe('b2')
+    expect(payload.commits).toEqual([{ hash: 'b2', message: 'fix: thing' }])
+    expect(payload.filesChanged).toBe(1)
+    expect(payload.status).toBe('success')
+  })
+
+  it('never calls onTrackingComplete or fails the run when git tracking errors', async () => {
+    const session: RemoteExecSession = {
+      exec: vi.fn(async (command: string) => {
+        if (command.includes("-C '")) {
+          throw new Error('ssh channel closed')
+        }
+        return { exitCode: 0, stdout: '', stderr: '' }
+      }),
+      dispose: vi.fn(async () => undefined)
+    }
+
+    const onTrackingComplete = vi.fn()
+    const events: string[] = []
+    const engine = new WorkflowEngine({
+      onEvent: (e) => events.push(e.type),
+      openExecSession: async () => session,
+      persistStatus: () => undefined,
+      onTrackingComplete
+    })
+
+    const status = await engine.run({
+      runId: 'run-tracking-fail',
+      mode: 'live',
+      definition: {
+        schemaVersion: 1,
+        inputs: [],
+        steps: [
+          {
+            id: 's1',
+            type: 'ssh.exec',
+            name: 'Pull',
+            policy: { onFailure: 'stop' },
+            config: { command: 'git pull' }
+          }
+        ],
+        tracking: { type: 'git-update', repositoryPath: '/does/not/exist' }
+      },
+      groupVariables: {},
+      inputValues: {}
+    })
+
+    expect(status).toBe('succeeded')
+    expect(events.at(-1)).toBe('run_finished')
+    expect(onTrackingComplete).not.toHaveBeenCalled()
+  })
 })

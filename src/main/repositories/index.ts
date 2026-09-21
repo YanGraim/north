@@ -11,6 +11,7 @@ import { ClientsRepository } from './clients-repository'
 import { ConnectionSecretsRepository } from './connection-secrets-repository'
 import { ConnectionsRepository } from './connections-repository'
 import { CredentialsRepository } from './credentials-repository'
+import { EnvironmentUpdatesRepository } from './environment-updates-repository'
 import { EnvironmentsRepository } from './environments-repository'
 import { GroupVariablesRepository } from './group-variables-repository'
 import { GroupsRepository } from './groups-repository'
@@ -35,6 +36,7 @@ export type Repositories = {
   groupVariables: GroupVariablesRepository
   workflows: WorkflowsRepository
   workflowRuns: WorkflowRunsRepository
+  environmentUpdates: EnvironmentUpdatesRepository
   connectionSecrets: ConnectionSecretsRepository
   apiCollections: ApiCollectionsRepository
   apiRequests: ApiRequestsRepository
@@ -59,6 +61,7 @@ export function createRepositories(db: SqliteDatabase): Repositories {
     groupVariables: new GroupVariablesRepository(db),
     workflows: new WorkflowsRepository(db),
     workflowRuns: new WorkflowRunsRepository(db),
+    environmentUpdates: new EnvironmentUpdatesRepository(db),
     connectionSecrets: new ConnectionSecretsRepository(db),
     apiCollections: new ApiCollectionsRepository(db),
     apiRequests: new ApiRequestsRepository(db),
@@ -82,6 +85,7 @@ export {
   ConnectionsRepository,
   CredentialsRepository,
   EnvironmentsRepository,
+  EnvironmentUpdatesRepository,
   GroupsRepository,
   GroupVariablesRepository,
   HistoryRepository,

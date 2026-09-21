@@ -353,6 +353,11 @@ const api: NorthApi = {
     create: (input) => ipcRenderer.invoke(IpcChannels.AGENT_BOARD_COLUMNS_CREATE, input),
     update: (id, input) => ipcRenderer.invoke(IpcChannels.AGENT_BOARD_COLUMNS_UPDATE, id, input),
     delete: (id) => ipcRenderer.invoke(IpcChannels.AGENT_BOARD_COLUMNS_DELETE, id)
+  },
+  environmentUpdates: {
+    list: (environmentId, limit) =>
+      ipcRenderer.invoke(IpcChannels.ENVIRONMENT_UPDATES_LIST, environmentId, limit),
+    listRecent: (limit) => ipcRenderer.invoke(IpcChannels.ENVIRONMENT_UPDATES_LIST_RECENT, limit)
   }
 }
 

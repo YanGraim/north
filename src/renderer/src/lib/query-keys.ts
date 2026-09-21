@@ -71,5 +71,9 @@ export const queryKeys = {
   },
   agentBoardColumns: {
     list: () => ['agent-board-columns'] as const
+  },
+  environmentUpdates: {
+    list: (environmentId: string) => ['environment-updates', environmentId] as const,
+    recent: () => ['environment-updates', 'recent'] as const
   }
 }

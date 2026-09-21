@@ -11,6 +11,7 @@ import { registerApiHandlers } from './api'
 import { registerClientHandlers } from './clients'
 import { registerConnectionHandlers } from './connections'
 import { registerDatabaseHandlers } from './db'
+import { registerEnvironmentUpdateHandlers } from './environment-updates'
 import { registerEnvironmentHandlers } from './environments'
 import { registerFsHandlers } from './fs'
 import { registerGroupHandlers } from './groups'
@@ -77,4 +78,5 @@ export function registerIpcHandlers(): void {
   registerUpdateHandlers()
   registerWorkflowHandlers(repositories, vault)
   registerAgentWorkspaceHandlers(repositories)
+  registerEnvironmentUpdateHandlers(repositories)
 }

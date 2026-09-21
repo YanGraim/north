@@ -9,6 +9,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Skeleton } from '@renderer/components/ui/skeleton'
+import { RecentUpdatesWidget } from '@renderer/features/dashboard/RecentUpdatesWidget'
 import { useAccesses } from '@renderer/hooks/use-accesses'
 import { formatRelativeDate } from '@renderer/lib/connection-ui'
 import { formatDuration } from '@renderer/lib/format-duration'
@@ -74,7 +75,7 @@ export function DashboardPage(): React.JSX.Element {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {isLoading ? (
           <div className="grid gap-3 sm:grid-cols-3">
             {['a', 'b', 'c'].map((id) => (
@@ -88,7 +89,7 @@ export function DashboardPage(): React.JSX.Element {
         ) : null}
 
         {data ? (
-          <div className="flex h-full min-h-0 flex-col gap-4">
+          <div className="flex min-h-full flex-col gap-4">
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-3">
                 <StatChip label="Clientes" value={data.totals.clients} to="/connections" />
@@ -148,7 +149,7 @@ export function DashboardPage(): React.JSX.Element {
               </div>
             </div>
 
-            <div className="grid min-h-0 flex-1 grid-rows-4 gap-4 lg:grid-cols-2 lg:grid-rows-2">
+            <div className="grid h-[420px] shrink-0 grid-rows-4 gap-4 lg:grid-cols-2 lg:grid-rows-2">
               <Widget title="Favoritos" icon={Star} empty="Nenhum favorito ainda">
                 {data.favorites.map((c) => (
                   <ConnectionRow key={c.id} connection={c} />
@@ -173,6 +174,8 @@ export function DashboardPage(): React.JSX.Element {
                 ))}
               </Widget>
             </div>
+
+            <RecentUpdatesWidget />
           </div>
         ) : null}
       </div>

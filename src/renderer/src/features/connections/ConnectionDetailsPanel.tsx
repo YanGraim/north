@@ -19,6 +19,7 @@ import { DetailField, DetailSection } from '@renderer/features/connections/Detai
 import { MarkdownNotes } from '@renderer/features/connections/MarkdownNotes'
 import { TagBadges } from '@renderer/features/connections/TagBadges'
 import { ConnectionSecretsSection } from '@renderer/features/workflows/ConnectionSecretsSection'
+import { EnvironmentUpdatesSection } from '@renderer/features/workflows/EnvironmentUpdatesSection'
 import { startWorkflowOnConnection } from '@renderer/features/workflows/start-workflow'
 import { WorkflowHubDialog } from '@renderer/features/workflows/WorkflowHubDialog'
 import { WorkflowInputsDialog } from '@renderer/features/workflows/WorkflowInputsDialog'
@@ -435,6 +436,8 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
                 connectionId={connection.id}
                 connectionProtocol={connection.protocol}
               />
+
+              <EnvironmentUpdatesSection environmentId={org.environment?.id ?? null} />
 
               <Separator />
 

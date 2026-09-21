@@ -1,5 +1,6 @@
 import { buildRunVariables, type InterpolateContext } from '@shared/lib/interpolate'
 import type {
+  EnvironmentUpdateCommit,
   RunMode,
   RunStatus,
   StepRunStatus,
@@ -7,16 +8,30 @@ import type {
   WorkflowRunEvent,
   WorkflowStep
 } from '@shared/types'
+import { type GitSnapshot, GitTrackingService } from './git-tracking-service'
 import type { RemoteExecSession } from './remote-exec-service'
 import { defaultStepRegistry, type StepTypeRegistry } from './step-registry'
 
+export type TrackingCompletePayload = {
+  before: GitSnapshot
+  currentCommit: string
+  commits: EnvironmentUpdateCommit[]
+  filesChanged: number
+  startedAt: string
+  finishedAt: string
+  status: 'success' | 'failed'
+}
+
 export type WorkflowEngineDeps = {
   registry?: StepTypeRegistry
+  gitTracking?: GitTrackingService
   onEvent: (event: WorkflowRunEvent) => void
   openExecSession: () => Promise<RemoteExecSession>
   persistStatus: (status: RunStatus, finishedAt: string | null) => void
   /** Resolve a connection_secrets kind from the vault; null = miss. */
   resolveConnectionSecret?: (kind: string) => Promise<string | null>
+  /** Called once, only when `definition.tracking` is set AND the commit actually changed. */
+  onTrackingComplete?: (payload: TrackingCompletePayload) => void
 }
 
 export type StartEngineOpts = {
@@ -54,10 +69,12 @@ export type PauseResponse =
  */
 export class WorkflowEngine {
   private readonly registry: StepTypeRegistry
+  private readonly gitTracking: GitTrackingService
   private readonly onEvent: WorkflowEngineDeps['onEvent']
   private readonly openExecSession: WorkflowEngineDeps['openExecSession']
   private readonly persistStatus: WorkflowEngineDeps['persistStatus']
   private readonly resolveConnectionSecret: (kind: string) => Promise<string | null>
+  private readonly onTrackingComplete: WorkflowEngineDeps['onTrackingComplete']
 
   private cancelled = false
   private pauseGate: PauseGate | null = null
@@ -65,10 +82,12 @@ export class WorkflowEngine {
 
   constructor(deps: WorkflowEngineDeps) {
     this.registry = deps.registry ?? defaultStepRegistry
+    this.gitTracking = deps.gitTracking ?? new GitTrackingService()
     this.onEvent = deps.onEvent
     this.openExecSession = deps.openExecSession
     this.persistStatus = deps.persistStatus
     this.resolveConnectionSecret = deps.resolveConnectionSecret ?? (async () => null)
+    this.onTrackingComplete = deps.onTrackingComplete
   }
 
   respond(response: PauseResponse): void {
@@ -119,10 +138,20 @@ export class WorkflowEngine {
     let session: RemoteExecSession | null = null
     let completedSteps = 0
     let finalStatus: RunStatus = 'succeeded'
+    let trackingBefore: GitSnapshot | null = null
 
     try {
-      if (opts.mode === 'live' && steps.some((s) => needsRemoteExec(s))) {
+      const tracking = opts.definition.tracking
+      if (opts.mode === 'live' && (tracking || steps.some((s) => needsRemoteExec(s)))) {
         session = await this.openExecSession()
+      }
+
+      if (tracking && session) {
+        try {
+          trackingBefore = await this.gitTracking.captureBefore(session, tracking)
+        } catch {
+          trackingBefore = null
+        }
       }
 
       for (let index = 0; index < steps.length; index++) {
@@ -208,6 +237,29 @@ export class WorkflowEngine {
         totalSteps: steps.length,
         currentStepId: null
       })
+
+      if (trackingBefore && session && opts.definition.tracking) {
+        try {
+          const delta = await this.gitTracking.captureAfter(
+            session,
+            opts.definition.tracking,
+            trackingBefore
+          )
+          if (delta) {
+            this.onTrackingComplete?.({
+              before: trackingBefore,
+              currentCommit: delta.currentCommit,
+              commits: delta.commits,
+              filesChanged: delta.filesChanged,
+              startedAt: new Date(startedAt).toISOString(),
+              finishedAt: new Date().toISOString(),
+              status: finalStatus === 'succeeded' ? 'success' : 'failed'
+            })
+          }
+        } catch {
+          // git tracking must never affect the run's own outcome
+        }
+      }
     } finally {
       await session?.dispose()
     }

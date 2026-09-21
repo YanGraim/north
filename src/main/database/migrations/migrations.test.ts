@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(12)
+    expect(getUserVersion(db)).toBe(13)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -43,7 +43,8 @@ describe('migrations', () => {
         'api_request_history',
         'api_presets',
         'agent_workspaces',
-        'agent_board_columns'
+        'agent_board_columns',
+        'environment_updates'
       ])
     )
   })
@@ -52,7 +53,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(12)
+    expect(getUserVersion(db)).toBe(13)
   })
 
   it('adds color column to environments from 005', () => {
@@ -228,6 +229,32 @@ describe('migrations', () => {
     const column = columns.find((c) => c.name === 'api_environment_enabled')
     expect(column).toBeDefined()
     expect(column?.dflt_value).toBe('0')
+  })
+
+  it('creates environment_updates table from 013', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+
+    const columns = db.prepare(`PRAGMA table_info(environment_updates)`).all() as Array<{
+      name: string
+    }>
+    expect(columns.map((c) => c.name)).toEqual(
+      expect.arrayContaining([
+        'id',
+        'environment_id',
+        'connection_id',
+        'workflow_id',
+        'workflow_run_id',
+        'branch',
+        'previous_commit',
+        'current_commit',
+        'started_at',
+        'finished_at',
+        'status',
+        'commits',
+        'files_changed'
+      ])
+    )
   })
 
   it('009 keeps folders when rebuilding collections that already exist', () => {

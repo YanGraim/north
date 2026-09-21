@@ -91,6 +91,9 @@ function createDefaultStep(overrides?: Partial<EditableStep>): EditableStep {
 function editorFieldsFromWorkflow(workflow: Workflow): {
   name: string
   steps: EditableStep[]
+  trackingEnabled: boolean
+  trackingRepositoryPath: string
+  trackingBranch: string
 } {
   const steps: EditableStep[] = []
   for (const step of workflow.definition.steps) {
@@ -107,9 +110,13 @@ function editorFieldsFromWorkflow(workflow: Workflow): {
       authHints: parseAuthHints(step.config)
     })
   }
+  const tracking = workflow.definition.tracking
   return {
     name: workflow.name,
-    steps: steps.length > 0 ? steps : [createDefaultStep()]
+    steps: steps.length > 0 ? steps : [createDefaultStep()],
+    trackingEnabled: Boolean(tracking),
+    trackingRepositoryPath: tracking?.repositoryPath ?? '',
+    trackingBranch: tracking?.branch ?? ''
   }
 }
 
@@ -192,6 +199,9 @@ export function WorkflowHubDialog({
 
   const [name, setName] = useState('')
   const [steps, setSteps] = useState<EditableStep[]>(() => [createDefaultStep()])
+  const [trackingEnabled, setTrackingEnabled] = useState(false)
+  const [trackingRepositoryPath, setTrackingRepositoryPath] = useState('')
+  const [trackingBranch, setTrackingBranch] = useState('')
   const [activeStepId, setActiveStepId] = useState<string | null>(null)
   const [alsoCreateInGroupIds, setAlsoCreateInGroupIds] = useState<string[]>([])
   const [copyPanelOpen, setCopyPanelOpen] = useState(false)
@@ -206,10 +216,19 @@ export function WorkflowHubDialog({
   const activeStep = steps.find((s) => s.id === activeStepId) ?? steps[0] ?? null
   const classicStep = steps[0] ?? null
 
-  function applyEditorFields(fields: { name: string; steps: EditableStep[] }): void {
+  function applyEditorFields(fields: {
+    name: string
+    steps: EditableStep[]
+    trackingEnabled: boolean
+    trackingRepositoryPath: string
+    trackingBranch: string
+  }): void {
     setName(fields.name)
     setSteps(fields.steps)
     setActiveStepId(fields.steps[0]?.id ?? null)
+    setTrackingEnabled(fields.trackingEnabled)
+    setTrackingRepositoryPath(fields.trackingRepositoryPath)
+    setTrackingBranch(fields.trackingBranch)
   }
 
   function resetCreateEditor(): void {
@@ -222,6 +241,9 @@ export function WorkflowHubDialog({
     setCopyTargetIds([])
     setAllowDuplicateNames(false)
     setCopyHasNameConflict(false)
+    setTrackingEnabled(false)
+    setTrackingRepositoryPath('')
+    setTrackingBranch('')
   }
 
   function changeViewMode(next: ViewMode): void {
@@ -360,6 +382,15 @@ export function WorkflowHubDialog({
     })
   }
 
+  function applyTracking(definition: WorkflowDefinition): WorkflowDefinition {
+    const path = trackingRepositoryPath.trim()
+    definition.tracking =
+      trackingEnabled && path
+        ? { type: 'git-update', repositoryPath: path, branch: trackingBranch.trim() || undefined }
+        : undefined
+    return definition
+  }
+
   function buildDefinition(base?: WorkflowDefinition): WorkflowDefinition {
     const definition = base ? structuredClone(base) : emptyWorkflowDefinition()
     if (viewMode === 'classic') {
@@ -371,10 +402,10 @@ export function WorkflowHubDialog({
           name: first.name.trim() || 'Exec'
         }
       ])
-      return definition
+      return applyTracking(definition)
     }
     definition.steps = toDefinitionSteps(steps)
-    return definition
+    return applyTracking(definition)
   }
 
   async function handleSave(): Promise<void> {
@@ -616,6 +647,55 @@ export function WorkflowHubDialog({
                       onChange={(e) => setName(e.target.value)}
                     />
                   </div>
+
+                  <fieldset className="space-y-2 rounded-md border border-border px-3 py-2">
+                    <legend className="px-1 text-xs font-medium text-foreground">
+                      Rastreamento Git (opcional)
+                    </legend>
+                    <label className="flex items-center gap-2 text-sm text-foreground">
+                      <input
+                        type="checkbox"
+                        data-testid="workflow-hub-tracking-enabled"
+                        checked={trackingEnabled}
+                        onChange={(e) => setTrackingEnabled(e.target.checked)}
+                      />
+                      Registrar histórico de atualização do ambiente
+                    </label>
+                    {trackingEnabled ? (
+                      <div className="space-y-2 pt-1">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="workflow-hub-tracking-path">
+                            Caminho do repositório (no servidor)
+                          </Label>
+                          <Input
+                            id="workflow-hub-tracking-path"
+                            data-testid="workflow-hub-tracking-path"
+                            placeholder="/var/www/html/wms-api"
+                            value={trackingRepositoryPath}
+                            onChange={(e) => setTrackingRepositoryPath(e.target.value)}
+                            className="font-mono text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="workflow-hub-tracking-branch">
+                            Branch (opcional — detecta automaticamente se vazio)
+                          </Label>
+                          <Input
+                            id="workflow-hub-tracking-branch"
+                            data-testid="workflow-hub-tracking-branch"
+                            placeholder="release"
+                            value={trackingBranch}
+                            onChange={(e) => setTrackingBranch(e.target.value)}
+                            className="font-mono text-xs"
+                          />
+                        </div>
+                        <p className="text-xs text-muted">
+                          North captura o commit antes/depois de cada execução e registra o que
+                          entrou (commits, arquivos alterados) — sem mudar o que o workflow faz.
+                        </p>
+                      </div>
+                    ) : null}
+                  </fieldset>
 
                   {viewMode === 'classic' && classicStep ? (
                     <>

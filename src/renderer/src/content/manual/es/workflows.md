@@ -21,3 +21,16 @@ La ejecución abre una **pestaña de run** con timeline, progreso y log por paso
 ## Secretos
 
 Contraseñas y claves viven en la **bolsa de secretos de la conexión**, nunca en la definition del workflow ni en las variables del grupo. North puede pedirlas y ofrecer guardarlas en el vault cuando el paso necesite autenticarse.
+
+## Rastreo Git (opcional)
+
+Un workflow puede activar el **rastreo Git**: actívalo en el editor e indica la ruta de un repositorio en el servidor (ej.: `/var/www/html/wms-api`), y North captura el commit actual antes de ejecutar y otra vez después. Si el commit cambió, registra automáticamente qué commits entraron, cuántos archivos se modificaron y si la ejecución tuvo éxito o falló — sin cambiar en nada lo que hace el workflow.
+
+Esto no requiere API de proveedor Git (GitHub/Bitbucket) ni PRs — North lee el estado directamente del repositorio en el servidor, usando los mismos comandos SSH que el workflow ya usa. Si la ruta no existe o no es un repositorio Git, el rastreo simplemente no registra nada; el workflow sigue funcionando con normalidad.
+
+El historial de actualizaciones aparece en dos lugares:
+
+- **Dashboard** → sección **Últimas actualizaciones**, al final — vista global, cruzando todos los clientes/entornos: cuántas actualizaciones hoy/esta semana, un gráfico por semana y la línea de tiempo completa.
+- **Panel de la conexión** → sección **Actualizaciones**, justo debajo de Workflows — la misma vista, filtrada solo al entorno de esa conexión.
+
+En ambos casos, el historial es por **entorno**: si dos conexiones distintas (ej.: backend y frontend) actualizan el mismo entorno vía workflows separados, todo aparece junto.

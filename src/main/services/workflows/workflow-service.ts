@@ -216,6 +216,28 @@ export class WorkflowService {
         const entry = this.repos.connectionSecrets.getByKind(connection.id, kind)
         if (!entry) return null
         return this.vault.resolveSecret(entry.credentialRef)
+      },
+      onTrackingComplete: (data) => {
+        try {
+          const environmentId = this.repos.groups.get(connection.groupId)?.environmentId
+          if (!environmentId) return
+          this.repos.environmentUpdates.create({
+            environmentId,
+            connectionId: connection.id,
+            workflowId: workflow.id,
+            workflowRunId: run.id,
+            branch: data.before.branch,
+            previousCommit: data.before.commit,
+            currentCommit: data.currentCommit,
+            startedAt: data.startedAt,
+            finishedAt: data.finishedAt,
+            status: data.status,
+            commits: data.commits,
+            filesChanged: data.filesChanged
+          })
+        } catch {
+          // history persistence must never affect the already-finished run
+        }
       }
     })
 

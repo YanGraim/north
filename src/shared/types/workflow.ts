@@ -70,10 +70,24 @@ export const WorkflowInputSchema = z.object({
 })
 export type WorkflowInput = z.infer<typeof WorkflowInputSchema>
 
+/**
+ * Optional Git tracking for a workflow — the engine captures the commit on
+ * `repositoryPath` (on the remote host) before/after a live run and records
+ * an `EnvironmentUpdate` if it changed. Never required; absent = no tracking,
+ * workflow behaves exactly as before.
+ */
+export const WorkflowTrackingSchema = z.object({
+  type: z.literal('git-update'),
+  repositoryPath: z.string().min(1),
+  branch: z.string().min(1).optional()
+})
+export type WorkflowTracking = z.infer<typeof WorkflowTrackingSchema>
+
 export const WorkflowDefinitionSchema = z.object({
   schemaVersion: z.literal(1),
   inputs: z.array(WorkflowInputSchema),
-  steps: z.array(WorkflowStepSchema)
+  steps: z.array(WorkflowStepSchema),
+  tracking: WorkflowTrackingSchema.optional()
 })
 export type WorkflowDefinition = z.infer<typeof WorkflowDefinitionSchema>
 
@@ -139,7 +153,8 @@ export function cloneWorkflowDefinition(definition: WorkflowDefinition): Workflo
     steps: definition.steps.map((step) => ({
       ...structuredClone(step),
       id: crypto.randomUUID()
-    }))
+    })),
+    tracking: definition.tracking ? structuredClone(definition.tracking) : undefined
   }
 }
 
