@@ -36,6 +36,7 @@ import type {
   Access,
   AgentBoardColumn,
   AgentWorkspace,
+  AgentWorkspaceBranchStatus,
   ApiCollection,
   ApiCollectionExportResult,
   ApiCollectionImportInput,
@@ -602,7 +603,7 @@ export interface IpcInvokeMap {
   }
   [IpcChannels.AGENT_WORKSPACES_CHECK_BRANCH]: {
     args: [repoPath: string, branch: string]
-    result: boolean
+    result: AgentWorkspaceBranchStatus
   }
 
   [IpcChannels.AGENT_BOARD_COLUMNS_LIST]: {
@@ -842,8 +843,13 @@ export interface NorthApi {
     delete: (id: string) => Promise<void>
     /** Native folder picker for choosing the git repo. */
     pickRepo: () => Promise<string | null>
-    /** True if `branch` already exists locally in `repoPath` — used to warn before creating. */
-    checkBranch: (repoPath: string, branch: string) => Promise<boolean>
+    /**
+     * Whether `branch` already exists locally in `repoPath`, and — if it's
+     * currently checked out somewhere (main working tree or another
+     * worktree) — the path that's using it, so `git worktree add` would
+     * fail. Used to warn before creating instead of only after git refuses.
+     */
+    checkBranch: (repoPath: string, branch: string) => Promise<AgentWorkspaceBranchStatus>
   }
   agentBoardColumns: {
     list: () => Promise<AgentBoardColumn[]>

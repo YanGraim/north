@@ -11,7 +11,7 @@ La sección **Agentes** de la barra lateral gestiona workspaces de agentes de IA
 - **Comando del agente** — texto libre (`claude`, `codex`, lo que sea).
 - **Tarea** (opcional) — una nota corta sobre qué está haciendo el agente.
 
-Al crear, North corre `git worktree add` dentro del repositorio, creando la carpeta en `<repositorio>/.north/worktrees/<branch>`. La sesión se abre automáticamente corriendo el comando del agente ahí dentro.
+Al crear, North corre `git worktree add` dentro del repositorio, creando la carpeta en `<repositorio>/.north/worktrees/<branch>`. La sesión se abre automáticamente corriendo el comando del agente ahí dentro. Si la branch que escribiste ya existe, North avisa antes de crear: si está libre, ofrece usar esa branch existente (checkout); si ya está abierta en otra worktree (incluida la carpeta principal del repositorio), bloquea y muestra dónde — git no permite la misma branch en dos lugares a la vez.
 
 ## Sesión y contexto
 

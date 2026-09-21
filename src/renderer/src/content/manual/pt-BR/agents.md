@@ -11,7 +11,7 @@ A seção **Agentes** da sidebar gerencia workspaces de agentes de IA (Claude Co
 - **Comando do agente** — texto livre (`claude`, `codex`, o que for).
 - **Tarefa** (opcional) — uma nota curta sobre o que o agente está fazendo.
 
-Ao criar, o North roda `git worktree add` dentro do repositório, criando a pasta em `<repositório>/.north/worktrees/<branch>`. A sessão abre automaticamente rodando o comando do agente ali dentro.
+Ao criar, o North roda `git worktree add` dentro do repositório, criando a pasta em `<repositório>/.north/worktrees/<branch>`. A sessão abre automaticamente rodando o comando do agente ali dentro. Se a branch digitada já existir, o North avisa antes de criar: se ela estiver livre, oferece usar a branch existente (checkout); se já estiver aberta em outra worktree (inclusive na pasta principal do repositório), bloqueia e mostra onde — o git não permite a mesma branch em dois lugares ao mesmo tempo.
 
 ## Sessão e contexto
 

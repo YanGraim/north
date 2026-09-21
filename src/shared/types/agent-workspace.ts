@@ -54,3 +54,10 @@ export const UpdateAgentWorkspaceInputSchema = z.object({
   columnId: z.string().nullable().optional()
 })
 export type UpdateAgentWorkspaceInput = z.infer<typeof UpdateAgentWorkspaceInputSchema>
+
+export const AgentWorkspaceBranchStatusSchema = z.object({
+  exists: z.boolean(),
+  /** Path of the worktree already using this branch, if any — null when free. */
+  inUseAt: z.string().nullable()
+})
+export type AgentWorkspaceBranchStatus = z.infer<typeof AgentWorkspaceBranchStatusSchema>

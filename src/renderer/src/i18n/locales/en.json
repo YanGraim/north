@@ -164,7 +164,10 @@
     "createError": "Could not create the workspace",
     "branchExistsTitle": "This branch already exists",
     "branchExistsDescription": "A branch named \"{{branch}}\" already exists in this repository. The worktree will check out that existing branch instead of creating a new one. Continue?",
-    "branchExistsConfirm": "Continue"
+    "branchExistsConfirm": "Continue",
+    "branchInUseTitle": "This branch is already in use",
+    "branchInUseDescription": "Branch \"{{branch}}\" is already checked out in another working tree ({{path}}) — git doesn't allow the same branch to be open in two places at once. Pick another branch, or free that one up first.",
+    "branchInUseBack": "Back"
   },
   "whatsNew": {
     "title": "What's new in v{{version}}",

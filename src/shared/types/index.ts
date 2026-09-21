@@ -23,6 +23,8 @@ export {
   type AgentBoardColumn,
   AgentBoardColumnSchema,
   type AgentWorkspace,
+  type AgentWorkspaceBranchStatus,
+  AgentWorkspaceBranchStatusSchema,
   AgentWorkspaceSchema,
   type CreateAgentBoardColumnInput,
   CreateAgentBoardColumnInputSchema,

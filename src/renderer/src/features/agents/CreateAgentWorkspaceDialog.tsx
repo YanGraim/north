@@ -37,6 +37,7 @@ export function CreateAgentWorkspaceDialog({
   const [taskNote, setTaskNote] = useState('')
   const [checkingBranch, setCheckingBranch] = useState(false)
   const [confirmExistingBranch, setConfirmExistingBranch] = useState(false)
+  const [branchInUseAt, setBranchInUseAt] = useState<string | null>(null)
 
   function reset(): void {
     setRepoPath('')
@@ -44,6 +45,7 @@ export function CreateAgentWorkspaceDialog({
     setAgentCommand('claude')
     setTaskNote('')
     setConfirmExistingBranch(false)
+    setBranchInUseAt(null)
   }
 
   async function handlePickRepo(): Promise<void> {
@@ -66,10 +68,14 @@ export function CreateAgentWorkspaceDialog({
 
   async function handleSubmit(): Promise<void> {
     setCheckingBranch(true)
-    const exists = await checkAgentWorkspaceBranchExists(repoPath, branch).finally(() =>
+    const status = await checkAgentWorkspaceBranchExists(repoPath, branch).finally(() =>
       setCheckingBranch(false)
     )
-    if (exists) {
+    if (status.inUseAt) {
+      setBranchInUseAt(status.inUseAt)
+      return
+    }
+    if (status.exists) {
       setConfirmExistingBranch(true)
       return
     }
@@ -88,7 +94,21 @@ export function CreateAgentWorkspaceDialog({
       }}
     >
       <DialogContent>
-        {confirmExistingBranch ? (
+        {branchInUseAt ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>{t('agents.branchInUseTitle')}</DialogTitle>
+              <DialogDescription>
+                {t('agents.branchInUseDescription', { branch, path: branchInUseAt })}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button type="button" onClick={() => setBranchInUseAt(null)}>
+                {t('agents.branchInUseBack')}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : confirmExistingBranch ? (
           <>
             <DialogHeader>
               <DialogTitle>{t('agents.branchExistsTitle')}</DialogTitle>

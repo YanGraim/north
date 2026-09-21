@@ -11,7 +11,7 @@ The sidebar **Agents** section manages AI agent workspaces (Claude Code, Codex, 
 - **Agent command** — free text (`claude`, `codex`, whatever).
 - **Task** (optional) — a short note about what the agent is doing.
 
-On create, North runs `git worktree add` inside the repository, creating the folder at `<repository>/.north/worktrees/<branch>`. The session opens automatically, running the agent command there.
+On create, North runs `git worktree add` inside the repository, creating the folder at `<repository>/.north/worktrees/<branch>`. The session opens automatically, running the agent command there. If the branch you typed already exists, North warns before creating: if it's free, it offers to check it out instead; if it's already checked out in another worktree (including the repo's main working tree), it blocks and shows where — git doesn't allow the same branch in two places at once.
 
 ## Session and context
 

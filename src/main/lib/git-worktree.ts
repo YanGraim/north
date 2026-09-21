@@ -5,7 +5,11 @@ import { promisify } from 'node:util'
 const defaultExecFile = promisify(execFileCb)
 
 export type GitWorktreeDeps = {
-  execFile?: (file: string, args: readonly string[], options?: { cwd?: string }) => Promise<unknown>
+  execFile?: (
+    file: string,
+    args: readonly string[],
+    options?: { cwd?: string }
+  ) => Promise<{ stdout: string; stderr: string }>
 }
 
 /** Filesystem-safe branch segment for the worktree folder name. */
@@ -40,6 +44,31 @@ export async function branchExists(
   } catch {
     return false
   }
+}
+
+/**
+ * Path of the worktree (main working tree or another `git worktree`) that
+ * already has `branch` checked out, or `null` if it's free. Lets the UI warn
+ * *before* attempting `git worktree add`, instead of only after git refuses.
+ */
+export async function findBranchWorktreePath(
+  repoPath: string,
+  branch: string,
+  deps: GitWorktreeDeps = {}
+): Promise<string | null> {
+  const run = deps.execFile ?? defaultExecFile
+  const { stdout } = await run('git', ['worktree', 'list', '--porcelain'], { cwd: repoPath })
+  const targetRef = `refs/heads/${branch}`
+  let currentPath: string | null = null
+  for (const line of stdout.split('\n')) {
+    if (line.startsWith('worktree ')) {
+      currentPath = line.slice('worktree '.length).trim()
+    } else if (line.startsWith('branch ') && currentPath) {
+      if (line.slice('branch '.length).trim() === targetRef) return currentPath
+      currentPath = null
+    }
+  }
+  return null
 }
 
 /**

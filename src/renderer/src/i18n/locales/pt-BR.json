@@ -164,7 +164,10 @@
     "createError": "Não foi possível criar o workspace",
     "branchExistsTitle": "Essa branch já existe",
     "branchExistsDescription": "Já existe uma branch \"{{branch}}\" nesse repositório. A worktree vai usar essa branch existente em vez de criar uma nova. Continuar?",
-    "branchExistsConfirm": "Continuar"
+    "branchExistsConfirm": "Continuar",
+    "branchInUseTitle": "Essa branch já está em uso",
+    "branchInUseDescription": "A branch \"{{branch}}\" já está aberta em outra pasta de trabalho ({{path}}) — o git não permite abrir a mesma branch em dois lugares ao mesmo tempo. Escolha outra branch, ou libere essa lá primeiro.",
+    "branchInUseBack": "Voltar"
   },
   "whatsNew": {
     "title": "Novidades da v{{version}}",

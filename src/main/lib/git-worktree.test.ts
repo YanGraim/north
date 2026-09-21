@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   addWorktree,
+  findBranchWorktreePath,
   removeWorktree,
   repoNameFromPath,
   sanitizeBranchForPath,
@@ -82,6 +83,41 @@ describe('addWorktree', () => {
     await expect(
       addWorktree('/repo', 'main', '/repo/.north/worktrees/main', { execFile })
     ).rejects.toThrow(/já está em uso em outra pasta de trabalho \(\/Users\/yan\/dev\/north\)/)
+  })
+})
+
+describe('findBranchWorktreePath', () => {
+  it('returns the worktree path that has the branch checked out', async () => {
+    const porcelain = [
+      'worktree /Users/yan/dev/north',
+      'HEAD abc123',
+      'branch refs/heads/main',
+      '',
+      'worktree /Users/yan/dev/north/.north/worktrees/feature-x',
+      'HEAD def456',
+      'branch refs/heads/feature-x',
+      ''
+    ].join('\n')
+    const execFile = vi.fn().mockResolvedValue({ stdout: porcelain, stderr: '' })
+
+    await expect(findBranchWorktreePath('/repo', 'main', { execFile })).resolves.toBe(
+      '/Users/yan/dev/north'
+    )
+    expect(execFile).toHaveBeenCalledWith('git', ['worktree', 'list', '--porcelain'], {
+      cwd: '/repo'
+    })
+  })
+
+  it('returns null when no worktree has the branch checked out', async () => {
+    const porcelain = [
+      'worktree /Users/yan/dev/north',
+      'HEAD abc123',
+      'branch refs/heads/main',
+      ''
+    ].join('\n')
+    const execFile = vi.fn().mockResolvedValue({ stdout: porcelain, stderr: '' })
+
+    await expect(findBranchWorktreePath('/repo', 'feature-x', { execFile })).resolves.toBeNull()
   })
 })
 

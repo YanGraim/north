@@ -10,6 +10,7 @@ import { BrowserWindow, dialog, ipcMain } from 'electron'
 import {
   addWorktree,
   branchExists,
+  findBranchWorktreePath,
   removeWorktree,
   repoNameFromPath,
   worktreePathFor
@@ -77,7 +78,13 @@ export function registerAgentWorkspaceHandlers(repos: Repositories): void {
   ipcMain.handle(
     IpcChannels.AGENT_WORKSPACES_CHECK_BRANCH,
     async (_event, repoPath: unknown, branch: unknown) => {
-      return branchExists(String(repoPath), String(branch))
+      const path = String(repoPath)
+      const name = String(branch)
+      const [exists, inUseAt] = await Promise.all([
+        branchExists(path, name),
+        findBranchWorktreePath(path, name)
+      ])
+      return { exists, inUseAt }
     }
   )
 

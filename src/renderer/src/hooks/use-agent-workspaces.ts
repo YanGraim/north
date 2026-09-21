@@ -2,6 +2,7 @@ import { queryKeys } from '@renderer/lib/query-keys'
 import { toastError } from '@renderer/lib/toast'
 import type {
   AgentWorkspace,
+  AgentWorkspaceBranchStatus,
   CreateAgentWorkspaceInput,
   UpdateAgentWorkspaceInput
 } from '@shared/types'
@@ -67,10 +68,10 @@ export async function pickAgentWorkspaceRepo(): Promise<string | null> {
   return window.north.agentWorkspaces.pickRepo()
 }
 
-/** True if `branch` already exists locally in `repoPath`. */
+/** Whether `branch` exists locally in `repoPath`, and if it's in use elsewhere. */
 export async function checkAgentWorkspaceBranchExists(
   repoPath: string,
   branch: string
-): Promise<boolean> {
+): Promise<AgentWorkspaceBranchStatus> {
   return window.north.agentWorkspaces.checkBranch(repoPath, branch)
 }
