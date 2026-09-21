@@ -7,3 +7,9 @@
 - **Aviso de branch em uso:** ao criar um workspace com uma branch que já está aberta em outro lugar (inclusive na pasta principal do repositório), o North avisa e mostra onde, em vez de só falhar depois de tentar
 
 Ver os capítulos [Conectar](connect) e [Agentes](agents) no manual.
+
+## Cliente API
+
+- **Comentários no JSON:** o body JSON agora aceita `//` e `/* */` — o North remove antes de enviar, então a API de destino sempre recebe JSON válido
+
+Ver o capítulo [Cliente API](api) no manual.

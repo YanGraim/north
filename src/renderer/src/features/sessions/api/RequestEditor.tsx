@@ -11,6 +11,7 @@ import { Separator } from '@renderer/components/ui/separator'
 import { useApiPresets, useCreateApiPreset } from '@renderer/hooks/use-api'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
+import { stripJsonComments } from '@shared/lib/jsonc'
 import type {
   ApiAuth,
   ApiHttpMethod,
@@ -194,7 +195,9 @@ function BodyEditor({
   function formatJsonBody(): void {
     if (body.type !== 'json') return
     try {
-      const formatted = JSON.stringify(JSON.parse(body.text), null, 2)
+      // Tolerates // and /* */ comments (JSONC) — the parsed result is plain
+      // JSON, so formatting a commented body necessarily drops the comments.
+      const formatted = JSON.stringify(JSON.parse(stripJsonComments(body.text)), null, 2)
       if (formatted === body.text) return
       onChange({ body: { type: 'json', text: formatted } })
       toastSuccess(t('api.studio.bodyFormatted'))

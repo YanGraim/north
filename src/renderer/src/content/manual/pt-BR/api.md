@@ -33,6 +33,8 @@ O corpo da resposta é limitado a 10 MB; acima disso ele é truncado. Nesse caso
 
 Com body do tipo JSON, o botão **Formatar** (acima do editor) reindenta o conteúdo colado ou digitado. O corpo da resposta e o corpo da request são editores de código completos — além do botão **Copiar** (copia tudo), dá pra selecionar qualquer trecho com o mouse e copiar só ele (⌘/Ctrl+C).
 
+O body JSON aceita comentários `//` e `/* */` (JSONC) — útil pra deixar uma nota pra você mesmo sobre um campo. O North remove os comentários automaticamente antes de enviar (a API de destino recebe JSON válido de verdade); o botão **Formatar** também os remove, já que JSON formatado não tem como preservar comentário.
+
 A busca em Collections filtra por nome, método, URL e pastas/collections. O Histórico filtra por método, URL e status. Fechar uma aba com edições não salvas pede para salvar, descartar ou ficar.
 
 ## Variáveis

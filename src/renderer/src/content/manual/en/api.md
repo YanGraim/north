@@ -33,6 +33,8 @@ The response body is capped at 10 MB; past that it's truncated. When that happen
 
 With a JSON body, the **Format** button (above the editor) re-indents pasted or typed content. Both the request and response bodies are full code editors — besides the **Copy** button (copies everything), you can select any snippet with the mouse and copy just that (⌘/Ctrl+C).
 
+The JSON body accepts `//` and `/* */` comments (JSONC) — handy for leaving yourself a note about a field. North strips comments automatically before sending (the target API receives real, valid JSON); the **Format** button strips them too, since formatted JSON can't preserve comments.
+
 Search in Collections filters by name, method, URL, and folder/collection names. History filters by method, URL, and status. Closing a tab with unsaved edits asks to save, discard, or stay.
 
 ## Variables

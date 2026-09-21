@@ -1,4 +1,5 @@
 import { interpolate, interpolateDeep } from '@shared/lib/interpolate'
+import { stripJsonComments } from '@shared/lib/jsonc'
 import type { ApiConfig, ApiKeyValue } from '@shared/types'
 import type { ApiHttpMethod, ApiRequestDefinition } from '@shared/types/api'
 
@@ -72,7 +73,9 @@ function encodeBody(
     if (!hasHeader(headers, 'content-type')) {
       headers['Content-Type'] = 'application/json'
     }
-    return body.text
+    // Editors let you leave // and /* */ notes for yourself; strip them
+    // before the wire, since the receiving server expects real JSON.
+    return stripJsonComments(body.text)
   }
   if (body.type === 'text') {
     if (!hasHeader(headers, 'content-type')) {

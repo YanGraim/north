@@ -99,6 +99,24 @@ describe('buildApiRequest', () => {
     expect(built.headers['Content-Type']).toBe('application/json')
   })
 
+  it('strips // and /* */ comments from a json body before sending', () => {
+    const built = buildApiRequest({
+      definition: {
+        ...emptyApiRequestDefinition(),
+        body: {
+          type: 'json',
+          text: '{\n  // the user id\n  "id": 1 /* required */\n}'
+        }
+      },
+      apiConfig: emptyApiConfig(),
+      baseUrl: 'https://api.example.com',
+      method: 'POST',
+      url: '/echo',
+      variables: {}
+    })
+    expect(JSON.parse(built.body as string)).toEqual({ id: 1 })
+  })
+
   it('puts apiKey in query when configured', () => {
     const built = buildApiRequest({
       definition: {
