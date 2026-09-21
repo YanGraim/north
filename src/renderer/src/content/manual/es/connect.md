@@ -24,6 +24,7 @@ En una pestaña de sesión terminal:
 - El terminal sigue la salida mientras estás al final; si subes el historial, no vuelve a saltar.
 - Haz clic en la línea de comando actual para colocar el cursor (sin usar las flechas). Arrastrar sigue seleccionando texto.
 - **⌘A** (macOS) o **Ctrl+A** (Windows/Linux) selecciona el texto escrito en la línea (no el prompt); pulsa otra vez para seleccionar todo el historial. Con la selección activa, **Backspace** / **Delete** borra ese texto; **⌘X** / **Ctrl+X** corta (copia y borra). En Mac, **Ctrl+A** sigue yendo al shell (inicio de línea).
+- El menú contextual (clic derecho) tiene **Pegar contraseña guardada** cuando la conexión tiene una contraseña o contraseña de sudo guardada — pega el secreto guardado en el vault directo en la terminal (útil para `sudo su` y similares), sin pasar nunca por el portapapeles del sistema.
 
 ## Terminal local
 

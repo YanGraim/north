@@ -46,6 +46,8 @@ export type TerminalInteraction = {
   copySelection: () => Promise<boolean>
   cutSelection: () => Promise<void>
   paste: () => Promise<void>
+  /** Injects text as if pasted, without ever touching the OS clipboard (e.g. a vault secret). */
+  pasteText: (text: string) => void
   selectAll: () => void
   clearSelection: () => void
 }
@@ -183,6 +185,8 @@ export function attachTerminalInteraction(
 
   const paste = (): Promise<void> => pasteClipboardIntoTerminal(term)
 
+  const pasteText = (text: string): void => term.paste(text)
+
   const selectAll = (): void => {
     selectLogicalLineOrAll(term)
     onSelectionChange?.(term.hasSelection())
@@ -278,6 +282,7 @@ export function attachTerminalInteraction(
     copySelection,
     cutSelection,
     paste,
+    pasteText,
     selectAll,
     clearSelection,
     dispose: () => {

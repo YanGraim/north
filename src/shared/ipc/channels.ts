@@ -59,6 +59,7 @@ export const IpcChannels = {
   VAULT_HAS_SECRET: 'vault:has-secret',
   VAULT_IS_AVAILABLE: 'vault:is-available',
   VAULT_REVEAL_SECRET: 'vault:reveal-secret',
+  VAULT_REVEAL_CONNECTION_SECRET: 'vault:reveal-connection-secret',
 
   SESSIONS_OPEN: 'sessions:open',
   SESSIONS_OPEN_ACCESS: 'sessions:open-access',

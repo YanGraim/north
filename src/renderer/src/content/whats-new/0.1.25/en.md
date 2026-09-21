@@ -6,6 +6,12 @@
 
 See the [Agents](agents) manual chapter.
 
+## Terminal
+
+- **Paste saved password:** in the terminal's right-click menu, paste the password (or sudo password) already saved for the connection directly — no OS clipboard involved, handy for `sudo su` when a normal paste fails
+
+See the [Connect](connect) manual chapter.
+
 ## Workflows
 
 - **Git tracking on workflows:** enable tracking on a workflow (server repository path) and North automatically records, on every run, which commits came in, how many files changed, and whether it succeeded or failed — without changing anything about what the workflow does

@@ -24,6 +24,7 @@ In a terminal session tab:
 - The terminal follows output while you are at the bottom; if you scroll up the history, it does not jump back.
 - Click on the current command line to place the cursor (no arrow keys needed). Dragging still selects text.
 - **⌘A** (macOS) or **Ctrl+A** (Windows/Linux) selects the typed text on the line (not the prompt); press again to select the whole scrollback. With a selection, **Backspace** / **Delete** removes that text; **⌘X** / **Ctrl+X** cuts (copy and delete). On Mac, **Ctrl+A** still goes to the shell (beginning of line).
+- The right-click menu has **Paste saved password** when the connection has a stored password or sudo password — it pastes the vault-stored secret directly into the terminal (handy for `sudo su` and similar), without ever going through the OS clipboard.
 
 ## Local terminal
 

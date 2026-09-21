@@ -44,4 +44,14 @@ export function registerVaultHandlers(vault: CredentialVault, repos: Repositorie
     }
     return vault.resolveSecret(credentialRef)
   })
+
+  ipcMain.handle(IpcChannels.VAULT_REVEAL_CONNECTION_SECRET, (_event, connectionId: unknown) => {
+    const id = IdSchema.parse(connectionId)
+    // sudo first (what "Colar senha" is usually for), fall back to the login password.
+    const entry =
+      repos.connectionSecrets.getByKind(id, 'sudo') ??
+      repos.connectionSecrets.getByKind(id, 'password')
+    if (!entry || !vault.hasSecret(entry.credentialRef)) return null
+    return vault.resolveSecret(entry.credentialRef)
+  })
 }

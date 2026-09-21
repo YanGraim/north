@@ -118,6 +118,7 @@ export function SessionView({ tab, visible }: SessionViewProps): React.JSX.Eleme
         agentBranch={tab.agentBranch}
         agentTaskNote={tab.agentTaskNote}
         isLocalShell={tab.protocol === 'agent-workspace' || tab.protocol === 'local-shell'}
+        connectionId={tab.connectionId}
       />
     )
   }

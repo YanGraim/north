@@ -254,6 +254,10 @@ export interface IpcInvokeMap {
     args: [input: RevealSecretInput]
     result: string
   }
+  [IpcChannels.VAULT_REVEAL_CONNECTION_SECRET]: {
+    args: [connectionId: string]
+    result: string | null
+  }
 
   [IpcChannels.SESSIONS_OPEN]: {
     args: [connectionId: string, requestId: string]
@@ -699,6 +703,13 @@ export interface NorthApi {
     hasSecret: (credentialRef: string) => Promise<boolean>
     isAvailable: () => Promise<boolean>
     revealSecret: (input: RevealSecretInput) => Promise<string>
+    /**
+     * Best-effort reveal of a connection's stored secret (sudo password if
+     * saved, else the login password) — null if nothing is stored. Powers
+     * "Colar senha salva" in the terminal context menu; never round-trips
+     * through the OS clipboard.
+     */
+    revealConnectionSecret: (connectionId: string) => Promise<string | null>
   }
   sessions: {
     /**

@@ -11,6 +11,7 @@ import {
   writeFollowing,
   writelnFollowing
 } from '@renderer/lib/terminal/follow-output'
+import { toastError } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 import { getXtermTheme, useResolvedTheme } from '@renderer/lib/xterm-theme'
 import { useSessionsStore } from '@renderer/stores/sessions-store'
@@ -37,6 +38,8 @@ type TerminalViewProps = {
   agentTaskNote?: string | null
   /** True for local-shell/agent-workspace sessions — gates the Claude usage poll. */
   isLocalShell?: boolean
+  /** Connection this session belongs to — enables "Colar senha salva" in the context menu. */
+  connectionId?: string | null
 }
 
 export function TerminalView({
@@ -50,7 +53,8 @@ export function TerminalView({
   agentRepoName,
   agentBranch,
   agentTaskNote,
-  isLocalShell
+  isLocalShell,
+  connectionId
 }: TerminalViewProps): React.JSX.Element {
   const { data: claudeUsage } = useClaudeUsage(sessionId, Boolean(isLocalShell))
   const containerRef = useRef<HTMLDivElement>(null)
@@ -341,6 +345,27 @@ export function TerminalView({
             if (linkUrl) void copyToClipboard(linkUrl, 'Link')
           }}
           onClearSelection={() => interactionRef.current?.clearSelection()}
+          onPasteSecret={
+            connectionId
+              ? () => {
+                  void (async () => {
+                    try {
+                      const secret = await window.north.vault.revealConnectionSecret(connectionId)
+                      if (!secret) {
+                        toastError(
+                          new Error('Nenhuma senha salva para esta conexão'),
+                          'Nenhuma senha salva para esta conexão'
+                        )
+                        return
+                      }
+                      interactionRef.current?.pasteText(secret)
+                    } catch (error) {
+                      toastError(error, 'Não foi possível colar a senha')
+                    }
+                  })()
+                }
+              : undefined
+          }
         >
           <div ref={containerRef} className="h-full min-h-[120px] w-full" />
         </TerminalContextMenu>

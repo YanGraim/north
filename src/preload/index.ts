@@ -158,7 +158,9 @@ const api: NorthApi = {
       ipcRenderer.invoke(IpcChannels.VAULT_DELETE_SECRET, credentialRef),
     hasSecret: (credentialRef) => ipcRenderer.invoke(IpcChannels.VAULT_HAS_SECRET, credentialRef),
     isAvailable: () => ipcRenderer.invoke(IpcChannels.VAULT_IS_AVAILABLE),
-    revealSecret: (input) => ipcRenderer.invoke(IpcChannels.VAULT_REVEAL_SECRET, input)
+    revealSecret: (input) => ipcRenderer.invoke(IpcChannels.VAULT_REVEAL_SECRET, input),
+    revealConnectionSecret: (connectionId) =>
+      ipcRenderer.invoke(IpcChannels.VAULT_REVEAL_CONNECTION_SECRET, connectionId)
   },
 
   sessions: {

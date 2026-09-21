@@ -12,6 +12,7 @@ import {
   terminalPasteShortcutLabel,
   terminalSelectAllShortcutLabel
 } from '@renderer/lib/terminal/clipboard'
+import { KeyRound } from 'lucide-react'
 
 type TerminalContextMenuProps = {
   children: React.ReactNode
@@ -23,6 +24,8 @@ type TerminalContextMenuProps = {
   onSelectAll: () => void
   onCopyLink: () => void
   onClearSelection: () => void
+  /** Only offered when the session belongs to a connection with a stored sudo/login password. */
+  onPasteSecret?: () => void
 }
 
 export function TerminalContextMenu({
@@ -34,7 +37,8 @@ export function TerminalContextMenu({
   onPaste,
   onSelectAll,
   onCopyLink,
-  onClearSelection
+  onClearSelection,
+  onPasteSecret
 }: TerminalContextMenuProps): React.JSX.Element {
   return (
     <ContextMenu>
@@ -52,6 +56,12 @@ export function TerminalContextMenu({
           Colar
           <ContextMenuShortcut>{terminalPasteShortcutLabel()}</ContextMenuShortcut>
         </ContextMenuItem>
+        {onPasteSecret ? (
+          <ContextMenuItem onSelect={onPasteSecret}>
+            <KeyRound className="size-3.5" aria-hidden />
+            Colar senha salva
+          </ContextMenuItem>
+        ) : null}
         <ContextMenuItem onSelect={onSelectAll}>
           Selecionar tudo
           <ContextMenuShortcut>{terminalSelectAllShortcutLabel()}</ContextMenuShortcut>

@@ -6,6 +6,12 @@
 
 Ver o capítulo [Agentes](agents) no manual.
 
+## Terminal
+
+- **Colar senha salva:** no menu de contexto do terminal, cole direto a senha (ou senha de sudo) já salva na conexão — sem depender do clipboard do sistema, útil para `sudo su` quando colar do jeito normal falha
+
+Ver o capítulo [Conectar](connect) no manual.
+
 ## Workflows
 
 - **Rastreamento Git em workflows:** ative o rastreamento num workflow (caminho do repositório no servidor) e o North passa a registrar sozinho, a cada execução, quais commits entraram, quantos arquivos mudaram e se deu certo ou falhou — sem mudar em nada o que o workflow faz

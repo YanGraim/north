@@ -6,6 +6,12 @@
 
 Ver el capítulo [Agentes](agents) en el manual.
 
+## Terminal
+
+- **Pegar contraseña guardada:** en el menú contextual de la terminal, pega directo la contraseña (o contraseña de sudo) ya guardada de la conexión — sin pasar por el portapapeles del sistema, útil para `sudo su` cuando pegar de la forma normal falla
+
+Ver el capítulo [Conectar](connect) en el manual.
+
 ## Workflows
 
 - **Rastreo Git en workflows:** activa el rastreo en un workflow (ruta del repositorio en el servidor) y North registra automáticamente, en cada ejecución, qué commits entraron, cuántos archivos cambiaron y si tuvo éxito o falló — sin cambiar en nada lo que hace el workflow
