@@ -25,6 +25,7 @@ In a terminal session tab:
 - Click on the current command line to place the cursor (no arrow keys needed). Dragging still selects text.
 - **⌘A** (macOS) or **Ctrl+A** (Windows/Linux) selects the typed text on the line (not the prompt); press again to select the whole scrollback. With a selection, **Backspace** / **Delete** removes that text; **⌘X** / **Ctrl+X** cuts (copy and delete). On Mac, **Ctrl+A** still goes to the shell (beginning of line).
 - The right-click menu has **Paste saved password** when the connection has a stored password or sudo password — it pastes the vault-stored secret directly into the terminal (handy for `sudo su` and similar), without ever going through the OS clipboard.
+- Pasting an image (⌘V/Ctrl+V with an image on the clipboard, e.g. a screenshot) saves it to a temp file and pastes the path as text — the same way iTerm2/Terminal.app do it. Handy for sending an image to agent CLIs (Claude Code and similar) running in the terminal.
 
 ## Local terminal
 

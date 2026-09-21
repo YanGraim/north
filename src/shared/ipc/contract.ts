@@ -631,6 +631,11 @@ export interface IpcInvokeMap {
     args: [limit?: number]
     result: EnvironmentUpdate[]
   }
+
+  [IpcChannels.TERMINAL_PASTE_IMAGE]: {
+    args: [bytes: Uint8Array, mimeType: string]
+    result: string
+  }
 }
 
 export type InvokeChannel = keyof IpcInvokeMap
@@ -862,5 +867,13 @@ export interface NorthApi {
     list: (environmentId: string, limit?: number) => Promise<EnvironmentUpdate[]>
     /** Global feed across every environment — powers the Dashboard widget. */
     listRecent: (limit?: number) => Promise<EnvironmentUpdate[]>
+  }
+  terminal: {
+    /**
+     * Writes a pasted clipboard image to a temp file and returns its path —
+     * a pty only accepts a byte stream, so "pasting an image" means typing
+     * its file path, same as iTerm2/Terminal.app do.
+     */
+    pasteImage: (bytes: Uint8Array, mimeType: string) => Promise<string>
   }
 }

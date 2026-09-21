@@ -183,7 +183,9 @@ export const IpcChannels = {
   AGENT_BOARD_COLUMNS_DELETE: 'agent-board-columns:delete',
 
   ENVIRONMENT_UPDATES_LIST: 'environment-updates:list',
-  ENVIRONMENT_UPDATES_LIST_RECENT: 'environment-updates:list-recent'
+  ENVIRONMENT_UPDATES_LIST_RECENT: 'environment-updates:list-recent',
+
+  TERMINAL_PASTE_IMAGE: 'terminal:paste-image'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

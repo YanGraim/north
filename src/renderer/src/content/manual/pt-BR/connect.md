@@ -25,6 +25,7 @@ Na aba de sessão terminal:
 - Clique na linha de comando atual para posicionar o cursor (sem precisar das setas). Arrastar continua selecionando texto.
 - **⌘A** (macOS) ou **Ctrl+A** (Windows/Linux) seleciona o texto digitado na linha (não o prompt); pressione de novo para selecionar todo o histórico. Com a seleção ativa, **Backspace** / **Delete** apaga esse texto; **⌘X** / **Ctrl+X** corta (copia e apaga). No Mac, **Ctrl+A** segue indo ao shell (início da linha).
 - O menu de contexto (botão direito) tem **Colar senha salva** quando a conexão tem senha ou senha de sudo salva — cola a senha guardada no vault direto no terminal (útil para `sudo su` e afins), sem passar pelo clipboard do sistema.
+- Colar uma imagem (⌘V/Ctrl+V com uma imagem copiada, por exemplo um screenshot) salva ela num arquivo temporário e cola o caminho como texto — do jeito que iTerm2/Terminal.app fazem. Útil pra mandar uma imagem pra CLIs de agente (Claude Code e similares) rodando no terminal.
 
 ## Terminal local
 

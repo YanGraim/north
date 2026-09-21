@@ -25,6 +25,7 @@ En una pestaña de sesión terminal:
 - Haz clic en la línea de comando actual para colocar el cursor (sin usar las flechas). Arrastrar sigue seleccionando texto.
 - **⌘A** (macOS) o **Ctrl+A** (Windows/Linux) selecciona el texto escrito en la línea (no el prompt); pulsa otra vez para seleccionar todo el historial. Con la selección activa, **Backspace** / **Delete** borra ese texto; **⌘X** / **Ctrl+X** corta (copia y borra). En Mac, **Ctrl+A** sigue yendo al shell (inicio de línea).
 - El menú contextual (clic derecho) tiene **Pegar contraseña guardada** cuando la conexión tiene una contraseña o contraseña de sudo guardada — pega el secreto guardado en el vault directo en la terminal (útil para `sudo su` y similares), sin pasar nunca por el portapapeles del sistema.
+- Pegar una imagen (⌘V/Ctrl+V con una imagen copiada, por ejemplo un screenshot) la guarda en un archivo temporal y pega la ruta como texto — igual que hacen iTerm2/Terminal.app. Útil para mandar una imagen a CLIs de agente (Claude Code y similares) corriendo en la terminal.
 
 ## Terminal local
 

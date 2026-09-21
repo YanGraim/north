@@ -360,6 +360,10 @@ const api: NorthApi = {
     list: (environmentId, limit) =>
       ipcRenderer.invoke(IpcChannels.ENVIRONMENT_UPDATES_LIST, environmentId, limit),
     listRecent: (limit) => ipcRenderer.invoke(IpcChannels.ENVIRONMENT_UPDATES_LIST_RECENT, limit)
+  },
+  terminal: {
+    pasteImage: (bytes, mimeType) =>
+      ipcRenderer.invoke(IpcChannels.TERMINAL_PASTE_IMAGE, bytes, mimeType)
   }
 }
 

@@ -22,6 +22,7 @@ import { registerSerialHandlers } from './serial'
 import { registerSessionHandlers } from './sessions'
 import { registerStatsHandlers } from './stats'
 import { registerTagHandlers } from './tags'
+import { registerTerminalHandlers } from './terminal'
 import { registerThemeHandlers } from './theme'
 import { registerUpdateHandlers } from './updates'
 import { registerVaultHandlers } from './vault'
@@ -79,4 +80,5 @@ export function registerIpcHandlers(): void {
   registerWorkflowHandlers(repositories, vault)
   registerAgentWorkspaceHandlers(repositories)
   registerEnvironmentUpdateHandlers(repositories)
+  registerTerminalHandlers()
 }

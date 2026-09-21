@@ -56,7 +56,37 @@ export async function readClipboardText(): Promise<string | null> {
   }
 }
 
+/** First image item on the OS clipboard, if any — a pty can't take image bytes directly. */
+export async function readClipboardImage(): Promise<{ blob: Blob; mimeType: string } | null> {
+  try {
+    const items = await navigator.clipboard.read()
+    for (const item of items) {
+      const mimeType = item.types.find((type) => type.startsWith('image/'))
+      if (mimeType) return { blob: await item.getType(mimeType), mimeType }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** Writes the image to a temp file (via main) and pastes its path as text, like iTerm2/Terminal.app do. */
+export async function pasteImageIntoTerminal(
+  term: Terminal,
+  blob: Blob,
+  mimeType: string
+): Promise<void> {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  const path = await window.north.terminal.pasteImage(bytes, mimeType)
+  term.paste(path)
+}
+
 export async function pasteClipboardIntoTerminal(term: Terminal): Promise<void> {
+  const image = await readClipboardImage()
+  if (image) {
+    await pasteImageIntoTerminal(term, image.blob, image.mimeType)
+    return
+  }
   const text = await readClipboardText()
   if (text) term.paste(text)
 }
@@ -76,6 +106,17 @@ export async function copyTerminalSelection(
 export function attachNativePasteHandler(term: Terminal, container: HTMLElement): () => void {
   const onPaste = (event: ClipboardEvent): void => {
     event.preventDefault()
+    const items = event.clipboardData?.items
+    const imageItem = items
+      ? Array.from(items).find((item) => item.type.startsWith('image/'))
+      : undefined
+    if (imageItem) {
+      const file = imageItem.getAsFile()
+      if (file) {
+        void pasteImageIntoTerminal(term, file, imageItem.type)
+        return
+      }
+    }
     const text = event.clipboardData?.getData('text/plain')
     if (text) term.paste(text)
   }
