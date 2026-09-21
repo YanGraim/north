@@ -133,6 +133,15 @@ html.light {
     -webkit-user-select: text;
   }
 
+  /* CodeMirror editors (SQL Studio, API Studio request/response) — read-only
+     instances use contenteditable="false", which the [contenteditable="true"]
+     exception above doesn't match, so selection needs its own opt-in. */
+  .cm-editor,
+  .cm-editor * {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
   .titlebar {
     -webkit-app-region: drag;
   }

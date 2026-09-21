@@ -31,6 +31,8 @@ There is no request timeout by default. Use **Cancel** on the tab bar to abort. 
 
 The response body is capped at 10 MB; past that it's truncated. When that happens, the Pretty/Raw toggle is unavailable and the hint next to it shows "truncated" (instead of "not JSON"), with the reason in the tooltip.
 
+With a JSON body, the **Format** button (above the editor) re-indents pasted or typed content. Both the request and response bodies are full code editors — besides the **Copy** button (copies everything), you can select any snippet with the mouse and copy just that (⌘/Ctrl+C).
+
 Search in Collections filters by name, method, URL, and folder/collection names. History filters by method, URL, and status. Closing a tab with unsaved edits asks to save, discard, or stay.
 
 ## Variables

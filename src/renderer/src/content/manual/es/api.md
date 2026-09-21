@@ -31,6 +31,8 @@ No hay timeout por defecto. Usa **Cancelar** en la barra de pestañas para abort
 
 El cuerpo de la respuesta está limitado a 10 MB; por encima de eso se trunca. En ese caso el interruptor Pretty/Raw queda deshabilitado y el aviso al lado muestra "truncado" (en vez de "no es JSON"), con el motivo en el tooltip.
 
+Con body de tipo JSON, el botón **Formatear** (arriba del editor) reindenta el contenido pegado o escrito. El cuerpo de la request y el de la respuesta son editores de código completos — además del botón **Copiar** (copia todo), podés seleccionar cualquier fragmento con el mouse y copiar solo eso (⌘/Ctrl+C).
+
 La búsqueda en Collections filtra por nombre, método, URL y carpetas/collections. El Historial filtra por método, URL y estado. Cerrar una pestaña con cambios sin guardar pide guardar, descartar o quedarse.
 
 ## Variables

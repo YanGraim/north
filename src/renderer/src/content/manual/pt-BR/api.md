@@ -31,6 +31,8 @@ Não há timeout por padrão. Use **Cancelar** na barra de abas para abortar. En
 
 O corpo da resposta é limitado a 10 MB; acima disso ele é truncado. Nesse caso o toggle Pretty/Raw fica indisponível e o aviso ao lado mostra "truncado" (em vez de "não é JSON"), com o motivo no tooltip.
 
+Com body do tipo JSON, o botão **Formatar** (acima do editor) reindenta o conteúdo colado ou digitado. O corpo da resposta e o corpo da request são editores de código completos — além do botão **Copiar** (copia tudo), dá pra selecionar qualquer trecho com o mouse e copiar só ele (⌘/Ctrl+C).
+
 A busca em Collections filtra por nome, método, URL e pastas/collections. O Histórico filtra por método, URL e status. Fechar uma aba com edições não salvas pede para salvar, descartar ou ficar.
 
 ## Variáveis

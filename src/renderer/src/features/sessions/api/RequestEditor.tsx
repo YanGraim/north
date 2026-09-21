@@ -9,6 +9,7 @@ import {
 } from '@renderer/components/ui/select'
 import { Separator } from '@renderer/components/ui/separator'
 import { useApiPresets, useCreateApiPreset } from '@renderer/hooks/use-api'
+import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 import type {
   ApiAuth,
@@ -17,6 +18,7 @@ import type {
   ApiPreset,
   ApiRequestDefinition
 } from '@shared/types'
+import { WandSparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { JsonEditor } from './JsonEditor'
@@ -189,40 +191,66 @@ function BodyEditor({
   const body = definition.body
   const type = body.type
 
+  function formatJsonBody(): void {
+    if (body.type !== 'json') return
+    try {
+      const formatted = JSON.stringify(JSON.parse(body.text), null, 2)
+      if (formatted === body.text) return
+      onChange({ body: { type: 'json', text: formatted } })
+      toastSuccess(t('api.studio.bodyFormatted'))
+    } catch (error) {
+      toastError(error, t('api.studio.bodyInvalidJson'))
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
-      <Select
-        value={type}
-        onValueChange={(value) => {
-          if (value === 'none') onChange({ body: { type: 'none' } })
-          else if (value === 'json')
-            onChange({ body: { type: 'json', text: body.type === 'json' ? body.text : '{}' } })
-          else if (value === 'text')
-            onChange({ body: { type: 'text', text: body.type === 'text' ? body.text : '' } })
-          else if (value === 'form-urlencoded')
-            onChange({
-              body: {
-                type: 'form-urlencoded',
-                fields: body.type === 'form-urlencoded' ? body.fields : []
-              }
-            })
-          else
-            onChange({
-              body: { type: 'multipart', fields: body.type === 'multipart' ? body.fields : [] }
-            })
-        }}
-      >
-        <SelectTrigger className="h-7 w-48 text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">{t('api.studio.bodyNone')}</SelectItem>
-          <SelectItem value="json">JSON</SelectItem>
-          <SelectItem value="text">{t('api.studio.bodyText')}</SelectItem>
-          <SelectItem value="form-urlencoded">x-www-form-urlencoded</SelectItem>
-          <SelectItem value="multipart">multipart</SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="flex items-center gap-2">
+        <Select
+          value={type}
+          onValueChange={(value) => {
+            if (value === 'none') onChange({ body: { type: 'none' } })
+            else if (value === 'json')
+              onChange({ body: { type: 'json', text: body.type === 'json' ? body.text : '{}' } })
+            else if (value === 'text')
+              onChange({ body: { type: 'text', text: body.type === 'text' ? body.text : '' } })
+            else if (value === 'form-urlencoded')
+              onChange({
+                body: {
+                  type: 'form-urlencoded',
+                  fields: body.type === 'form-urlencoded' ? body.fields : []
+                }
+              })
+            else
+              onChange({
+                body: { type: 'multipart', fields: body.type === 'multipart' ? body.fields : [] }
+              })
+          }}
+        >
+          <SelectTrigger className="h-7 w-48 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">{t('api.studio.bodyNone')}</SelectItem>
+            <SelectItem value="json">JSON</SelectItem>
+            <SelectItem value="text">{t('api.studio.bodyText')}</SelectItem>
+            <SelectItem value="form-urlencoded">x-www-form-urlencoded</SelectItem>
+            <SelectItem value="multipart">multipart</SelectItem>
+          </SelectContent>
+        </Select>
+        {body.type === 'json' ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-xs text-muted hover:text-foreground"
+            onClick={formatJsonBody}
+          >
+            <WandSparkles className="size-3.5" />
+            {t('api.studio.formatBody')}
+          </Button>
+        ) : null}
+      </div>
       {body.type === 'json' ? (
         <div className="min-h-32 flex-1 rounded-md border border-border">
           <JsonEditor
