@@ -141,6 +141,42 @@ describe('PostgresAdapter', () => {
     expect(mocks.end).toHaveBeenCalled()
   })
 
+  it('runs multiple ;-separated statements individually and aggregates affected rows', async () => {
+    const calls: string[] = []
+    mocks.query.mockImplementation(async (sql: unknown) => {
+      const text = typeof sql === 'string' ? sql : String((sql as { text?: string }).text ?? '')
+      calls.push(text)
+      return { rows: [], fields: undefined, rowCount: 1 }
+    })
+
+    const adapter = new PostgresAdapter()
+    await adapter.connect({
+      engine: 'postgres',
+      host: '127.0.0.1',
+      port: 5432,
+      database: 'app',
+      username: 'u',
+      password: 'p',
+      ssl: false,
+      filePath: null
+    })
+
+    const result = await adapter.query(
+      `UPDATE t SET a = 1 WHERE id = 1;\nUPDATE t SET a = 2 WHERE id = 2;\nUPDATE t SET a = 3 WHERE id = 3;`,
+      { maxRows: 1000, timeoutMs: 5000 }
+    )
+
+    expect(calls).toHaveLength(3)
+    expect(calls[0]).toContain('id = 1')
+    expect(calls[1]).toContain('id = 2')
+    expect(calls[2]).toContain('id = 3')
+    expect(result.columns).toEqual([])
+    expect(result.rows).toEqual([])
+    expect(result.affectedRows).toBe(3)
+
+    await adapter.dispose()
+  })
+
   it('commits and clears inTransaction', async () => {
     mocks.query.mockResolvedValue({ rows: [[1]], fields: [{ name: 'ok' }], rowCount: 1 })
 

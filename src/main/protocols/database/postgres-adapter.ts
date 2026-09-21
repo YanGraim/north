@@ -1,4 +1,5 @@
 import { normalizeCharacterMaximumLength } from '@shared/lib/sql-char-length'
+import { splitTopLevelStatements } from '@shared/lib/sql-scan'
 import type { DatabaseIntrospection, DatabaseQueryResult, DatabaseTxState } from '@shared/protocols'
 import { Client } from 'pg'
 import { serializeRow } from './serialize'
@@ -121,6 +122,47 @@ export class PostgresAdapter implements DatabaseAdapter {
   ): Promise<DatabaseQueryResult> {
     const client = this.requireClient()
     await this.ensureTransaction(client)
+
+    // `pg` switches to the simple query protocol for text containing multiple
+    // `;`-separated statements, which resolves to an array of QueryResults
+    // instead of a single one — running each statement individually keeps a
+    // predictable single-result shape and lets us aggregate affected rows.
+    const statements = splitTopLevelStatements(sql).map((span) => span.text)
+    if (statements.length <= 1) {
+      return this.runStatement(client, sql, options)
+    }
+
+    const started = Date.now()
+    let affectedRows = 0
+    let last: DatabaseQueryResult | null = null
+    for (const statement of statements) {
+      last = await this.runStatement(client, statement, options)
+      if (last.columns.length === 0 && typeof last.affectedRows === 'number') {
+        affectedRows += last.affectedRows
+      }
+    }
+    if (!last) {
+      return {
+        columns: [],
+        rows: [],
+        rowCount: 0,
+        affectedRows: 0,
+        durationMs: Date.now() - started,
+        truncated: false
+      }
+    }
+    return {
+      ...last,
+      affectedRows: last.columns.length === 0 ? affectedRows : last.affectedRows,
+      durationMs: Date.now() - started
+    }
+  }
+
+  private async runStatement(
+    client: Client,
+    sql: string,
+    options: { maxRows: number; timeoutMs: number }
+  ): Promise<DatabaseQueryResult> {
     const started = Date.now()
     const result = await withTimeout(
       client.query({ text: sql, rowMode: 'array' }),
