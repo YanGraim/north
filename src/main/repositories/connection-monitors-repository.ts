@@ -20,6 +20,7 @@ function mapMonitor(row: ConnectionMonitorRow): ConnectionMonitor {
 
 export class ConnectionMonitorsRepository {
   private readonly getStmt
+  private readonly listAllStmt
   private readonly listEnabledStmt
   private readonly upsertEnabledStmt
   private readonly updateStatusStmt
@@ -29,6 +30,10 @@ export class ConnectionMonitorsRepository {
       SELECT connection_id, enabled, last_status, last_checked_at
       FROM connection_monitors
       WHERE connection_id = ?
+    `)
+    this.listAllStmt = db.prepare(`
+      SELECT connection_id, enabled, last_status, last_checked_at
+      FROM connection_monitors
     `)
     this.listEnabledStmt = db.prepare(`
       SELECT connection_id, enabled, last_status, last_checked_at
@@ -50,6 +55,10 @@ export class ConnectionMonitorsRepository {
   get(connectionId: string): ConnectionMonitor | null {
     const row = this.getStmt.get(connectionId) as ConnectionMonitorRow | undefined
     return row ? mapMonitor(row) : null
+  }
+
+  listAll(): ConnectionMonitor[] {
+    return (this.listAllStmt.all() as ConnectionMonitorRow[]).map(mapMonitor)
   }
 
   listEnabled(): ConnectionMonitor[] {

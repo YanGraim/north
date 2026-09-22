@@ -49,7 +49,10 @@ import type {
   ApiVariablePublic,
   Client,
   Connection,
+  ConnectionHealthEvent,
+  ConnectionHealthStatus,
   ConnectionHistoryEntry,
+  ConnectionMonitor,
   ConnectionSecret,
   CopyWorkflowInput,
   CreateAccessInput,
@@ -636,6 +639,23 @@ export interface IpcInvokeMap {
     args: [bytes: Uint8Array, mimeType: string]
     result: string
   }
+
+  [IpcChannels.CONNECTION_MONITORS_LIST]: {
+    args: []
+    result: ConnectionMonitor[]
+  }
+  [IpcChannels.CONNECTION_MONITORS_SET_ENABLED]: {
+    args: [connectionId: string, enabled: boolean]
+    result: ConnectionMonitor
+  }
+  [IpcChannels.CONNECTION_HEALTH_EVENTS_LIST]: {
+    args: [connectionId: string, limit?: number]
+    result: ConnectionHealthEvent[]
+  }
+  [IpcChannels.CONNECTION_HEALTH_EVENTS_LIST_RECENT]: {
+    args: [limit?: number]
+    result: ConnectionHealthEvent[]
+  }
 }
 
 export type InvokeChannel = keyof IpcInvokeMap
@@ -875,5 +895,18 @@ export interface NorthApi {
      * its file path, same as iTerm2/Terminal.app do.
      */
     pasteImage: (bytes: Uint8Array, mimeType: string) => Promise<string>
+  }
+  connectionMonitors: {
+    /** Every connection with monitoring configured — enabled or not. */
+    list: () => Promise<ConnectionMonitor[]>
+    setEnabled: (connectionId: string, enabled: boolean) => Promise<ConnectionMonitor>
+    /** Status-transition history for one connection, newest first. */
+    listEvents: (connectionId: string, limit?: number) => Promise<ConnectionHealthEvent[]>
+    /** Global transition feed across every connection — powers the Dashboard widget. */
+    listRecentEvents: (limit?: number) => Promise<ConnectionHealthEvent[]>
+    /** Live push on every status transition, so the UI dot updates without polling. */
+    onHealthChanged: (
+      listener: (change: { connectionId: string; status: ConnectionHealthStatus }) => void
+    ) => () => void
   }
 }

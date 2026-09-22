@@ -9,6 +9,7 @@ import { registerAccessHandlers } from './accesses'
 import { registerAgentWorkspaceHandlers } from './agent-workspaces'
 import { registerApiHandlers } from './api'
 import { registerClientHandlers } from './clients'
+import { registerConnectionHealthHandlers } from './connection-health'
 import { registerConnectionHandlers } from './connections'
 import { registerDatabaseHandlers } from './db'
 import { registerEnvironmentUpdateHandlers } from './environment-updates'
@@ -81,4 +82,5 @@ export function registerIpcHandlers(): void {
   registerAgentWorkspaceHandlers(repositories)
   registerEnvironmentUpdateHandlers(repositories)
   registerTerminalHandlers()
+  registerConnectionHealthHandlers(repositories)
 }

@@ -11,7 +11,7 @@ import type {
   SessionPortMessage,
   TransferProgress
 } from '@shared/protocols'
-import type { AppIdentity, UpdateStatus } from '@shared/types'
+import type { AppIdentity, ConnectionHealthStatus, UpdateStatus } from '@shared/types'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 function waitForSessionPort(requestId: string, onPort: (port: MessagePort) => void): Promise<void> {
@@ -364,6 +364,25 @@ const api: NorthApi = {
   terminal: {
     pasteImage: (bytes, mimeType) =>
       ipcRenderer.invoke(IpcChannels.TERMINAL_PASTE_IMAGE, bytes, mimeType)
+  },
+  connectionMonitors: {
+    list: () => ipcRenderer.invoke(IpcChannels.CONNECTION_MONITORS_LIST),
+    setEnabled: (connectionId, enabled) =>
+      ipcRenderer.invoke(IpcChannels.CONNECTION_MONITORS_SET_ENABLED, connectionId, enabled),
+    listEvents: (connectionId, limit) =>
+      ipcRenderer.invoke(IpcChannels.CONNECTION_HEALTH_EVENTS_LIST, connectionId, limit),
+    listRecentEvents: (limit) =>
+      ipcRenderer.invoke(IpcChannels.CONNECTION_HEALTH_EVENTS_LIST_RECENT, limit),
+    onHealthChanged: (listener) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        change: { connectionId: string; status: ConnectionHealthStatus }
+      ): void => {
+        listener(change)
+      }
+      ipcRenderer.on(IpcChannels.CONNECTION_HEALTH_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.CONNECTION_HEALTH_CHANGED, handler)
+    }
   }
 }
 

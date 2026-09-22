@@ -185,7 +185,13 @@ export const IpcChannels = {
   ENVIRONMENT_UPDATES_LIST: 'environment-updates:list',
   ENVIRONMENT_UPDATES_LIST_RECENT: 'environment-updates:list-recent',
 
-  TERMINAL_PASTE_IMAGE: 'terminal:paste-image'
+  TERMINAL_PASTE_IMAGE: 'terminal:paste-image',
+
+  CONNECTION_MONITORS_LIST: 'connection-monitors:list',
+  CONNECTION_MONITORS_SET_ENABLED: 'connection-monitors:set-enabled',
+  CONNECTION_HEALTH_EVENTS_LIST: 'connection-health-events:list',
+  CONNECTION_HEALTH_EVENTS_LIST_RECENT: 'connection-health-events:list-recent',
+  CONNECTION_HEALTH_CHANGED: 'connection-health:changed'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]
