@@ -9,6 +9,7 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Skeleton } from '@renderer/components/ui/skeleton'
+import { ConnectionHealthWidget } from '@renderer/features/dashboard/ConnectionHealthWidget'
 import { RecentUpdatesWidget } from '@renderer/features/dashboard/RecentUpdatesWidget'
 import { useAccesses } from '@renderer/hooks/use-accesses'
 import { formatRelativeDate } from '@renderer/lib/connection-ui'
@@ -176,6 +177,7 @@ export function DashboardPage(): React.JSX.Element {
             </div>
 
             <RecentUpdatesWidget />
+            <ConnectionHealthWidget />
           </div>
         ) : null}
       </div>

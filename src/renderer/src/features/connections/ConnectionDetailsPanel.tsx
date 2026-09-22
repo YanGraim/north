@@ -15,6 +15,7 @@ import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Separator } from '@renderer/components/ui/separator'
 import { Skeleton } from '@renderer/components/ui/skeleton'
 import { ConnectionContextMenu } from '@renderer/features/connections/ConnectionContextMenu'
+import { ConnectionHealthSection } from '@renderer/features/connections/ConnectionHealthSection'
 import { DetailField, DetailSection } from '@renderer/features/connections/DetailSection'
 import { MarkdownNotes } from '@renderer/features/connections/MarkdownNotes'
 import { TagBadges } from '@renderer/features/connections/TagBadges'
@@ -438,6 +439,10 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
               />
 
               <EnvironmentUpdatesSection environmentId={org.environment?.id ?? null} />
+
+              <Separator />
+
+              <ConnectionHealthSection connectionId={connection.id} />
 
               <Separator />
 

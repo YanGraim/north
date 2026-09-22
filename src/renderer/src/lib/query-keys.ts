@@ -75,5 +75,10 @@ export const queryKeys = {
   environmentUpdates: {
     list: (environmentId: string) => ['environment-updates', environmentId] as const,
     recent: () => ['environment-updates', 'recent'] as const
+  },
+  connectionMonitors: {
+    list: () => ['connection-monitors'] as const,
+    events: (connectionId: string) => ['connection-health-events', connectionId] as const,
+    recentEvents: () => ['connection-health-events', 'recent'] as const
   }
 }
