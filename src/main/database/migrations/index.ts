@@ -13,6 +13,7 @@ import { migration011ApiPresets } from './011-api-presets'
 import { migration012AgentWorkspaces } from './012-agent-workspaces'
 import { migration013EnvironmentUpdates } from './013-environment-updates'
 import { migration014ApiRequestDescription } from './014-api-request-description'
+import { migration015ConnectionHealth } from './015-connection-health'
 
 /** Ordered list of schema migrations. Append new ones; never reorder or reuse versions. */
 export const migrations: Migration[] = [
@@ -29,5 +30,6 @@ export const migrations: Migration[] = [
   migration011ApiPresets,
   migration012AgentWorkspaces,
   migration013EnvironmentUpdates,
-  migration014ApiRequestDescription
+  migration014ApiRequestDescription,
+  migration015ConnectionHealth
 ]

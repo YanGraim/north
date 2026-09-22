@@ -8,6 +8,8 @@ import { ApiRequestHistoryRepository } from './api-request-history-repository'
 import { ApiRequestsRepository } from './api-requests-repository'
 import { ApiVariablesRepository } from './api-variables-repository'
 import { ClientsRepository } from './clients-repository'
+import { ConnectionHealthEventsRepository } from './connection-health-events-repository'
+import { ConnectionMonitorsRepository } from './connection-monitors-repository'
 import { ConnectionSecretsRepository } from './connection-secrets-repository'
 import { ConnectionsRepository } from './connections-repository'
 import { CredentialsRepository } from './credentials-repository'
@@ -43,6 +45,8 @@ export type Repositories = {
   apiVariables: ApiVariablesRepository
   apiRequestHistory: ApiRequestHistoryRepository
   apiPresets: ApiPresetsRepository
+  connectionMonitors: ConnectionMonitorsRepository
+  connectionHealthEvents: ConnectionHealthEventsRepository
 }
 
 export function createRepositories(db: SqliteDatabase): Repositories {
@@ -67,7 +71,9 @@ export function createRepositories(db: SqliteDatabase): Repositories {
     apiRequests: new ApiRequestsRepository(db),
     apiVariables: new ApiVariablesRepository(db),
     apiRequestHistory: new ApiRequestHistoryRepository(db),
-    apiPresets: new ApiPresetsRepository(db)
+    apiPresets: new ApiPresetsRepository(db),
+    connectionMonitors: new ConnectionMonitorsRepository(db),
+    connectionHealthEvents: new ConnectionHealthEventsRepository(db)
   }
 }
 
@@ -81,6 +87,8 @@ export {
   ApiRequestsRepository,
   ApiVariablesRepository,
   ClientsRepository,
+  ConnectionHealthEventsRepository,
+  ConnectionMonitorsRepository,
   ConnectionSecretsRepository,
   ConnectionsRepository,
   CredentialsRepository,

@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(14)
+    expect(getUserVersion(db)).toBe(15)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -44,7 +44,9 @@ describe('migrations', () => {
         'api_presets',
         'agent_workspaces',
         'agent_board_columns',
-        'environment_updates'
+        'environment_updates',
+        'connection_monitors',
+        'connection_health_events'
       ])
     )
   })
@@ -53,7 +55,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(14)
+    expect(getUserVersion(db)).toBe(15)
   })
 
   it('adds color column to environments from 005', () => {
@@ -253,6 +255,33 @@ describe('migrations', () => {
         'status',
         'commits',
         'files_changed'
+      ])
+    )
+  })
+
+  it('creates connection_monitors and connection_health_events tables from 015', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+
+    const monitorColumns = db.prepare(`PRAGMA table_info(connection_monitors)`).all() as Array<{
+      name: string
+    }>
+    expect(monitorColumns.map((c) => c.name)).toEqual(
+      expect.arrayContaining(['connection_id', 'enabled', 'last_status', 'last_checked_at'])
+    )
+
+    const eventColumns = db.prepare(`PRAGMA table_info(connection_health_events)`).all() as Array<{
+      name: string
+    }>
+    expect(eventColumns.map((c) => c.name)).toEqual(
+      expect.arrayContaining([
+        'id',
+        'connection_id',
+        'previous_status',
+        'new_status',
+        'occurred_at',
+        'latency_ms',
+        'error_message'
       ])
     )
   })

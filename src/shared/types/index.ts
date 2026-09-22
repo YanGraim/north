@@ -118,6 +118,14 @@ export {
   UpdateConnectionInputSchema
 } from './connection'
 export {
+  type ConnectionHealthEvent,
+  ConnectionHealthEventSchema,
+  type ConnectionHealthStatus,
+  ConnectionHealthStatusSchema,
+  type ConnectionMonitor,
+  ConnectionMonitorSchema
+} from './connection-health'
+export {
   type CreateEnvironmentInput,
   CreateEnvironmentInputSchema,
   type Environment,
