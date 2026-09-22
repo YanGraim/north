@@ -73,7 +73,11 @@ export function ConnectionHealthWidget(): React.JSX.Element | null {
                 {connectionNames.get(event.connectionId) ?? 'Conexão'}
               </span>
               <span className="ml-auto shrink-0 text-muted">
-                {event.newStatus === 'up' ? 'voltou ao ar' : 'ficou indisponível'}
+                {event.newStatus === 'up'
+                  ? event.previousStatus === null
+                    ? 'está no ar'
+                    : 'voltou ao ar'
+                  : 'ficou indisponível'}
               </span>
             </li>
           ))}

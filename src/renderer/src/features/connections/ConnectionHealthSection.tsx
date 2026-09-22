@@ -65,7 +65,11 @@ export function ConnectionHealthSection({
               )}
               <span className="text-muted">{formatRelativeDate(event.occurredAt)}</span>
               <span className="text-foreground">
-                {event.newStatus === 'up' ? 'voltou ao ar' : 'ficou indisponível'}
+                {event.newStatus === 'up'
+                  ? event.previousStatus === null
+                    ? 'está no ar'
+                    : 'voltou ao ar'
+                  : 'ficou indisponível'}
               </span>
               {event.errorMessage ? (
                 <span className="truncate text-muted">— {event.errorMessage}</span>
