@@ -54,7 +54,6 @@ export function Sidebar(): React.JSX.Element {
             expanded={overviewExpanded}
             onExpandedChange={setSidebarOverviewExpanded}
           >
-            <LocalTerminalNavItem label={t('nav.localTerminal')} collapsed={collapsed} />
             <NavItem
               to="/dashboard"
               label={t('nav.dashboard')}
@@ -84,6 +83,7 @@ export function Sidebar(): React.JSX.Element {
               collapsed={collapsed}
               plain={collapsed}
             />
+            <LocalTerminalNavItem label={t('nav.localTerminal')} collapsed={collapsed} />
           </SidebarSection>
 
           <div
