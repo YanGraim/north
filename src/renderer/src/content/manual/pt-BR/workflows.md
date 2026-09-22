@@ -22,6 +22,17 @@ A execução abre uma **aba de run** com timeline, progresso e log por passo. A 
 
 Senhas e chaves ficam na **bolsa de secrets da conexão**, nunca na definition do workflow nem nas variáveis do grupo. O North pode pedir e oferecer salvar no vault quando o passo precisar autenticar.
 
+## Inputs (parâmetros pedidos antes de executar)
+
+Um workflow pode pedir valores no momento do run — por exemplo, qual **tag** fazer deploy. No editor, seção **Inputs**, cada input tem chave, rótulo, tipo (texto, lista/dropdown, sim-não) e se é obrigatório; no comando, referencie o valor como `{{chave}}`.
+
+Pra dropdown de lista, as opções podem vir de duas origens:
+
+- **Opções fixas**: uma lista digitada manualmente (`rótulo=valor` por linha).
+- **Tags do Git (ao vivo)**: em vez de digitar as tags, o North roda `git fetch --tags` no caminho do repositório informado (pela mesma conexão SSH) e monta o dropdown com as tags reais do servidor no momento de executar — sem risco de digitar a tag errada.
+
+O botão **Deploy por tag (Git)**, ao lado de "Adicionar input", cria de uma vez um input pronto pra esse caso mais comum (chave `tag`, obrigatório, origem = Tags do Git, caminho pré-preenchido a partir do Rastreamento Git se já estiver configurado abaixo).
+
 ## Rastreamento Git (opcional)
 
 Um workflow pode ativar **rastreamento Git**: ao ligar essa opção no editor e informar o caminho de um repositório no servidor (ex.: `/var/www/html/wms-api`), o North captura o commit atual antes de rodar e de novo depois. Se o commit mudou, ele registra automaticamente quais commits entraram, quantos arquivos foram alterados e se a execução teve sucesso ou falhou — sem mudar em nada o que o workflow faz.

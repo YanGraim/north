@@ -590,6 +590,7 @@ export function CommandPalette(): React.JSX.Element {
       {pendingWorkflow && selectedConnection ? (
         <WorkflowInputsDialog
           workflow={pendingWorkflow}
+          connectionId={selectedConnection.id}
           open={Boolean(pendingWorkflow)}
           onOpenChange={(open) => {
             if (!open) setPendingWorkflow(null)

@@ -486,6 +486,7 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
       {pendingWorkflow ? (
         <WorkflowInputsDialog
           workflow={pendingWorkflow}
+          connectionId={connection.id}
           open={Boolean(pendingWorkflow)}
           onOpenChange={(open) => {
             if (!open) setPendingWorkflow(null)

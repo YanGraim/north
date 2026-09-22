@@ -28,6 +28,7 @@ import {
   parseAuthHints,
   type Workflow,
   type WorkflowDefinition,
+  type WorkflowInput,
   type WorkflowStep
 } from '@shared/types'
 import {
@@ -42,6 +43,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { WorkflowGroupTargetsPicker } from './WorkflowGroupTargetsPicker'
+import { WorkflowInputsEditor } from './WorkflowInputsEditor'
 
 type WorkflowHubDialogProps = {
   groupId: string
@@ -94,6 +96,7 @@ function editorFieldsFromWorkflow(workflow: Workflow): {
   trackingEnabled: boolean
   trackingRepositoryPath: string
   trackingBranch: string
+  inputs: WorkflowInput[]
 } {
   const steps: EditableStep[] = []
   for (const step of workflow.definition.steps) {
@@ -116,7 +119,8 @@ function editorFieldsFromWorkflow(workflow: Workflow): {
     steps: steps.length > 0 ? steps : [createDefaultStep()],
     trackingEnabled: Boolean(tracking),
     trackingRepositoryPath: tracking?.repositoryPath ?? '',
-    trackingBranch: tracking?.branch ?? ''
+    trackingBranch: tracking?.branch ?? '',
+    inputs: workflow.definition.inputs
   }
 }
 
@@ -202,6 +206,7 @@ export function WorkflowHubDialog({
   const [trackingEnabled, setTrackingEnabled] = useState(false)
   const [trackingRepositoryPath, setTrackingRepositoryPath] = useState('')
   const [trackingBranch, setTrackingBranch] = useState('')
+  const [inputs, setInputs] = useState<WorkflowInput[]>([])
   const [activeStepId, setActiveStepId] = useState<string | null>(null)
   const [alsoCreateInGroupIds, setAlsoCreateInGroupIds] = useState<string[]>([])
   const [copyPanelOpen, setCopyPanelOpen] = useState(false)
@@ -222,6 +227,7 @@ export function WorkflowHubDialog({
     trackingEnabled: boolean
     trackingRepositoryPath: string
     trackingBranch: string
+    inputs: WorkflowInput[]
   }): void {
     setName(fields.name)
     setSteps(fields.steps)
@@ -229,6 +235,7 @@ export function WorkflowHubDialog({
     setTrackingEnabled(fields.trackingEnabled)
     setTrackingRepositoryPath(fields.trackingRepositoryPath)
     setTrackingBranch(fields.trackingBranch)
+    setInputs(fields.inputs)
   }
 
   function resetCreateEditor(): void {
@@ -244,6 +251,7 @@ export function WorkflowHubDialog({
     setTrackingEnabled(false)
     setTrackingRepositoryPath('')
     setTrackingBranch('')
+    setInputs([])
   }
 
   function changeViewMode(next: ViewMode): void {
@@ -382,6 +390,13 @@ export function WorkflowHubDialog({
     })
   }
 
+  function applyInputs(definition: WorkflowDefinition): WorkflowDefinition {
+    definition.inputs = inputs
+      .filter((input) => input.key.trim() && input.label.trim())
+      .map((input) => ({ ...input, key: input.key.trim(), label: input.label.trim() }))
+    return definition
+  }
+
   function applyTracking(definition: WorkflowDefinition): WorkflowDefinition {
     const path = trackingRepositoryPath.trim()
     definition.tracking =
@@ -402,10 +417,10 @@ export function WorkflowHubDialog({
           name: first.name.trim() || 'Exec'
         }
       ])
-      return applyTracking(definition)
+      return applyInputs(applyTracking(definition))
     }
     definition.steps = toDefinitionSteps(steps)
-    return applyTracking(definition)
+    return applyInputs(applyTracking(definition))
   }
 
   async function handleSave(): Promise<void> {
@@ -696,6 +711,12 @@ export function WorkflowHubDialog({
                       </div>
                     ) : null}
                   </fieldset>
+
+                  <WorkflowInputsEditor
+                    inputs={inputs}
+                    onChange={setInputs}
+                    suggestedRepositoryPath={trackingRepositoryPath}
+                  />
 
                   {viewMode === 'classic' && classicStep ? (
                     <>

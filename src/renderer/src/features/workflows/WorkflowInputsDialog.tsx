@@ -16,11 +16,15 @@ import {
   SelectTrigger,
   SelectValue
 } from '@renderer/components/ui/select'
-import type { Workflow } from '@shared/types'
-import { useState } from 'react'
+import { toastError } from '@renderer/lib/toast'
+import type { Workflow, WorkflowInput } from '@shared/types'
+import { Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 type WorkflowInputsDialogProps = {
   workflow: Workflow
+  /** Connection the workflow will run on — needed to fetch live git-tag options. */
+  connectionId: string
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: (values: Record<string, string | boolean>) => Promise<void>
@@ -28,6 +32,7 @@ type WorkflowInputsDialogProps = {
 
 export function WorkflowInputsDialog({
   workflow,
+  connectionId,
   open,
   onOpenChange,
   onConfirm
@@ -46,6 +51,36 @@ export function WorkflowInputsDialog({
     return initial
   })
   const [submitting, setSubmitting] = useState(false)
+  const [liveOptions, setLiveOptions] = useState<Record<string, WorkflowInput['options']>>({})
+  const [loadingTags, setLoadingTags] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!open) return
+    for (const input of workflow.definition.inputs) {
+      if (input.type !== 'select' || !input.gitTagsSource) continue
+      const repositoryPath = input.gitTagsSource.repositoryPath
+      setLoadingTags((prev) => new Set(prev).add(input.key))
+      window.north.workflows
+        .listGitTags(connectionId, repositoryPath)
+        .then((tags) => {
+          setLiveOptions((prev) => ({
+            ...prev,
+            [input.key]: tags.map((tag) => ({ label: tag, value: tag }))
+          }))
+        })
+        .catch((error) => {
+          toastError(error, `Não foi possível listar as tags de "${input.label}"`)
+        })
+        .finally(() => {
+          setLoadingTags((prev) => {
+            const next = new Set(prev)
+            next.delete(input.key)
+            return next
+          })
+        })
+    }
+    // Only re-fetch when the dialog (re)opens for a given workflow/connection.
+  }, [open, workflow.id, connectionId])
 
   async function handleSubmit(): Promise<void> {
     for (const input of workflow.definition.inputs) {
@@ -79,21 +114,36 @@ export function WorkflowInputsDialog({
                 {input.required ? ' *' : ''}
               </Label>
               {input.type === 'select' ? (
-                <Select
-                  value={String(values[input.key] ?? '')}
-                  onValueChange={(v) => setValues((prev) => ({ ...prev, [input.key]: v }))}
-                >
-                  <SelectTrigger id={`wf-input-${input.key}`}>
-                    <SelectValue placeholder="Selecione…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(input.options ?? []).map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-1">
+                  <Select
+                    value={String(values[input.key] ?? '')}
+                    onValueChange={(v) => setValues((prev) => ({ ...prev, [input.key]: v }))}
+                    disabled={loadingTags.has(input.key)}
+                  >
+                    <SelectTrigger id={`wf-input-${input.key}`}>
+                      <SelectValue
+                        placeholder={loadingTags.has(input.key) ? 'Buscando tags…' : 'Selecione…'}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {((input.gitTagsSource ? liveOptions[input.key] : input.options) ?? []).map(
+                        (opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {loadingTags.has(input.key) ? (
+                    <p className="flex items-center gap-1.5 text-xs text-muted">
+                      <Loader2 className="size-3 animate-spin" />
+                      Rodando git fetch --tags no servidor…
+                    </p>
+                  ) : input.gitTagsSource && (liveOptions[input.key]?.length ?? 0) === 0 ? (
+                    <p className="text-xs text-muted">Nenhuma tag encontrada nesse repositório.</p>
+                  ) : null}
+                </div>
               ) : input.type === 'boolean' ? (
                 <label className="flex items-center gap-2 text-sm">
                   <input

@@ -1,3 +1,4 @@
+import { shellQuote } from '@shared/lib/shell-quote'
 import type { EnvironmentUpdateCommit, WorkflowTracking } from '@shared/types'
 import type { RemoteExecSession } from './remote-exec-service'
 
@@ -31,10 +32,7 @@ export class GitTrackingService {
       const commit = await runGit(exec, tracking.repositoryPath, ['rev-parse', 'HEAD'])
       if (!commit) return null
 
-      const branch =
-        tracking.branch ??
-        (await runGit(exec, tracking.repositoryPath, ['branch', '--show-current'])) ??
-        ''
+      const branch = await resolveBranchLabel(exec, tracking)
 
       return { commit, branch }
     } catch (error) {
@@ -71,6 +69,22 @@ export class GitTrackingService {
   }
 }
 
+/**
+ * `tracking.branch` if set; else whatever branch is checked out; else — for
+ * a detached HEAD from `git checkout <tag>` (a tag-pinned deploy) — the tag
+ * itself via `git describe`, so the snapshot never falls back to blank.
+ */
+async function resolveBranchLabel(
+  exec: RemoteExecSession,
+  tracking: WorkflowTracking
+): Promise<string> {
+  if (tracking.branch) return tracking.branch
+  const currentBranch = await runGit(exec, tracking.repositoryPath, ['branch', '--show-current'])
+  if (currentBranch) return currentBranch
+  const tag = await runGit(exec, tracking.repositoryPath, ['describe', '--tags', '--exact-match'])
+  return tag ?? ''
+}
+
 async function runGit(
   exec: RemoteExecSession,
   repositoryPath: string,
@@ -104,10 +118,6 @@ function countNonEmptyLines(output: string): number {
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean).length
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, "'\\''")}'`
 }
 
 function warn(message: string, error: unknown): void {

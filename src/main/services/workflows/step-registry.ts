@@ -1,4 +1,8 @@
-import { type InterpolateContext, interpolateDeep } from '@shared/lib/interpolate'
+import {
+  type InterpolateContext,
+  interpolateDeep,
+  interpolateShellSafe
+} from '@shared/lib/interpolate'
 import {
   parseAuthHints,
   type StepPolicy,
@@ -111,9 +115,15 @@ const sshExecHandler: StepTypeHandler = {
   type: 'ssh.exec',
   resolve(step, ctx) {
     const resolvedConfig = interpolateDeep(step.config, ctx)
-    const cfg = asRecord(resolvedConfig)
-    const command = String(cfg.command ?? '')
-    const cwd = cfg.cwd ? String(cfg.cwd) : undefined
+    // command/cwd are rebuilt from the raw template with interpolateShellSafe
+    // (not interpolateDeep above) so a substituted value — a tag name, a
+    // group variable — can never inject extra shell syntax into the command
+    // that actually runs; only the {{...}} substitutions are quoted, the
+    // literal shell syntax the workflow author wrote (&&, pipes, flags)
+    // stays untouched.
+    const rawCfg = asRecord(step.config)
+    const command = interpolateShellSafe(String(rawCfg.command ?? ''), ctx)
+    const cwd = rawCfg.cwd ? interpolateShellSafe(String(rawCfg.cwd), ctx) : undefined
     const planned = cwd ? `cd ${cwd} && ${command}` : command
     return { step, resolvedConfig, policy: defaultPolicy(step), plannedAction: planned }
   },

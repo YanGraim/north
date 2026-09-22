@@ -22,6 +22,17 @@ Execution opens a **run tab** with timeline, progress and per-step log. The bar 
 
 Passwords and keys live in the connection **secrets bag**, never in the workflow definition or group variables. North may prompt and offer to save to the vault when a step needs authentication.
 
+## Inputs (parameters requested before running)
+
+A workflow can ask for values at run time — for example, which **tag** to deploy. In the editor, under **Inputs**, each input has a key, label, type (text, list/dropdown, yes-no) and whether it's required; reference the value in the command as `{{key}}`.
+
+For a dropdown-type input, the options can come from two sources:
+
+- **Fixed options**: a manually typed list (`label=value` per line).
+- **Git tags (live)**: instead of typing the tags, North runs `git fetch --tags` at the given repository path (over the same SSH connection) and builds the dropdown from the server's real tags at run time — no risk of typing the wrong tag.
+
+The **Deploy by tag (Git)** button, next to "Add input", creates a ready-made input for this common case in one click (key `tag`, required, source = Git tags, path pre-filled from Git tracking if already set below).
+
 ## Git tracking (optional)
 
 A workflow can enable **Git tracking**: toggle it on in the editor and give it a repository path on the server (e.g. `/var/www/html/wms-api`), and North captures the current commit before running and again after. If the commit changed, it automatically records which commits came in, how many files changed, and whether the run succeeded or failed — without changing anything about what the workflow does.

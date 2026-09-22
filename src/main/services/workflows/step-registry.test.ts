@@ -26,8 +26,22 @@ describe('StepPolicy / step registry', () => {
       config: { command: 'ls {{DIR}}', cwd: '{{ROOT}}' }
     }
     const resolved = defaultStepRegistry.resolve(step, { DIR: 'app', ROOT: '/var/www' })
-    expect(resolved.plannedAction).toBe('cd /var/www && ls app')
+    // Interpolated values are shell-quoted (interpolateShellSafe) — only the
+    // literal template text (`cd `, ` && ls `) stays unquoted.
+    expect(resolved.plannedAction).toBe("cd '/var/www' && ls 'app'")
     expect(resolved.policy.timeoutMs).toBe(5000)
+  })
+
+  it('shell-quotes an interpolated value so it cannot inject extra shell syntax', () => {
+    const step: WorkflowStep = {
+      id: '1',
+      type: 'ssh.exec',
+      name: 'Deploy',
+      policy: { onFailure: 'stop', timeoutMs: 5000 },
+      config: { command: 'git checkout {{TAG}}' }
+    }
+    const resolved = defaultStepRegistry.resolve(step, { TAG: '$(rm -rf /); echo pwned' })
+    expect(resolved.plannedAction).toBe("git checkout '$(rm -rf /); echo pwned'")
   })
 
   it('dry-run ssh.exec skips exec and logs planned command', async () => {

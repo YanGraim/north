@@ -160,6 +160,7 @@ export function WorkflowSection({
       {pendingWorkflow ? (
         <WorkflowInputsDialog
           workflow={pendingWorkflow}
+          connectionId={connectionId}
           open={Boolean(pendingWorkflow)}
           onOpenChange={(open) => {
             if (!open) setPendingWorkflow(null)

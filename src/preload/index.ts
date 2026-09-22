@@ -299,6 +299,8 @@ const api: NorthApi = {
       ipcRenderer.invoke(IpcChannels.WORKFLOWS_SET_CONNECTION_SECRET, input),
     deleteConnectionSecret: (connectionId, kind) =>
       ipcRenderer.invoke(IpcChannels.WORKFLOWS_DELETE_CONNECTION_SECRET, connectionId, kind),
+    listGitTags: (connectionId, repositoryPath) =>
+      ipcRenderer.invoke(IpcChannels.WORKFLOWS_LIST_GIT_TAGS, connectionId, repositoryPath),
     onRunEvent: (listener) => {
       const handler = (
         _event: Electron.IpcRendererEvent,

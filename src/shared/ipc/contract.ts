@@ -474,6 +474,10 @@ export interface IpcInvokeMap {
     args: [connectionId: string, kind: string]
     result: undefined
   }
+  [IpcChannels.WORKFLOWS_LIST_GIT_TAGS]: {
+    args: [connectionId: string, repositoryPath: string]
+    result: string[]
+  }
 
   [IpcChannels.API_SEND]: {
     args: [input: ApiSendInput]
@@ -828,6 +832,8 @@ export interface NorthApi {
     listConnectionSecrets: (connectionId: string) => Promise<ConnectionSecret[]>
     setConnectionSecret: (input: SetConnectionSecretInput) => Promise<ConnectionSecret>
     deleteConnectionSecret: (connectionId: string, kind: string) => Promise<void>
+    /** Ad-hoc `git fetch --tags` + list on the connection's host — powers a select input's live tag dropdown. */
+    listGitTags: (connectionId: string, repositoryPath: string) => Promise<string[]>
     onRunEvent: (
       listener: (payload: { runId: string; event: WorkflowRunEvent }) => void
     ) => () => void

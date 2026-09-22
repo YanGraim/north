@@ -11,6 +11,7 @@ import type { BrowserWindow } from 'electron'
 import { BrowserWindow as BW } from 'electron'
 import type { Repositories } from '../../repositories'
 import type { CredentialVault } from '../../vault'
+import { listGitTags as listGitTagsOnRemote } from './list-git-tags-service'
 import { remoteExecService } from './remote-exec-service'
 import { WorkflowEngine } from './workflow-engine'
 
@@ -37,6 +38,27 @@ export class WorkflowService {
 
   getWorkflow(id: string) {
     return this.repos.workflows.get(id)
+  }
+
+  /**
+   * Ad-hoc, one-shot `git fetch --tags` + list on the connection's host —
+   * not a workflow run, just powers a select input's live tag dropdown in
+   * the run-parameters dialog before the actual run starts.
+   */
+  async listGitTags(connectionId: string, repositoryPath: string): Promise<string[]> {
+    const connection = this.repos.connections.get(connectionId)
+    if (!connection) throw new Error('Conexão não encontrada')
+
+    const session = await remoteExecService.openSession({
+      connection,
+      resolveSecret: async (ref) => this.vault.resolveSecret(ref),
+      verifyHostKey: async () => true
+    })
+    try {
+      return await listGitTagsOnRemote(session, repositoryPath)
+    } finally {
+      await session.dispose()
+    }
   }
 
   createWorkflow(...args: Parameters<Repositories['workflows']['create']>) {

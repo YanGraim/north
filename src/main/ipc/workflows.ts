@@ -136,4 +136,14 @@ export function registerWorkflowHandlers(repos: Repositories, vault: CredentialV
       return service.deleteConnectionSecret(IdSchema.parse(connectionId), KindSchema.parse(kind))
     }
   )
+
+  ipcMain.handle(
+    IpcChannels.WORKFLOWS_LIST_GIT_TAGS,
+    (_e, connectionId: unknown, repositoryPath: unknown) => {
+      return service.listGitTags(
+        IdSchema.parse(connectionId),
+        z.string().min(1).parse(repositoryPath)
+      )
+    }
+  )
 }

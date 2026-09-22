@@ -2,6 +2,7 @@
  * Variable interpolation for workflows and the API client.
  * Syntax: {{KEY}} (literal substitution only).
  */
+import { shellQuote } from './shell-quote'
 
 const PLACEHOLDER = /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g
 
@@ -27,6 +28,23 @@ export function interpolate(template: string, ctx: InterpolateContext): string {
   return template.replace(PLACEHOLDER, (_match, key: string) => {
     if (Object.hasOwn(ctx, key)) {
       return ctx[key] ?? ''
+    }
+    return `{{${key}}}`
+  })
+}
+
+/**
+ * Same substitution as `interpolate`, but each substituted value is
+ * single-quoted for safe use as a shell argument — for building `ssh.exec`
+ * commands, where an interpolated value (e.g. a tag name) must never be
+ * able to inject extra shell syntax. Literal template text (the `&&`, `|`,
+ * flags the workflow author wrote) is left untouched; only `{{KEY}}`
+ * substitutions are quoted.
+ */
+export function interpolateShellSafe(template: string, ctx: InterpolateContext): string {
+  return template.replace(PLACEHOLDER, (_match, key: string) => {
+    if (Object.hasOwn(ctx, key)) {
+      return shellQuote(ctx[key] ?? '')
     }
     return `{{${key}}}`
   })

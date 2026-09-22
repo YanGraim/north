@@ -66,7 +66,13 @@ export const WorkflowInputSchema = z.object({
   type: z.enum(['string', 'select', 'boolean']),
   required: z.boolean(),
   default: z.union([z.string(), z.boolean()]).optional(),
-  options: z.array(z.object({ label: z.string(), value: z.string() })).optional()
+  options: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+  /**
+   * For `type: 'select'` only — when set, `options` is ignored and the run
+   * dialog fetches live tag names from this repo path on the target host
+   * (`git fetch --tags` + `git tag`) instead of using a fixed list.
+   */
+  gitTagsSource: z.object({ repositoryPath: z.string().min(1) }).optional()
 })
 export type WorkflowInput = z.infer<typeof WorkflowInputSchema>
 

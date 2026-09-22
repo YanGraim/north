@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildRunVariables, interpolate, interpolateDeep } from './interpolate'
+import {
+  buildRunVariables,
+  interpolate,
+  interpolateDeep,
+  interpolateShellSafe
+} from './interpolate'
 
 describe('interpolate', () => {
   it('replaces {{KEY}} placeholders', () => {
@@ -34,5 +39,33 @@ describe('interpolate', () => {
       { PATH: '/tmp', X: '1' }
     )
     expect(result).toEqual({ command: 'cd /tmp', nested: { x: '1' } })
+  })
+})
+
+describe('interpolateShellSafe', () => {
+  it('quotes a substituted value while leaving template shell syntax untouched', () => {
+    expect(interpolateShellSafe('git checkout {{TAG}}', { TAG: 'prod-ecofitus-4.9.002' })).toBe(
+      "git checkout 'prod-ecofitus-4.9.002'"
+    )
+  })
+
+  it('neutralizes shell metacharacters inside a substituted value', () => {
+    const result = interpolateShellSafe('git checkout {{TAG}}', {
+      TAG: '$(rm -rf /); echo pwned'
+    })
+    expect(result).toBe("git checkout '$(rm -rf /); echo pwned'")
+  })
+
+  it('leaves unknown keys untouched, unquoted', () => {
+    expect(interpolateShellSafe('echo {{MISSING}}', {})).toBe('echo {{MISSING}}')
+  })
+
+  it('quotes multiple placeholders independently', () => {
+    expect(
+      interpolateShellSafe('cd {{PATH}} && git checkout {{TAG}}', {
+        PATH: '/var/www/html/wms-app',
+        TAG: 'v1'
+      })
+    ).toBe("cd '/var/www/html/wms-app' && git checkout 'v1'")
   })
 })

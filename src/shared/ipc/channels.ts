@@ -140,6 +140,8 @@ export const IpcChannels = {
   WORKFLOWS_LIST_CONNECTION_SECRETS: 'workflows:list-connection-secrets',
   WORKFLOWS_SET_CONNECTION_SECRET: 'workflows:set-connection-secret',
   WORKFLOWS_DELETE_CONNECTION_SECRET: 'workflows:delete-connection-secret',
+  /** Ad-hoc, one-shot `git fetch --tags` + list — powers a select input's live tag dropdown. */
+  WORKFLOWS_LIST_GIT_TAGS: 'workflows:list-git-tags',
   /** Main → renderer (event): workflow run timeline event. */
   WORKFLOWS_RUN_EVENT: 'workflows:run-event',
 

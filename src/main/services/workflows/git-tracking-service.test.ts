@@ -60,10 +60,25 @@ describe('GitTrackingService.captureBefore', () => {
     expect(await new GitTrackingService().captureBefore(exec, tracking)).toBeNull()
   })
 
-  it('falls back to empty branch on detached HEAD (no override, empty output)', async () => {
+  it('falls back to the tag name on detached HEAD (git checkout <tag>)', async () => {
     const exec = fakeExec({
       'rev-parse HEAD': { exitCode: 0, stdout: 'a1b2c3d\n' },
-      'branch --show-current': { exitCode: 0, stdout: '\n' }
+      'branch --show-current': { exitCode: 0, stdout: '\n' },
+      'describe --tags --exact-match': { exitCode: 0, stdout: 'prod-ecofitus-4.9.002\n' }
+    })
+    const snapshot = await new GitTrackingService().captureBefore(exec, tracking)
+    expect(snapshot).toEqual({ commit: 'a1b2c3d', branch: 'prod-ecofitus-4.9.002' })
+  })
+
+  it('falls back to empty branch when detached HEAD has no exact tag either', async () => {
+    const exec = fakeExec({
+      'rev-parse HEAD': { exitCode: 0, stdout: 'a1b2c3d\n' },
+      'branch --show-current': { exitCode: 0, stdout: '\n' },
+      'describe --tags --exact-match': {
+        exitCode: 128,
+        stdout: '',
+        stderr: 'fatal: no tag exactly matches'
+      }
     })
     const snapshot = await new GitTrackingService().captureBefore(exec, tracking)
     expect(snapshot).toEqual({ commit: 'a1b2c3d', branch: '' })
