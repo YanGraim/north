@@ -15,3 +15,10 @@ Ver os capítulos [Conectar](connect) e [Agentes](agents) no manual.
 - **Notas na request:** nova aba **Notas** pra documentar o que uma request faz, visível como tooltip na árvore de Collections
 
 Ver o capítulo [Cliente API](api) no manual.
+
+## Monitoramento
+
+- **Monitoramento de disponibilidade:** liga uma checagem periódica pra qualquer Connection (a porta responde?) — bolinha de status, histórico de quedas e notificação nativa quando algo cai ou volta. Opt-in por conexão, sem métricas, sem agente instalado no servidor.
+- **Widget no Dashboard:** veja tudo que está fora do ar agora e quantas quedas hoje/na semana, num só lugar
+
+Ver o capítulo [Conectar](connect) no manual.

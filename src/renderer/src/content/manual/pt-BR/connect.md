@@ -31,6 +31,14 @@ Na aba de sessão terminal:
 
 **Terminal local**, no topo da sidebar (Visão geral) ou pela Command Palette (**⌘/Ctrl+K**), abre o shell da própria máquina — sem host, sem credencial, sem Connection cadastrada. Roda no processo main, igual às demais sessões de terminal; fechar a aba encerra o processo do shell.
 
+## Monitoramento
+
+No painel de detalhes de uma Conexão, a seção **Monitoramento** liga uma checagem periódica de disponibilidade (a porta TCP responde?) — não é uma sessão de verdade, não autentica, só verifica se o host está de pé, do jeito que o North já faria pra abrir a sessão. É opt-in, conexão por conexão; desligado por padrão.
+
+Quando muda de status (subiu ou caiu), o North grava um evento no histórico (visível na própria seção e no widget **Monitoramento** do Dashboard, com todas as conexões monitoradas) e manda uma notificação nativa do sistema. Não guarda toda checagem, só as mudanças — então "3 quedas essa semana" é rápido de ler sem virar um banco gigante.
+
+Hoje só Connections (SSH/RDP/VNC/FTP/SFTP/Telnet) são monitoráveis — Access de banco fica de fora por costumar estar atrás de VPN/firewall mais restrito, o que geraria falso alarme com frequência.
+
 ## Favoritos e abas
 
 - Marque conexões como favoritas para acesso rápido.

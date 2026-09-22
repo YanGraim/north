@@ -15,3 +15,10 @@ See the [Connect](connect) and [Agents](agents) manual chapters.
 - **Request notes:** new **Notes** tab to document what a request does, shown as a tooltip in the Collections tree
 
 See the [API client](api) manual chapter.
+
+## Monitoring
+
+- **Uptime monitoring:** turn on a periodic check for any Connection (does the port respond?) — status dot, outage history, and a native notification when something goes down or comes back. Opt-in per connection, no metrics, no agent installed on the server.
+- **Dashboard widget:** see everything that's down right now and how many outages today/this week, in one place
+
+See the [Connect](connect) manual chapter.

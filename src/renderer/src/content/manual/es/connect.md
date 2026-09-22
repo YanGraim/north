@@ -31,6 +31,14 @@ En una pestaña de sesión terminal:
 
 **Terminal local**, arriba en la barra lateral (Visión general) o por la Command Palette (**⌘/Ctrl+K**), abre el shell de tu propia máquina — sin host, sin credencial, sin Connection guardada. Corre en el proceso main, igual que las demás sesiones de terminal; cerrar la pestaña termina el proceso del shell.
 
+## Monitoreo
+
+En el panel de detalles de una Conexión, la sección **Monitoreo** activa una checkeo periódico de disponibilidad (¿el puerto TCP responde?) — no es una sesión de verdad, no autentica, solo verifica si el host está arriba, igual que North lo haría para abrir la sesión. Es opt-in, por conexión; apagado por defecto.
+
+Cuando cambia de estado (subió o cayó), North graba un evento en el historial (visible en la propia sección y en el widget **Monitoreo** del Dashboard, con todas las conexiones monitoreadas) y manda una notificación nativa del sistema. No guarda cada checkeo, solo los cambios — así "3 caídas esta semana" se lee rápido sin volverse una base gigante.
+
+Hoy solo Connections (SSH/RDP/VNC/FTP/SFTP/Telnet) se pueden monitorear — Access de base de datos queda afuera por estar normalmente detrás de una VPN/firewall más restrictivo, lo que generaría falsas alarmas seguido.
+
 ## Favoritos y pestañas
 
 - Marca conexiones como favoritas para acceso rápido.

@@ -31,6 +31,14 @@ In a terminal session tab:
 
 **Local terminal**, at the top of the sidebar (Overview) or via the Command Palette (**⌘/Ctrl+K**), opens a shell on your own machine — no host, no credential, no saved Connection. It runs in the main process, just like other terminal sessions; closing the tab ends the shell process.
 
+## Monitoring
+
+On a Connection's details panel, the **Monitoring** section turns on a periodic availability check (does the TCP port respond?) — not a real session, no authentication, just whether the host is up, the same way North would reach it to open a session. It's opt-in, per connection; off by default.
+
+When the status changes (came up or went down), North records an event in the history (visible in the section itself and in the Dashboard's **Monitoring** widget, across every monitored connection) and sends a native system notification. It doesn't store every check, only the changes — so "3 outages this week" stays fast to read without turning into a huge database.
+
+Today only Connections (SSH/RDP/VNC/FTP/SFTP/Telnet) can be monitored — database Access is left out since it's usually behind a more restrictive VPN/firewall, which would trigger false alarms often.
+
 ## Favorites and tabs
 
 - Star connections as favorites for quick access.
