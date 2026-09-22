@@ -6,7 +6,11 @@ import type {
   WorkflowRunEvent,
   WorkflowRunRespondInput
 } from '@shared/types'
-import { cloneWorkflowDefinition, normalizeWorkflowName } from '@shared/types'
+import {
+  cloneWorkflowDefinition,
+  normalizeWorkflowName,
+  WORKFLOW_SECRET_KINDS
+} from '@shared/types'
 import type { BrowserWindow } from 'electron'
 import { BrowserWindow as BW } from 'electron'
 import type { Repositories } from '../../repositories'
@@ -49,13 +53,25 @@ export class WorkflowService {
     const connection = this.repos.connections.get(connectionId)
     if (!connection) throw new Error('Conexão não encontrada')
 
+    const resolveConnectionSecret = async (kind: string): Promise<string | null> => {
+      const entry = this.repos.connectionSecrets.getByKind(connectionId, kind)
+      if (!entry) return null
+      return this.vault.resolveSecret(entry.credentialRef)
+    }
+    const gitPassword = await resolveConnectionSecret(WORKFLOW_SECRET_KINDS.git)
+    const gitUsername = await resolveConnectionSecret(WORKFLOW_SECRET_KINDS.gitUsername)
+
     const session = await remoteExecService.openSession({
       connection,
       resolveSecret: async (ref) => this.vault.resolveSecret(ref),
       verifyHostKey: async () => true
     })
     try {
-      return await listGitTagsOnRemote(session, repositoryPath)
+      return await listGitTagsOnRemote(
+        session,
+        repositoryPath,
+        gitPassword ? { username: gitUsername ?? undefined, password: gitPassword } : undefined
+      )
     } finally {
       await session.dispose()
     }

@@ -57,4 +57,40 @@ describe('listGitTags', () => {
     await listGitTags(exec, "/tmp/it's a repo")
     expect(calls[0]).toContain(String.raw`'/tmp/it'\''s a repo'`)
   })
+
+  it('wraps the fetch with askpass credentials when given git credentials', async () => {
+    const { exec, calls } = fakeExec({ exitCode: 0, stdout: 'v1\n' })
+    await listGitTags(exec, '/repo', { username: 'deploy-bot', password: 's3cret' })
+    expect(calls[0]).toContain('GIT_ASKPASS=')
+    expect(calls[0]).toContain('GIT_TERMINAL_PROMPT=0')
+    expect(calls[0]).toContain("-C '/repo' fetch --tags --quiet")
+    expect(calls[0]).toContain('insteadOf')
+  })
+
+  it('does not wrap the command when no git credentials are given', async () => {
+    const { exec, calls } = fakeExec({ exitCode: 0, stdout: 'v1\n' })
+    await listGitTags(exec, '/repo')
+    expect(calls[0]).not.toContain('GIT_ASKPASS')
+  })
+
+  it('hints at Secrets when an HTTPS remote asks for auth and no credentials were given', async () => {
+    const { exec } = fakeExec({
+      exitCode: 128,
+      stdout: '',
+      stderr:
+        "fatal: could not read Username for 'https://bitbucket.org': No such device or address"
+    })
+    await expect(listGitTags(exec, '/repo')).rejects.toThrow(/Usuário Git.*Senha Git/)
+  })
+
+  it('does not add the Secrets hint when credentials were already provided and still failed', async () => {
+    const { exec } = fakeExec({
+      exitCode: 128,
+      stdout: '',
+      stderr: 'fatal: Authentication failed'
+    })
+    await expect(
+      listGitTags(exec, '/repo', { username: 'deploy-bot', password: 'wrong' })
+    ).rejects.toThrow('fatal: Authentication failed')
+  })
 })

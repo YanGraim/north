@@ -29,7 +29,7 @@ Um workflow pode pedir valores no momento do run — por exemplo, qual **tag** f
 Pra dropdown de lista, as opções podem vir de duas origens:
 
 - **Opções fixas**: uma lista digitada manualmente (`rótulo=valor` por linha).
-- **Tags do Git (ao vivo)**: em vez de digitar as tags, o North roda `git fetch --tags` no caminho do repositório informado (pela mesma conexão SSH) e monta o dropdown com as tags reais do servidor no momento de executar — sem risco de digitar a tag errada.
+- **Tags do Git (ao vivo)**: em vez de digitar as tags, o North roda `git fetch --tags` no caminho do repositório informado (pela mesma conexão SSH) e monta o dropdown com as tags reais do servidor no momento de executar — sem risco de digitar a tag errada. Se o remote for HTTPS e pedir autenticação, o North usa **Usuário Git** e **Senha Git** da seção Secrets da conexão (os mesmos secrets dos passos de deploy). Sem eles preenchidos, o fetch falha e a mensagem pede pra configurar Secrets.
 
 O botão **Deploy por tag (Git)**, ao lado de "Adicionar input", cria de uma vez um input pronto pra esse caso mais comum (chave `tag`, obrigatório, origem = Tags do Git, caminho pré-preenchido a partir do Rastreamento Git se já estiver configurado abaixo).
 
