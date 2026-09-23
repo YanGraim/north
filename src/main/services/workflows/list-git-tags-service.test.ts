@@ -19,6 +19,27 @@ function fakeExec(result: { exitCode: number; stdout: string; stderr?: string })
   }
 }
 
+/** Sequences distinct results per call, in order (fetch, then `git tag …`). */
+function fakeExecSequence(results: Array<{ exitCode: number; stdout: string; stderr?: string }>): {
+  exec: RemoteExecSession
+  calls: string[]
+} {
+  const calls: string[] = []
+  let i = 0
+  return {
+    exec: {
+      exec: vi.fn(async (command: string) => {
+        calls.push(command)
+        const result = results[Math.min(i, results.length - 1)]
+        i++
+        return { exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr ?? '' }
+      }),
+      dispose: vi.fn(async () => undefined)
+    },
+    calls
+  }
+}
+
 describe('listGitTags', () => {
   it('fetches tags and lists them, newest first, one per line', async () => {
     const { exec, calls } = fakeExec({
@@ -33,9 +54,25 @@ describe('listGitTags', () => {
       'prod-ecofitus-4.9.001',
       'prod-ecofitus-4.8.000'
     ])
-    expect(calls[0]).toBe(
-      "git -C '/var/www/html/wms-app' fetch --tags --quiet && git -C '/var/www/html/wms-app' tag --sort=-creatordate"
-    )
+    expect(calls[0]).toBe("git -C '/var/www/html/wms-app' fetch --tags --quiet")
+    expect(calls[1]).toBe("git -C '/var/www/html/wms-app' tag --sort=-creatordate")
+  })
+
+  it('falls back to plain `git tag` when the remote Git is too old for --sort', async () => {
+    const { exec, calls } = fakeExecSequence([
+      { exitCode: 0, stdout: '' }, // fetch --tags
+      { exitCode: 129, stdout: '', stderr: "error: unknown field name: 'creatordate'" }, // sorted tag list
+      { exitCode: 0, stdout: 'v2\nv1\n' } // plain tag list
+    ])
+
+    const tags = await listGitTags(exec, '/repo')
+
+    expect(tags).toEqual(['v2', 'v1'])
+    expect(calls).toEqual([
+      "git -C '/repo' fetch --tags --quiet",
+      "git -C '/repo' tag --sort=-creatordate",
+      "git -C '/repo' tag"
+    ])
   })
 
   it('returns an empty array when the repo has no tags', async () => {
@@ -92,5 +129,21 @@ describe('listGitTags', () => {
     await expect(
       listGitTags(exec, '/repo', { username: 'deploy-bot', password: 'wrong' })
     ).rejects.toThrow('fatal: Authentication failed')
+  })
+
+  it('wraps every command with sudo when given a sudo password', async () => {
+    const { exec, calls } = fakeExec({ exitCode: 0, stdout: 'v1\n' })
+    await listGitTags(exec, '/repo', undefined, 's3cret')
+    expect(calls[0]).toContain('sudo -S')
+    expect(calls[1]).toContain('sudo -S')
+  })
+
+  it('hints at the sudo Secret when fetch fails with permission denied and no sudo password was given', async () => {
+    const { exec } = fakeExec({
+      exitCode: 128,
+      stdout: '',
+      stderr: 'fatal: unable to read current working directory: Permission denied'
+    })
+    await expect(listGitTags(exec, '/repo')).rejects.toThrow(/Senha sudo/)
   })
 })

@@ -60,6 +60,7 @@ export class WorkflowService {
     }
     const gitPassword = await resolveConnectionSecret(WORKFLOW_SECRET_KINDS.git)
     const gitUsername = await resolveConnectionSecret(WORKFLOW_SECRET_KINDS.gitUsername)
+    const sudoPassword = await resolveConnectionSecret(WORKFLOW_SECRET_KINDS.sudo)
 
     const session = await remoteExecService.openSession({
       connection,
@@ -70,7 +71,8 @@ export class WorkflowService {
       return await listGitTagsOnRemote(
         session,
         repositoryPath,
-        gitPassword ? { username: gitUsername ?? undefined, password: gitPassword } : undefined
+        gitPassword ? { username: gitUsername ?? undefined, password: gitPassword } : undefined,
+        sudoPassword ?? undefined
       )
     } finally {
       await session.dispose()

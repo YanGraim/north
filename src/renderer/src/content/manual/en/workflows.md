@@ -29,7 +29,7 @@ A workflow can ask for values at run time — for example, which **tag** to depl
 For a dropdown-type input, the options can come from two sources:
 
 - **Fixed options**: a manually typed list (`label=value` per line).
-- **Git tags (live)**: instead of typing the tags, North runs `git fetch --tags` at the given repository path (over the same SSH connection) and builds the dropdown from the server's real tags at run time — no risk of typing the wrong tag. If the remote is HTTPS and asks for authentication, North uses **Git username** and **Git password** from the connection's Secrets section (the same secrets deploy steps use). Without them filled in, the fetch fails and the error asks you to configure Secrets.
+- **Git tags (live)**: instead of typing the tags, North runs `git fetch --tags` at the given repository path (over the same SSH connection) and builds the dropdown from the server's real tags at run time — no risk of typing the wrong tag. If the remote is HTTPS and asks for authentication, North uses **Git username** and **Git password** from the connection's Secrets section (the same secrets deploy steps use). If the repository is only readable/writable as another user (e.g. a deploy folder owned by `www-data`), North also uses the connection's **Sudo password**, when set, to run the fetch with `sudo`. Without the needed secrets filled in, the fetch fails and the error asks you to configure Secrets.
 
 The **Deploy by tag (Git)** button, next to "Add input", creates a ready-made input for this common case in one click (key `tag`, required, source = Git tags, path pre-filled from Git tracking if already set below).
 

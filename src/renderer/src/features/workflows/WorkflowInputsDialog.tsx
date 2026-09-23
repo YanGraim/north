@@ -53,6 +53,7 @@ export function WorkflowInputsDialog({
   const [submitting, setSubmitting] = useState(false)
   const [liveOptions, setLiveOptions] = useState<Record<string, WorkflowInput['options']>>({})
   const [loadingTags, setLoadingTags] = useState<Set<string>>(new Set())
+  const [tagErrors, setTagErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!open) return
@@ -60,6 +61,11 @@ export function WorkflowInputsDialog({
       if (input.type !== 'select' || !input.gitTagsSource) continue
       const repositoryPath = input.gitTagsSource.repositoryPath
       setLoadingTags((prev) => new Set(prev).add(input.key))
+      setTagErrors((prev) => {
+        const next = { ...prev }
+        delete next[input.key]
+        return next
+      })
       window.north.workflows
         .listGitTags(connectionId, repositoryPath)
         .then((tags) => {
@@ -70,6 +76,10 @@ export function WorkflowInputsDialog({
         })
         .catch((error) => {
           toastError(error, `Não foi possível listar as tags de "${input.label}"`)
+          setTagErrors((prev) => ({
+            ...prev,
+            [input.key]: error instanceof Error ? error.message : String(error)
+          }))
         })
         .finally(() => {
           setLoadingTags((prev) => {
@@ -140,6 +150,8 @@ export function WorkflowInputsDialog({
                       <Loader2 className="size-3 animate-spin" />
                       Rodando git fetch --tags no servidor…
                     </p>
+                  ) : tagErrors[input.key] ? (
+                    <p className="text-xs text-red-400">{tagErrors[input.key]}</p>
                   ) : input.gitTagsSource && (liveOptions[input.key]?.length ?? 0) === 0 ? (
                     <p className="text-xs text-muted">Nenhuma tag encontrada nesse repositório.</p>
                   ) : null}
