@@ -16,6 +16,7 @@ import {
   switchVpnKind,
   vpnErrorFromUnknown
 } from '@renderer/lib/vpn-ui'
+import { normalizeFortinetConfig } from '@shared/lib/vpn/host-port'
 import type { VpnConfig, VpnProfile } from '@shared/types'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -36,7 +37,10 @@ export function VpnConnectionEditor({ profile }: { profile: VpnProfile }): React
 
   const save = (event: React.FormEvent): void => {
     event.preventDefault()
-    update.mutate({ id: profile.id, input: { config: applyConnectionEdit(profile.config, draft) } })
+    update.mutate({
+      id: profile.id,
+      input: { config: applyConnectionEdit(profile.config, normalizeFortinetConfig(draft)) }
+    })
   }
 
   if (draft.kind === 'openvpn') {
@@ -72,6 +76,7 @@ export function VpnConnectionEditor({ profile }: { profile: VpnProfile }): React
           className="font-mono"
           value={draft.gateway}
           onChange={(e) => set({ gateway: e.target.value })}
+          onBlur={() => setDraft((d) => normalizeFortinetConfig(d))}
         />
       </Row>
       {draft.kind === 'fortinet-sslvpn' ? (

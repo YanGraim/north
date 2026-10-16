@@ -108,3 +108,18 @@ describe('VpnProfileService.importOvpn replacing an existing profile', () => {
     ).toThrow(/não encontrada/)
   })
 })
+
+describe('VpnProfileService normalizes FortiGate gateways', () => {
+  it('splits "host:port" on create and update', () => {
+    const { service } = setup()
+    const created = service.create({
+      name: 'PAC',
+      config: { kind: 'fortinet-sslvpn', gateway: '179.190.99.2:4433', port: 443, username: 'u' }
+    })
+    expect(created.config).toMatchObject({ gateway: '179.190.99.2', port: 4433 })
+    const updated = service.update(created.id, {
+      config: { kind: 'fortinet-sslvpn', gateway: 'vpn.acme.com:10443', port: 443, username: 'u' }
+    })
+    expect(updated?.config).toMatchObject({ gateway: 'vpn.acme.com', port: 10443 })
+  })
+})

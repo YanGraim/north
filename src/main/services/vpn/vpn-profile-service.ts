@@ -1,3 +1,4 @@
+import { normalizeFortinetConfig } from '@shared/lib/vpn/host-port'
 import { parseOvpn } from '@shared/lib/vpn/ovpn-parse'
 import {
   type CreateVpnProfileInput,
@@ -32,11 +33,17 @@ export class VpnProfileService {
   }
 
   create(input: CreateVpnProfileInput): VpnProfile {
-    return this.repos.vpnProfiles.create(input)
+    return this.repos.vpnProfiles.create({
+      ...input,
+      config: normalizeFortinetConfig(input.config)
+    })
   }
 
   update(id: string, input: UpdateVpnProfileInput): VpnProfile | null {
-    return this.repos.vpnProfiles.update(id, input)
+    return this.repos.vpnProfiles.update(
+      id,
+      input.config ? { ...input, config: normalizeFortinetConfig(input.config) } : input
+    )
   }
 
   importOvpn(input: ImportOvpnInput): OvpnImportResult {

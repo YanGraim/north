@@ -21,6 +21,7 @@ import { isWindowsPlatform } from '@renderer/lib/platform'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { vpnErrorFromUnknown } from '@renderer/lib/vpn-ui'
 import { useVpnDialogsStore } from '@renderer/stores/vpn-dialogs-store'
+import { splitHostPort } from '@shared/lib/vpn/host-port'
 import type { VpnConfig, VpnKind, VpnProfile } from '@shared/types'
 import { FileKey, Globe, Network, ShieldCheck } from 'lucide-react'
 import { useRef, useState } from 'react'
@@ -421,11 +422,9 @@ function SslVpnStep({
   // FortiClient shows "host:port" in the gateway field — split it once the user leaves the field
   // (splitting per keystroke would cut "1.2.3.4:4433" at the first port digit).
   const splitGateway = (): void => {
-    const match = /^(.+):(\d{1,5})$/.exec(gateway.trim())
-    if (match && !match[1].includes(':')) {
-      setGateway(match[1])
-      setPort(match[2])
-    }
+    const { host, port: parsed } = splitHostPort(gateway)
+    setGateway(host)
+    if (parsed) setPort(String(parsed))
   }
 
   const portNumber = Number(port)

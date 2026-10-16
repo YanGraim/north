@@ -1,4 +1,5 @@
 import { parseVpnErrorMessage } from '@shared/lib/vpn/errors'
+import { normalizeFortinetConfig } from '@shared/lib/vpn/host-port'
 import type { VpnConfig, VpnErrorCode, VpnKind, VpnSecretKind, VpnState } from '@shared/types'
 
 export type VpnTone = 'idle' | 'connected' | 'connecting' | 'error'
@@ -44,6 +45,7 @@ export function vpnErrorAction(code: VpnErrorCode): VpnErrorAction {
     case 'PRIVILEGE_DENIED':
     case 'TIMEOUT':
     case 'HOST_UNREACHABLE':
+    case 'GATEWAY_UNREACHABLE':
     case 'DRIVER_CRASHED':
       return 'retry'
     default:
@@ -85,7 +87,7 @@ export function switchVpnKind(config: VpnConfig, kind: GatewayKind): VpnConfig {
   const username = config.username ?? ''
   switch (kind) {
     case 'fortinet-sslvpn':
-      return { kind, gateway, port: 443, username }
+      return normalizeFortinetConfig({ kind, gateway, port: 443, username })
     case 'ipsec-ikev1':
       return { kind, gateway, username, xauth: 'saved' }
     case 'ipsec-ikev2':

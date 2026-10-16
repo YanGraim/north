@@ -695,12 +695,13 @@
       "BINARY_MISSING": "OpenVPN is not installed",
       "CONFLICT": "Conflicts with another active VPN",
       "UNSUPPORTED_ON_PLATFORM": "Not supported on this system",
-      "DRIVER_CRASHED": "The VPN tunnel dropped",
+      "DRIVER_CRASHED": "The VPN failed to connect",
       "SECRET_MISSING": "Saved credentials are missing",
       "INVALID_CONFIG": "Invalid configuration",
       "CONNECTION_REJECTED": "The VPN server rejected the connection — check gateway, key and password",
       "PROFILE_APPROVAL_REQUIRED": "Approve the \"North\" profile in System Settings → General → Device Management, then click Connect again",
-      "CERT_UNTRUSTED": "Gateway certificate not recognized"
+      "CERT_UNTRUSTED": "Gateway certificate not recognized",
+      "GATEWAY_UNREACHABLE": "Couldn't reach the VPN server"
     },
     "install": "macOS: install with \"brew install openvpn\". Linux: install your distribution's openvpn package.",
     "indicator": {

@@ -92,6 +92,27 @@ describe('OpenfortivpnDriver (against fake openfortivpn)', () => {
     expect(tmpFiles()).toEqual([])
   })
 
+  it('a gateway saved as "host:port" is split before connecting (the bug seen with PAC)', async () => {
+    const { driver } = make()
+    const p = profile('ok', DIGEST)
+    if (p.config.kind !== 'fortinet-sslvpn') throw new Error('kind')
+    p.config = { ...p.config, gateway: '179.190.99.2:4433', port: 443 }
+    await expect(driver.connect(ctx(p, secrets('pw-ok')))).resolves.toMatchObject({
+      localIp: '10.212.134.200'
+    })
+    await driver.disconnect()
+  })
+
+  it('unreachable gateway → GATEWAY_UNREACHABLE with host:port, not the wrapper command', async () => {
+    const { driver } = make()
+    const err = await driver
+      .connect(ctx(profile('refused', DIGEST), secrets('pw-ok')))
+      .catch((e) => e)
+    expect(err.code).toBe('GATEWAY_UNREACHABLE')
+    expect(err.message).toContain('179.190.99.2:4433')
+    expect(err.message).not.toContain('/bin/sh')
+  })
+
   it('wrong password → AUTH_FAILED, files cleaned', async () => {
     const { driver } = make()
     await expect(driver.connect(ctx(profile('ok', DIGEST), secrets('nope')))).rejects.toMatchObject(

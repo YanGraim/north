@@ -695,12 +695,13 @@
       "BINARY_MISSING": "OpenVPN no está instalado",
       "CONFLICT": "Entra en conflicto con otra VPN activa",
       "UNSUPPORTED_ON_PLATFORM": "No soportado en este sistema",
-      "DRIVER_CRASHED": "El túnel VPN se cayó",
+      "DRIVER_CRASHED": "La VPN no pudo conectarse",
       "SECRET_MISSING": "Faltan credenciales guardadas",
       "INVALID_CONFIG": "Configuración inválida",
       "CONNECTION_REJECTED": "El servidor VPN rechazó la conexión — revisa gateway, clave y contraseña",
       "PROFILE_APPROVAL_REQUIRED": "Aprueba el perfil \"North\" en Ajustes del Sistema → General → Gestión de dispositivos y haz clic en Conectar de nuevo",
-      "CERT_UNTRUSTED": "Certificado del gateway no reconocido"
+      "CERT_UNTRUSTED": "Certificado del gateway no reconocido",
+      "GATEWAY_UNREACHABLE": "No se pudo alcanzar el servidor VPN"
     },
     "install": "macOS: instala con \"brew install openvpn\". Linux: instala el paquete openvpn de tu distribución.",
     "indicator": {

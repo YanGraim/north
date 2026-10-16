@@ -148,9 +148,13 @@ export function VpnErrorNotice({
       data-testid="vpn-error"
     >
       <p className="text-foreground">{t(`vpn.errors.${error.code}`)}</p>
-      {['CONNECTION_REJECTED', 'CERT_UNTRUSTED', 'DRIVER_CRASHED', 'BINARY_MISSING'].includes(
-        error.code
-      ) ? (
+      {[
+        'CONNECTION_REJECTED',
+        'CERT_UNTRUSTED',
+        'DRIVER_CRASHED',
+        'BINARY_MISSING',
+        'GATEWAY_UNREACHABLE'
+      ].includes(error.code) ? (
         <p className="mt-1 text-xs text-muted">{error.message}</p>
       ) : null}
       {error.code === 'CERT_UNTRUSTED' && error.certDigest ? (

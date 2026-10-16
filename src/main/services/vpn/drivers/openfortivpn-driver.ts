@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { normalizeFortinetConfig } from '@shared/lib/vpn/host-port'
 import type { PrivilegeBroker } from '../privilege-broker'
 import { VpnError } from '../vpn-error'
 import { buildFortiConfig, parseFortiLine } from './openfortivpn-log'
@@ -28,6 +29,9 @@ const WRAPPER = [
   'wait "$pid"'
 ].join('; ')
 
+const UNREACHABLE =
+  /getaddrinfo|Connection refused|timed out|No route to host|Network is unreachable/i
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** FortiGate SSL-VPN on macOS/Linux through openfortivpn (pppd under the hood). */
@@ -50,7 +54,8 @@ export class OpenfortivpnDriver implements VpnDriver {
     if (profile.config.kind !== 'fortinet-sslvpn') {
       throw new VpnError('INVALID_CONFIG', 'Perfil não é FortiGate SSL-VPN')
     }
-    const config = profile.config
+    // profiles saved before host:port splitting existed may still carry the port in the gateway
+    const config = normalizeFortinetConfig(profile.config)
     const binary = this.deps.binary()
     if (!binary) {
       throw new VpnError(
@@ -99,6 +104,7 @@ export class OpenfortivpnDriver implements VpnDriver {
     let localIp: string | undefined
     let certUntrusted = false
     let lastError = ''
+    let unreachable: string | undefined
     try {
       while (true) {
         if (signal.aborted) throw new VpnError('TIMEOUT', 'Conexão cancelada')
@@ -123,8 +129,10 @@ export class OpenfortivpnDriver implements VpnDriver {
             )
           } else if (event.type === 'auth-failed') {
             throw new VpnError('AUTH_FAILED', 'Usuário ou senha recusados pelo FortiGate')
-          } else if (event.type === 'error') lastError = event.message
-          else if (event.type === 'up') {
+          } else if (event.type === 'error') {
+            lastError = event.message
+            if (UNREACHABLE.test(event.message)) unreachable ??= event.message
+          } else if (event.type === 'up') {
             rmSync(files.cfg, { force: true })
             this.connected = true
             return { localIp, routes: [], redirectGateway: false }
@@ -132,12 +140,17 @@ export class OpenfortivpnDriver implements VpnDriver {
         }
         if (this.hasExited) {
           const result = (await this.exited) as { error?: VpnError; code: number | null }
-          throw (
-            result.error ??
-            new VpnError(
-              'DRIVER_CRASHED',
-              lastError || `O openfortivpn encerrou (código ${result.code})`
+          if (result.error?.code === 'PRIVILEGE_DENIED') throw result.error
+          // openfortivpn's own log explains the failure better than the wrapper's exit status
+          if (unreachable) {
+            throw new VpnError(
+              'GATEWAY_UNREACHABLE',
+              `Não foi possível alcançar ${config.gateway}:${config.port} (${unreachable}). Confira o gateway, a porta e sua conexão com a internet.`
             )
+          }
+          throw new VpnError(
+            'DRIVER_CRASHED',
+            lastError || `O openfortivpn encerrou (código ${result.code ?? '?'})`
           )
         }
         if (Date.now() > deadline)

@@ -145,6 +145,16 @@ describe('switchVpnKind', () => {
     })
   })
 
+  it('IPsec gateway saved as "host:port" → SSL-VPN gets the port split out', () => {
+    expect(
+      switchVpnKind({ ...ipsec, gateway: '179.190.99.2:4433' }, 'fortinet-sslvpn')
+    ).toMatchObject({
+      gateway: '179.190.99.2',
+      port: 4433
+    })
+    expect(vpnErrorAction('GATEWAY_UNREACHABLE')).toBe('retry')
+  })
+
   it('SSL-VPN → IKEv2 and back keep the common fields', () => {
     const ssl: VpnConfig = {
       kind: 'fortinet-sslvpn',

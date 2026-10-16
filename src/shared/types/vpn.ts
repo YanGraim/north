@@ -137,7 +137,8 @@ export const VpnErrorCodeSchema = z.enum([
   'INVALID_CONFIG',
   'CONNECTION_REJECTED',
   'PROFILE_APPROVAL_REQUIRED',
-  'CERT_UNTRUSTED'
+  'CERT_UNTRUSTED',
+  'GATEWAY_UNREACHABLE'
 ])
 export type VpnErrorCode = z.infer<typeof VpnErrorCodeSchema>
 

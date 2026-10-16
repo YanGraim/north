@@ -16,6 +16,14 @@ const scenario = cfg.username
 const DIGEST = 'a'.repeat(64)
 
 out(`INFO:   Connected to gateway ${cfg.host}:${cfg.port}`)
+if (cfg.host.includes(':')) {
+  out('ERROR:  getaddrinfo: nodename nor servname provided, or not known')
+  process.exit(1)
+}
+if (scenario === 'refused') {
+  out('ERROR:  connect: Connection refused')
+  process.exit(1)
+}
 if (cfg['trusted-cert'] !== DIGEST && scenario === 'cert') {
   out(
     'ERROR:  Gateway certificate validation failed, and the certificate digest is not in the local whitelist. If you trust it, rerun with:'
