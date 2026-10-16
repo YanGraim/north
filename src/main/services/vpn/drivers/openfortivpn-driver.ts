@@ -21,15 +21,12 @@ export type OpenfortivpnDriverDeps = {
  * it exits (killing the tunnel) as soon as the user-owned stop file appears.
  * $1 binary, $2 config, $3 log, $4 stop file.
  */
+// One line on purpose: elevated arguments may not contain line breaks (privilege-broker).
 const WRAPPER = [
-  '"$1" -c "$2" >"$3" 2>&1 &',
-  'pid=$!',
-  'while kill -0 "$pid" 2>/dev/null; do',
-  '  if [ -e "$4" ]; then kill -TERM "$pid"; wait "$pid"; exit 0; fi',
-  '  sleep 1',
-  'done',
+  '"$1" -c "$2" >"$3" 2>&1 & pid=$!',
+  'while kill -0 "$pid" 2>/dev/null; do if [ -e "$4" ]; then kill -TERM "$pid"; wait "$pid"; exit 0; fi; sleep 1; done',
   'wait "$pid"'
-].join('\n')
+].join('; ')
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 

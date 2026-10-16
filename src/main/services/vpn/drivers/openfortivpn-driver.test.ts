@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { VpnProfile } from '@shared/types'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { DirectBroker, type PrivilegeBroker } from '../privilege-broker'
+import { buildElevatedCommand, DirectBroker, type PrivilegeBroker } from '../privilege-broker'
 import { cleanupFortiOrphans, OpenfortivpnDriver } from './openfortivpn-driver'
 import type { SecretResolver } from './vpn-driver'
 
@@ -23,6 +23,8 @@ function recordingBroker(): PrivilegeBroker & { calls: Array<{ binary: string; a
     calls,
     launch(binary, args) {
       calls.push({ binary, args })
+      // same validation the real (sudo-prompt) broker applies before elevating
+      buildElevatedCommand(binary, args)
       return direct.launch(binary, args)
     },
     kill: (pid) => direct.kill(pid)
