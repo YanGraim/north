@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { closeDatabase } from './database'
 import { registerIpcHandlers } from './ipc/handlers'
 import { disposeProtocolManager } from './ipc/sessions'
+import { disposeVpn, hasActiveVpnTunnels } from './ipc/vpn'
 
 // Must run before any app.getPath('userData') / DB access so paths match productName.
 app.setName('North')
@@ -78,7 +79,17 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('before-quit', () => {
+let vpnShutdownDone = false
+
+app.on('before-quit', (event) => {
+  // Tunnels run as root — hold the quit until they're stopped over management,
+  // otherwise they'd outlive North (boot cleanup is only the fallback).
+  if (!vpnShutdownDone && hasActiveVpnTunnels()) {
+    event.preventDefault()
+    vpnShutdownDone = true
+    void disposeVpn().finally(() => app.quit())
+    return
+  }
   void disposeProtocolManager().finally(() => {
     closeDatabase()
   })

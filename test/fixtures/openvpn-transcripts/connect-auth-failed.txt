@@ -1,0 +1,5 @@
+>HOLD:Waiting for hold release:0
+>STATE:1760630000,AUTH,,,,,,
+>PASSWORD:Need 'Auth' username/password
+>PASSWORD:Verification Failed: 'Auth'
+>FATAL:SIGTERM received, sending exit notification to peer

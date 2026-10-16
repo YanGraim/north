@@ -20,6 +20,9 @@ import { GroupsRepository } from './groups-repository'
 import { HistoryRepository } from './history-repository'
 import { KnownHostsRepository } from './known-hosts-repository'
 import { TagsRepository } from './tags-repository'
+import { VpnHistoryRepository } from './vpn-history-repository'
+import { VpnProfilesRepository } from './vpn-profiles-repository'
+import { VpnSecretsRepository } from './vpn-secrets-repository'
 import { WorkflowRunsRepository } from './workflow-runs-repository'
 import { WorkflowsRepository } from './workflows-repository'
 
@@ -47,6 +50,9 @@ export type Repositories = {
   apiPresets: ApiPresetsRepository
   connectionMonitors: ConnectionMonitorsRepository
   connectionHealthEvents: ConnectionHealthEventsRepository
+  vpnProfiles: VpnProfilesRepository
+  vpnSecrets: VpnSecretsRepository
+  vpnHistory: VpnHistoryRepository
 }
 
 export function createRepositories(db: SqliteDatabase): Repositories {
@@ -73,7 +79,10 @@ export function createRepositories(db: SqliteDatabase): Repositories {
     apiRequestHistory: new ApiRequestHistoryRepository(db),
     apiPresets: new ApiPresetsRepository(db),
     connectionMonitors: new ConnectionMonitorsRepository(db),
-    connectionHealthEvents: new ConnectionHealthEventsRepository(db)
+    connectionHealthEvents: new ConnectionHealthEventsRepository(db),
+    vpnProfiles: new VpnProfilesRepository(db),
+    vpnSecrets: new VpnSecretsRepository(db),
+    vpnHistory: new VpnHistoryRepository(db)
   }
 }
 

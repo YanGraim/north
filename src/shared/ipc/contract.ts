@@ -111,6 +111,20 @@ import type {
   WorkflowRunRespondInput
 } from '../types'
 import type { AppIdentity } from '../types/app-identity'
+import type {
+  CreateVpnProfileInput,
+  ImportOvpnInput,
+  OvpnImportResult,
+  SetVpnSecretInput,
+  UpdateVpnProfileInput,
+  VpnConflict,
+  VpnConnectInput,
+  VpnHistoryEntry,
+  VpnPlatformSupport,
+  VpnProfile,
+  VpnSecretStatus,
+  VpnState
+} from '../types/vpn'
 import { IpcChannels } from './channels'
 
 /**
@@ -660,6 +674,22 @@ export interface IpcInvokeMap {
     args: [limit?: number]
     result: ConnectionHealthEvent[]
   }
+
+  [IpcChannels.VPN_LIST]: { args: []; result: VpnProfile[] }
+  [IpcChannels.VPN_GET]: { args: [id: string]; result: VpnProfile | null }
+  [IpcChannels.VPN_CREATE]: { args: [input: CreateVpnProfileInput]; result: VpnProfile }
+  [IpcChannels.VPN_UPDATE]: { args: [id: string, input: UpdateVpnProfileInput]; result: VpnProfile }
+  [IpcChannels.VPN_DELETE]: { args: [id: string]; result: undefined }
+  [IpcChannels.VPN_IMPORT_OVPN]: { args: [input: ImportOvpnInput]; result: OvpnImportResult }
+  [IpcChannels.VPN_SET_SECRET]: { args: [input: SetVpnSecretInput]; result: VpnSecretStatus }
+  [IpcChannels.VPN_SECRET_STATUS]: { args: [id: string]; result: VpnSecretStatus }
+  [IpcChannels.VPN_CONNECT]: { args: [input: VpnConnectInput]; result: VpnState }
+  [IpcChannels.VPN_DISCONNECT]: { args: [id: string]; result: VpnState }
+  [IpcChannels.VPN_STATUS]: { args: []; result: VpnState[] }
+  [IpcChannels.VPN_LOGS]: { args: [id: string]; result: string[] }
+  [IpcChannels.VPN_HISTORY]: { args: [id: string, limit?: number]; result: VpnHistoryEntry[] }
+  [IpcChannels.VPN_CHECK_CONFLICTS]: { args: [id: string]; result: VpnConflict[] }
+  [IpcChannels.VPN_PLATFORM_SUPPORT]: { args: []; result: VpnPlatformSupport }
 }
 
 export type InvokeChannel = keyof IpcInvokeMap
@@ -914,5 +944,29 @@ export interface NorthApi {
     onHealthChanged: (
       listener: (change: { connectionId: string; status: ConnectionHealthStatus }) => void
     ) => () => void
+  }
+  /** VPN profiles + tunnels (ADR 0017). Results never carry secrets. */
+  vpn: {
+    list: () => Promise<VpnProfile[]>
+    get: (id: string) => Promise<VpnProfile | null>
+    create: (input: CreateVpnProfileInput) => Promise<VpnProfile>
+    update: (id: string, input: UpdateVpnProfileInput) => Promise<VpnProfile>
+    delete: (id: string) => Promise<void>
+    /** Parses an .ovpn (main-side), creates the profile, moves inline keys to the vault. */
+    importOvpn: (input: ImportOvpnInput) => Promise<OvpnImportResult>
+    /** Empty `secret` deletes it. Returns which secrets are set (never values). */
+    setSecret: (input: SetVpnSecretInput) => Promise<VpnSecretStatus>
+    secretStatus: (id: string) => Promise<VpnSecretStatus>
+    connect: (input: VpnConnectInput) => Promise<VpnState>
+    disconnect: (id: string) => Promise<VpnState>
+    /** Every profile's tunnel state (hydration); then follow `onStateChanged`. */
+    status: () => Promise<VpnState[]>
+    /** Ring buffer (2000 lines), already redacted. */
+    logs: (id: string) => Promise<string[]>
+    history: (id: string, limit?: number) => Promise<VpnHistoryEntry[]>
+    checkConflicts: (id: string) => Promise<VpnConflict[]>
+    platformSupport: () => Promise<VpnPlatformSupport>
+    /** Drop events whose `version` is lower than the last seen for that profile. */
+    onStateChanged: (listener: (state: VpnState) => void) => () => void
   }
 }

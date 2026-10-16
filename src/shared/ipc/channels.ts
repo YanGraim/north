@@ -193,7 +193,24 @@ export const IpcChannels = {
   CONNECTION_MONITORS_SET_ENABLED: 'connection-monitors:set-enabled',
   CONNECTION_HEALTH_EVENTS_LIST: 'connection-health-events:list',
   CONNECTION_HEALTH_EVENTS_LIST_RECENT: 'connection-health-events:list-recent',
-  CONNECTION_HEALTH_CHANGED: 'connection-health:changed'
+  CONNECTION_HEALTH_CHANGED: 'connection-health:changed',
+
+  VPN_LIST: 'vpn:list',
+  VPN_GET: 'vpn:get',
+  VPN_CREATE: 'vpn:create',
+  VPN_UPDATE: 'vpn:update',
+  VPN_DELETE: 'vpn:delete',
+  VPN_IMPORT_OVPN: 'vpn:import-ovpn',
+  VPN_SET_SECRET: 'vpn:set-secret',
+  VPN_SECRET_STATUS: 'vpn:secret-status',
+  VPN_CONNECT: 'vpn:connect',
+  VPN_DISCONNECT: 'vpn:disconnect',
+  VPN_STATUS: 'vpn:status',
+  VPN_LOGS: 'vpn:logs',
+  VPN_HISTORY: 'vpn:history',
+  VPN_CHECK_CONFLICTS: 'vpn:check-conflicts',
+  VPN_PLATFORM_SUPPORT: 'vpn:platform-support',
+  VPN_STATE_CHANGED: 'vpn:state-changed'
 } as const
 
 export type IpcChannel = (typeof IpcChannels)[keyof typeof IpcChannels]

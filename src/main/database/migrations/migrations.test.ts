@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(15)
+    expect(getUserVersion(db)).toBe(16)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -46,7 +46,10 @@ describe('migrations', () => {
         'agent_board_columns',
         'environment_updates',
         'connection_monitors',
-        'connection_health_events'
+        'connection_health_events',
+        'vpn_profiles',
+        'vpn_secrets',
+        'vpn_history'
       ])
     )
   })
@@ -55,7 +58,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(15)
+    expect(getUserVersion(db)).toBe(16)
   })
 
   it('adds color column to environments from 005', () => {
@@ -284,6 +287,48 @@ describe('migrations', () => {
         'error_message'
       ])
     )
+  })
+
+  it('016 adds vpn tables and vpn link columns, nulling links when a profile is deleted', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+
+    const cols = (table: string) =>
+      (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
+        (c) => c.name
+      )
+    expect(cols('clients')).toContain('vpn_profile_id')
+    expect(cols('environments')).toContain('vpn_profile_id')
+    expect(cols('connections')).toEqual(expect.arrayContaining(['vpn_mode', 'vpn_profile_id']))
+    expect(cols('accesses')).toEqual(expect.arrayContaining(['vpn_mode', 'vpn_profile_id']))
+
+    const now = new Date().toISOString()
+    db.prepare(
+      `INSERT INTO vpn_profiles (id, name, kind, config, created_at, updated_at)
+       VALUES ('v1', 'POLY', 'openvpn', '{}', ?, ?)`
+    ).run(now, now)
+    db.prepare(
+      `INSERT INTO clients (id, name, created_at, updated_at, vpn_profile_id) VALUES ('c1', 'Acme', ?, ?, 'v1')`
+    ).run(now, now)
+    db.prepare(
+      `INSERT INTO credentials (id, ciphertext, created_at, updated_at) VALUES ('cr1', x'00', ?, ?)`
+    ).run(now, now)
+    db.prepare(
+      `INSERT INTO vpn_secrets (vpn_profile_id, kind, credential_ref) VALUES ('v1', 'password', 'cr1')`
+    ).run()
+
+    db.prepare(`DELETE FROM vpn_profiles WHERE id = 'v1'`).run()
+
+    const client = db.prepare(`SELECT vpn_profile_id FROM clients WHERE id = 'c1'`).get() as {
+      vpn_profile_id: string | null
+    }
+    expect(client.vpn_profile_id).toBeNull()
+    expect(db.prepare(`SELECT COUNT(*) AS n FROM vpn_secrets`).get()).toEqual({ n: 0 })
+
+    const conn = db
+      .prepare(`SELECT dflt_value FROM pragma_table_info('connections') WHERE name = 'vpn_mode'`)
+      .get() as { dflt_value: string }
+    expect(conn.dflt_value).toBe("'inherit'")
   })
 
   it('adds description column to api_requests from 014', () => {

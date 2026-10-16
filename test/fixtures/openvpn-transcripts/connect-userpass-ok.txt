@@ -1,0 +1,20 @@
+ENTER PASSWORD:
+SUCCESS: password is correct
+>INFO:OpenVPN Management Interface Version 5 -- type 'help' for more info
+>HOLD:Waiting for hold release:0
+SUCCESS: real-time state notification set to ON
+SUCCESS: real-time log notification set to ON
+SUCCESS: hold release succeeded
+>STATE:1760630000,RESOLVE,,,,,,
+>STATE:1760630000,WAIT,,,,,,
+>STATE:1760630000,AUTH,,,,,,
+>PASSWORD:Need 'Private Key' password
+SUCCESS: 'Private Key' password entered, but not yet verified
+>PASSWORD:Need 'Auth' username/password
+SUCCESS: 'Auth' username entered, but not yet verified
+SUCCESS: 'Auth' password entered, but not yet verified
+>STATE:1760630001,GET_CONFIG,,,,,,
+>LOG:1760630001,,PUSH: Received control message: 'PUSH_REPLY,route 10.20.0.0 255.255.0.0,route 192.168.50.0 255.255.255.0,dhcp-option DNS 10.20.0.2,route-gateway 10.8.0.1,topology subnet,ping 10,ping-restart 60,ifconfig 10.8.0.6 255.255.255.0'
+>STATE:1760630001,ASSIGN_IP,,10.8.0.6,,,,
+>STATE:1760630001,ADD_ROUTES,,,,,,
+>STATE:1760630002,CONNECTED,SUCCESS,10.8.0.6,203.0.113.10,1194,,

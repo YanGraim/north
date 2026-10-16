@@ -11,7 +11,7 @@ import type {
   SessionPortMessage,
   TransferProgress
 } from '@shared/protocols'
-import type { AppIdentity, ConnectionHealthStatus, UpdateStatus } from '@shared/types'
+import type { AppIdentity, ConnectionHealthStatus, UpdateStatus, VpnState } from '@shared/types'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 function waitForSessionPort(requestId: string, onPort: (port: MessagePort) => void): Promise<void> {
@@ -384,6 +384,30 @@ const api: NorthApi = {
       }
       ipcRenderer.on(IpcChannels.CONNECTION_HEALTH_CHANGED, handler)
       return () => ipcRenderer.removeListener(IpcChannels.CONNECTION_HEALTH_CHANGED, handler)
+    }
+  },
+  vpn: {
+    list: () => ipcRenderer.invoke(IpcChannels.VPN_LIST),
+    get: (id) => ipcRenderer.invoke(IpcChannels.VPN_GET, id),
+    create: (input) => ipcRenderer.invoke(IpcChannels.VPN_CREATE, input),
+    update: (id, input) => ipcRenderer.invoke(IpcChannels.VPN_UPDATE, id, input),
+    delete: (id) => ipcRenderer.invoke(IpcChannels.VPN_DELETE, id),
+    importOvpn: (input) => ipcRenderer.invoke(IpcChannels.VPN_IMPORT_OVPN, input),
+    setSecret: (input) => ipcRenderer.invoke(IpcChannels.VPN_SET_SECRET, input),
+    secretStatus: (id) => ipcRenderer.invoke(IpcChannels.VPN_SECRET_STATUS, id),
+    connect: (input) => ipcRenderer.invoke(IpcChannels.VPN_CONNECT, input),
+    disconnect: (id) => ipcRenderer.invoke(IpcChannels.VPN_DISCONNECT, id),
+    status: () => ipcRenderer.invoke(IpcChannels.VPN_STATUS),
+    logs: (id) => ipcRenderer.invoke(IpcChannels.VPN_LOGS, id),
+    history: (id, limit) => ipcRenderer.invoke(IpcChannels.VPN_HISTORY, id, limit),
+    checkConflicts: (id) => ipcRenderer.invoke(IpcChannels.VPN_CHECK_CONFLICTS, id),
+    platformSupport: () => ipcRenderer.invoke(IpcChannels.VPN_PLATFORM_SUPPORT),
+    onStateChanged: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: VpnState): void => {
+        listener(state)
+      }
+      ipcRenderer.on(IpcChannels.VPN_STATE_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.VPN_STATE_CHANGED, handler)
     }
   }
 }

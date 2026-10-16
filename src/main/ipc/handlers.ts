@@ -27,6 +27,7 @@ import { registerTerminalHandlers } from './terminal'
 import { registerThemeHandlers } from './theme'
 import { registerUpdateHandlers } from './updates'
 import { registerVaultHandlers } from './vault'
+import { registerVpnHandlers } from './vpn'
 import { registerWorkflowHandlers } from './workflows'
 
 let repositories: Repositories | null = null
@@ -83,4 +84,5 @@ export function registerIpcHandlers(): void {
   registerEnvironmentUpdateHandlers(repositories)
   registerTerminalHandlers()
   registerConnectionHealthHandlers(repositories)
+  registerVpnHandlers(repositories, vault)
 }
