@@ -25,6 +25,8 @@ import {
   normalizeWorkflowName
 } from '@shared/types'
 
+import { createVpnMock } from './mock-vpn'
+
 type RunListener = (payload: { runId: string; event: WorkflowRunEvent }) => void
 type ProgressListener = (progress: TransferProgress) => void
 
@@ -1276,7 +1278,8 @@ function installDatabaseMock(workflowsApi: ReturnType<typeof createWorkflowsApi>
       pickFile: async () => null
     },
     workflows: workflowsApi,
-    api: createApiClientStub()
+    api: createApiClientStub(),
+    vpn: createVpnMock()
   }
 
   ;(window as unknown as { north: typeof api }).north = api

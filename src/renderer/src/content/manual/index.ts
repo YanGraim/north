@@ -11,6 +11,7 @@ import importExportEn from './en/import-export.md?raw'
 import organizationEn from './en/organization.md?raw'
 import overviewEn from './en/overview.md?raw'
 import securityEn from './en/security.md?raw'
+import vpnsEn from './en/vpns.md?raw'
 import workflowsEn from './en/workflows.md?raw'
 
 import accessesEs from './es/accesses.md?raw'
@@ -24,6 +25,7 @@ import importExportEs from './es/import-export.md?raw'
 import organizationEs from './es/organization.md?raw'
 import overviewEs from './es/overview.md?raw'
 import securityEs from './es/security.md?raw'
+import vpnsEs from './es/vpns.md?raw'
 import workflowsEs from './es/workflows.md?raw'
 
 import accessesPt from './pt-BR/accesses.md?raw'
@@ -37,6 +39,7 @@ import importExportPt from './pt-BR/import-export.md?raw'
 import organizationPt from './pt-BR/organization.md?raw'
 import overviewPt from './pt-BR/overview.md?raw'
 import securityPt from './pt-BR/security.md?raw'
+import vpnsPt from './pt-BR/vpns.md?raw'
 import workflowsPt from './pt-BR/workflows.md?raw'
 
 export const MANUAL_CHAPTER_IDS = [
@@ -51,7 +54,8 @@ export const MANUAL_CHAPTER_IDS = [
   'command-palette',
   'import-export',
   'security',
-  'agents'
+  'agents',
+  'vpns'
 ] as const
 
 export type ManualChapterId = (typeof MANUAL_CHAPTER_IDS)[number]
@@ -76,7 +80,8 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     'command-palette': commandPalettePt,
     'import-export': importExportPt,
     security: securityPt,
-    agents: agentsPt
+    agents: agentsPt,
+    vpns: vpnsPt
   },
   en: {
     overview: overviewEn,
@@ -90,7 +95,8 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     'command-palette': commandPaletteEn,
     'import-export': importExportEn,
     security: securityEn,
-    agents: agentsEn
+    agents: agentsEn,
+    vpns: vpnsEn
   },
   es: {
     overview: overviewEs,
@@ -104,7 +110,8 @@ const BODIES: Record<LocaleCode, Record<ManualChapterId, string>> = {
     'command-palette': commandPaletteEs,
     'import-export': importExportEs,
     security: securityEs,
-    agents: agentsEs
+    agents: agentsEs,
+    vpns: vpnsEs
   }
 }
 

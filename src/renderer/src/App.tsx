@@ -5,6 +5,7 @@ import { DashboardPage } from '@renderer/features/dashboard/DashboardPage'
 import { ManualPage } from '@renderer/features/help/ManualPage'
 import { HistoryPage } from '@renderer/features/history/HistoryPage'
 import { SettingsPage } from '@renderer/features/settings/SettingsPage'
+import { VpnsPage } from '@renderer/features/vpns/VpnsPage'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 function App(): React.JSX.Element {
@@ -19,6 +20,7 @@ function App(): React.JSX.Element {
         <Route path="clients/:clientId" element={<ConnectionListPage mode="client" />} />
         <Route path="tags/:tagId" element={<ConnectionListPage mode="tag" />} />
         <Route path="history" element={<HistoryPage />} />
+        <Route path="vpns" element={<VpnsPage />} />
         <Route path="agents" element={<AgentsBoard />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/manual" element={<ManualPage />} />

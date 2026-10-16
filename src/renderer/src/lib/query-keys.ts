@@ -80,5 +80,13 @@ export const queryKeys = {
     list: () => ['connection-monitors'] as const,
     events: (connectionId: string) => ['connection-health-events', connectionId] as const,
     recentEvents: () => ['connection-health-events', 'recent'] as const
+  },
+  vpn: {
+    profiles: ['vpn', 'profiles'] as const,
+    status: ['vpn', 'status'] as const,
+    secrets: (id: string) => ['vpn', 'secrets', id] as const,
+    logs: (id: string) => ['vpn', 'logs', id] as const,
+    history: (id: string) => ['vpn', 'history', id] as const,
+    platformSupport: ['vpn', 'platform-support'] as const
   }
 }

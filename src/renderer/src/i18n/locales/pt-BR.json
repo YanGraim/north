@@ -16,7 +16,8 @@
     "tags": "Tags",
     "settings": "Configurações",
     "newClient": "Novo cliente",
-    "newTag": "Nova tag"
+    "newTag": "Nova tag",
+    "vpns": "VPNs"
   },
   "settings": {
     "title": "Configurações",
@@ -127,7 +128,8 @@
       "security": "Segurança",
       "database": "Estúdio SQL",
       "api": "Cliente API",
-      "agents": "Agentes"
+      "agents": "Agentes",
+      "vpns": "VPNs"
     }
   },
   "agents": {
@@ -547,5 +549,169 @@
     "delete": "Excluir",
     "back": "Voltar",
     "close": "Fechar"
+  },
+  "vpn": {
+    "title": "VPNs",
+    "subtitle": "Túneis por cliente — ligue aqui ou deixe o North ligar ao abrir uma sessão",
+    "new": "Nova VPN",
+    "manage": "Gerenciar VPNs",
+    "noClient": "Sem cliente",
+    "empty": {
+      "title": "Nenhuma VPN ainda",
+      "description": "Arraste um arquivo .ovpn aqui ou crie uma VPN FortiGate/IPsec.",
+      "drop": "Solte o .ovpn para importar"
+    },
+    "select": "Selecione uma VPN para ver os detalhes",
+    "status": {
+      "disconnected": "Desligada",
+      "connecting": "Conectando…",
+      "connected": "Conectada",
+      "reconnecting": "Reconectando ({{attempt}}/5)…",
+      "disconnecting": "Desligando…",
+      "error": "Erro"
+    },
+    "kind": {
+      "openvpn": "OpenVPN",
+      "ipsec-ikev1": "FortiGate / IPsec (IKEv1)",
+      "ipsec-ikev2": "IKEv2"
+    },
+    "actions": {
+      "connect": "Conectar",
+      "disconnect": "Desligar",
+      "toggle": "Ligar VPN {{name}}",
+      "delete": "Excluir VPN",
+      "updateSecret": "Atualizar senha",
+      "retry": "Tentar de novo",
+      "install": "Como instalar",
+      "copyDiagnostics": "Copiar diagnóstico",
+      "saveSecrets": "Salvar credenciais"
+    },
+    "tabs": {
+      "overview": "Visão geral",
+      "config": "Configuração",
+      "logs": "Logs",
+      "history": "Histórico"
+    },
+    "overview": {
+      "ip": "IP local",
+      "routes": "Rotas",
+      "uptime": "Ativa desde",
+      "server": "Servidor",
+      "sessions": "Sessões usando",
+      "manual": "Ligada manualmente",
+      "auto": "Ligada automaticamente",
+      "fullTunnel": "Todo o tráfego passa pela VPN (full-tunnel)",
+      "noRoutes": "Nenhuma rota informada"
+    },
+    "config": {
+      "name": "Nome",
+      "client": "Cliente",
+      "autoDisconnect": "Desligar quando nenhuma sessão estiver usando",
+      "idleTimeout": "Depois de (minutos)",
+      "notes": "Notas",
+      "credentials": "Credenciais",
+      "saved": "Salva",
+      "missing": "Não salva",
+      "save": "Salvar"
+    },
+    "logs": {
+      "empty": "Sem logs nesta sessão do North.",
+      "search": "Filtrar logs",
+      "copied": "Diagnóstico copiado"
+    },
+    "history": {
+      "empty": "Nenhuma conexão registrada.",
+      "manual": "manual",
+      "auto": "automática",
+      "result": {
+        "pending": "em andamento",
+        "connected": "ok",
+        "error": "falha",
+        "cancelled": "cancelada"
+      }
+    },
+    "secrets": {
+      "title": "Credenciais de {{name}}",
+      "description": "Ficam no cofre do North, nunca no banco nem nos logs.",
+      "username": "Usuário",
+      "password": "Senha",
+      "key-passphrase": "Senha da chave privada",
+      "psk": "Chave pré-compartilhada",
+      "ovpn-inline": "Chaves do arquivo",
+      "private-key": "Chave privada",
+      "keepHint": "Deixe em branco para manter a salva"
+    },
+    "wizard": {
+      "title": "Nova VPN",
+      "chooseKind": "Que tipo de VPN?",
+      "openvpnHint": "Importe o arquivo .ovpn exportado pelo firewall",
+      "ipsecHint": "Os mesmos campos do FortiClient",
+      "ikev2Hint": "Gateway IKEv2 nativo",
+      "pickFile": "Escolher arquivo .ovpn",
+      "server": "Servidor {{host}}:{{port}} {{proto}}",
+      "needsUserPass": "exige usuário e senha",
+      "needsKey": "chave privada protegida por senha",
+      "noSecrets": "não exige credenciais",
+      "fullTunnel": "redireciona todo o tráfego",
+      "remoteGateway": "Gateway remoto",
+      "authMethod": "Método de autenticação",
+      "psk": "Chave pré-compartilhada",
+      "xauth": "XAuth",
+      "xauthSaved": "Salvar login",
+      "xauthPrompt": "Perguntar ao conectar",
+      "groupName": "Nome do grupo (opcional)",
+      "remoteId": "ID remoto (opcional)",
+      "ikev2Auth": "Autenticação",
+      "eap": "Usuário e senha (EAP)",
+      "name": "Nome",
+      "client": "Cliente",
+      "back": "Voltar",
+      "next": "Continuar",
+      "create": "Criar VPN",
+      "windowsForti": "No Windows, esta VPN será aberta pelo FortiClient.",
+      "unsupported": "Ainda não é possível conectar este tipo neste sistema: {{reason}}"
+    },
+    "conflict": {
+      "title": "Conflito com outra VPN",
+      "description": "{{name}} conflita com VPNs já ligadas:",
+      "overlapping-routes": "redes sobrepostas com {{other}} ({{detail}})",
+      "full-tunnel": "{{other}} ou esta VPN redireciona todo o tráfego",
+      "platform-single-ipsec": "o macOS só mantém uma VPN IPsec por vez ({{other}})",
+      "disconnectAndConnect": "Desligar e conectar",
+      "connectAnyway": "Conectar mesmo assim",
+      "cancel": "Cancelar"
+    },
+    "errors": {
+      "AUTH_FAILED": "Senha recusada pelo servidor VPN",
+      "KEY_PASSPHRASE_WRONG": "Senha da chave privada incorreta",
+      "TIMEOUT": "O servidor VPN não respondeu",
+      "HOST_UNREACHABLE": "VPN ok, mas o host não respondeu",
+      "PRIVILEGE_DENIED": "Permissão de administrador negada",
+      "BINARY_MISSING": "OpenVPN não está instalado",
+      "CONFLICT": "Conflita com outra VPN ativa",
+      "UNSUPPORTED_ON_PLATFORM": "Não suportado neste sistema",
+      "DRIVER_CRASHED": "O túnel VPN caiu",
+      "SECRET_MISSING": "Faltam credenciais salvas",
+      "INVALID_CONFIG": "Configuração inválida"
+    },
+    "install": "macOS: instale com \"brew install openvpn\". Linux: instale o pacote openvpn da distribuição.",
+    "indicator": {
+      "none": "VPN",
+      "many": "{{count}} VPNs",
+      "aria": "Status das VPNs",
+      "empty": "Nenhuma VPN cadastrada"
+    },
+    "toast": {
+      "saved": "VPN salva",
+      "saveFailed": "Não foi possível salvar a VPN",
+      "deleted": "VPN excluída",
+      "deleteFailed": "Não foi possível excluir a VPN",
+      "disconnectFailed": "Não foi possível desligar a VPN",
+      "imported": "VPN importada",
+      "importFailed": "Não foi possível importar o arquivo",
+      "created": "VPN criada",
+      "secretsSaved": "Credenciais salvas"
+    },
+    "confirmDelete": "Excluir a VPN {{name}}? As credenciais salvas também serão apagadas."
   }
 }

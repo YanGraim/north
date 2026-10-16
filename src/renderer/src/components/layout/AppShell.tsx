@@ -8,6 +8,7 @@ import { InventoryDialogs } from '@renderer/features/inventory/InventoryDialogs'
 import { HostKeyDialog } from '@renderer/features/sessions/HostKeyDialog'
 import { SessionTabs } from '@renderer/features/sessions/SessionTabs'
 import { SessionView } from '@renderer/features/sessions/SessionView'
+import { VpnDialogs } from '@renderer/features/vpns/VpnDialogs'
 import { WorkflowRunView } from '@renderer/features/workflows/WorkflowRunView'
 import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import { matchesShortcut } from '@renderer/lib/shortcuts'
@@ -30,7 +31,8 @@ export function AppShell(): React.JSX.Element {
   const dashboardMatch = useMatch('/dashboard')
   const historyMatch = useMatch('/history')
   const manualMatch = useMatch('/settings/manual')
-  const isFullBleed = Boolean(dashboardMatch || historyMatch || manualMatch)
+  const vpnsMatch = useMatch('/vpns')
+  const isFullBleed = Boolean(dashboardMatch || historyMatch || manualMatch || vpnsMatch)
   const workspaceActive = activeTabId === WORKSPACE_TAB_ID
 
   useEffect(() => {
@@ -137,6 +139,7 @@ export function AppShell(): React.JSX.Element {
         <HostKeyDialog />
         <WhatsNewDialog />
         <InventoryDialogs />
+        <VpnDialogs />
       </div>
     </TooltipProvider>
   )

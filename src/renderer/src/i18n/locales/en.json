@@ -16,7 +16,8 @@
     "tags": "Tags",
     "settings": "Settings",
     "newClient": "New client",
-    "newTag": "New tag"
+    "newTag": "New tag",
+    "vpns": "VPNs"
   },
   "settings": {
     "title": "Settings",
@@ -127,7 +128,8 @@
       "security": "Security",
       "database": "SQL studio",
       "api": "API client",
-      "agents": "Agents"
+      "agents": "Agents",
+      "vpns": "VPNs"
     }
   },
   "agents": {
@@ -547,5 +549,169 @@
     "delete": "Delete",
     "back": "Back",
     "close": "Close"
+  },
+  "vpn": {
+    "title": "VPNs",
+    "subtitle": "Tunnels per client — turn them on here or let North do it when a session opens",
+    "new": "New VPN",
+    "manage": "Manage VPNs",
+    "noClient": "No client",
+    "empty": {
+      "title": "No VPNs yet",
+      "description": "Drop an .ovpn file here or create a FortiGate/IPsec VPN.",
+      "drop": "Drop the .ovpn to import"
+    },
+    "select": "Select a VPN to see its details",
+    "status": {
+      "disconnected": "Off",
+      "connecting": "Connecting…",
+      "connected": "Connected",
+      "reconnecting": "Reconnecting ({{attempt}}/5)…",
+      "disconnecting": "Turning off…",
+      "error": "Error"
+    },
+    "kind": {
+      "openvpn": "OpenVPN",
+      "ipsec-ikev1": "FortiGate / IPsec (IKEv1)",
+      "ipsec-ikev2": "IKEv2"
+    },
+    "actions": {
+      "connect": "Connect",
+      "disconnect": "Turn off",
+      "toggle": "Turn on VPN {{name}}",
+      "delete": "Delete VPN",
+      "updateSecret": "Update password",
+      "retry": "Try again",
+      "install": "How to install",
+      "copyDiagnostics": "Copy diagnostics",
+      "saveSecrets": "Save credentials"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "config": "Settings",
+      "logs": "Logs",
+      "history": "History"
+    },
+    "overview": {
+      "ip": "Local IP",
+      "routes": "Routes",
+      "uptime": "Up since",
+      "server": "Server",
+      "sessions": "Sessions using it",
+      "manual": "Turned on manually",
+      "auto": "Turned on automatically",
+      "fullTunnel": "All traffic goes through the VPN (full tunnel)",
+      "noRoutes": "No routes reported"
+    },
+    "config": {
+      "name": "Name",
+      "client": "Client",
+      "autoDisconnect": "Turn off when no session is using it",
+      "idleTimeout": "After (minutes)",
+      "notes": "Notes",
+      "credentials": "Credentials",
+      "saved": "Saved",
+      "missing": "Not saved",
+      "save": "Save"
+    },
+    "logs": {
+      "empty": "No logs in this North session.",
+      "search": "Filter logs",
+      "copied": "Diagnostics copied"
+    },
+    "history": {
+      "empty": "No connections recorded.",
+      "manual": "manual",
+      "auto": "automatic",
+      "result": {
+        "pending": "in progress",
+        "connected": "ok",
+        "error": "failed",
+        "cancelled": "cancelled"
+      }
+    },
+    "secrets": {
+      "title": "Credentials for {{name}}",
+      "description": "Kept in North's vault, never in the database or logs.",
+      "username": "Username",
+      "password": "Password",
+      "key-passphrase": "Private key password",
+      "psk": "Pre-shared key",
+      "ovpn-inline": "Keys from the file",
+      "private-key": "Private key",
+      "keepHint": "Leave blank to keep the saved one"
+    },
+    "wizard": {
+      "title": "New VPN",
+      "chooseKind": "What kind of VPN?",
+      "openvpnHint": "Import the .ovpn file exported by the firewall",
+      "ipsecHint": "Same fields as FortiClient",
+      "ikev2Hint": "Native IKEv2 gateway",
+      "pickFile": "Choose .ovpn file",
+      "server": "Server {{host}}:{{port}} {{proto}}",
+      "needsUserPass": "requires username and password",
+      "needsKey": "password-protected private key",
+      "noSecrets": "no credentials required",
+      "fullTunnel": "redirects all traffic",
+      "remoteGateway": "Remote gateway",
+      "authMethod": "Authentication method",
+      "psk": "Pre-shared key",
+      "xauth": "XAuth",
+      "xauthSaved": "Save login",
+      "xauthPrompt": "Ask on connect",
+      "groupName": "Group name (optional)",
+      "remoteId": "Remote ID (optional)",
+      "ikev2Auth": "Authentication",
+      "eap": "Username and password (EAP)",
+      "name": "Name",
+      "client": "Client",
+      "back": "Back",
+      "next": "Continue",
+      "create": "Create VPN",
+      "windowsForti": "On Windows, this VPN will be opened through FortiClient.",
+      "unsupported": "This kind can't connect on this system yet: {{reason}}"
+    },
+    "conflict": {
+      "title": "Conflict with another VPN",
+      "description": "{{name}} conflicts with VPNs already on:",
+      "overlapping-routes": "overlapping networks with {{other}} ({{detail}})",
+      "full-tunnel": "{{other}} or this VPN redirects all traffic",
+      "platform-single-ipsec": "macOS only keeps one IPsec VPN at a time ({{other}})",
+      "disconnectAndConnect": "Turn off and connect",
+      "connectAnyway": "Connect anyway",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "AUTH_FAILED": "Password rejected by the VPN server",
+      "KEY_PASSPHRASE_WRONG": "Wrong private key password",
+      "TIMEOUT": "The VPN server didn't respond",
+      "HOST_UNREACHABLE": "VPN is up, but the host didn't respond",
+      "PRIVILEGE_DENIED": "Administrator permission denied",
+      "BINARY_MISSING": "OpenVPN is not installed",
+      "CONFLICT": "Conflicts with another active VPN",
+      "UNSUPPORTED_ON_PLATFORM": "Not supported on this system",
+      "DRIVER_CRASHED": "The VPN tunnel dropped",
+      "SECRET_MISSING": "Saved credentials are missing",
+      "INVALID_CONFIG": "Invalid configuration"
+    },
+    "install": "macOS: install with \"brew install openvpn\". Linux: install your distribution's openvpn package.",
+    "indicator": {
+      "none": "VPN",
+      "many": "{{count}} VPNs",
+      "aria": "VPN status",
+      "empty": "No VPNs yet"
+    },
+    "toast": {
+      "saved": "VPN saved",
+      "saveFailed": "Couldn't save the VPN",
+      "deleted": "VPN deleted",
+      "deleteFailed": "Couldn't delete the VPN",
+      "disconnectFailed": "Couldn't turn off the VPN",
+      "imported": "VPN imported",
+      "importFailed": "Couldn't import the file",
+      "created": "VPN created",
+      "secretsSaved": "Credentials saved"
+    },
+    "confirmDelete": "Delete VPN {{name}}? Its saved credentials will be erased too."
   }
 }

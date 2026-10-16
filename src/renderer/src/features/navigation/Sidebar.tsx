@@ -15,7 +15,15 @@ import { cn } from '@renderer/lib/utils'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { openApiStudioTab } from '@renderer/stores/sessions-store'
 import { useUiStore } from '@renderer/stores/ui-store'
-import { FolderInput, History, LayoutDashboard, Server, Settings, Star } from 'lucide-react'
+import {
+  FolderInput,
+  History,
+  LayoutDashboard,
+  Server,
+  Settings,
+  ShieldCheck,
+  Star
+} from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -80,6 +88,13 @@ export function Sidebar(): React.JSX.Element {
               to="/history"
               label={t('nav.history')}
               icon={History}
+              collapsed={collapsed}
+              plain={collapsed}
+            />
+            <NavItem
+              to="/vpns"
+              label={t('nav.vpns')}
+              icon={ShieldCheck}
               collapsed={collapsed}
               plain={collapsed}
             />
