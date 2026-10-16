@@ -35,6 +35,7 @@ export function vpnErrorAction(code: VpnErrorCode): VpnErrorAction {
     case 'AUTH_FAILED':
     case 'KEY_PASSPHRASE_WRONG':
     case 'SECRET_MISSING':
+    case 'CONNECTION_REJECTED':
       return 'update-secret'
     case 'BINARY_MISSING':
       return 'install'

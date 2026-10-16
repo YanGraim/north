@@ -286,3 +286,33 @@ describe('VpnManager', () => {
     expect(factory.instances.every((d) => !d.connected)).toBe(true)
   })
 })
+
+describe('VpnManager progress detail', () => {
+  it('exposes the driver progress hint while connecting and clears it once connected', async () => {
+    const factory = {
+      kind: 'openvpn' as const,
+      isSupported: () => ({ ok: true as const }),
+      create: () => ({
+        connect: async (ctx: { progress?: (d: string) => void }) => {
+          ctx.progress?.('Aprove o perfil')
+          return { routes: [], redirectGateway: false }
+        },
+        disconnect: async () => {},
+        onDrop: () => {}
+      })
+    }
+    const drivers = new VpnDriverRegistry()
+    drivers.register(factory)
+    const events: VpnState[] = []
+    const manager = new VpnManager({
+      profiles: { get: () => makeProfile('a') },
+      secrets: () => ({ get: () => null, inlineBlocks: () => ({}), values: () => [] }),
+      drivers,
+      platform: 'darwin',
+      emit: (s) => events.push(s)
+    })
+    await manager.connect('a')
+    expect(events.find((e) => e.detail === 'Aprove o perfil')?.status).toBe('connecting')
+    expect(manager.getState('a').detail).toBeUndefined()
+  })
+})

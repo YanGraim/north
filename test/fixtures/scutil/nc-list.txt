@@ -1,0 +1,3 @@
+Available network connection services in the current set (*=enabled):
+* (Disconnected)   F8FBD758-FFDD-45FC-80A4-F1B35BC6F8BB PPP --> L2TP       "ECOFITUS"                       [PPP:L2TP]
+* (Disconnected)   E11DB223-0CD3-4D27-9069-B145849FC6A3 VPN (com.fortinet.forticlient.macos.vpn) "VPN"                            [VPN:com.fortinet.forticlient.macos.vpn]

@@ -692,7 +692,9 @@
       "UNSUPPORTED_ON_PLATFORM": "Not supported on this system",
       "DRIVER_CRASHED": "The VPN tunnel dropped",
       "SECRET_MISSING": "Saved credentials are missing",
-      "INVALID_CONFIG": "Invalid configuration"
+      "INVALID_CONFIG": "Invalid configuration",
+      "CONNECTION_REJECTED": "The VPN server rejected the connection — check gateway, key and password",
+      "PROFILE_APPROVAL_REQUIRED": "Approve the \"North\" profile in System Settings → General → Device Management, then click Connect again"
     },
     "install": "macOS: install with \"brew install openvpn\". Linux: install your distribution's openvpn package.",
     "indicator": {

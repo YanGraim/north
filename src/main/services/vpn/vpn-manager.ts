@@ -60,6 +60,7 @@ type Entry = {
   reconnectTimer?: NodeJS.Timeout
   reconnectAttempt: number
   logs: string[]
+  detail?: string
   redact: (line: string) => string
 }
 
@@ -250,6 +251,11 @@ export class VpnManager {
         profile,
         secrets,
         log: (line) => this.appendLog(profile.id, line),
+        progress: (detail) => {
+          entry.detail = detail
+          this.appendLog(profile.id, detail)
+          this.emit(entry)
+        },
         signal: abort.signal
       })
       if (abort.signal.aborted) {
@@ -374,6 +380,7 @@ export class VpnManager {
   }
 
   private setStatus(entry: Entry, status: VpnStatus): void {
+    if (status !== 'connecting' && status !== 'reconnecting') entry.detail = undefined
     if (entry.status !== status) entry.since = new Date()
     entry.status = status
     this.emit(entry)
@@ -396,6 +403,7 @@ export class VpnManager {
       leases: entry.leases.size,
       trigger: entry.trigger,
       ...(entry.reconnectAttempt > 0 ? { reconnectAttempt: entry.reconnectAttempt } : {}),
+      ...(entry.detail ? { detail: entry.detail } : {}),
       version: this.version
     }
   }

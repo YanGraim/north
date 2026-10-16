@@ -7,7 +7,7 @@ O North guarda as VPNs dos seus clientes e liga cada uma com um clique, sem abri
 Em **VPNs** na barra lateral, clique em **Nova VPN** ou arraste um arquivo `.ovpn` para a tela.
 
 - **OpenVPN (.ovpn):** o North lê o arquivo, mostra o servidor e pede **só** o que ele exige: usuário e senha, senha da chave privada ou nada. Arquivos que tentam executar scripts (`up`, `down`, `plugin`, `script-security 2`…) são recusados, com o motivo na tela.
-- **FortiGate / IPsec (IKEv1) e IKEv2:** os campos têm os mesmos nomes e a mesma ordem do FortiClient (gateway remoto, chave pré-compartilhada, XAuth, usuário). Por enquanto esses tipos ficam só cadastrados; a conexão chega numa próxima versão.
+- **FortiGate / IPsec (IKEv1) e IKEv2:** os campos têm os mesmos nomes e a mesma ordem do FortiClient (gateway remoto, chave pré-compartilhada, XAuth, usuário). No macOS, a FortiGate IKEv1 conecta pelo cliente IPsec do próprio sistema: na primeira conexão o North abre um perfil "North" e o macOS pede para você aprová-lo em **Ajustes do Sistema → Geral → Gerenciamento de Dispositivos**. Depois disso é só ligar. Se você mudar a senha ou a chave, o macOS pede a aprovação de novo. IKEv2 e o Windows ainda ficam só cadastrados.
 
 Senhas, chave pré-compartilhada e as chaves privadas embutidas no `.ovpn` vão para o cofre do North e nunca aparecem nos logs.
 

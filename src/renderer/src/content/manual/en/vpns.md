@@ -7,7 +7,7 @@ North stores your clients' VPNs and turns each one on with a click, without open
 In **VPNs** in the sidebar, click **New VPN** or drop an `.ovpn` file onto the screen.
 
 - **OpenVPN (.ovpn):** North reads the file, shows the server and asks **only** for what it needs: username and password, the private key password, or nothing. Files that try to run scripts (`up`, `down`, `plugin`, `script-security 2`…) are rejected, with the reason on screen.
-- **FortiGate / IPsec (IKEv1) and IKEv2:** the fields use the same names and order as FortiClient (remote gateway, pre-shared key, XAuth, username). For now these kinds can be saved but not connected; connecting arrives in an upcoming version.
+- **FortiGate / IPsec (IKEv1) and IKEv2:** the fields use the same names and order as FortiClient (remote gateway, pre-shared key, XAuth, username). On macOS, FortiGate IKEv1 connects through the system's own IPsec client: on the first connection North opens a "North" profile and macOS asks you to approve it in **System Settings → General → Device Management**. After that, just turn it on. If you change the password or key, macOS asks for approval again. IKEv2 and Windows can only be saved for now.
 
 Passwords, the pre-shared key and private keys embedded in the `.ovpn` go into North's vault and never show up in logs.
 

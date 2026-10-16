@@ -14,6 +14,7 @@ import {
 import type { Repositories } from '../../repositories'
 import type { CredentialVault } from '../../vault'
 import { createFakeVpnDriverFactory } from './drivers/fake-vpn-driver'
+import { MacosIpsecDriver, type MacosIpsecDriverDeps } from './drivers/macos-ipsec-driver'
 import { OpenVpnDriver } from './drivers/openvpn-driver'
 import { VpnDriverRegistry } from './drivers/vpn-driver'
 import type { PrivilegeBroker } from './privilege-broker'
@@ -37,6 +38,7 @@ export type VpnRuntimeDeps = {
     tmpDir: string
     tunnels: TunnelRegistry
   }
+  macosIpsec?: MacosIpsecDriverDeps
 }
 
 export function createVpnRuntime(deps: VpnRuntimeDeps) {
@@ -56,6 +58,20 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
           ? { ok: false, reason: 'No Windows, o OpenVPN depende do Interactive Service (em breve)' }
           : { ok: true },
       create: () => new OpenVpnDriver(openvpn)
+    })
+  }
+  if (!deps.fake && deps.macosIpsec) {
+    const ipsec = deps.macosIpsec
+    drivers.register({
+      kind: 'ipsec-ikev1',
+      isSupported: (platform) =>
+        platform === 'darwin'
+          ? { ok: true }
+          : {
+              ok: false,
+              reason: 'IPsec IKEv1 só no macOS por enquanto (Windows usará o FortiClient)'
+            },
+      create: () => new MacosIpsecDriver(ipsec)
     })
   }
 

@@ -1,0 +1,17 @@
+Connected
+Extended Status <dictionary> {
+  IPSec : <dictionary> {
+    ConnectTime : 1231
+    Status : 4
+  }
+  IPv4 : <dictionary> {
+    Addresses : <array> {
+      0 : 10.212.134.5
+    }
+    DestAddresses : <array> {
+      0 : 10.212.134.5
+    }
+    Router : 10.212.134.5
+  }
+  Status : 2
+}

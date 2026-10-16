@@ -692,7 +692,9 @@
       "UNSUPPORTED_ON_PLATFORM": "Não suportado neste sistema",
       "DRIVER_CRASHED": "O túnel VPN caiu",
       "SECRET_MISSING": "Faltam credenciais salvas",
-      "INVALID_CONFIG": "Configuração inválida"
+      "INVALID_CONFIG": "Configuração inválida",
+      "CONNECTION_REJECTED": "O servidor VPN recusou a conexão — confira gateway, chave e senha",
+      "PROFILE_APPROVAL_REQUIRED": "Aprove o perfil \"North\" em Ajustes do Sistema → Geral → Gerenciamento de Dispositivos e clique em Conectar de novo"
     },
     "install": "macOS: instale com \"brew install openvpn\". Linux: instale o pacote openvpn da distribuição.",
     "indicator": {

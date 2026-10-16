@@ -139,6 +139,9 @@ export function VpnErrorNotice({
       data-testid="vpn-error"
     >
       <p className="text-foreground">{t(`vpn.errors.${error.code}`)}</p>
+      {error.code === 'CONNECTION_REJECTED' ? (
+        <p className="mt-1 text-xs text-muted">{error.message}</p>
+      ) : null}
       <div className="mt-2 flex gap-2">
         {action === 'update-secret' ? (
           <Button
@@ -188,6 +191,11 @@ function Overview({
     <div className="space-y-4">
       <div aria-live="polite">
         <VpnStatusLabel state={state} />
+        {state?.detail ? (
+          <p className="mt-1 text-xs text-foreground" data-testid="vpn-detail">
+            {state.detail}
+          </p>
+        ) : null}
       </div>
       <VpnErrorNotice profile={profile} state={state} />
       <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">

@@ -18,6 +18,8 @@ export type VpnConnectContext = {
   profile: VpnProfile
   secrets: SecretResolver
   log: (line: string) => void
+  /** Optional user-facing progress hint, surfaced as `VpnState.detail`. */
+  progress?: (detail: string) => void
   signal: AbortSignal
 }
 

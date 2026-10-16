@@ -1,0 +1,8 @@
+Disconnected
+Extended Status <dictionary> {
+  IPSec : <dictionary> {
+    LastCause : 14
+    Status : 0
+  }
+  Status : 0
+}

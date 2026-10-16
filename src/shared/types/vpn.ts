@@ -119,7 +119,9 @@ export const VpnErrorCodeSchema = z.enum([
   'UNSUPPORTED_ON_PLATFORM',
   'DRIVER_CRASHED',
   'SECRET_MISSING',
-  'INVALID_CONFIG'
+  'INVALID_CONFIG',
+  'CONNECTION_REJECTED',
+  'PROFILE_APPROVAL_REQUIRED'
 ])
 export type VpnErrorCode = z.infer<typeof VpnErrorCodeSchema>
 
@@ -136,6 +138,8 @@ export const VpnStateSchema = z.object({
   leases: z.number().int().min(0),
   trigger: VpnTriggerSchema.nullable(),
   reconnectAttempt: z.number().int().min(0).optional(),
+  /** Human progress hint while connecting (e.g. "approve the profile in System Settings"). */
+  detail: z.string().optional(),
   /** Monotonic per-manager counter so the renderer can drop out-of-order events. */
   version: z.number().int()
 })

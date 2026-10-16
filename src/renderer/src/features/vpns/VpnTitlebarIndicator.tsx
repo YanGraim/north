@@ -76,6 +76,9 @@ export function VpnTitlebarIndicator(): React.JSX.Element {
                         </span>
                       ) : null}
                     </div>
+                    {state?.detail ? (
+                      <p className="mt-0.5 text-[11px] text-foreground">{state.detail}</p>
+                    ) : null}
                   </div>
                   <Switch
                     checked={on}

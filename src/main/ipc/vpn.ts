@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { IpcChannels } from '@shared/ipc'
@@ -41,6 +42,19 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
       broker,
       tmpDir,
       tunnels
+    },
+    macosIpsec: {
+      run: (cmd, args) =>
+        new Promise((resolve) => {
+          // Only fixed system binaries, never a shell; secrets never reach argv (they live in the profile).
+          const bin = cmd === 'scutil' ? '/usr/sbin/scutil' : '/usr/bin/open'
+          execFile(bin, args, { timeout: 15_000 }, (error, stdout, stderr) => {
+            const code = error ? (typeof error.code === 'number' ? error.code : 1) : 0
+            resolve({ code, stdout: String(stdout), stderr: String(stderr) })
+          })
+        }),
+      tmpDir,
+      installedFile: join(vpnDir, 'ipsec-installed.json')
     }
   })
 
