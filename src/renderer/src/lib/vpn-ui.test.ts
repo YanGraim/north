@@ -1,9 +1,11 @@
 import type { VpnConfig, VpnState } from '@shared/types'
 import { describe, expect, it } from 'vitest'
 import {
+  applyConnectionEdit,
   mergeVpnState,
   requiredSecretFields,
   summarizeVpns,
+  switchVpnKind,
   vpnErrorAction,
   vpnErrorFromUnknown
 } from './vpn-ui'
@@ -123,5 +125,65 @@ describe('requiredSecretFields', () => {
     expect(
       requiredSecretFields({ kind: 'ipsec-ikev2', gateway: 'g', username: 'u', auth: 'psk' })
     ).toEqual(['psk'])
+  })
+})
+
+describe('switchVpnKind', () => {
+  const ipsec: VpnConfig = {
+    kind: 'ipsec-ikev1',
+    gateway: '179.190.99.2',
+    username: 'grp.yan',
+    xauth: 'saved'
+  }
+
+  it('IPsec → SSL-VPN keeps gateway and username, defaults port 443', () => {
+    expect(switchVpnKind(ipsec, 'fortinet-sslvpn')).toEqual({
+      kind: 'fortinet-sslvpn',
+      gateway: '179.190.99.2',
+      port: 443,
+      username: 'grp.yan'
+    })
+  })
+
+  it('SSL-VPN → IKEv2 and back keep the common fields', () => {
+    const ssl: VpnConfig = {
+      kind: 'fortinet-sslvpn',
+      gateway: 'g',
+      port: 4433,
+      username: 'u',
+      trustedCert: 'a'.repeat(64)
+    }
+    expect(switchVpnKind(ssl, 'ipsec-ikev2')).toEqual({
+      kind: 'ipsec-ikev2',
+      gateway: 'g',
+      username: 'u',
+      auth: 'eap'
+    })
+    expect(switchVpnKind(ssl, 'fortinet-sslvpn')).toBe(ssl)
+  })
+})
+
+describe('applyConnectionEdit', () => {
+  const trusted: VpnConfig = {
+    kind: 'fortinet-sslvpn',
+    gateway: 'g',
+    port: 4433,
+    username: 'u',
+    trustedCert: 'a'.repeat(64)
+  }
+
+  it('keeps the trusted certificate when only the username changes', () => {
+    expect(applyConnectionEdit(trusted, { ...trusted, username: 'other' })).toMatchObject({
+      trustedCert: 'a'.repeat(64)
+    })
+  })
+
+  it('drops it when gateway or port changes (new server must be confirmed again)', () => {
+    expect(applyConnectionEdit(trusted, { ...trusted, gateway: 'h' })).not.toHaveProperty(
+      'trustedCert'
+    )
+    expect(applyConnectionEdit(trusted, { ...trusted, port: 443 })).not.toHaveProperty(
+      'trustedCert'
+    )
   })
 })

@@ -12,6 +12,10 @@ En **VPNs** en la barra lateral, haz clic en **Nueva VPN** o arrastra un archivo
 
 Las contraseñas, la clave precompartida y las claves privadas incluidas en el `.ovpn` van al cofre de North y nunca aparecen en los logs.
 
+## Editar
+
+Arriba de la VPN, **Editar** abre la configuración. En **Conexión** cambias el tipo (SSL-VPN, IPsec o IKEv2), el gateway, el puerto, el usuario, el grupo y el XAuth sin borrar la VPN; las credenciales guardadas siguen valiendo. En una OpenVPN, **Reemplazar archivo .ovpn** cambia el archivo y mantiene nombre, cliente y contraseña. Si cambia el gateway o el puerto, North pide confirmar el certificado de nuevo.
+
 ## Activar y apagar
 
 - Desde la píldora **VPN** de la barra superior: cada VPN tiene un switch, con estado, IP y tiempo activa. La píldora se pone verde con una VPN activa, muestra "2 VPNs" con dos, ámbar mientras conecta y roja si una se cae.

@@ -32,6 +32,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useVpnConnect } from './use-vpn-connect'
+import { VpnConnectionEditor } from './VpnConnectionEditor'
 import { VpnCredentialsForm } from './VpnCredentialsForm'
 import { VpnStatusLabel } from './VpnStatus'
 
@@ -52,7 +53,12 @@ export function VpnDetails({ profile }: { profile: VpnProfile }): React.JSX.Elem
             <h2 className="truncate text-base font-medium text-foreground">{profile.name}</h2>
             <p className="text-xs text-muted">{t(`vpn.kind.${profile.kind}`)}</p>
           </div>
-          <ConnectButton profile={profile} state={state} />
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setTab('config')} data-testid="vpn-edit">
+              {t('vpn.edit.button')}
+            </Button>
+            <ConnectButton profile={profile} state={state} />
+          </div>
         </div>
         <div role="tablist" className="mt-3 flex gap-1" aria-label={profile.name}>
           {TABS.map((id) => (
@@ -290,7 +296,18 @@ function Config({ profile }: { profile: VpnProfile }): React.JSX.Element {
 
   return (
     <div className="max-w-lg space-y-8">
+      <section className="space-y-3">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-muted">
+          {t('vpn.edit.connection')}
+        </h3>
+        {/* keyed by updatedAt so the draft resets to the saved config after each save */}
+        <VpnConnectionEditor key={profile.updatedAt} profile={profile} />
+      </section>
+
       <form className="space-y-3" onSubmit={save}>
+        <h3 className="text-xs font-medium uppercase tracking-wider text-muted">
+          {t('vpn.edit.general')}
+        </h3>
         <div className="space-y-1.5">
           <Label htmlFor="vpn-cfg-name">{t('vpn.config.name')}</Label>
           <Input id="vpn-cfg-name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -343,7 +360,7 @@ function Config({ profile }: { profile: VpnProfile }): React.JSX.Element {
         <h3 className="text-xs font-medium uppercase tracking-wider text-muted">
           {t('vpn.config.credentials')}
         </h3>
-        <VpnCredentialsForm profile={profile} />
+        <VpnCredentialsForm key={profile.updatedAt} profile={profile} />
       </section>
 
       <Button variant="destructive" onClick={() => setConfirm(true)} data-testid="vpn-delete">

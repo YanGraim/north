@@ -1,5 +1,5 @@
 import { parseVpnErrorMessage } from '@shared/lib/vpn/errors'
-import type { VpnConfig, VpnErrorCode, VpnSecretKind, VpnState } from '@shared/types'
+import type { VpnConfig, VpnErrorCode, VpnKind, VpnSecretKind, VpnState } from '@shared/types'
 
 export type VpnTone = 'idle' | 'connected' | 'connecting' | 'error'
 
@@ -74,4 +74,33 @@ export function requiredSecretFields(config: VpnConfig): VpnSecretField[] {
     case 'fortinet-sslvpn':
       return ['username', 'password']
   }
+}
+
+export type GatewayKind = Exclude<VpnKind, 'openvpn'>
+
+/** Change the type of a gateway-based VPN, carrying over gateway and username. */
+export function switchVpnKind(config: VpnConfig, kind: GatewayKind): VpnConfig {
+  if (config.kind === kind) return config
+  const gateway = config.kind === 'openvpn' ? (config.remoteSummary[0]?.host ?? '') : config.gateway
+  const username = config.username ?? ''
+  switch (kind) {
+    case 'fortinet-sslvpn':
+      return { kind, gateway, port: 443, username }
+    case 'ipsec-ikev1':
+      return { kind, gateway, username, xauth: 'saved' }
+    case 'ipsec-ikev2':
+      return { kind, gateway, username, auth: 'eap' }
+  }
+}
+
+/** A trusted certificate belongs to one gateway:port — a different server must be confirmed again. */
+export function applyConnectionEdit(previous: VpnConfig, next: VpnConfig): VpnConfig {
+  if (next.kind !== 'fortinet-sslvpn' || !next.trustedCert) return next
+  const same =
+    previous.kind === 'fortinet-sslvpn' &&
+    previous.gateway === next.gateway &&
+    previous.port === next.port
+  if (same) return next
+  const { trustedCert: _dropped, ...rest } = next
+  return rest
 }

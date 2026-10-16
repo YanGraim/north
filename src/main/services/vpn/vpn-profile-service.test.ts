@@ -67,3 +67,44 @@ describe('VpnProfileService', () => {
     expect(repos.vpnProfiles.get(profile.id)).toBeNull()
   })
 })
+
+describe('VpnProfileService.importOvpn replacing an existing profile', () => {
+  it('swaps the config and inline keys, keeping name, client and saved password', () => {
+    const { service, repos } = setup()
+    const client = repos.clients.create({ name: 'Acme' })
+    const { profile } = service.importOvpn({ content: ovpn, name: 'Acme VPN', clientId: client.id })
+    service.setSecret({ profileId: profile.id, kind: 'password', secret: 'pw' })
+
+    const replacement =
+      'client\nremote new.acme.com 443 tcp\n<key>\n-----BEGIN PRIVATE KEY-----\nNEWKEY\n-----END PRIVATE KEY-----\n</key>\n'
+    const result = service.importOvpn({ content: replacement, profileId: profile.id })
+
+    expect(result.profile.id).toBe(profile.id)
+    expect(result.profile.name).toBe('Acme VPN')
+    expect(result.profile.clientId).toBe(client.id)
+    expect(result.profile.config).toMatchObject({
+      kind: 'openvpn',
+      remoteSummary: [{ host: 'new.acme.com', port: 443, proto: 'tcp' }],
+      requiresUserPass: false
+    })
+    expect(service.resolveInlineBlocks(profile.id)).toEqual({
+      key: expect.stringContaining('NEWKEY')
+    })
+    expect(service.resolveSecret(profile.id, 'password')).toBe('pw')
+    expect(repos.vpnProfiles.list()).toHaveLength(1)
+  })
+
+  it('a file without inline keys removes the old ones', () => {
+    const { service } = setup()
+    const { profile } = service.importOvpn({ content: ovpn })
+    service.importOvpn({ content: 'client\nremote x.example\n', profileId: profile.id })
+    expect(service.resolveInlineBlocks(profile.id)).toEqual({})
+  })
+
+  it('unknown profile id → error', () => {
+    const { service } = setup()
+    expect(() =>
+      service.importOvpn({ content: ovpn, profileId: '99999999-9999-4999-8999-999999999999' })
+    ).toThrow(/não encontrada/)
+  })
+})

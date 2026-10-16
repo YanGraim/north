@@ -720,6 +720,16 @@
       "created": "VPN criada",
       "secretsSaved": "Credenciais salvas"
     },
-    "confirmDelete": "Excluir a VPN {{name}}? As credenciais salvas também serão apagadas."
+    "confirmDelete": "Excluir a VPN {{name}}? As credenciais salvas também serão apagadas.",
+    "edit": {
+      "button": "Editar",
+      "connection": "Conexão",
+      "general": "Geral",
+      "type": "Tipo",
+      "save": "Salvar conexão",
+      "discard": "Descartar",
+      "replaceOvpn": "Substituir arquivo .ovpn",
+      "ovpnReplaced": "Arquivo .ovpn substituído"
+    }
   }
 }

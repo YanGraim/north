@@ -720,6 +720,16 @@
       "created": "VPN created",
       "secretsSaved": "Credentials saved"
     },
-    "confirmDelete": "Delete VPN {{name}}? Its saved credentials will be erased too."
+    "confirmDelete": "Delete VPN {{name}}? Its saved credentials will be erased too.",
+    "edit": {
+      "button": "Edit",
+      "connection": "Connection",
+      "general": "General",
+      "type": "Type",
+      "save": "Save connection",
+      "discard": "Discard",
+      "replaceOvpn": "Replace .ovpn file",
+      "ovpnReplaced": ".ovpn file replaced"
+    }
   }
 }

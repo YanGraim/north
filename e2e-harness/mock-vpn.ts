@@ -88,8 +88,12 @@ export function createVpnMock() {
   }
 
   const api = {
-    list: async () => [...profiles],
-    get: async (id: string) => profiles.find((p) => p.id === id) ?? null,
+    // fresh objects like real IPC results — in-place mutation would hide changes from TanStack Query
+    list: async () => profiles.map((p) => structuredClone(p)),
+    get: async (id: string) => {
+      const p = profiles.find((x) => x.id === id)
+      return p ? structuredClone(p) : null
+    },
     create: async (input: CreateVpnProfileInput) => create(input),
     update: async (id: string, input: UpdateVpnProfileInput) => {
       const p = profiles.find((x) => x.id === id)
@@ -105,6 +109,12 @@ export function createVpnMock() {
     importOvpn: async (input: ImportOvpnInput) => {
       try {
         const parsed = parseOvpn(input.content)
+        if (input.profileId) {
+          const existing = profiles.find((p) => p.id === input.profileId)
+          if (!existing) throw new Error('VPN não encontrada')
+          Object.assign(existing, { config: parsed.config, kind: 'openvpn', updatedAt: now() })
+          return { profile: { ...existing }, inlineBlocks: Object.keys(parsed.inlineBlocks) }
+        }
         const profile = create({
           name: input.name ?? parsed.suggestedName,
           clientId: input.clientId,

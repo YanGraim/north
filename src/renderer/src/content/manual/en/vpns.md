@@ -12,6 +12,10 @@ In **VPNs** in the sidebar, click **New VPN** or drop an `.ovpn` file onto the s
 
 Passwords, the pre-shared key and private keys embedded in the `.ovpn` go into North's vault and never show up in logs.
 
+## Editing
+
+At the top of a VPN, **Edit** opens its settings. Under **Connection** you can change the type (SSL-VPN, IPsec or IKEv2), gateway, port, username, group and XAuth without deleting the VPN; saved credentials keep working. For an OpenVPN, **Replace .ovpn file** swaps the file and keeps the name, client and password. If the gateway or port changes, North asks you to confirm the certificate again.
+
 ## Turning VPNs on and off
 
 - From the **VPN** pill in the top bar: each VPN has a switch, with its status, IP and uptime. The pill turns green with one VPN on, shows "2 VPNs" with two, amber while connecting and red if one drops.

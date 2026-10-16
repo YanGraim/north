@@ -41,6 +41,19 @@ export class VpnProfileService {
 
   importOvpn(input: ImportOvpnInput): OvpnImportResult {
     const parsed = parseOvpn(input.content)
+    if (input.profileId) {
+      const updated = this.repos.vpnProfiles.update(input.profileId, { config: parsed.config })
+      if (!updated) throw new Error('VPN não encontrada')
+      const names = Object.keys(parsed.inlineBlocks)
+      if (names.length > 0) {
+        this.store(updated.id, 'ovpn-inline', JSON.stringify(parsed.inlineBlocks))
+      } else {
+        const ref = this.repos.vpnSecrets.get(updated.id, 'ovpn-inline')
+        if (ref) this.vault.deleteSecret(ref)
+        this.repos.vpnSecrets.delete(updated.id, 'ovpn-inline')
+      }
+      return { profile: updated, inlineBlocks: names }
+    }
     const profile = this.repos.vpnProfiles.create({
       name: input.name ?? parsed.suggestedName,
       clientId: input.clientId ?? null,

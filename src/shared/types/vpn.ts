@@ -194,7 +194,9 @@ export type VpnPlatformSupport = z.infer<typeof VpnPlatformSupportSchema>
 export const ImportOvpnInputSchema = z.object({
   content: z.string().min(1).max(1_000_000),
   name: z.string().trim().min(1).optional(),
-  clientId: IdSchema.nullable().optional()
+  clientId: IdSchema.nullable().optional(),
+  /** Replace this profile's .ovpn (keeps name, client, links and saved password). */
+  profileId: IdSchema.optional()
 })
 export type ImportOvpnInput = z.infer<typeof ImportOvpnInputSchema>
 
