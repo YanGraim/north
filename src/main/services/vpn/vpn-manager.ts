@@ -28,7 +28,10 @@ const NON_RETRYABLE: VpnErrorCode[] = [
   'BINARY_MISSING',
   'PRIVILEGE_DENIED',
   'UNSUPPORTED_ON_PLATFORM',
-  'INVALID_CONFIG'
+  'INVALID_CONFIG',
+  'CERT_UNTRUSTED',
+  'PROFILE_APPROVAL_REQUIRED',
+  'CONNECTION_REJECTED'
 ]
 
 export type VpnManagerDeps = {
@@ -52,7 +55,7 @@ type Entry = {
   trigger: VpnTrigger | null
   leases: Set<string>
   info?: VpnTunnelInfo
-  lastError?: { code: VpnErrorCode; message: string }
+  lastError?: { code: VpnErrorCode; message: string; certDigest?: string }
   driver?: VpnDriver
   connecting?: Promise<VpnState>
   abort?: AbortController
@@ -281,7 +284,11 @@ export class VpnManager {
       }
       this.appendLog(entry.profileId, `ERRO ${vpnError.code}: ${vpnError.message}`)
       if (abort.signal.aborted) throw vpnError
-      entry.lastError = { code: vpnError.code, message: vpnError.message }
+      entry.lastError = {
+        code: vpnError.code,
+        message: vpnError.message,
+        ...(vpnError.certDigest ? { certDigest: vpnError.certDigest } : {})
+      }
       if (entry.reconnectAttempt > 0 && !NON_RETRYABLE.includes(vpnError.code)) {
         this.scheduleReconnect(entry)
       } else {

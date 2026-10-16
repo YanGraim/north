@@ -23,10 +23,12 @@ import {
 } from '@renderer/hooks/use-vpn'
 import { copyToClipboard } from '@renderer/lib/clipboard'
 import { formatRelativeDate } from '@renderer/lib/connection-ui'
+import { queryKeys } from '@renderer/lib/query-keys'
 import { cn } from '@renderer/lib/utils'
 import { vpnErrorAction } from '@renderer/lib/vpn-ui'
 import { useVpnDialogsStore } from '@renderer/stores/vpn-dialogs-store'
 import type { VpnProfile, VpnState } from '@shared/types'
+import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useVpnConnect } from './use-vpn-connect'
@@ -129,6 +131,7 @@ export function VpnErrorNotice({
   const openSecrets = useVpnDialogsStore((s) => s.openSecrets)
   const { connect } = useVpnConnect()
   const [showInstall, setShowInstall] = useState(false)
+  const queryClient = useQueryClient()
   const error = state?.lastError
   if (!error || state?.status !== 'error') return null
   const action = vpnErrorAction(error.code)
@@ -139,8 +142,16 @@ export function VpnErrorNotice({
       data-testid="vpn-error"
     >
       <p className="text-foreground">{t(`vpn.errors.${error.code}`)}</p>
-      {error.code === 'CONNECTION_REJECTED' ? (
+      {error.code === 'CONNECTION_REJECTED' || error.code === 'CERT_UNTRUSTED' ? (
         <p className="mt-1 text-xs text-muted">{error.message}</p>
+      ) : null}
+      {error.code === 'CERT_UNTRUSTED' && error.certDigest ? (
+        <p
+          className="mt-2 break-all font-mono text-[11px] text-foreground"
+          data-testid="vpn-cert-digest"
+        >
+          SHA-256 {error.certDigest}
+        </p>
       ) : null}
       <div className="mt-2 flex gap-2">
         {action === 'update-secret' ? (
@@ -151,6 +162,25 @@ export function VpnErrorNotice({
             data-testid="vpn-error-update-secret"
           >
             {t('vpn.actions.updateSecret')}
+          </Button>
+        ) : null}
+        {action === 'trust-cert' &&
+        error.certDigest &&
+        profile.config.kind === 'fortinet-sslvpn' ? (
+          <Button
+            size="sm"
+            variant="outline"
+            data-testid="vpn-trust-cert"
+            onClick={async () => {
+              if (profile.config.kind !== 'fortinet-sslvpn' || !error.certDigest) return
+              await window.north.vpn.update(profile.id, {
+                config: { ...profile.config, trustedCert: error.certDigest }
+              })
+              await queryClient.invalidateQueries({ queryKey: queryKeys.vpn.profiles })
+              await connect(profile.id)
+            }}
+          >
+            {t('vpn.actions.trustCert')}
           </Button>
         ) : null}
         {action === 'retry' ? (
@@ -164,7 +194,7 @@ export function VpnErrorNotice({
           </Button>
         ) : null}
       </div>
-      {showInstall ? <p className="mt-2 font-mono text-xs text-muted">{t('vpn.install')}</p> : null}
+      {showInstall ? <p className="mt-2 font-mono text-xs text-muted">{error.message}</p> : null}
     </div>
   )
 }
@@ -182,7 +212,9 @@ function Overview({
       ? profile.config.remoteSummary
           .map((r) => `${r.host}:${r.port} ${r.proto.toUpperCase()}`)
           .join(', ')
-      : profile.config.gateway
+      : profile.config.kind === 'fortinet-sslvpn'
+        ? `${profile.config.gateway}:${profile.config.port}`
+        : profile.config.gateway
   const routes =
     state?.routes ?? (profile.config.kind === 'openvpn' ? profile.config.declaredRoutes : [])
   const fullTunnel = profile.config.kind === 'openvpn' && profile.config.redirectGateway

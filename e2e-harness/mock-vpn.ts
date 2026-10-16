@@ -133,6 +133,17 @@ export function createVpnMock() {
       setState(id, { status: 'connecting', trigger: 'manual', leases: 1 })
       log(id, 'connecting')
       await new Promise((r) => setTimeout(r, connectDelayMs))
+      const target = profiles.find((p) => p.id === id)
+      if (target?.config.kind === 'fortinet-sslvpn' && !target.config.trustedCert) {
+        const certDigest = 'c'.repeat(64)
+        setState(id, {
+          status: 'error',
+          leases: 0,
+          trigger: null,
+          lastError: { code: 'CERT_UNTRUSTED', message: 'certificado não reconhecido', certDigest }
+        })
+        throw new Error(formatVpnErrorMessage('CERT_UNTRUSTED', 'certificado não reconhecido'))
+      }
       const failure = nextFailure
       nextFailure = null
       const entry: VpnHistoryEntry = {
@@ -175,7 +186,8 @@ export function createVpnMock() {
     platformSupport: async () => ({
       openvpn: { ok: true as const },
       'ipsec-ikev1': { ok: false as const, reason: 'em breve' },
-      'ipsec-ikev2': { ok: false as const, reason: 'em breve' }
+      'ipsec-ikev2': { ok: false as const, reason: 'em breve' },
+      'fortinet-sslvpn': { ok: true as const }
     }),
     onStateChanged: (listener: Listener) => {
       listeners.add(listener)

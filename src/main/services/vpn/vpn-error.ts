@@ -4,7 +4,8 @@ export class VpnError extends Error {
   constructor(
     readonly code: VpnErrorCode,
     message: string,
-    readonly conflicts?: VpnConflict[]
+    readonly conflicts?: VpnConflict[],
+    readonly certDigest?: string
   ) {
     super(message)
     this.name = 'VpnError'

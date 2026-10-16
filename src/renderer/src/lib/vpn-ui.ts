@@ -28,7 +28,7 @@ export function mergeVpnState(states: VpnState[], next: VpnState): VpnState[] {
     : [...states, next]
 }
 
-export type VpnErrorAction = 'update-secret' | 'install' | 'retry' | null
+export type VpnErrorAction = 'update-secret' | 'install' | 'retry' | 'trust-cert' | null
 
 export function vpnErrorAction(code: VpnErrorCode): VpnErrorAction {
   switch (code) {
@@ -39,6 +39,8 @@ export function vpnErrorAction(code: VpnErrorCode): VpnErrorAction {
       return 'update-secret'
     case 'BINARY_MISSING':
       return 'install'
+    case 'CERT_UNTRUSTED':
+      return 'trust-cert'
     case 'PRIVILEGE_DENIED':
     case 'TIMEOUT':
     case 'HOST_UNREACHABLE':
@@ -69,5 +71,7 @@ export function requiredSecretFields(config: VpnConfig): VpnSecretField[] {
       return config.xauth === 'saved' ? ['psk', 'password'] : ['psk']
     case 'ipsec-ikev2':
       return config.auth === 'psk' ? ['psk'] : ['password']
+    case 'fortinet-sslvpn':
+      return ['username', 'password']
   }
 }

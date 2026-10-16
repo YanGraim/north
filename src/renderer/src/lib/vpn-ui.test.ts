@@ -106,6 +106,13 @@ describe('requiredSecretFields', () => {
       requiredSecretFields({ ...base, requiresUserPass: false, requiresKeyPassphrase: true })
     ).toEqual(['key-passphrase'])
   })
+  it('fortinet ssl-vpn asks username and password', () => {
+    expect(
+      requiredSecretFields({ kind: 'fortinet-sslvpn', gateway: 'g', port: 4433, username: 'u' })
+    ).toEqual(['username', 'password'])
+    expect(vpnErrorAction('CERT_UNTRUSTED')).toBe('trust-cert')
+  })
+
   it('ipsec', () => {
     const ikev1: VpnConfig = { kind: 'ipsec-ikev1', gateway: 'g', username: 'u', xauth: 'saved' }
     expect(requiredSecretFields(ikev1)).toEqual(['psk', 'password'])

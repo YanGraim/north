@@ -5,9 +5,11 @@ import { IpcChannels } from '@shared/ipc'
 import * as sudo from '@vscode/sudo-prompt'
 import { app, BrowserWindow, ipcMain, powerMonitor } from 'electron'
 import type { Repositories } from '../repositories'
+import { cleanupFortiOrphans } from '../services/vpn/drivers/openfortivpn-driver'
 import { cleanupOpenvpnOrphans } from '../services/vpn/drivers/openvpn-driver'
 import {
   DirectBroker,
+  findOpenfortivpnBinary,
   findOpenvpnBinary,
   type PrivilegeBroker,
   SudoPromptBroker
@@ -55,13 +57,19 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
         }),
       tmpDir,
       installedFile: join(vpnDir, 'ipsec-installed.json')
+    },
+    openfortivpn: {
+      binary: () => findOpenfortivpnBinary(process.platform, existsSync),
+      broker,
+      tmpDir
     }
   })
 
   // Leftovers from a crash: stop root-owned tunnels via management, wipe temp configs.
-  void cleanupOpenvpnOrphans({ tunnels, broker, tmpDir }).catch((error) =>
-    console.error('[vpn] orphan cleanup failed', error)
-  )
+  // SSL-VPN wrappers first (they only need their stop file), then the shared tmp wipe.
+  void cleanupFortiOrphans(tmpDir)
+    .then(() => cleanupOpenvpnOrphans({ tunnels, broker, tmpDir }))
+    .catch((error) => console.error('[vpn] orphan cleanup failed', error))
 
   const handlers = createVpnHandlers(runtime, process.platform)
   for (const [channel, handler] of Object.entries(handlers)) {

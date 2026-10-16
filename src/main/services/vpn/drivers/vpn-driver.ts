@@ -53,7 +53,7 @@ export class VpnDriverRegistry {
   }
 
   support(platform: NodeJS.Platform): Record<VpnKind, SupportResult> {
-    const kinds: VpnKind[] = ['openvpn', 'ipsec-ikev1', 'ipsec-ikev2']
+    const kinds: VpnKind[] = ['openvpn', 'ipsec-ikev1', 'ipsec-ikev2', 'fortinet-sslvpn']
     return Object.fromEntries(
       kinds.map((kind) => [
         kind,

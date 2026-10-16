@@ -22,7 +22,7 @@ import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { vpnErrorFromUnknown } from '@renderer/lib/vpn-ui'
 import { useVpnDialogsStore } from '@renderer/stores/vpn-dialogs-store'
 import type { VpnConfig, VpnKind, VpnProfile } from '@shared/types'
-import { FileKey, Network, ShieldCheck } from 'lucide-react'
+import { FileKey, Globe, Network, ShieldCheck } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -31,7 +31,7 @@ import { VpnCredentialsForm } from './VpnCredentialsForm'
 
 const NO_CLIENT = '__none'
 
-type Step = 'kind' | 'ipsec-ikev1' | 'ipsec-ikev2' | 'credentials'
+type Step = 'kind' | 'fortinet-sslvpn' | 'ipsec-ikev1' | 'ipsec-ikev2' | 'credentials'
 
 /** Read an .ovpn and create the profile — shared by the wizard and the page's drop zone. */
 export async function readOvpnFile(file: File): Promise<{ content: string; name: string }> {
@@ -86,6 +86,16 @@ export function VpnWizardDialog(): React.JSX.Element {
           />
         ) : null}
 
+        {step === 'fortinet-sslvpn' ? (
+          <SslVpnStep
+            onBack={() => setStep('kind')}
+            onCreated={(profile) => {
+              setCreated(profile)
+              setStep('credentials')
+            }}
+          />
+        ) : null}
+
         {step === 'ipsec-ikev1' || step === 'ipsec-ikev2' ? (
           <IpsecStep
             kind={step}
@@ -113,7 +123,7 @@ function KindStep({
   onPick
 }: {
   onImported: (profile: VpnProfile) => void
-  onPick: (kind: 'ipsec-ikev1' | 'ipsec-ikev2') => void
+  onPick: (kind: 'fortinet-sslvpn' | 'ipsec-ikev1' | 'ipsec-ikev2') => void
 }): React.JSX.Element {
   const { t } = useTranslation()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -149,6 +159,13 @@ function KindStep({
       title: t('vpn.kind.openvpn'),
       hint: t('vpn.wizard.openvpnHint'),
       onClick: () => fileRef.current?.click()
+    },
+    {
+      id: 'fortinet-sslvpn',
+      icon: Globe,
+      title: t('vpn.kind.fortinet-sslvpn'),
+      hint: t('vpn.wizard.sslvpnHint'),
+      onClick: () => onPick('fortinet-sslvpn')
     },
     {
       id: 'ipsec-ikev1',
@@ -380,5 +397,122 @@ function Field({
       <Label htmlFor={id}>{label}</Label>
       {children}
     </div>
+  )
+}
+
+/** Mirrors FortiClient's SSL-VPN tab: connection name, remote gateway, custom port, username. */
+function SslVpnStep({
+  onBack,
+  onCreated
+}: {
+  onBack: () => void
+  onCreated: (profile: VpnProfile) => void
+}): React.JSX.Element {
+  const { t } = useTranslation()
+  const { data: clients = [] } = useClients()
+  const { data: support } = useVpnPlatformSupport()
+  const create = useCreateVpn()
+  const [name, setName] = useState('')
+  const [clientId, setClientId] = useState(NO_CLIENT)
+  const [gateway, setGateway] = useState('')
+  const [port, setPort] = useState('443')
+  const [username, setUsername] = useState('')
+
+  // FortiClient shows "host:port" in the gateway field — split it once the user leaves the field
+  // (splitting per keystroke would cut "1.2.3.4:4433" at the first port digit).
+  const splitGateway = (): void => {
+    const match = /^(.+):(\d{1,5})$/.exec(gateway.trim())
+    if (match && !match[1].includes(':')) {
+      setGateway(match[1])
+      setPort(match[2])
+    }
+  }
+
+  const portNumber = Number(port)
+  const valid =
+    name.trim() && gateway.trim() && username.trim() && portNumber >= 1 && portNumber <= 65535
+  const unsupported = support?.['fortinet-sslvpn']
+
+  const submit = async (event: React.FormEvent): Promise<void> => {
+    event.preventDefault()
+    if (!valid) return
+    try {
+      const profile = await create.mutateAsync({
+        name: name.trim(),
+        clientId: clientId === NO_CLIENT ? null : clientId,
+        config: {
+          kind: 'fortinet-sslvpn',
+          gateway: gateway.trim(),
+          port: portNumber,
+          username: username.trim()
+        }
+      })
+      toastSuccess(t('vpn.toast.created'))
+      onCreated(profile)
+    } catch (error) {
+      toastError(error, t('vpn.toast.saveFailed'))
+    }
+  }
+
+  return (
+    <form className="space-y-3" onSubmit={submit} data-testid="vpn-sslvpn-form">
+      {unsupported && !unsupported.ok ? (
+        <p className="text-xs text-muted" data-testid="vpn-unsupported">
+          {t('vpn.wizard.unsupported', { reason: unsupported.reason })}
+        </p>
+      ) : null}
+      <Field id="vpn-ssl-name" label={t('vpn.wizard.connectionName')}>
+        <Input id="vpn-ssl-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+      </Field>
+      <Field id="vpn-ssl-client" label={t('vpn.wizard.client')}>
+        <Select value={clientId} onValueChange={setClientId}>
+          <SelectTrigger id="vpn-ssl-client">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_CLIENT}>{t('vpn.noClient')}</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field id="vpn-ssl-gateway" label={t('vpn.wizard.remoteGateway')}>
+        <Input
+          id="vpn-ssl-gateway"
+          className="font-mono"
+          value={gateway}
+          onChange={(e) => setGateway(e.target.value)}
+          onBlur={splitGateway}
+          placeholder="179.190.99.2"
+        />
+      </Field>
+      <Field id="vpn-ssl-port" label={t('vpn.wizard.customPort')}>
+        <Input
+          id="vpn-ssl-port"
+          className="w-28 font-mono"
+          inputMode="numeric"
+          value={port}
+          onChange={(e) => setPort(e.target.value.replace(/\D/g, ''))}
+        />
+      </Field>
+      <Field id="vpn-ssl-username" label={t('vpn.secrets.username')}>
+        <Input
+          id="vpn-ssl-username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+      </Field>
+      <div className="flex justify-between pt-1">
+        <Button type="button" variant="ghost" onClick={onBack}>
+          {t('vpn.wizard.back')}
+        </Button>
+        <Button type="submit" disabled={!valid || create.isPending} data-testid="vpn-sslvpn-create">
+          {t('vpn.wizard.next')}
+        </Button>
+      </div>
+    </form>
   )
 }

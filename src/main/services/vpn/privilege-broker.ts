@@ -22,6 +22,19 @@ const OPENVPN_CANDIDATES: Partial<Record<NodeJS.Platform, string[]>> = {
   win32: ['C:\\Program Files\\OpenVPN\\bin\\openvpn.exe']
 }
 
+const OPENFORTIVPN_CANDIDATES: Partial<Record<NodeJS.Platform, string[]>> = {
+  darwin: ['/opt/homebrew/bin/openfortivpn', '/usr/local/bin/openfortivpn'],
+  linux: ['/usr/bin/openfortivpn', '/usr/sbin/openfortivpn', '/usr/local/bin/openfortivpn']
+}
+
+/** openfortivpn has no Windows build — Windows SSL-VPN needs another engine. */
+export function findOpenfortivpnBinary(
+  platform: NodeJS.Platform,
+  exists: (path: string) => boolean
+): string | null {
+  return (OPENFORTIVPN_CANDIDATES[platform] ?? []).find((p) => exists(p)) ?? null
+}
+
 /** v1 uses the system openvpn (Homebrew on mac); bundling arrives in phase 6. */
 export function findOpenvpnBinary(
   platform: NodeJS.Platform,

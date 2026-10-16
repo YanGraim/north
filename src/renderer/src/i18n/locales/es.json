@@ -573,7 +573,8 @@
     "kind": {
       "openvpn": "OpenVPN",
       "ipsec-ikev1": "FortiGate / IPsec (IKEv1)",
-      "ipsec-ikev2": "IKEv2"
+      "ipsec-ikev2": "IKEv2",
+      "fortinet-sslvpn": "FortiGate SSL-VPN"
     },
     "actions": {
       "connect": "Conectar",
@@ -584,7 +585,8 @@
       "retry": "Reintentar",
       "install": "Cómo instalar",
       "copyDiagnostics": "Copiar diagnóstico",
-      "saveSecrets": "Guardar credenciales"
+      "saveSecrets": "Guardar credenciales",
+      "trustCert": "Confiar en este certificado y conectar"
     },
     "tabs": {
       "overview": "Resumen",
@@ -669,7 +671,10 @@
       "next": "Continuar",
       "create": "Crear VPN",
       "windowsForti": "En Windows, esta VPN se abrirá con FortiClient.",
-      "unsupported": "Este tipo todavía no puede conectarse en este sistema: {{reason}}"
+      "unsupported": "Este tipo todavía no puede conectarse en este sistema: {{reason}}",
+      "sslvpnHint": "La pestaña \"SSL-VPN\" de FortiClient",
+      "connectionName": "Nombre de la conexión",
+      "customPort": "Puerto"
     },
     "conflict": {
       "title": "Conflicto con otra VPN",
@@ -694,7 +699,8 @@
       "SECRET_MISSING": "Faltan credenciales guardadas",
       "INVALID_CONFIG": "Configuración inválida",
       "CONNECTION_REJECTED": "El servidor VPN rechazó la conexión — revisa gateway, clave y contraseña",
-      "PROFILE_APPROVAL_REQUIRED": "Aprueba el perfil \"North\" en Ajustes del Sistema → General → Gestión de dispositivos y haz clic en Conectar de nuevo"
+      "PROFILE_APPROVAL_REQUIRED": "Aprueba el perfil \"North\" en Ajustes del Sistema → General → Gestión de dispositivos y haz clic en Conectar de nuevo",
+      "CERT_UNTRUSTED": "Certificado del gateway no reconocido"
     },
     "install": "macOS: instala con \"brew install openvpn\". Linux: instala el paquete openvpn de tu distribución.",
     "indicator": {

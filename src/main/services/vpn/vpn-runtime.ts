@@ -15,6 +15,7 @@ import type { Repositories } from '../../repositories'
 import type { CredentialVault } from '../../vault'
 import { createFakeVpnDriverFactory } from './drivers/fake-vpn-driver'
 import { MacosIpsecDriver, type MacosIpsecDriverDeps } from './drivers/macos-ipsec-driver'
+import { OpenfortivpnDriver, type OpenfortivpnDriverDeps } from './drivers/openfortivpn-driver'
 import { OpenVpnDriver } from './drivers/openvpn-driver'
 import { VpnDriverRegistry } from './drivers/vpn-driver'
 import type { PrivilegeBroker } from './privilege-broker'
@@ -39,6 +40,7 @@ export type VpnRuntimeDeps = {
     tunnels: TunnelRegistry
   }
   macosIpsec?: MacosIpsecDriverDeps
+  openfortivpn?: OpenfortivpnDriverDeps
 }
 
 export function createVpnRuntime(deps: VpnRuntimeDeps) {
@@ -46,7 +48,7 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
   const drivers = new VpnDriverRegistry()
 
   if (deps.fake) {
-    for (const kind of ['openvpn', 'ipsec-ikev1', 'ipsec-ikev2'] as VpnKind[]) {
+    for (const kind of ['openvpn', 'ipsec-ikev1', 'ipsec-ikev2', 'fortinet-sslvpn'] as VpnKind[]) {
       drivers.register(createFakeVpnDriverFactory(kind, () => ({ connectDelayMs: 800 })))
     }
   } else if (deps.openvpn) {
@@ -72,6 +74,17 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
               reason: 'IPsec IKEv1 só no macOS por enquanto (Windows usará o FortiClient)'
             },
       create: () => new MacosIpsecDriver(ipsec)
+    })
+  }
+  if (!deps.fake && deps.openfortivpn) {
+    const forti = deps.openfortivpn
+    drivers.register({
+      kind: 'fortinet-sslvpn',
+      isSupported: (platform) =>
+        platform === 'win32'
+          ? { ok: false, reason: 'No Windows, o SSL-VPN ainda não é suportado (em breve)' }
+          : { ok: true },
+      create: () => new OpenfortivpnDriver(forti)
     })
   }
 

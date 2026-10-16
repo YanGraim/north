@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildElevatedCommand, findOpenvpnBinary, SudoPromptBroker } from './privilege-broker'
+import {
+  buildElevatedCommand,
+  findOpenfortivpnBinary,
+  findOpenvpnBinary,
+  SudoPromptBroker
+} from './privilege-broker'
 import { VpnError } from './vpn-error'
 
 describe('findOpenvpnBinary', () => {
@@ -10,6 +15,18 @@ describe('findOpenvpnBinary', () => {
     expect(findOpenvpnBinary('win32', (p) => p.endsWith('openvpn.exe'))).toMatch(
       /OpenVPN\\bin\\openvpn\.exe$/
     )
+  })
+})
+
+describe('findOpenfortivpnBinary', () => {
+  it('mac (Homebrew) and Linux paths; none on Windows', () => {
+    expect(findOpenfortivpnBinary('darwin', (p) => p === '/opt/homebrew/bin/openfortivpn')).toBe(
+      '/opt/homebrew/bin/openfortivpn'
+    )
+    expect(findOpenfortivpnBinary('linux', (p) => p === '/usr/bin/openfortivpn')).toBe(
+      '/usr/bin/openfortivpn'
+    )
+    expect(findOpenfortivpnBinary('win32', () => true)).toBeNull()
   })
 })
 

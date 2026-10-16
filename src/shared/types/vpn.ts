@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { IdSchema, IsoDateSchema } from './client'
 
-export const VpnKindSchema = z.enum(['openvpn', 'ipsec-ikev1', 'ipsec-ikev2'])
+export const VpnKindSchema = z.enum(['openvpn', 'ipsec-ikev1', 'ipsec-ikev2', 'fortinet-sslvpn'])
 export type VpnKind = z.infer<typeof VpnKindSchema>
 
 export const VpnSecretKindSchema = z.enum([
@@ -55,10 +55,25 @@ export const IpsecIkev2ConfigSchema = z.object({
   auth: z.enum(['eap', 'psk'])
 })
 
+/** FortiGate SSL-VPN (FortiClient's "SSL-VPN" tab), driven through openfortivpn. */
+export const FortinetSslVpnConfigSchema = z.object({
+  kind: z.literal('fortinet-sslvpn'),
+  gateway: z.string().min(1),
+  port: z.number().int().min(1).max(65535),
+  username: z.string().min(1),
+  realm: z.string().optional(),
+  /** sha256 of the gateway certificate the user explicitly trusted (self-signed FortiGates). */
+  trustedCert: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional()
+})
+
 export const VpnConfigSchema = z.discriminatedUnion('kind', [
   OpenVpnConfigSchema,
   IpsecIkev1ConfigSchema,
-  IpsecIkev2ConfigSchema
+  IpsecIkev2ConfigSchema,
+  FortinetSslVpnConfigSchema
 ])
 export type VpnConfig = z.infer<typeof VpnConfigSchema>
 export type OpenVpnConfig = z.infer<typeof OpenVpnConfigSchema>
@@ -121,7 +136,8 @@ export const VpnErrorCodeSchema = z.enum([
   'SECRET_MISSING',
   'INVALID_CONFIG',
   'CONNECTION_REJECTED',
-  'PROFILE_APPROVAL_REQUIRED'
+  'PROFILE_APPROVAL_REQUIRED',
+  'CERT_UNTRUSTED'
 ])
 export type VpnErrorCode = z.infer<typeof VpnErrorCodeSchema>
 
@@ -134,7 +150,14 @@ export const VpnStateSchema = z.object({
   since: IsoDateSchema,
   localIp: z.string().optional(),
   routes: z.array(z.string()).optional(),
-  lastError: z.object({ code: VpnErrorCodeSchema, message: z.string() }).optional(),
+  lastError: z
+    .object({
+      code: VpnErrorCodeSchema,
+      message: z.string(),
+      /** CERT_UNTRUSTED: the digest to show and, if the user agrees, trust. */
+      certDigest: z.string().optional()
+    })
+    .optional(),
   leases: z.number().int().min(0),
   trigger: VpnTriggerSchema.nullable(),
   reconnectAttempt: z.number().int().min(0).optional(),
