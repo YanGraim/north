@@ -647,7 +647,7 @@
       "title": "New VPN",
       "chooseKind": "What kind of VPN?",
       "openvpnHint": "Import the .ovpn file exported by the firewall",
-      "ipsecHint": "Same fields as FortiClient",
+      "ipsecHint": "FortiClient's \"IPsec VPN\" tab — requires a pre-shared key",
       "ikev2Hint": "Native IKEv2 gateway",
       "pickFile": "Choose .ovpn file",
       "server": "Server {{host}}:{{port}} {{proto}}",
@@ -672,7 +672,7 @@
       "create": "Create VPN",
       "windowsForti": "On Windows, this VPN will be opened through FortiClient.",
       "unsupported": "This kind can't connect on this system yet: {{reason}}",
-      "sslvpnHint": "FortiClient's \"SSL-VPN\" tab",
+      "sslvpnHint": "FortiClient's \"SSL-VPN\" tab — gateway, port, username and password",
       "connectionName": "Connection name",
       "customPort": "Port"
     },
