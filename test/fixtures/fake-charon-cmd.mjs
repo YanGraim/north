@@ -35,6 +35,7 @@ process.stdin.on('end', () => {
     process.exit(1)
   }
   out(`IKE_SA cmd[1] established between 192.168.0.10[192.168.0.10]...${arg('--host')}`)
+  out('installing 172.16.0.3 as DNS server')
   out('installing new virtual IP 10.10.20.5')
   // FortiGate-like: phase 2 only for one exact ESP proposal
   if (scenario === 'esp' && arg('--esp-proposal') !== 'aes256-sha256-modp1536') {

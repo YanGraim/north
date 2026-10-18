@@ -44,7 +44,12 @@ export const IpsecIkev1ConfigSchema = z.object({
   gateway: z.string().min(1),
   groupName: z.string().optional(),
   username: z.string().min(1),
-  xauth: z.enum(['saved', 'prompt'])
+  xauth: z.enum(['saved', 'prompt']),
+  /** Internal domains resolved through the VPN's DNS (split DNS); everything else keeps the local DNS. */
+  dnsDomains: z
+    .array(z.string().regex(/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*$/))
+    .max(20)
+    .optional()
 })
 
 export const IpsecIkev2ConfigSchema = z.object({

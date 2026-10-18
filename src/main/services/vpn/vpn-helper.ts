@@ -221,6 +221,26 @@ export class VpnHelper {
     return (this.deps.spawn ?? spawnHelper)(paths.helper, ['ipsec'], input, onOutput)
   }
 
+  /** macOS split DNS: `domains` resolve through the VPN's DNS server, everything else doesn't. */
+  async setDns(server: string, domains: string[], onOutput: (chunk: Buffer) => void = () => {}) {
+    return this.dns('dns-set', [`server=${server}`, ...domains.map((d) => `domain=${d}`)], onOutput)
+  }
+
+  async clearDns(domains: string[], onOutput: (chunk: Buffer) => void = () => {}) {
+    return this.dns(
+      'dns-clear',
+      domains.map((d) => `domain=${d}`),
+      onOutput
+    )
+  }
+
+  private async dns(command: string, lines: string[], onOutput: (chunk: Buffer) => void) {
+    const paths = helperPaths(this.deps.platform)
+    if (!paths) return { code: null }
+    const input = `${lines.join('\n')}\n`
+    return (this.deps.spawn ?? spawnHelper)(paths.helper, [command], input, onOutput).exited
+  }
+
   /** Boot cleanup after a crash — no prompt; silently skipped when not installed. */
   async stopAll(): Promise<void> {
     const paths = helperPaths(this.deps.platform)

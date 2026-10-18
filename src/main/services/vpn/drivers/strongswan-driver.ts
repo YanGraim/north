@@ -5,7 +5,7 @@ import type { VpnConnectContext, VpnDriver, VpnTunnelInfo } from './vpn-driver'
 
 export type StrongswanDriverDeps = {
   binary: () => string | null
-  helper: Pick<VpnHelper, 'ensure' | 'startIpsec'>
+  helper: Pick<VpnHelper, 'ensure' | 'startIpsec'> & Partial<Pick<VpnHelper, 'setDns' | 'clearDns'>>
   handshakeTimeoutMs?: number
   stopTimeoutMs?: number
 }
@@ -37,6 +37,7 @@ export class StrongswanDriver implements VpnDriver {
   private stopping = false
   private exited = false
   private dropCallbacks: Array<(error?: Error) => void> = []
+  private dnsDomains: string[] = []
 
   constructor(private readonly deps: StrongswanDriverDeps) {}
 
@@ -132,6 +133,7 @@ export class StrongswanDriver implements VpnDriver {
     let unreachable: string | undefined
     let answered = false
     let phase1Up = false
+    let dnsServer: string | undefined
     try {
       while (true) {
         if (signal.aborted) throw new VpnError('TIMEOUT', 'Conexão cancelada')
@@ -141,6 +143,7 @@ export class StrongswanDriver implements VpnDriver {
           if (/IKE_SA \S+ established/.test(line)) phase1Up = true
           const event = parseStrongswanLine(line)
           if (event.type === 'address') localIp = event.ip
+          else if (event.type === 'dns') dnsServer ??= event.server
           else if (event.type === 'psk-mismatch') {
             throw new VpnError('AUTH_FAILED', 'Chave pré-compartilhada incorreta')
           } else if (event.type === 'auth-failed') {
@@ -165,6 +168,7 @@ export class StrongswanDriver implements VpnDriver {
             // list via unity); "=== 0.0.0.0/0" means every packet goes through the gateway
             const remote = (/===\s*(.+)$/.exec(line)?.[1] ?? '').trim().split(/\s+/).filter(Boolean)
             const redirectGateway = remote.includes('0.0.0.0/0')
+            await this.applyDns(ctx, dnsServer)
             return {
               localIp,
               routes: remote.filter((r) => r !== '0.0.0.0/0'),
@@ -205,8 +209,33 @@ export class StrongswanDriver implements VpnDriver {
     await this.stop()
   }
 
+  /** Split DNS for the profile's internal domains (macOS); a failure only logs, the tunnel stays. */
+  private async applyDns(ctx: VpnConnectContext, server: string | undefined): Promise<void> {
+    const config = ctx.profile.config
+    const domains = config.kind === 'ipsec-ikev1' ? (config.dnsDomains ?? []) : []
+    if (!domains.length || !this.deps.helper.setDns) return
+    if (!server) {
+      ctx.log('[north] o gateway não informou um DNS; domínios internos não configurados')
+      return
+    }
+    const result = await this.deps.helper.setDns(server, domains, (c) =>
+      ctx.log(c.toString('utf8').trim())
+    )
+    if (result.code === 0) {
+      this.dnsDomains = domains
+      ctx.log(`[north] DNS ${server} para ${domains.join(', ')}`)
+    }
+  }
+
+  private async clearDns(): Promise<void> {
+    const domains = this.dnsDomains
+    this.dnsDomains = []
+    if (domains.length) await this.deps.helper.clearDns?.(domains)
+  }
+
   private async stop(): Promise<void> {
     this.stopping = true
+    await this.clearDns()
     const run = this.run
     if (run && !this.exited) {
       run.stop()
@@ -217,6 +246,7 @@ export class StrongswanDriver implements VpnDriver {
 
   private onExit(): void {
     if (!this.connected || this.stopping) return
+    void this.clearDns()
     this.connected = false
     const callbacks = this.dropCallbacks
     this.dropCallbacks = []

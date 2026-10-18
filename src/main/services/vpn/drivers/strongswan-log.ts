@@ -10,6 +10,7 @@ export const FORTICLIENT_ESP_PROPOSAL = 'aes256-sha1-modp1536'
 export type StrongswanEvent =
   | { type: 'up' }
   | { type: 'address'; ip: string }
+  | { type: 'dns'; server: string }
   | { type: 'auth-failed' }
   | { type: 'psk-mismatch' }
   | { type: 'no-proposal' }
@@ -20,6 +21,8 @@ export type StrongswanEvent =
 export function parseStrongswanLine(raw: string): StrongswanEvent {
   const line = raw.trim()
   if (/CHILD_SA \S+ established/.test(line)) return { type: 'up' }
+  const dns = /installing ([0-9.]+) as DNS server/.exec(line)
+  if (dns) return { type: 'dns', server: dns[1] }
   const vip = /installing new virtual IP ([0-9.]+)/.exec(line)
   if (vip) return { type: 'address', ip: vip[1] }
   if (/NO_PROPOSAL_CHOSEN|no (matching )?proposal (found|chosen)/i.test(line)) {

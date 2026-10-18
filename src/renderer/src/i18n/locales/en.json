@@ -730,7 +730,9 @@
       "save": "Save connection",
       "discard": "Discard",
       "replaceOvpn": "Replace .ovpn file",
-      "ovpnReplaced": ".ovpn file replaced"
+      "ovpnReplaced": ".ovpn file replaced",
+      "dnsDomains": "Internal domains (DNS)",
+      "dnsDomainsHint": "Names in these domains use the VPN's DNS; everything else keeps your DNS. Comma-separated. Empty: IP access only. (macOS)"
     },
     "helper": {
       "installed": "VPNs connect without asking for the administrator password.",

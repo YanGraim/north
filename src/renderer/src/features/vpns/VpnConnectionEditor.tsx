@@ -33,13 +33,21 @@ export function VpnConnectionEditor({ profile }: { profile: VpnProfile }): React
   const { t } = useTranslation()
   const update = useUpdateVpn()
   const [draft, setDraft] = useState<VpnConfig>(profile.config)
-  const dirty = JSON.stringify(draft) !== JSON.stringify(profile.config)
+  const [dnsText, setDnsText] = useState(
+    profile.config.kind === 'ipsec-ikev1' ? (profile.config.dnsDomains ?? []).join(', ') : ''
+  )
+  const dirty =
+    JSON.stringify(draft) !== JSON.stringify(profile.config) ||
+    (profile.config.kind === 'ipsec-ikev1' &&
+      JSON.stringify(parseDomains(dnsText)) !== JSON.stringify(profile.config.dnsDomains))
 
   const save = (event: React.FormEvent): void => {
     event.preventDefault()
+    const withDns: VpnConfig =
+      draft.kind === 'ipsec-ikev1' ? { ...draft, dnsDomains: parseDomains(dnsText) } : draft
     update.mutate({
       id: profile.id,
-      input: { config: applyConnectionEdit(profile.config, normalizeFortinetConfig(draft)) }
+      input: { config: applyConnectionEdit(profile.config, normalizeFortinetConfig(withDns)) }
     })
   }
 
@@ -99,6 +107,18 @@ export function VpnConnectionEditor({ profile }: { profile: VpnProfile }): React
               onChange={(e) => set({ groupName: e.target.value || undefined })}
             />
           </Row>
+          <Row id="vpn-edit-dns-domains" label={t('vpn.edit.dnsDomains')}>
+            <Input
+              id="vpn-edit-dns-domains"
+              className="font-mono"
+              placeholder="poly.local, corp.example"
+              value={dnsText}
+              onChange={(e) => setDnsText(e.target.value)}
+              onBlur={() => set({ dnsDomains: parseDomains(dnsText) })}
+              data-testid="vpn-edit-dns-domains"
+            />
+            <p className="text-xs text-muted">{t('vpn.edit.dnsDomainsHint')}</p>
+          </Row>
           <Row id="vpn-edit-xauth" label={t('vpn.wizard.xauth')}>
             <Select
               value={draft.xauth}
@@ -146,7 +166,18 @@ export function VpnConnectionEditor({ profile }: { profile: VpnProfile }): React
       </Row>
       <div className="flex justify-end gap-2">
         {dirty ? (
-          <Button type="button" variant="ghost" onClick={() => setDraft(profile.config)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setDraft(profile.config)
+              setDnsText(
+                profile.config.kind === 'ipsec-ikev1'
+                  ? (profile.config.dnsDomains ?? []).join(', ')
+                  : ''
+              )
+            }}
+          >
             {t('vpn.edit.discard')}
           </Button>
         ) : null}
@@ -212,6 +243,20 @@ function OpenVpnEditor({ profile }: { profile: VpnProfile }): React.JSX.Element 
       />
     </div>
   )
+}
+
+/** "poly.local, corp.example" → ['poly.local', 'corp.example']; empty → undefined */
+function parseDomains(text: string): string[] | undefined {
+  const domains = text
+    .split(/[\s,;]+/)
+    .map((d) =>
+      d
+        .trim()
+        .replace(/^\.+|\.+$/g, '')
+        .toLowerCase()
+    )
+    .filter(Boolean)
+  return domains.length ? [...new Set(domains)] : undefined
 }
 
 function Row({

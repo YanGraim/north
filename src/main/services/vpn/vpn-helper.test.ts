@@ -221,7 +221,7 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     })
     expect(info.localIp).toBe('10.212.134.200')
     await driver.disconnect()
-    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v6')
+    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v7')
   }, 15_000)
 
   const ipsecProfile = (username: string) => ({
@@ -284,6 +284,33 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
       routes: ['172.16.0.0/20', '172.16.50.0/24']
     })
     await driver.disconnect()
+  }, 15_000)
+
+  it('IPsec: internal domains go to the VPN DNS on connect and are removed on disconnect', async () => {
+    const calls: string[] = []
+    const driver = new StrongswanDriver({
+      binary: () => FAKE_CHARON,
+      helper: {
+        ensure: async () => {},
+        startIpsec: (input, onOutput) =>
+          directSpawn(join(dir, 'north-vpn-helper'), ['ipsec'], input, onOutput),
+        setDns: async (server, domains) => {
+          calls.push(`set ${server} ${domains.join(',')}`)
+          return { code: 0 }
+        },
+        clearDns: async (domains) => {
+          calls.push(`clear ${domains.join(',')}`)
+          return { code: 0 }
+        }
+      }
+    })
+    const base = ipsecCtx('ok')
+    await driver.connect({
+      ...base,
+      profile: { ...base.profile, config: { ...base.profile.config, dnsDomains: ['poly.local'] } }
+    })
+    await driver.disconnect()
+    expect(calls).toEqual(['set 172.16.0.3 poly.local', 'clear poly.local'])
   }, 15_000)
 
   it('IPsec: wrong PSK → AUTH_FAILED', async () => {

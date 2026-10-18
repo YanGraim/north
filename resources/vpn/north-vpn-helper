@@ -1,5 +1,5 @@
 #!/bin/sh
-# north-vpn-helper v6
+# north-vpn-helper v7
 #
 # Installed once, root-owned, next to root-owned copies of the VPN binaries. A sudoers
 # rule lets the installing user run ONLY this file without a password, so it must never
@@ -11,7 +11,11 @@
 #                                SIGTERM stops the tunnel
 #   north-vpn-helper ipsec       strongSwan charon-cmd, IKEv1 XAuth PSK (FortiGate dial-up);
 #                                key=value lines on stdin, log on stdout; SIGTERM stops
-#   north-vpn-helper stop-all    stop every tunnel this helper started (crash cleanup)
+#   north-vpn-helper dns-set     split DNS (macOS /etc/resolver): "server=IP" and
+#                                "domain=NAME" lines on stdin
+#   north-vpn-helper dns-clear   remove North's resolver files for the "domain=" lines
+#   north-vpn-helper stop-all    stop every tunnel this helper started and drop North's
+#                                resolver files (crash cleanup)
 set -u
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 dir=$(cd "$(dirname "$0")" && pwd -P) || exit 70
@@ -19,7 +23,7 @@ umask 077
 
 case "${1:-}" in
   version)
-    echo 6
+    echo 7
     ;;
   forti)
     bin="$dir/openfortivpn"
@@ -96,13 +100,49 @@ case "${1:-}" in
     rm -rf "$tmp"
     wait "$pid"
     ;;
+  dns-set|dns-clear)
+    [ "$(uname)" = Darwin ] || { echo "north-vpn-helper: split DNS only on macOS for now"; exit 69; }
+    server='' domains=''
+    while IFS= read -r line; do
+      case "$line" in
+        server=*) server=${line#server=} ;;
+        domain=*)
+          d=${line#domain=}
+          case "$d" in ''|.*|-*|*..*|*[!A-Za-z0-9.-]*) echo "north-vpn-helper: invalid domain"; exit 64 ;; esac
+          domains="$domains $d"
+          ;;
+        *) echo "north-vpn-helper: option not allowed"; exit 64 ;;
+      esac
+    done
+    [ -d /etc/resolver ] || { mkdir /etc/resolver && chmod 755 /etc/resolver; }
+    for d in $domains; do
+      f="/etc/resolver/$d"
+      # never touch a resolver file North didn't write
+      if [ -e "$f" ] && ! grep -q '^# north-vpn$' "$f"; then
+        echo "north-vpn-helper: /etc/resolver/$d belongs to something else, skipped"
+        continue
+      fi
+      if [ "$1" = dns-set ]; then
+        case "$server" in ''|*[!0-9.]*) echo "north-vpn-helper: invalid server"; exit 64 ;; esac
+        printf '# north-vpn\nnameserver %s\n' "$server" >"$f"
+        chmod 644 "$f"
+      else
+        rm -f "$f"
+      fi
+    done
+    ;;
   stop-all)
     pkill -TERM -f "^$dir/openfortivpn " 2>/dev/null
     pkill -TERM -f "^$dir/charon-cmd " 2>/dev/null
+    if [ -d /etc/resolver ]; then
+      for f in /etc/resolver/*; do
+        [ -f "$f" ] && grep -q '^# north-vpn$' "$f" && rm -f "$f"
+      done
+    fi
     exit 0
     ;;
   *)
-    echo "usage: north-vpn-helper version|forti|ipsec|stop-all" >&2
+    echo "usage: north-vpn-helper version|forti|ipsec|dns-set|dns-clear|stop-all" >&2
     exit 64
     ;;
 esac
