@@ -1,5 +1,5 @@
 #!/bin/sh
-# north-vpn-helper v5
+# north-vpn-helper v6
 #
 # Installed once, root-owned, next to root-owned copies of the VPN binaries. A sudoers
 # rule lets the installing user run ONLY this file without a password, so it must never
@@ -19,7 +19,7 @@ umask 077
 
 case "${1:-}" in
   version)
-    echo 5
+    echo 6
     ;;
   forti)
     bin="$dir/openfortivpn"
@@ -77,7 +77,7 @@ case "${1:-}" in
     # Explicit plugin list (missing ones are skipped) so "unity" is loaded: it reads the
     # split-tunnel networks FortiGate pushes, like FortiClient, instead of taking all traffic.
     plugins='charon-cmd pkcs11 aes des sha1 sha2 md5 hmac random nonce x509 revocation constraints pubkey pkcs1 pkcs8 sshkey pem openssl gmp curve25519 kdf curl kernel-pfkey kernel-pfroute kernel-netlink socket-default eap-identity eap-md5 eap-gtc eap-mschapv2 eap-peap xauth-generic osx-attr resolve unity'
-    printf '%s\n' 'charon-cmd {' "  load = $plugins" '  port = 500' '  port_nat_t = 4500' \
+    printf '%s\n' 'charon-cmd {' "  load = $plugins" '  cisco_unity = yes' '  port = 500' '  port_nat_t = 4500' \
       '  filelog {' '    stderr {' '      default = 1' '      flush_line = yes' '    }' '  }' '}' \
       >"$tmp/strongswan.conf"
     set -- --host "$host" --remote-identity %any --profile ikev1-xauth-psk-am \
