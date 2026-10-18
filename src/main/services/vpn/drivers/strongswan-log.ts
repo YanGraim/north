@@ -33,7 +33,7 @@ export function parseStrongswanLine(raw: string): StrongswanEvent {
   if (/giving up after \d+ retransmits|unable to resolve|no route to host/i.test(line)) {
     return { type: 'unreachable', message: line }
   }
-  if (/establishing .* failed|initiate failed|failed to/i.test(line)) {
+  if (/establishing .* failed|initiate failed|unable to initiate|failed to/i.test(line)) {
     return { type: 'error', message: line }
   }
   return { type: 'other', line }

@@ -11,6 +11,10 @@ process.stdin.on('data', (c) => {
 })
 process.stdin.on('end', () => {
   const [psk, password] = input.split('\n')
+  if (!argv.includes('--identity')) {
+    out('unable to initiate, missing --identity option')
+    process.exit(1)
+  }
   out(`initiating Aggressive Mode IKE_SA cmd[1] to ${arg('--host')}`)
   if (scenario === 'silent') return setInterval(() => {}, 1000)
   if (scenario === 'unreachable') {

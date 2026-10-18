@@ -1,5 +1,5 @@
 #!/bin/sh
-# north-vpn-helper v2
+# north-vpn-helper v3
 #
 # Installed once, root-owned, next to root-owned copies of the VPN binaries. A sudoers
 # rule lets the installing user run ONLY this file without a password, so it must never
@@ -19,7 +19,7 @@ umask 077
 
 case "${1:-}" in
   version)
-    echo 2
+    echo 3
     ;;
   forti)
     bin="$dir/openfortivpn"
@@ -75,7 +75,8 @@ case "${1:-}" in
     : >"$tmp/strongswan.conf"
     set -- --host "$host" --remote-identity %any --profile ikev1-xauth-psk-am \
       --xauth-username "$user" --ike-proposal "$ike" --esp-proposal "$esp"
-    [ -n "$id" ] && set -- "$@" --identity "$id"
+    # charon-cmd needs a local identity; FortiClient's "Local ID" when set, else the user
+    set -- "$@" --identity "${id:-$user}"
     # charon-cmd asks for the PSK, then the XAuth password; without a tty it reads stdin
     printf '%s\n%s\n' "$psk" "$pw" | STRONGSWAN_CONF="$tmp/strongswan.conf" "$bin" "$@" 2>&1 &
     pid=$!
