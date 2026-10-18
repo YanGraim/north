@@ -404,7 +404,13 @@ export class VpnManager {
       status: entry.status,
       since: entry.since.toISOString(),
       ...(entry.info?.localIp ? { localIp: entry.info.localIp } : {}),
-      ...(entry.info ? { routes: entry.info.routes } : {}),
+      ...(entry.info
+        ? {
+            routes: entry.info.redirectGateway
+              ? ['0.0.0.0/0', ...entry.info.routes.filter((r) => r !== '0.0.0.0/0')]
+              : entry.info.routes
+          }
+        : {}),
       ...(entry.lastError && entry.status === 'error' ? { lastError: entry.lastError } : {}),
       ...(entry.lastError && entry.status === 'reconnecting' ? { lastError: entry.lastError } : {}),
       leases: entry.leases.size,

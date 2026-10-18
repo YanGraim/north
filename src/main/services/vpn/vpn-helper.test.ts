@@ -265,6 +265,7 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     const driver = ipsecDriver()
     const info = await driver.connect(ipsecCtx('ok'))
     expect(info.localIp).toBe('10.10.20.5')
+    expect(info.redirectGateway).toBe(true)
     await driver.disconnect()
   }, 15_000)
 

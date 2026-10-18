@@ -229,7 +229,9 @@ function Overview({
         : profile.config.gateway
   const routes =
     state?.routes ?? (profile.config.kind === 'openvpn' ? profile.config.declaredRoutes : [])
-  const fullTunnel = profile.config.kind === 'openvpn' && profile.config.redirectGateway
+  const fullTunnel =
+    (profile.config.kind === 'openvpn' && profile.config.redirectGateway) ||
+    Boolean(state?.routes?.includes('0.0.0.0/0'))
   const connected = state?.status === 'connected'
   return (
     <div className="space-y-4">

@@ -161,7 +161,14 @@ export class StrongswanDriver implements VpnDriver {
           else if (event.type === 'error') lastError = event.message
           else if (event.type === 'up') {
             this.connected = true
-            return { localIp, routes: [], redirectGateway: false }
+            // "TS 10.0.8.129/32 === 0.0.0.0/0": the gateway takes all traffic (like FortiClient)
+            const remote = /===\s*(\S+)\s*$/.exec(line)?.[1]
+            const redirectGateway = remote === '0.0.0.0/0'
+            return {
+              localIp,
+              routes: remote && !redirectGateway ? [remote] : [],
+              redirectGateway
+            }
           }
         }
         if (this.exited) {
