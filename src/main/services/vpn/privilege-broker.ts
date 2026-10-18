@@ -27,6 +27,22 @@ const OPENFORTIVPN_CANDIDATES: Partial<Record<NodeJS.Platform, string[]>> = {
   linux: ['/usr/bin/openfortivpn', '/usr/sbin/openfortivpn', '/usr/local/bin/openfortivpn']
 }
 
+const CHARON_CMD_CANDIDATES: Partial<Record<NodeJS.Platform, string[]>> = {
+  darwin: [
+    '/opt/homebrew/opt/strongswan/bin/charon-cmd',
+    '/usr/local/opt/strongswan/bin/charon-cmd'
+  ],
+  linux: ['/usr/sbin/charon-cmd', '/usr/bin/charon-cmd', '/usr/local/sbin/charon-cmd']
+}
+
+/** strongSwan's one-shot IKE client (IPsec IKEv1 on macOS/Linux). */
+export function findCharonCmdBinary(
+  platform: NodeJS.Platform,
+  exists: (path: string) => boolean
+): string | null {
+  return (CHARON_CMD_CANDIDATES[platform] ?? []).find((p) => exists(p)) ?? null
+}
+
 /** openfortivpn has no Windows build — Windows SSL-VPN needs another engine. */
 export function findOpenfortivpnBinary(
   platform: NodeJS.Platform,

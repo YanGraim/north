@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { OpenfortivpnDriver } from './drivers/openfortivpn-driver'
+import { StrongswanDriver } from './drivers/strongswan-driver'
 import { buildElevatedCommand, type PrivilegeBroker } from './privilege-broker'
 import {
   buildHelperInstall,
@@ -17,6 +18,7 @@ import {
 const ROOT = resolve(__dirname, '../../../..')
 const HELPER = join(ROOT, 'resources/vpn/north-vpn-helper')
 const FAKE = join(ROOT, 'test/fixtures/fake-openfortivpn.mjs')
+const FAKE_CHARON = join(ROOT, 'test/fixtures/fake-charon-cmd.mjs')
 const DIR = '/Library/PrivilegedHelperTools/app.north.vpn'
 
 function memFs(files: Record<string, { content?: string; uid?: number; mode?: number }>): HelperFs {
@@ -92,7 +94,7 @@ describe('buildHelperInstall', () => {
     )
     const command = buildElevatedCommand(binary, args)
     expect(command).not.toMatch(/[\r\n]/)
-    expect(args.slice(3)).toEqual(['/src/helper', DIR, 'yan', '/opt/homebrew/bin/openfortivpn'])
+    expect(args.slice(3)).toEqual(['/src/helper', DIR, 'yan', '/opt/homebrew/bin/openfortivpn', ''])
     expect(args[1]).toContain('visudo -cf')
   })
   it('rejects a user name that could inject into sudoers', () => {
@@ -137,6 +139,11 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     writeFileSync(
       join(dir, 'openfortivpn'),
       `#!/bin/sh\nexec "${process.execPath}" "${FAKE}" "$@"\n`,
+      { mode: 0o755 }
+    )
+    writeFileSync(
+      join(dir, 'charon-cmd'),
+      `#!/bin/sh\nexec "${process.execPath}" "${FAKE_CHARON}" "$@"\n`,
       { mode: 0o755 }
     )
   })
@@ -214,6 +221,88 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     })
     expect(info.localIp).toBe('10.212.134.200')
     await driver.disconnect()
-    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v1')
+    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v2')
   }, 15_000)
+
+  const ipsecProfile = (username: string) => ({
+    id: '55555555-5555-4555-8555-555555555555',
+    clientId: null,
+    name: 'POLY',
+    kind: 'ipsec-ikev1' as const,
+    config: {
+      kind: 'ipsec-ikev1' as const,
+      gateway: 'poly.fortidyndns.com',
+      username,
+      xauth: 'saved' as const
+    },
+    autoDisconnect: 'when-idle' as const,
+    idleTimeoutSec: 300,
+    notes: null,
+    createdAt: '2026-10-17T00:00:00.000Z',
+    updatedAt: '2026-10-17T00:00:00.000Z'
+  })
+  const ipsecDriver = (timeout = 5000) =>
+    new StrongswanDriver({
+      binary: () => FAKE_CHARON,
+      handshakeTimeoutMs: timeout,
+      helper: {
+        ensure: async () => {},
+        startIpsec: (input, onOutput) =>
+          directSpawn(join(dir, 'north-vpn-helper'), ['ipsec'], input, onOutput)
+      }
+    })
+  const ipsecCtx = (username: string, psk = 'psk-ok') => ({
+    profile: ipsecProfile(username),
+    secrets: {
+      get: (k: string) => (k === 'psk' ? psk : 'pw-ok'),
+      inlineBlocks: () => ({})
+    },
+    log: () => {},
+    signal: new AbortController().signal
+  })
+
+  it('IPsec: connects through the helper (PSK + XAuth over stdin) and stops on disconnect', async () => {
+    const driver = ipsecDriver()
+    const info = await driver.connect(ipsecCtx('ok'))
+    expect(info.localIp).toBe('10.10.20.5')
+    await driver.disconnect()
+  }, 15_000)
+
+  it('IPsec: wrong PSK → AUTH_FAILED', async () => {
+    const err = await ipsecDriver()
+      .connect(ipsecCtx('ok', 'wrong'))
+      .catch((e) => e)
+    expect(err.code).toBe('AUTH_FAILED')
+  }, 15_000)
+
+  it('IPsec: proposals rejected → CONNECTION_REJECTED', async () => {
+    const err = await ipsecDriver()
+      .connect(ipsecCtx('proposal'))
+      .catch((e) => e)
+    expect(err.code).toBe('CONNECTION_REJECTED')
+  }, 15_000)
+
+  it('IPsec: gateway never answers → GATEWAY_UNREACHABLE', async () => {
+    const err = await ipsecDriver()
+      .connect(ipsecCtx('unreachable'))
+      .catch((e) => e)
+    expect(err.code).toBe('GATEWAY_UNREACHABLE')
+  }, 15_000)
+
+  it('IPsec helper refuses option smuggling as root', async () => {
+    const { code, out } = await new Promise<{ code: number | null; out: string }>((done) => {
+      let out = ''
+      const r = directSpawn(
+        join(dir, 'north-vpn-helper'),
+        ['ipsec'],
+        'host=--debug\nuser=x\npsk=a\npassword=b\nike=aes128-sha1-modp1536\nesp=aes128-sha1\n',
+        (c) => {
+          out += c
+        }
+      )
+      void r.exited.then(({ code }) => done({ code, out }))
+    })
+    expect(code).toBe(64)
+    expect(out).toContain('invalid value')
+  })
 })

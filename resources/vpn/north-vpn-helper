@@ -1,5 +1,5 @@
 #!/bin/sh
-# north-vpn-helper v1
+# north-vpn-helper v2
 #
 # Installed once, root-owned, next to root-owned copies of the VPN binaries. A sudoers
 # rule lets the installing user run ONLY this file without a password, so it must never
@@ -9,6 +9,8 @@
 #   north-vpn-helper version     print the helper version
 #   north-vpn-helper forti       openfortivpn with the config on stdin, log on stdout;
 #                                SIGTERM stops the tunnel
+#   north-vpn-helper ipsec       strongSwan charon-cmd, IKEv1 XAuth PSK (FortiGate dial-up);
+#                                key=value lines on stdin, log on stdout; SIGTERM stops
 #   north-vpn-helper stop-all    stop every tunnel this helper started (crash cleanup)
 set -u
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
@@ -17,7 +19,7 @@ umask 077
 
 case "${1:-}" in
   version)
-    echo 1
+    echo 2
     ;;
   forti)
     bin="$dir/openfortivpn"
@@ -44,12 +46,55 @@ case "${1:-}" in
     rm -rf "$tmp"
     wait "$pid"
     ;;
+  ipsec)
+    bin="$dir/charon-cmd"
+    [ -x "$bin" ] || { echo "north-vpn-helper: charon-cmd not installed"; exit 69; }
+    host='' user='' id='' psk='' pw='' ike='' esp=''
+    while IFS= read -r line; do
+      case "$line" in
+        host=*) host=${line#host=} ;;
+        user=*) user=${line#user=} ;;
+        id=*) id=${line#id=} ;;
+        psk=*) psk=${line#psk=} ;;
+        password=*) pw=${line#password=} ;;
+        ike=*) ike=${line#ike=} ;;
+        esp=*) esp=${line#esp=} ;;
+        *) echo "north-vpn-helper: configuration option not allowed"; exit 64 ;;
+      esac
+    done
+    # values become argv of a root process: no option smuggling, no odd characters
+    for v in "$host" "$user"; do
+      case "$v" in ''|-*|*[!A-Za-z0-9.:_@-]*) echo "north-vpn-helper: invalid value"; exit 64 ;; esac
+    done
+    case "$id" in -*|*[!A-Za-z0-9.:_@-]*) echo "north-vpn-helper: invalid value"; exit 64 ;; esac
+    for v in "$ike" "$esp"; do
+      case "$v" in ''|-*|*[!a-z0-9-]*) echo "north-vpn-helper: invalid value"; exit 64 ;; esac
+    done
+    tmp=$(mktemp -d /tmp/north-vpn.XXXXXX) || exit 70
+    # root-owned, empty: ignore the (user-writable) Homebrew strongswan.conf
+    : >"$tmp/strongswan.conf"
+    set -- --host "$host" --remote-identity %any --profile ikev1-xauth-psk-am \
+      --xauth-username "$user" --ike-proposal "$ike" --esp-proposal "$esp"
+    [ -n "$id" ] && set -- "$@" --identity "$id"
+    # charon-cmd asks for the PSK, then the XAuth password; without a tty it reads stdin
+    printf '%s\n%s\n' "$psk" "$pw" | STRONGSWAN_CONF="$tmp/strongswan.conf" "$bin" "$@" 2>&1 &
+    pid=$!
+    psk='' pw=''
+    trap 'kill -TERM "$pid" 2>/dev/null' TERM INT HUP
+    while kill -0 "$pid" 2>/dev/null; do
+      sleep 1 &
+      wait $!
+    done
+    rm -rf "$tmp"
+    wait "$pid"
+    ;;
   stop-all)
     pkill -TERM -f "^$dir/openfortivpn " 2>/dev/null
+    pkill -TERM -f "^$dir/charon-cmd " 2>/dev/null
     exit 0
     ;;
   *)
-    echo "usage: north-vpn-helper version|forti|stop-all" >&2
+    echo "usage: north-vpn-helper version|forti|ipsec|stop-all" >&2
     exit 64
     ;;
 esac

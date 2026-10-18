@@ -4,6 +4,6 @@
 - **Several VPNs at once:** keep more than one on; if their networks overlap, North warns you before connecting
 - **FortiGate SSL-VPN:** the same fields as FortiClient's SSL-VPN tab, with certificate fingerprint confirmation on the first connection (macOS and Linux)
 - **No password on every connection:** install the VPN component once (North offers it on first launch) and SSL-VPN stops asking for the administrator password
-- **FortiGate/IPsec on macOS:** add it with the same fields as FortiClient and connect through macOS's own IPsec client, without FortiClient (the first time, approve the "North" profile in System Settings)
+- **FortiGate/IPsec:** add it with the same fields as FortiClient and connect through strongSwan with the same proposals, without FortiClient and without approving a profile in System Settings (macOS and Linux)
 
 See the [VPNs](vpns) chapter in the manual.

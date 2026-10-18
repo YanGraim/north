@@ -17,6 +17,8 @@ export const SUDOERS_FILE = '/etc/sudoers.d/north-vpn'
 const SUDO = '/usr/bin/sudo'
 
 export type HelperStatus = 'installed' | 'missing' | 'outdated' | 'unsupported'
+/** which tunnel binaries must be present next to the helper */
+export type HelperNeeds = { forti?: boolean; ipsec?: boolean }
 
 export type HelperFs = {
   read: (path: string) => string | null
@@ -32,7 +34,7 @@ export type HelperPlatform = {
   fs: HelperFs
 }
 
-/** $1 source, $2 dir, $3 user, $4 openfortivpn to copy (may be ""). One line: elevated args can't break lines. */
+/** $1 source, $2 dir, $3 user, $4 openfortivpn, $5 charon-cmd to copy (may be ""). One line: elevated args can't break lines. */
 const INSTALL = [
   'set -e',
   'd="$2"',
@@ -44,6 +46,7 @@ const INSTALL = [
   'chmod 755 "$d/.helper"',
   'mv -f "$d/.helper" "$d/north-vpn-helper"',
   'if [ -n "$4" ]; then cp "$4" "$d/.forti"; chown 0:0 "$d/.forti"; chmod 755 "$d/.forti"; mv -f "$d/.forti" "$d/openfortivpn"; fi',
+  'if [ -n "$5" ]; then cp "$5" "$d/.charon"; chown 0:0 "$d/.charon"; chmod 755 "$d/.charon"; mv -f "$d/.charon" "$d/charon-cmd"; fi',
   't=$(mktemp)',
   `printf '%s ALL=(root) NOPASSWD: %s\\n' "$3" "$d/north-vpn-helper" >"$t"`,
   'visudo -cf "$t" >/dev/null',
@@ -59,13 +62,18 @@ const SAFE_USER = /^[A-Za-z_][A-Za-z0-9_.-]{0,63}$/
 export function helperPaths(platform: NodeJS.Platform) {
   const dir = HELPER_DIRS[platform]
   if (!dir) return null
-  return { dir, helper: join(dir, 'north-vpn-helper'), forti: join(dir, 'openfortivpn') }
+  return {
+    dir,
+    helper: join(dir, 'north-vpn-helper'),
+    forti: join(dir, 'openfortivpn'),
+    charon: join(dir, 'charon-cmd')
+  }
 }
 
 const rootOwned = (s: { uid: number; mode: number } | null) =>
   s !== null && s.uid === 0 && (s.mode & 0o022) === 0
 
-export function helperStatus(p: HelperPlatform, needs: { forti?: boolean } = {}): HelperStatus {
+export function helperStatus(p: HelperPlatform, needs: HelperNeeds = {}): HelperStatus {
   const paths = helperPaths(p.platform)
   if (!paths) return 'unsupported'
   const installed = p.fs.read(paths.helper)
@@ -73,19 +81,30 @@ export function helperStatus(p: HelperPlatform, needs: { forti?: boolean } = {})
   if (!rootOwned(p.fs.stat(paths.helper)) || !rootOwned(p.fs.stat(paths.dir))) return 'outdated'
   if (installed !== p.fs.read(p.source)) return 'outdated'
   if (needs.forti && !rootOwned(p.fs.stat(paths.forti))) return 'outdated'
+  if (needs.ipsec && !rootOwned(p.fs.stat(paths.charon))) return 'outdated'
   return 'installed'
 }
 
 export function buildHelperInstall(
   p: HelperPlatform,
-  fortiBinary: string | null
+  fortiBinary: string | null,
+  charonBinary: string | null = null
 ): { binary: string; args: string[] } {
   const paths = helperPaths(p.platform)
   if (!paths) throw new VpnError('UNSUPPORTED_ON_PLATFORM', 'Helper de VPN só no macOS e Linux')
   if (!SAFE_USER.test(p.user)) throw new VpnError('INVALID_CONFIG', 'Nome de usuário inválido')
   return {
     binary: '/bin/sh',
-    args: ['-c', INSTALL, 'north-vpn', p.source, paths.dir, p.user, fortiBinary ?? '']
+    args: [
+      '-c',
+      INSTALL,
+      'north-vpn',
+      p.source,
+      paths.dir,
+      p.user,
+      fortiBinary ?? '',
+      charonBinary ?? ''
+    ]
   }
 }
 
@@ -135,6 +154,7 @@ export const spawnHelper: HelperSpawn = (command, args, input, onOutput) => {
 export type VpnHelperDeps = HelperPlatform & {
   broker: PrivilegeBroker
   fortiBinary: () => string | null
+  charonBinary?: () => string | null
   spawn?: HelperSpawn
   /**
    * Copies the bundled helper somewhere root can read (macOS privacy rules block root from
@@ -147,12 +167,20 @@ export type VpnHelperDeps = HelperPlatform & {
 export class VpnHelper {
   constructor(private readonly deps: VpnHelperDeps) {}
 
-  status(needs: { forti?: boolean } = {}): HelperStatus {
+  /** Default: every tunnel binary found on this machine must have its root copy. */
+  status(needs: HelperNeeds = this.available()): HelperStatus {
     return helperStatus(this.deps, needs)
   }
 
+  private available(): HelperNeeds {
+    return {
+      forti: this.deps.fortiBinary() !== null,
+      ipsec: (this.deps.charonBinary?.() ?? null) !== null
+    }
+  }
+
   /** Installs (one admin prompt) unless already installed. Throws PRIVILEGE_DENIED on cancel. */
-  async ensure(needs: { forti?: boolean } = {}): Promise<void> {
+  async ensure(needs: HelperNeeds = this.available()): Promise<void> {
     const status = this.status(needs)
     if (status === 'installed') return
     if (status === 'unsupported') {
@@ -167,7 +195,8 @@ export class VpnHelper {
   async install(): Promise<void> {
     const forti = this.deps.fortiBinary()
     const source = this.deps.stage?.(this.deps.source) ?? this.deps.source
-    const { binary, args } = buildHelperInstall({ ...this.deps, source }, forti)
+    const charon = this.deps.charonBinary?.() ?? null
+    const { binary, args } = buildHelperInstall({ ...this.deps, source }, forti, charon)
     const result = await this.deps.broker.launch(binary, args).exited
     if (result.error) throw result.error
   }
@@ -183,6 +212,13 @@ export class VpnHelper {
     const paths = helperPaths(this.deps.platform)
     if (!paths) throw new VpnError('UNSUPPORTED_ON_PLATFORM', 'Helper de VPN só no macOS e Linux')
     return (this.deps.spawn ?? spawnHelper)(paths.helper, ['forti'], config, onOutput)
+  }
+
+  /** IKEv1 XAuth PSK via strongSwan; `input` is the helper's key=value lines (secrets included). */
+  startIpsec(input: string, onOutput: (chunk: Buffer) => void): HelperRun {
+    const paths = helperPaths(this.deps.platform)
+    if (!paths) throw new VpnError('UNSUPPORTED_ON_PLATFORM', 'Helper de VPN só no macOS e Linux')
+    return (this.deps.spawn ?? spawnHelper)(paths.helper, ['ipsec'], input, onOutput)
   }
 
   /** Boot cleanup after a crash — no prompt; silently skipped when not installed. */

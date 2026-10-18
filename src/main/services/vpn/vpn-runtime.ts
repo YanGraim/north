@@ -18,6 +18,7 @@ import { createFakeVpnDriverFactory } from './drivers/fake-vpn-driver'
 import { MacosIpsecDriver, type MacosIpsecDriverDeps } from './drivers/macos-ipsec-driver'
 import { OpenfortivpnDriver, type OpenfortivpnDriverDeps } from './drivers/openfortivpn-driver'
 import { OpenVpnDriver } from './drivers/openvpn-driver'
+import { StrongswanDriver, type StrongswanDriverDeps } from './drivers/strongswan-driver'
 import { VpnDriverRegistry } from './drivers/vpn-driver'
 import type { PrivilegeBroker } from './privilege-broker'
 import type { TunnelRegistry } from './tunnel-registry'
@@ -42,6 +43,8 @@ export type VpnRuntimeDeps = {
     tunnels: TunnelRegistry
   }
   macosIpsec?: MacosIpsecDriverDeps
+  /** IKEv1 via strongSwan + root helper (macOS/Linux); wins over macosIpsec when given. */
+  strongswan?: StrongswanDriverDeps
   openfortivpn?: OpenfortivpnDriverDeps
 }
 
@@ -64,7 +67,17 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
       create: () => new OpenVpnDriver(openvpn)
     })
   }
-  if (!deps.fake && deps.macosIpsec) {
+  if (!deps.fake && deps.strongswan) {
+    const strongswan = deps.strongswan
+    drivers.register({
+      kind: 'ipsec-ikev1',
+      isSupported: (platform) =>
+        platform === 'win32'
+          ? { ok: false, reason: 'No Windows, o IPsec ainda não é suportado (em breve)' }
+          : { ok: true },
+      create: () => new StrongswanDriver(strongswan)
+    })
+  } else if (!deps.fake && deps.macosIpsec) {
     const ipsec = deps.macosIpsec
     drivers.register({
       kind: 'ipsec-ikev1',
@@ -125,7 +138,7 @@ export function createVpnHandlers(
   platform: NodeJS.Platform,
   helper?: Pick<VpnHelper, 'status' | 'install' | 'uninstall'>
 ) {
-  const helperStatus = (): VpnHelperStatus => helper?.status({ forti: true }) ?? 'unsupported'
+  const helperStatus = (): VpnHelperStatus => helper?.status() ?? 'unsupported'
   const { profiles, manager, drivers } = runtime
   return {
     [IpcChannels.VPN_LIST]: () => profiles.list(),

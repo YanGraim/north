@@ -11,6 +11,7 @@ import { cleanupFortiOrphans } from '../services/vpn/drivers/openfortivpn-driver
 import { cleanupOpenvpnOrphans } from '../services/vpn/drivers/openvpn-driver'
 import {
   DirectBroker,
+  findCharonCmdBinary,
   findOpenfortivpnBinary,
   findOpenvpnBinary,
   type PrivilegeBroker,
@@ -37,6 +38,7 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
     process.platform === 'win32' ? new DirectBroker() : new SudoPromptBroker(sudo.exec)
 
   const findForti = () => findOpenfortivpnBinary(process.platform, existsSync)
+  const findCharon = () => findCharonCmdBinary(process.platform, existsSync)
   const helper =
     process.platform === 'darwin' || process.platform === 'linux'
       ? new VpnHelper({
@@ -62,6 +64,7 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
           },
           broker,
           fortiBinary: findForti,
+          charonBinary: findCharon,
           stage: (source) => {
             // own dir: the boot-time tmp cleanup must not wipe it mid-install
             const stageDir = join(vpnDir, 'helper-stage')
@@ -98,6 +101,7 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
       tmpDir,
       installedFile: join(vpnDir, 'ipsec-installed.json')
     },
+    strongswan: helper ? { binary: findCharon, helper } : undefined,
     openfortivpn: {
       binary: findForti,
       broker,
@@ -149,7 +153,7 @@ async function offerHelperInstall(
   repos: Repositories,
   declinedFile: string
 ): Promise<void> {
-  if (helper.status({ forti: true }) === 'installed') return
+  if (helper.status() === 'installed') return
   if (existsSync(declinedFile) || repos.vpnProfiles.list().length === 0) return
   await app.whenReady()
   const { response } = await dialog.showMessageBox({
@@ -166,7 +170,7 @@ async function offerHelperInstall(
     return
   }
   try {
-    await helper.ensure({ forti: true })
+    await helper.ensure()
   } catch (error) {
     console.error('[vpn] helper install failed', error)
   }
