@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fake strongSwan charon-cmd for driver tests. Scenario = --xauth-username:
-//   ok | auth | proposal | silent | unreachable. Expects PSK "psk-ok" then password "pw-ok" on stdin.
+//   ok | auth | proposal | esp | silent | unreachable. Expects PSK "psk-ok" then password "pw-ok" on stdin.
 const argv = process.argv.slice(2)
 const arg = (name) => argv[argv.indexOf(name) + 1]
 const out = (l) => process.stdout.write(`${l}\n`)
@@ -36,6 +36,11 @@ process.stdin.on('end', () => {
   }
   out(`IKE_SA cmd[1] established between 192.168.0.10[192.168.0.10]...${arg('--host')}`)
   out('installing new virtual IP 10.10.20.5')
+  // FortiGate-like: phase 2 only for one exact ESP proposal
+  if (scenario === 'esp' && arg('--esp-proposal') !== 'aes256-sha256-modp1536') {
+    out('received NO_PROPOSAL_CHOSEN error notify')
+    process.exit(1)
+  }
   out(
     'CHILD_SA cmd{1} established with SPIs c1d2e3f4_i 0a0b0c0d_o and TS 10.10.20.5/32 === 0.0.0.0/0'
   )

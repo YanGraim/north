@@ -268,6 +268,13 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     await driver.disconnect()
   }, 15_000)
 
+  it('IPsec: phase 2 rejected → tries the next ESP proposal until one works', async () => {
+    const logs: string[] = []
+    const info = await ipsecDriver().connect({ ...ipsecCtx('esp'), log: (l) => logs.push(l) })
+    expect(info.localIp).toBe('10.10.20.5')
+    expect(logs.filter((l) => l.includes('fase 2 recusada'))).toHaveLength(3)
+  }, 30_000)
+
   it('IPsec: wrong PSK → AUTH_FAILED', async () => {
     const err = await ipsecDriver()
       .connect(ipsecCtx('ok', 'wrong'))
