@@ -21,7 +21,7 @@ Arriba de la VPN, **Editar** abre la configuración. En **Conexión** cambias el
 - Desde la píldora **VPN** de la barra superior: cada VPN tiene un switch, con estado, IP y tiempo activa. La píldora se pone verde con una VPN activa, muestra "2 VPNs" con dos, ámbar mientras conecta y roja si una se cae.
 - Desde la pantalla **VPNs**: botón **Conectar** / **Apagar** y las pestañas **Resumen**, **Configuración**, **Logs** e **Historial**.
 
-macOS y Linux necesitan permiso de administrador para que la VPN cambie rutas y DNS. En el primer inicio con VPN, North ofrece instalar el **componente de VPN** (como hace FortiClient): el sistema pide la contraseña una sola vez y, a partir de ahí, la SSL-VPN se conecta y desconecta sin pedirla. Si lo rechazas, lo ofrece de nuevo en la primera conexión; el botón al final de la lista de VPN lo instala o lo quita. El componente solo puede conectar y desconectar VPN, nada más. Sin él, cada conexión pide la contraseña. OpenVPN debe estar instalado (`brew install openvpn` en macOS).
+macOS y Linux necesitan permiso de administrador para que la VPN cambie rutas y DNS. En el primer inicio con VPN, North ofrece instalar el **componente de VPN** (como hace FortiClient): el sistema pide la contraseña una sola vez y, a partir de ahí, SSL-VPN, IPsec y OpenVPN se conectan y desconectan sin pedirla. Si lo rechazas, lo ofrece de nuevo en la primera conexión; el botón al final de la lista de VPN lo instala o lo quita. El componente solo puede conectar y desconectar VPN, nada más. Sin él, cada conexión pide la contraseña. Un `.ovpn` con opciones poco comunes (scripts, archivos externos) sigue pidiéndola en cada conexión, por seguridad. OpenVPN debe estar instalado (`brew install openvpn` en macOS).
 
 ## Varias VPNs a la vez
 

@@ -4,8 +4,15 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { OpenfortivpnDriver } from './drivers/openfortivpn-driver'
+import { OpenVpnDriver } from './drivers/openvpn-driver'
+import {
+  HELPER_OVPN_BLOCKS,
+  HELPER_OVPN_DIRECTIVES,
+  helperRefusal
+} from './drivers/openvpn-helper-policy'
 import { StrongswanDriver } from './drivers/strongswan-driver'
 import { buildElevatedCommand, type PrivilegeBroker } from './privilege-broker'
+import { TunnelRegistry } from './tunnel-registry'
 import {
   buildHelperInstall,
   type HelperFs,
@@ -19,6 +26,7 @@ const ROOT = resolve(__dirname, '../../../..')
 const HELPER = join(ROOT, 'resources/vpn/north-vpn-helper')
 const FAKE = join(ROOT, 'test/fixtures/fake-openfortivpn.mjs')
 const FAKE_CHARON = join(ROOT, 'test/fixtures/fake-charon-cmd.mjs')
+const FAKE_OPENVPN = join(ROOT, 'test/fixtures/fake-openvpn.mjs')
 const DIR = '/Library/PrivilegedHelperTools/app.north.vpn'
 
 function memFs(files: Record<string, { content?: string; uid?: number; mode?: number }>): HelperFs {
@@ -94,7 +102,14 @@ describe('buildHelperInstall', () => {
     )
     const command = buildElevatedCommand(binary, args)
     expect(command).not.toMatch(/[\r\n]/)
-    expect(args.slice(3)).toEqual(['/src/helper', DIR, 'yan', '/opt/homebrew/bin/openfortivpn', ''])
+    expect(args.slice(3)).toEqual([
+      '/src/helper',
+      DIR,
+      'yan',
+      '/opt/homebrew/bin/openfortivpn',
+      '',
+      ''
+    ])
     expect(args[1]).toContain('visudo -cf')
   })
   it('rejects a user name that could inject into sudoers', () => {
@@ -139,6 +154,11 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     writeFileSync(
       join(dir, 'openfortivpn'),
       `#!/bin/sh\nexec "${process.execPath}" "${FAKE}" "$@"\n`,
+      { mode: 0o755 }
+    )
+    writeFileSync(
+      join(dir, 'openvpn'),
+      `#!/bin/sh\nexec "${process.execPath}" "${FAKE_OPENVPN}" "$@"\n`,
       { mode: 0o755 }
     )
     writeFileSync(
@@ -221,7 +241,7 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     })
     expect(info.localIp).toBe('10.212.134.200')
     await driver.disconnect()
-    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v7')
+    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v8')
   }, 15_000)
 
   const ipsecProfile = (username: string) => ({
@@ -356,5 +376,117 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     })
     expect(code).toBe(64)
     expect(out).toContain('invalid value')
+  })
+
+  const openvpnProfile = (extra: string[] = []) => ({
+    id: '66666666-6666-4666-8666-666666666666',
+    clientId: null,
+    name: 'Acme',
+    kind: 'openvpn' as const,
+    config: {
+      kind: 'openvpn' as const,
+      ovpn: ['client', 'dev tun', 'remote vpn.acme.com 1194', 'auth-user-pass', ...extra].join(
+        '\n'
+      ),
+      requiresUserPass: true,
+      requiresKeyPassphrase: false,
+      username: 'alice',
+      remoteSummary: [{ host: 'vpn.acme.com', port: 1194, proto: 'udp' as const }],
+      redirectGateway: false,
+      declaredRoutes: []
+    },
+    autoDisconnect: 'when-idle' as const,
+    idleTimeoutSec: 300,
+    notes: null,
+    createdAt: '2026-10-17T00:00:00.000Z',
+    updatedAt: '2026-10-17T00:00:00.000Z'
+  })
+
+  const openvpnDriver = (launches: string[]) =>
+    new OpenVpnDriver({
+      binary: () => '/usr/sbin/openvpn',
+      broker: {
+        launch: (binary) => {
+          launches.push(binary)
+          return { exited: new Promise(() => {}) }
+        },
+        kill: async () => {}
+      },
+      tmpDir: join(dir, 'tmp'),
+      tunnels: new TunnelRegistry(join(dir, 'tunnels')),
+      handshakeTimeoutMs: 8000,
+      disconnectTimeoutMs: 200,
+      helper: {
+        ensure: async () => {},
+        startOpenvpn: (input, onOutput) =>
+          directSpawn(
+            join(dir, 'north-vpn-helper'),
+            ['openvpn'],
+            `port=${input.port}\nmgmtpw=${input.managementPassword}\n${input.ovpn}`,
+            onOutput
+          )
+      }
+    })
+
+  it('OpenVPN: connects through the helper with no admin prompt and stops via management', async () => {
+    const launches: string[] = []
+    const driver = openvpnDriver(launches)
+    const info = await driver.connect({
+      profile: openvpnProfile(),
+      secrets: { get: (k) => (k === 'password' ? 'pw-ok' : null), inlineBlocks: () => ({}) },
+      log: () => {},
+      signal: new AbortController().signal
+    })
+    expect(info.localIp).toBeTruthy()
+    expect(launches).toEqual([])
+    await driver.disconnect()
+  }, 20_000)
+
+  it('OpenVPN: a config outside the whitelist keeps the admin prompt instead of the helper', async () => {
+    const launches: string[] = []
+    const driver = openvpnDriver(launches)
+    void driver
+      .connect({
+        profile: openvpnProfile(['providers legacy']),
+        secrets: { get: () => 'pw-ok', inlineBlocks: () => ({}) },
+        log: () => {},
+        signal: new AbortController().signal
+      })
+      .catch(() => {})
+    await new Promise((r) => setTimeout(r, 300))
+    expect(launches).toEqual(['/usr/sbin/openvpn'])
+    await driver.disconnect()
+  })
+
+  it('OpenVPN helper refuses scripts as root even if North were bypassed', async () => {
+    const { code, out } = await new Promise<{ code: number | null; out: string }>((done) => {
+      let out = ''
+      const r = directSpawn(
+        join(dir, 'north-vpn-helper'),
+        ['openvpn'],
+        `port=40000\nmgmtpw=${'a'.repeat(48)}\nclient\nup /tmp/evil.sh\n`,
+        (c) => {
+          out += c
+        }
+      )
+      void r.exited.then(({ code }) => done({ code, out }))
+    })
+    expect(code).toBe(64)
+    expect(out).toContain('option not allowed: up')
+  })
+})
+
+describe('OpenVPN helper whitelist', () => {
+  it('the helper script and North agree on every directive and block', () => {
+    const script = readFileSync(HELPER, 'utf8')
+    expect(script).toContain(`$1 !~ /^(${HELPER_OVPN_DIRECTIVES.join('|')})$/`)
+    expect(script).toContain(`tag ~ /^(${HELPER_OVPN_BLOCKS.join('|')})$/`)
+  })
+
+  it('North predicts refusals', () => {
+    expect(helperRefusal('client\ndev tun\n<ca>\nX\n</ca>\n')).toBeNull()
+    expect(helperRefusal('client\nup /tmp/x\n')).toBe('up')
+    expect(helperRefusal('client\nca /etc/ca.crt\n')).toBe('ca')
+    expect(helperRefusal('auth-user-pass creds.txt')).toBe('auth-user-pass com arquivo')
   })
 })

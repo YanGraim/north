@@ -1,5 +1,5 @@
 #!/bin/sh
-# north-vpn-helper v7
+# north-vpn-helper v8
 #
 # Installed once, root-owned, next to root-owned copies of the VPN binaries. A sudoers
 # rule lets the installing user run ONLY this file without a password, so it must never
@@ -11,6 +11,9 @@
 #                                SIGTERM stops the tunnel
 #   north-vpn-helper ipsec       strongSwan charon-cmd, IKEv1 XAuth PSK (FortiGate dial-up);
 #                                key=value lines on stdin, log on stdout; SIGTERM stops
+#   north-vpn-helper openvpn     OpenVPN client: "port=", "mgmtpw=" lines, then the .ovpn
+#                                (whitelisted directives, keys inline only) on stdin;
+#                                credentials go over the localhost management socket
 #   north-vpn-helper dns-set     split DNS (macOS /etc/resolver): "server=IP" and
 #                                "domain=NAME" lines on stdin
 #   north-vpn-helper dns-clear   remove North's resolver files for the "domain=" lines
@@ -23,7 +26,7 @@ umask 077
 
 case "${1:-}" in
   version)
-    echo 7
+    echo 8
     ;;
   forti)
     bin="$dir/openfortivpn"
@@ -100,6 +103,51 @@ case "${1:-}" in
     rm -rf "$tmp"
     wait "$pid"
     ;;
+  openvpn)
+    bin="$dir/openvpn"
+    [ -x "$bin" ] || { echo "north-vpn-helper: openvpn not installed"; exit 69; }
+    IFS= read -r l1 && IFS= read -r l2 || { echo "north-vpn-helper: invalid input"; exit 64; }
+    case "$l1" in port=*) port=${l1#port=} ;; *) echo "north-vpn-helper: invalid input"; exit 64 ;; esac
+    case "$l2" in mgmtpw=*) mgmtpw=${l2#mgmtpw=} ;; *) echo "north-vpn-helper: invalid input"; exit 64 ;; esac
+    case "$port" in ''|*[!0-9]*) echo "north-vpn-helper: invalid port"; exit 64 ;; esac
+    [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || { echo "north-vpn-helper: invalid port"; exit 64; }
+    case "$mgmtpw" in ''|*[!0-9a-f]*) echo "north-vpn-helper: invalid input"; exit 64 ;; esac
+    tmp=$(mktemp -d /tmp/north-vpn.XXXXXX) || exit 70
+    cfg="$tmp/client.ovpn"
+    head -c 1048576 >"$cfg"
+    printf '%s\n' "$mgmtpw" >"$tmp/mgmt"
+    # An .ovpn runs as root: only plain client directives; certificates/keys must be inline
+    # blocks (no paths), no scripts, plugins, management or file options.
+    if ! awk '
+      { sub(/\r$/, "") }
+      inblock { if ($0 == "</" tag ">") inblock = 0; next }
+      /^[ \t]*([#;]|$)/ { next }
+      /^<[a-z0-9-]+>$/ {
+        tag = substr($0, 2, length($0) - 2)
+        if (tag ~ /^(ca|cert|key|tls-auth|tls-crypt|tls-crypt-v2|pkcs12|extra-certs|peer-fingerprint|secret)$/) { inblock = 1; next }
+        print "north-vpn-helper: block not allowed: " tag; exit 1
+      }
+      $1 == "auth-user-pass" && NF > 1 { print "north-vpn-helper: auth-user-pass file not allowed"; exit 1 }
+      $1 !~ /^(client|dev|dev-type|proto|remote|remote-random|remote-random-hostname|resolv-retry|nobind|persist-key|persist-tun|remote-cert-tls|ns-cert-type|verify-x509-name|cipher|ciphers|data-ciphers|data-ciphers-fallback|ncp-ciphers|ncp-disable|auth|comp-lzo|compress|allow-compression|verb|mute|mute-replay-warnings|key-direction|key-method|tls-client|tls-version-min|tls-version-max|tls-cipher|tls-ciphersuites|tls-groups|tls-timeout|tls-exit|reneg-sec|reneg-bytes|hand-window|tran-window|replay-window|keepalive|ping|ping-restart|ping-exit|inactive|float|route|route-ipv6|route-nopull|route-delay|route-metric|redirect-gateway|pull|pull-filter|dhcp-option|block-outside-dns|tun-mtu|tun-mtu-extra|link-mtu|mssfix|fragment|mtu-disc|txqueuelen|sndbuf|rcvbuf|fast-io|passtos|explicit-exit-notify|server-poll-timeout|connect-retry|connect-retry-max|connect-timeout|topology|port|lport|rport|bind|push-peer-info|auth-nocache|auth-token|auth-token-user|static-challenge|setenv|ignore-unknown-option|ifconfig-nowarn|tun-ipv6|opt-verify|machine-readable-output|x509-track|auth-user-pass)$/ { print "north-vpn-helper: option not allowed: " $1; exit 1 }
+    ' "$cfg"; then
+      rm -rf "$tmp"
+      exit 64
+    fi
+    "$bin" --config "$cfg" --script-security 1 --management 127.0.0.1 "$port" "$tmp/mgmt" \
+      --management-query-passwords --management-hold --auth-nocache --auth-retry none 2>&1 &
+    pid=$!
+    trap 'kill -TERM "$pid" 2>/dev/null' TERM INT HUP
+    n=0
+    while kill -0 "$pid" 2>/dev/null; do
+      # openvpn reads the config and the management password at startup
+      [ "$n" -eq 5 ] && rm -rf "$tmp"
+      n=$((n + 1))
+      sleep 1 &
+      wait $!
+    done
+    rm -rf "$tmp"
+    wait "$pid"
+    ;;
   dns-set|dns-clear)
     [ "$(uname)" = Darwin ] || { echo "north-vpn-helper: split DNS only on macOS for now"; exit 69; }
     server='' domains=''
@@ -134,6 +182,7 @@ case "${1:-}" in
   stop-all)
     pkill -TERM -f "^$dir/openfortivpn " 2>/dev/null
     pkill -TERM -f "^$dir/charon-cmd " 2>/dev/null
+    pkill -TERM -f "^$dir/openvpn " 2>/dev/null
     if [ -d /etc/resolver ]; then
       for f in /etc/resolver/*; do
         [ -f "$f" ] && grep -q '^# north-vpn$' "$f" && rm -f "$f"
@@ -142,7 +191,7 @@ case "${1:-}" in
     exit 0
     ;;
   *)
-    echo "usage: north-vpn-helper version|forti|ipsec|dns-set|dns-clear|stop-all" >&2
+    echo "usage: north-vpn-helper version|forti|ipsec|openvpn|dns-set|dns-clear|stop-all" >&2
     exit 64
     ;;
 esac

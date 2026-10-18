@@ -6,6 +6,8 @@ import { SECRET_INLINE_BLOCKS } from '@shared/lib/vpn/ovpn-parse'
 import type { PrivilegeBroker } from '../privilege-broker'
 import type { TunnelRegistry } from '../tunnel-registry'
 import { VpnError } from '../vpn-error'
+import type { HelperRun, VpnHelper } from '../vpn-helper'
+import { helperRefusal } from './openvpn-helper-policy'
 import {
   ManagementLineBuffer,
   parseManagementLine,
@@ -23,6 +25,8 @@ export type OpenVpnDriverDeps = {
   handshakeTimeoutMs?: number
   managementConnectTimeoutMs?: number
   disconnectTimeoutMs?: number
+  /** Root helper: no admin prompt per connection, for configs inside its whitelist. */
+  helper?: Pick<VpnHelper, 'ensure' | 'startOpenvpn'>
 }
 
 const LOOPBACK = '127.0.0.1'
@@ -66,6 +70,7 @@ export class OpenVpnDriver implements VpnDriver {
   private connected = false
   private disconnecting = false
   private dropCallbacks: Array<(error?: Error) => void> = []
+  private run: HelperRun | null = null
 
   constructor(private readonly deps: OpenVpnDriverDeps) {}
 
@@ -102,24 +107,8 @@ export class OpenVpnDriver implements VpnDriver {
     const configPath = join(this.deps.tmpDir, `${profile.id}-${token}.ovpn`)
     const pwPath = join(this.deps.tmpDir, `${profile.id}-${token}.mgmt`)
     const mgmtPassword = randomBytes(24).toString('hex')
-    this.files = [configPath, pwPath]
-    writeFileSync(configPath, buildConfig(config.ovpn, secrets.inlineBlocks()), { mode: 0o600 })
-    writeFileSync(pwPath, `${mgmtPassword}\n`, { mode: 0o600 })
-
+    const fullConfig = buildConfig(config.ovpn, secrets.inlineBlocks())
     const port = await freePort()
-    const args = [
-      '--config',
-      configPath,
-      '--management',
-      LOOPBACK,
-      String(port),
-      pwPath,
-      '--management-query-passwords',
-      '--management-hold',
-      '--auth-nocache',
-      '--auth-retry',
-      'none'
-    ]
 
     let failWith: (error: VpnError) => void = () => {}
     const failure = new Promise<never>((_, reject) => {
@@ -127,8 +116,42 @@ export class OpenVpnDriver implements VpnDriver {
     })
     failure.catch(() => {})
 
-    const proc = this.deps.broker.launch(binary, args)
-    this.exited = proc.exited.then((result) => {
+    // The helper runs whitelisted configs without a prompt; anything else (rare) keeps the
+    // per-connection admin prompt rather than letting a root process run it unchecked.
+    const refusal = this.deps.helper ? helperRefusal(fullConfig) : 'no helper'
+    if (this.deps.helper && refusal) {
+      log(`[north] "${refusal}" fora da lista do componente de VPN; pedindo senha de administrador`)
+    }
+    let exited: Promise<{ code: number | null; error?: VpnError }>
+    if (this.deps.helper && !refusal) {
+      await this.deps.helper.ensure({ openvpn: true })
+      this.run = this.deps.helper.startOpenvpn(
+        { port, managementPassword: mgmtPassword, ovpn: fullConfig },
+        (chunk) => {
+          for (const line of chunk.toString('utf8').split('\n')) if (line.trim()) log(line.trim())
+        }
+      )
+      exited = this.run.exited
+    } else {
+      this.files = [configPath, pwPath]
+      writeFileSync(configPath, fullConfig, { mode: 0o600 })
+      writeFileSync(pwPath, `${mgmtPassword}\n`, { mode: 0o600 })
+      const args = [
+        '--config',
+        configPath,
+        '--management',
+        LOOPBACK,
+        String(port),
+        pwPath,
+        '--management-query-passwords',
+        '--management-hold',
+        '--auth-nocache',
+        '--auth-retry',
+        'none'
+      ]
+      exited = this.deps.broker.launch(binary, args).exited
+    }
+    this.exited = exited.then((result) => {
       this.hasExited = true
       this.onProcessExit()
       if (!this.connected) {
@@ -327,7 +350,10 @@ export class OpenVpnDriver implements VpnDriver {
     if (this.exited && !this.hasExited) {
       const timeoutMs = this.deps.disconnectTimeoutMs ?? 5000
       await Promise.race([this.exited, sleep(timeoutMs)])
-      if (!this.hasExited && this.pid) await this.deps.broker.kill(this.pid)
+      if (!this.hasExited) {
+        if (this.run) this.run.stop()
+        else if (this.pid) await this.deps.broker.kill(this.pid)
+      }
     }
     this.socket?.destroy()
     this.cleanupFiles()

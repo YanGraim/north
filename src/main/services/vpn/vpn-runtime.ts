@@ -17,7 +17,7 @@ import type { CredentialVault } from '../../vault'
 import { createFakeVpnDriverFactory } from './drivers/fake-vpn-driver'
 import { MacosIpsecDriver, type MacosIpsecDriverDeps } from './drivers/macos-ipsec-driver'
 import { OpenfortivpnDriver, type OpenfortivpnDriverDeps } from './drivers/openfortivpn-driver'
-import { OpenVpnDriver } from './drivers/openvpn-driver'
+import { OpenVpnDriver, type OpenVpnDriverDeps } from './drivers/openvpn-driver'
 import { StrongswanDriver, type StrongswanDriverDeps } from './drivers/strongswan-driver'
 import { VpnDriverRegistry } from './drivers/vpn-driver'
 import type { PrivilegeBroker } from './privilege-broker'
@@ -41,6 +41,7 @@ export type VpnRuntimeDeps = {
     broker: PrivilegeBroker
     tmpDir: string
     tunnels: TunnelRegistry
+    helper?: OpenVpnDriverDeps['helper']
   }
   macosIpsec?: MacosIpsecDriverDeps
   /** IKEv1 via strongSwan + root helper (macOS/Linux); wins over macosIpsec when given. */

@@ -66,6 +66,7 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
           broker,
           fortiBinary: findForti,
           charonBinary: findCharon,
+          openvpnBinary: () => findOpenvpnBinary(process.platform, existsSync),
           stage: (source) => {
             // own dir: the boot-time tmp cleanup must not wipe it mid-install
             const stageDir = join(vpnDir, 'helper-stage')
@@ -87,7 +88,8 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
       binary: () => findOpenvpnBinary(process.platform, existsSync),
       broker,
       tmpDir,
-      tunnels
+      tunnels,
+      helper
     },
     macosIpsec: {
       run: (cmd, args) =>

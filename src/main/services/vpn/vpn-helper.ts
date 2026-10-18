@@ -18,7 +18,7 @@ const SUDO = '/usr/bin/sudo'
 
 export type HelperStatus = 'installed' | 'missing' | 'outdated' | 'unsupported'
 /** which tunnel binaries must be present next to the helper */
-export type HelperNeeds = { forti?: boolean; ipsec?: boolean }
+export type HelperNeeds = { forti?: boolean; ipsec?: boolean; openvpn?: boolean }
 
 export type HelperFs = {
   read: (path: string) => string | null
@@ -34,7 +34,7 @@ export type HelperPlatform = {
   fs: HelperFs
 }
 
-/** $1 source, $2 dir, $3 user, $4 openfortivpn, $5 charon-cmd to copy (may be ""). One line: elevated args can't break lines. */
+/** $1 source, $2 dir, $3 user, $4 openfortivpn, $5 charon-cmd, $6 openvpn to copy (may be ""). One line: elevated args can't break lines. */
 const INSTALL = [
   'set -e',
   'd="$2"',
@@ -47,6 +47,7 @@ const INSTALL = [
   'mv -f "$d/.helper" "$d/north-vpn-helper"',
   'if [ -n "$4" ]; then cp "$4" "$d/.forti"; chown 0:0 "$d/.forti"; chmod 755 "$d/.forti"; mv -f "$d/.forti" "$d/openfortivpn"; fi',
   'if [ -n "$5" ]; then cp "$5" "$d/.charon"; chown 0:0 "$d/.charon"; chmod 755 "$d/.charon"; mv -f "$d/.charon" "$d/charon-cmd"; fi',
+  'if [ -n "$6" ]; then cp "$6" "$d/.openvpn"; chown 0:0 "$d/.openvpn"; chmod 755 "$d/.openvpn"; mv -f "$d/.openvpn" "$d/openvpn"; fi',
   't=$(mktemp)',
   `printf '%s ALL=(root) NOPASSWD: %s\\n' "$3" "$d/north-vpn-helper" >"$t"`,
   'visudo -cf "$t" >/dev/null',
@@ -66,7 +67,8 @@ export function helperPaths(platform: NodeJS.Platform) {
     dir,
     helper: join(dir, 'north-vpn-helper'),
     forti: join(dir, 'openfortivpn'),
-    charon: join(dir, 'charon-cmd')
+    charon: join(dir, 'charon-cmd'),
+    openvpn: join(dir, 'openvpn')
   }
 }
 
@@ -82,13 +84,15 @@ export function helperStatus(p: HelperPlatform, needs: HelperNeeds = {}): Helper
   if (installed !== p.fs.read(p.source)) return 'outdated'
   if (needs.forti && !rootOwned(p.fs.stat(paths.forti))) return 'outdated'
   if (needs.ipsec && !rootOwned(p.fs.stat(paths.charon))) return 'outdated'
+  if (needs.openvpn && !rootOwned(p.fs.stat(paths.openvpn))) return 'outdated'
   return 'installed'
 }
 
 export function buildHelperInstall(
   p: HelperPlatform,
   fortiBinary: string | null,
-  charonBinary: string | null = null
+  charonBinary: string | null = null,
+  openvpnBinary: string | null = null
 ): { binary: string; args: string[] } {
   const paths = helperPaths(p.platform)
   if (!paths) throw new VpnError('UNSUPPORTED_ON_PLATFORM', 'Helper de VPN só no macOS e Linux')
@@ -103,7 +107,8 @@ export function buildHelperInstall(
       paths.dir,
       p.user,
       fortiBinary ?? '',
-      charonBinary ?? ''
+      charonBinary ?? '',
+      openvpnBinary ?? ''
     ]
   }
 }
@@ -155,6 +160,7 @@ export type VpnHelperDeps = HelperPlatform & {
   broker: PrivilegeBroker
   fortiBinary: () => string | null
   charonBinary?: () => string | null
+  openvpnBinary?: () => string | null
   spawn?: HelperSpawn
   /**
    * Copies the bundled helper somewhere root can read (macOS privacy rules block root from
@@ -175,7 +181,8 @@ export class VpnHelper {
   private available(): HelperNeeds {
     return {
       forti: this.deps.fortiBinary() !== null,
-      ipsec: (this.deps.charonBinary?.() ?? null) !== null
+      ipsec: (this.deps.charonBinary?.() ?? null) !== null,
+      openvpn: (this.deps.openvpnBinary?.() ?? null) !== null
     }
   }
 
@@ -196,7 +203,8 @@ export class VpnHelper {
     const forti = this.deps.fortiBinary()
     const source = this.deps.stage?.(this.deps.source) ?? this.deps.source
     const charon = this.deps.charonBinary?.() ?? null
-    const { binary, args } = buildHelperInstall({ ...this.deps, source }, forti, charon)
+    const openvpn = this.deps.openvpnBinary?.() ?? null
+    const { binary, args } = buildHelperInstall({ ...this.deps, source }, forti, charon, openvpn)
     const result = await this.deps.broker.launch(binary, args).exited
     if (result.error) throw result.error
   }
@@ -219,6 +227,17 @@ export class VpnHelper {
     const paths = helperPaths(this.deps.platform)
     if (!paths) throw new VpnError('UNSUPPORTED_ON_PLATFORM', 'Helper de VPN só no macOS e Linux')
     return (this.deps.spawn ?? spawnHelper)(paths.helper, ['ipsec'], input, onOutput)
+  }
+
+  /** OpenVPN with management on 127.0.0.1:`port`; the helper re-validates the .ovpn as root. */
+  startOpenvpn(
+    input: { port: number; managementPassword: string; ovpn: string },
+    onOutput: (chunk: Buffer) => void
+  ): HelperRun {
+    const paths = helperPaths(this.deps.platform)
+    if (!paths) throw new VpnError('UNSUPPORTED_ON_PLATFORM', 'Helper de VPN só no macOS e Linux')
+    const stdin = `port=${input.port}\nmgmtpw=${input.managementPassword}\n${input.ovpn}`
+    return (this.deps.spawn ?? spawnHelper)(paths.helper, ['openvpn'], stdin, onOutput)
   }
 
   /** macOS split DNS: `domains` resolve through the VPN's DNS server, everything else doesn't. */
