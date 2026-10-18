@@ -119,6 +119,7 @@ import type {
   UpdateVpnProfileInput,
   VpnConflict,
   VpnConnectInput,
+  VpnHelperStatus,
   VpnHistoryEntry,
   VpnPlatformSupport,
   VpnProfile,
@@ -690,6 +691,9 @@ export interface IpcInvokeMap {
   [IpcChannels.VPN_HISTORY]: { args: [id: string, limit?: number]; result: VpnHistoryEntry[] }
   [IpcChannels.VPN_CHECK_CONFLICTS]: { args: [id: string]; result: VpnConflict[] }
   [IpcChannels.VPN_PLATFORM_SUPPORT]: { args: []; result: VpnPlatformSupport }
+  [IpcChannels.VPN_HELPER_STATUS]: { args: []; result: VpnHelperStatus }
+  [IpcChannels.VPN_HELPER_INSTALL]: { args: []; result: VpnHelperStatus }
+  [IpcChannels.VPN_HELPER_UNINSTALL]: { args: []; result: VpnHelperStatus }
 }
 
 export type InvokeChannel = keyof IpcInvokeMap
@@ -966,6 +970,10 @@ export interface NorthApi {
     history: (id: string, limit?: number) => Promise<VpnHistoryEntry[]>
     checkConflicts: (id: string) => Promise<VpnConflict[]>
     platformSupport: () => Promise<VpnPlatformSupport>
+    /** Passwordless-connect helper: installed once with one admin prompt (macOS/Linux). */
+    helperStatus: () => Promise<VpnHelperStatus>
+    installHelper: () => Promise<VpnHelperStatus>
+    uninstallHelper: () => Promise<VpnHelperStatus>
     /** Drop events whose `version` is lower than the last seen for that profile. */
     onStateChanged: (listener: (state: VpnState) => void) => () => void
   }

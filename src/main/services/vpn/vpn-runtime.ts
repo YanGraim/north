@@ -7,6 +7,7 @@ import {
   SetVpnSecretInputSchema,
   UpdateVpnProfileInputSchema,
   VpnConnectInputSchema,
+  type VpnHelperStatus,
   type VpnKind,
   type VpnSecretKind,
   type VpnState
@@ -21,6 +22,7 @@ import { VpnDriverRegistry } from './drivers/vpn-driver'
 import type { PrivilegeBroker } from './privilege-broker'
 import type { TunnelRegistry } from './tunnel-registry'
 import { VpnError } from './vpn-error'
+import type { VpnHelper } from './vpn-helper'
 import { VpnManager } from './vpn-manager'
 import { VpnProfileService } from './vpn-profile-service'
 
@@ -118,7 +120,12 @@ function rethrow(error: unknown): never {
  * Channel → handler map. Every payload is parsed as untrusted input; no result
  * carries a secret (covered by vpn-runtime.test.ts).
  */
-export function createVpnHandlers(runtime: VpnRuntime, platform: NodeJS.Platform) {
+export function createVpnHandlers(
+  runtime: VpnRuntime,
+  platform: NodeJS.Platform,
+  helper?: Pick<VpnHelper, 'status' | 'install' | 'uninstall'>
+) {
+  const helperStatus = (): VpnHelperStatus => helper?.status({ forti: true }) ?? 'unsupported'
   const { profiles, manager, drivers } = runtime
   return {
     [IpcChannels.VPN_LIST]: () => profiles.list(),
@@ -169,6 +176,23 @@ export function createVpnHandlers(runtime: VpnRuntime, platform: NodeJS.Platform
     [IpcChannels.VPN_HISTORY]: (id: unknown, limit?: unknown) =>
       profiles.history(IdSchema.parse(id), limit === undefined ? undefined : Number(limit)),
     [IpcChannels.VPN_CHECK_CONFLICTS]: (id: unknown) => manager.checkConflicts(IdSchema.parse(id)),
-    [IpcChannels.VPN_PLATFORM_SUPPORT]: () => drivers.support(platform)
+    [IpcChannels.VPN_PLATFORM_SUPPORT]: () => drivers.support(platform),
+    [IpcChannels.VPN_HELPER_STATUS]: () => helperStatus(),
+    [IpcChannels.VPN_HELPER_INSTALL]: async () => {
+      try {
+        await helper?.install()
+      } catch (error) {
+        rethrow(error)
+      }
+      return helperStatus()
+    },
+    [IpcChannels.VPN_HELPER_UNINSTALL]: async () => {
+      try {
+        await helper?.uninstall()
+      } catch (error) {
+        rethrow(error)
+      }
+      return helperStatus()
+    }
   }
 }

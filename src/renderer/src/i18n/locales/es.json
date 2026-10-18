@@ -731,6 +731,14 @@
       "discard": "Descartar",
       "replaceOvpn": "Reemplazar archivo .ovpn",
       "ovpnReplaced": "Archivo .ovpn reemplazado"
+    },
+    "helper": {
+      "installed": "Las VPN se conectan sin pedir la contraseña de administrador.",
+      "missing": "Ahora cada conexión pide la contraseña de administrador. Instala el componente de VPN una vez para que deje de pedirla.",
+      "outdated": "El componente de VPN necesita actualizarse (pide la contraseña una vez).",
+      "install": "Conectar sin pedir contraseña",
+      "remove": "Quitar componente de VPN",
+      "failed": "No se pudo cambiar el componente de VPN"
     }
   }
 }

@@ -731,6 +731,14 @@
       "discard": "Discard",
       "replaceOvpn": "Replace .ovpn file",
       "ovpnReplaced": ".ovpn file replaced"
+    },
+    "helper": {
+      "installed": "VPNs connect without asking for the administrator password.",
+      "missing": "Right now every connection asks for the administrator password. Install the VPN component once to stop that.",
+      "outdated": "The VPN component needs an update (asks for the password once).",
+      "install": "Connect without a password prompt",
+      "remove": "Remove VPN component",
+      "failed": "Could not change the VPN component"
     }
   }
 }

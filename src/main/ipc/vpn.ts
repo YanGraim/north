@@ -1,9 +1,11 @@
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { userInfo } from 'node:os'
 import { join } from 'node:path'
 import { IpcChannels } from '@shared/ipc'
 import * as sudo from '@vscode/sudo-prompt'
-import { app, BrowserWindow, ipcMain, powerMonitor } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, powerMonitor } from 'electron'
+import helperSource from '../../../resources/vpn/north-vpn-helper?asset&asarUnpack'
 import type { Repositories } from '../repositories'
 import { cleanupFortiOrphans } from '../services/vpn/drivers/openfortivpn-driver'
 import { cleanupOpenvpnOrphans } from '../services/vpn/drivers/openvpn-driver'
@@ -15,6 +17,7 @@ import {
   SudoPromptBroker
 } from '../services/vpn/privilege-broker'
 import { TunnelRegistry } from '../services/vpn/tunnel-registry'
+import { VpnHelper } from '../services/vpn/vpn-helper'
 import { createVpnHandlers, createVpnRuntime, type VpnRuntime } from '../services/vpn/vpn-runtime'
 import type { CredentialVault } from '../vault'
 
@@ -32,6 +35,35 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
   const tunnels = new TunnelRegistry(join(vpnDir, 'tunnels'))
   const broker: PrivilegeBroker =
     process.platform === 'win32' ? new DirectBroker() : new SudoPromptBroker(sudo.exec)
+
+  const findForti = () => findOpenfortivpnBinary(process.platform, existsSync)
+  const helper =
+    process.platform === 'darwin' || process.platform === 'linux'
+      ? new VpnHelper({
+          platform: process.platform,
+          source: helperSource,
+          user: userInfo().username,
+          fs: {
+            read: (path) => {
+              try {
+                return readFileSync(path, 'utf8')
+              } catch {
+                return null
+              }
+            },
+            stat: (path) => {
+              try {
+                const s = statSync(path)
+                return { uid: s.uid, mode: s.mode }
+              } catch {
+                return null
+              }
+            }
+          },
+          broker,
+          fortiBinary: findForti
+        })
+      : undefined
 
   runtime = createVpnRuntime({
     repos,
@@ -59,24 +91,28 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
       installedFile: join(vpnDir, 'ipsec-installed.json')
     },
     openfortivpn: {
-      binary: () => findOpenfortivpnBinary(process.platform, existsSync),
+      binary: findForti,
       broker,
-      tmpDir
+      tmpDir,
+      helper
     }
   })
 
   // Leftovers from a crash: stop root-owned tunnels via management, wipe temp configs.
   // SSL-VPN wrappers first (they only need their stop file), then the shared tmp wipe.
-  void cleanupFortiOrphans(tmpDir)
+  void (helper?.stopAll() ?? Promise.resolve())
+    .then(() => cleanupFortiOrphans(tmpDir))
     .then(() => cleanupOpenvpnOrphans({ tunnels, broker, tmpDir }))
     .catch((error) => console.error('[vpn] orphan cleanup failed', error))
 
-  const handlers = createVpnHandlers(runtime, process.platform)
+  const handlers = createVpnHandlers(runtime, process.platform, helper)
   for (const [channel, handler] of Object.entries(handlers)) {
     ipcMain.handle(channel, (_event, ...args: unknown[]) =>
       (handler as (...a: unknown[]) => unknown)(...args)
     )
   }
+
+  if (helper) void offerHelperInstall(helper, repos, join(vpnDir, 'helper-declined'))
 
   const manager = runtime.manager
   powerMonitor.on('suspend', () => manager.suspend())
@@ -93,4 +129,37 @@ export function hasActiveVpnTunnels(): boolean {
 
 export async function disposeVpn(): Promise<void> {
   await runtime?.manager.shutdown()
+}
+
+/**
+ * The .dmg / AppImage have no install step, so the "installer" moment is the first launch
+ * that has VPNs: one admin prompt and tunnels never ask again. Declining is remembered;
+ * the first connect (or the VPNs page) still offers it.
+ */
+async function offerHelperInstall(
+  helper: VpnHelper,
+  repos: Repositories,
+  declinedFile: string
+): Promise<void> {
+  if (helper.status({ forti: true }) === 'installed') return
+  if (existsSync(declinedFile) || repos.vpnProfiles.list().length === 0) return
+  await app.whenReady()
+  const { response } = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Instalar', 'Agora não'],
+    defaultId: 0,
+    cancelId: 1,
+    message: 'Conectar VPNs sem pedir senha?',
+    detail:
+      'O North vai instalar um componente de VPN (como o FortiClient faz). O sistema pede sua senha de administrador uma única vez; depois, conectar e desconectar não pedem mais. Dá para remover na página de VPNs.'
+  })
+  if (response !== 0) {
+    writeFileSync(declinedFile, '')
+    return
+  }
+  try {
+    await helper.ensure({ forti: true })
+  } catch (error) {
+    console.error('[vpn] helper install failed', error)
+  }
 }

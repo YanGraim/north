@@ -1,9 +1,18 @@
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { join } from 'node:path'
 import { normalizeFortinetConfig } from '@shared/lib/vpn/host-port'
 import type { PrivilegeBroker } from '../privilege-broker'
 import { VpnError } from '../vpn-error'
+import type { HelperRun, VpnHelper } from '../vpn-helper'
 import { buildFortiConfig, parseFortiLine } from './openfortivpn-log'
 import type { VpnConnectContext, VpnDriver, VpnTunnelInfo } from './vpn-driver'
 
@@ -14,6 +23,8 @@ export type OpenfortivpnDriverDeps = {
   handshakeTimeoutMs?: number
   pollMs?: number
   stopTimeoutMs?: number
+  /** Installed root helper: connect without an admin prompt (installed once on first use). */
+  helper?: Pick<VpnHelper, 'ensure' | 'startForti'>
 }
 
 /**
@@ -38,6 +49,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 export class OpenfortivpnDriver implements VpnDriver {
   private files: { cfg: string; log: string; stop: string } | null = null
   private exited: Promise<unknown> | null = null
+  private run: HelperRun | null = null
   private hasExited = false
   private connected = false
   private stopping = false
@@ -70,30 +82,38 @@ export class OpenfortivpnDriver implements VpnDriver {
     const base = join(this.deps.tmpDir, `${profile.id}-${randomBytes(6).toString('hex')}.fvpn`)
     const files = { cfg: `${base}.cfg`, log: `${base}.log`, stop: `${base}.stop` }
     this.files = files
-    writeFileSync(
-      files.cfg,
-      buildFortiConfig({
-        gateway: config.gateway,
-        port: config.port,
-        username: config.username,
-        password,
-        realm: config.realm,
-        trustedCert: config.trustedCert
-      }),
-      { mode: 0o600 }
-    )
+    const fortiConfig = buildFortiConfig({
+      gateway: config.gateway,
+      port: config.port,
+      username: config.username,
+      password,
+      realm: config.realm,
+      trustedCert: config.trustedCert
+    })
     writeFileSync(files.log, '', { mode: 0o600 })
 
-    const proc = this.deps.broker.launch('/bin/sh', [
-      '-c',
-      WRAPPER,
-      'north-vpn',
-      binary,
-      files.cfg,
-      files.log,
-      files.stop
-    ])
-    this.exited = proc.exited.then((result) => {
+    let exited: Promise<{ code: number | null; error?: VpnError }>
+    if (this.deps.helper) {
+      // one-time install (admin prompt) the first time; afterwards no prompt at all.
+      // The password goes over the helper's stdin, never to disk on North's side.
+      await this.deps.helper.ensure({ forti: true })
+      this.run = this.deps.helper.startForti(fortiConfig, (chunk) =>
+        appendFileSync(files.log, chunk)
+      )
+      exited = this.run.exited
+    } else {
+      writeFileSync(files.cfg, fortiConfig, { mode: 0o600 })
+      exited = this.deps.broker.launch('/bin/sh', [
+        '-c',
+        WRAPPER,
+        'north-vpn',
+        binary,
+        files.cfg,
+        files.log,
+        files.stop
+      ]).exited
+    }
+    this.exited = exited.then((result) => {
       this.hasExited = true
       this.onExit()
       return result
@@ -171,7 +191,8 @@ export class OpenfortivpnDriver implements VpnDriver {
     this.stopping = true
     const files = this.files
     if (files && !this.hasExited) {
-      writeFileSync(files.stop, '')
+      if (this.run) this.run.stop()
+      else writeFileSync(files.stop, '')
       await Promise.race([this.exited, sleep(this.deps.stopTimeoutMs ?? 10_000)])
     }
     this.cleanup()

@@ -2,7 +2,13 @@ import { EmptyState } from '@renderer/components/EmptyState'
 import { Button } from '@renderer/components/ui/button'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { useClients } from '@renderer/hooks/use-clients'
-import { useImportOvpn, useVpnProfiles, useVpnStates } from '@renderer/hooks/use-vpn'
+import {
+  useImportOvpn,
+  useVpnHelperAction,
+  useVpnHelperStatus,
+  useVpnProfiles,
+  useVpnStates
+} from '@renderer/hooks/use-vpn'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 import { vpnErrorFromUnknown } from '@renderer/lib/vpn-ui'
@@ -135,6 +141,7 @@ export function VpnsPage(): React.JSX.Element {
                 </div>
               ))}
             </nav>
+            <VpnHelperCard />
           </ScrollArea>
           <div className="min-w-0 flex-1">
             {selected ? (
@@ -155,5 +162,30 @@ export function VpnsPage(): React.JSX.Element {
         </div>
       ) : null}
     </section>
+  )
+}
+
+/** Passwordless connect: install/remove the root helper (macOS/Linux; hidden elsewhere). */
+function VpnHelperCard(): React.JSX.Element | null {
+  const { t } = useTranslation()
+  const { data: status } = useVpnHelperStatus()
+  const action = useVpnHelperAction()
+  if (!status || status === 'unsupported') return null
+  const installed = status === 'installed'
+  return (
+    <div className="m-2 space-y-2 border-t border-border px-2 pt-3" data-testid="vpn-helper">
+      <p className="text-xs text-muted">
+        {installed ? t('vpn.helper.installed') : t(`vpn.helper.${status}`)}
+      </p>
+      <Button
+        size="sm"
+        variant={installed ? 'ghost' : 'outline'}
+        disabled={action.isPending}
+        onClick={() => action.mutate(installed ? 'uninstall' : 'install')}
+        data-testid="vpn-helper-action"
+      >
+        {installed ? t('vpn.helper.remove') : t('vpn.helper.install')}
+      </Button>
+    </div>
   )
 }

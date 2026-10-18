@@ -234,6 +234,8 @@ export {
   VpnConnectInputSchema,
   type VpnErrorCode,
   VpnErrorCodeSchema,
+  type VpnHelperStatus,
+  VpnHelperStatusSchema,
   type VpnHistoryEntry,
   type VpnKind,
   VpnKindSchema,

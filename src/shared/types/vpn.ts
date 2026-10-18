@@ -113,6 +113,10 @@ export const SetVpnSecretInputSchema = z.object({
 })
 export type SetVpnSecretInput = z.infer<typeof SetVpnSecretInputSchema>
 
+/** Root helper that lets tunnels start without an admin prompt (macOS/Linux). */
+export const VpnHelperStatusSchema = z.enum(['installed', 'missing', 'outdated', 'unsupported'])
+export type VpnHelperStatus = z.infer<typeof VpnHelperStatusSchema>
+
 export const VpnStatusSchema = z.enum([
   'disconnected',
   'connecting',

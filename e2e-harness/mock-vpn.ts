@@ -199,6 +199,9 @@ export function createVpnMock() {
       'ipsec-ikev2': { ok: false as const, reason: 'em breve' },
       'fortinet-sslvpn': { ok: true as const }
     }),
+    helperStatus: async () => 'installed' as const,
+    installHelper: async () => 'installed' as const,
+    uninstallHelper: async () => 'missing' as const,
     onStateChanged: (listener: Listener) => {
       listeners.add(listener)
       return () => listeners.delete(listener)

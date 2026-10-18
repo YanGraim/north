@@ -402,6 +402,9 @@ const api: NorthApi = {
     history: (id, limit) => ipcRenderer.invoke(IpcChannels.VPN_HISTORY, id, limit),
     checkConflicts: (id) => ipcRenderer.invoke(IpcChannels.VPN_CHECK_CONFLICTS, id),
     platformSupport: () => ipcRenderer.invoke(IpcChannels.VPN_PLATFORM_SUPPORT),
+    helperStatus: () => ipcRenderer.invoke(IpcChannels.VPN_HELPER_STATUS),
+    installHelper: () => ipcRenderer.invoke(IpcChannels.VPN_HELPER_INSTALL),
+    uninstallHelper: () => ipcRenderer.invoke(IpcChannels.VPN_HELPER_UNINSTALL),
     onStateChanged: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, state: VpnState): void => {
         listener(state)

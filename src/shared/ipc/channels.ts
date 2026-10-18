@@ -210,6 +210,9 @@ export const IpcChannels = {
   VPN_HISTORY: 'vpn:history',
   VPN_CHECK_CONFLICTS: 'vpn:check-conflicts',
   VPN_PLATFORM_SUPPORT: 'vpn:platform-support',
+  VPN_HELPER_STATUS: 'vpn:helper-status',
+  VPN_HELPER_INSTALL: 'vpn:helper-install',
+  VPN_HELPER_UNINSTALL: 'vpn:helper-uninstall',
   VPN_STATE_CHANGED: 'vpn:state-changed'
 } as const
 

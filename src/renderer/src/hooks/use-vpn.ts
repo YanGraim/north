@@ -7,6 +7,7 @@ import type {
   OvpnImportResult,
   SetVpnSecretInput,
   UpdateVpnProfileInput,
+  VpnHelperStatus,
   VpnHistoryEntry,
   VpnPlatformSupport,
   VpnProfile,
@@ -84,6 +85,29 @@ export function useVpnPlatformSupport(): UseQueryResult<VpnPlatformSupport, Erro
     queryKey: queryKeys.vpn.platformSupport,
     queryFn: () => window.north.vpn.platformSupport(),
     staleTime: Number.POSITIVE_INFINITY
+  })
+}
+
+export function useVpnHelperStatus(): UseQueryResult<VpnHelperStatus, Error> {
+  return useQuery({
+    queryKey: queryKeys.vpn.helper,
+    queryFn: () => window.north.vpn.helperStatus()
+  })
+}
+
+/** install / uninstall the passwordless-connect helper (one admin prompt each). */
+export function useVpnHelperAction(): UseMutationResult<
+  VpnHelperStatus,
+  Error,
+  'install' | 'uninstall'
+> {
+  const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  return useMutation({
+    mutationFn: (action) =>
+      action === 'install' ? window.north.vpn.installHelper() : window.north.vpn.uninstallHelper(),
+    onSuccess: (status) => queryClient.setQueryData(queryKeys.vpn.helper, status),
+    onError: (error) => toastError(error, t('vpn.helper.failed'))
   })
 }
 
