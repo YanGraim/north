@@ -221,7 +221,7 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     })
     expect(info.localIp).toBe('10.212.134.200')
     await driver.disconnect()
-    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v4')
+    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v5')
   }, 15_000)
 
   const ipsecProfile = (username: string) => ({
@@ -275,6 +275,16 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     expect(info.localIp).toBe('10.10.20.5')
     expect(logs.filter((l) => l.includes('fase 2 recusada'))).toHaveLength(3)
   }, 30_000)
+
+  it('IPsec: split tunnel from FortiGate → only its networks, not all traffic', async () => {
+    const driver = ipsecDriver()
+    const info = await driver.connect(ipsecCtx('split'))
+    expect(info).toMatchObject({
+      redirectGateway: false,
+      routes: ['172.16.0.0/20', '172.16.50.0/24']
+    })
+    await driver.disconnect()
+  }, 15_000)
 
   it('IPsec: wrong PSK → AUTH_FAILED', async () => {
     const err = await ipsecDriver()

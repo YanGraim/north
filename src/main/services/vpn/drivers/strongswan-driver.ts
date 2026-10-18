@@ -161,12 +161,13 @@ export class StrongswanDriver implements VpnDriver {
           else if (event.type === 'error') lastError = event.message
           else if (event.type === 'up') {
             this.connected = true
-            // "TS 10.0.8.129/32 === 0.0.0.0/0": the gateway takes all traffic (like FortiClient)
-            const remote = /===\s*(\S+)\s*$/.exec(line)?.[1]
-            const redirectGateway = remote === '0.0.0.0/0'
+            // "TS 10.0.8.129/32 === 172.16.0.0/20 172.16.50.0/24": split tunnel (FortiGate's
+            // list via unity); "=== 0.0.0.0/0" means every packet goes through the gateway
+            const remote = (/===\s*(.+)$/.exec(line)?.[1] ?? '').trim().split(/\s+/).filter(Boolean)
+            const redirectGateway = remote.includes('0.0.0.0/0')
             return {
               localIp,
-              routes: remote && !redirectGateway ? [remote] : [],
+              routes: remote.filter((r) => r !== '0.0.0.0/0'),
               redirectGateway
             }
           }
