@@ -18,6 +18,7 @@ import {
   SudoPromptBroker
 } from '../services/vpn/privilege-broker'
 import { TunnelRegistry } from '../services/vpn/tunnel-registry'
+import { listTunnelRoutes } from '../services/vpn/tunnel-routes'
 import { VpnHelper } from '../services/vpn/vpn-helper'
 import { createVpnHandlers, createVpnRuntime, type VpnRuntime } from '../services/vpn/vpn-runtime'
 import type { CredentialVault } from '../vault'
@@ -106,7 +107,12 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
       binary: findForti,
       broker,
       tmpDir,
-      helper
+      helper,
+      // pppd needs a moment to install the pushed routes after "Tunnel is up"
+      routes: async (localIp) => {
+        await new Promise((r) => setTimeout(r, 1000))
+        return listTunnelRoutes(localIp)
+      }
     }
   })
 

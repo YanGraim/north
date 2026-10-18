@@ -25,6 +25,8 @@ export type OpenfortivpnDriverDeps = {
   stopTimeoutMs?: number
   /** Installed root helper: connect without an admin prompt (installed once on first use). */
   helper?: Pick<VpnHelper, 'ensure' | 'startForti'>
+  /** Routes the tunnel installed (openfortivpn doesn't log them); best effort. */
+  routes?: (localIp: string) => Promise<string[]>
 }
 
 /**
@@ -157,7 +159,8 @@ export class OpenfortivpnDriver implements VpnDriver {
           } else if (event.type === 'up') {
             rmSync(files.cfg, { force: true })
             this.connected = true
-            return { localIp, routes: [], redirectGateway: false }
+            const routes = localIp && this.deps.routes ? await this.deps.routes(localIp) : []
+            return { localIp, routes, redirectGateway: false }
           }
         }
         if (this.hasExited) {
