@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fake openfortivpn for driver tests. Scenario = the username in the -c config:
-//   ok | auth | cert | drop | slow. Expected password "pw-ok". Trusts only digest "a"*64.
+//   ok | auth | cert | drop | slow | silent | refused. Expected password "pw-ok". Trusts only digest "a"*64.
 import { readFileSync } from 'node:fs'
 
 const argv = process.argv.slice(2)
@@ -15,6 +15,11 @@ const out = (l) => process.stdout.write(`${l}\n`)
 const scenario = cfg.username
 const DIGEST = 'a'.repeat(64)
 
+if (scenario === 'silent') {
+  // a filtered port: nothing ever answers
+  setInterval(() => {}, 1000)
+  await new Promise(() => {})
+}
 out(`INFO:   Connected to gateway ${cfg.host}:${cfg.port}`)
 if (cfg.host.includes(':')) {
   out('ERROR:  getaddrinfo: nodename nor servname provided, or not known')

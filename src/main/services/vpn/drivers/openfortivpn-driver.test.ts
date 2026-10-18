@@ -169,6 +169,15 @@ describe('OpenfortivpnDriver (against fake openfortivpn)', () => {
     expect(tmpFiles()).toEqual([])
   })
 
+  it('nothing answers on the port (the PAC on 443 instead of 4433) → GATEWAY_UNREACHABLE naming host:port', async () => {
+    const { driver } = make(recordingBroker(), 300)
+    const err = await driver
+      .connect(ctx(profile('silent', DIGEST), secrets('pw-ok')))
+      .catch((e) => e)
+    expect(err.code).toBe('GATEWAY_UNREACHABLE')
+    expect(err.message).toContain('179.190.99.2:4433')
+  })
+
   it('tunnel drops → onDrop once', async () => {
     const { driver } = make()
     const drops: unknown[] = []

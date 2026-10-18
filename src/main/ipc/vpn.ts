@@ -63,8 +63,10 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
           broker,
           fortiBinary: findForti,
           stage: (source) => {
-            mkdirSync(tmpDir, { recursive: true, mode: 0o700 })
-            const staged = join(tmpDir, 'north-vpn-helper')
+            // own dir: the boot-time tmp cleanup must not wipe it mid-install
+            const stageDir = join(vpnDir, 'helper-stage')
+            mkdirSync(stageDir, { recursive: true, mode: 0o700 })
+            const staged = join(stageDir, 'north-vpn-helper')
             copyFileSync(source, staged)
             return staged
           }

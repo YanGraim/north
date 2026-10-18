@@ -125,6 +125,7 @@ export class OpenfortivpnDriver implements VpnDriver {
     let certUntrusted = false
     let lastError = ''
     let unreachable: string | undefined
+    let reachedGateway = false
     try {
       while (true) {
         if (signal.aborted) throw new VpnError('TIMEOUT', 'Conexão cancelada')
@@ -136,6 +137,7 @@ export class OpenfortivpnDriver implements VpnDriver {
         for (const line of fresh.slice(0, complete).split('\n').filter(Boolean)) {
           log(line)
           const event = parseFortiLine(line)
+          if (/Connected to gateway/i.test(line)) reachedGateway = true
           if (event.type === 'address') localIp = event.ip
           else if (event.type === 'cert-untrusted') certUntrusted = true
           else if (event.type === 'cert-digest' && certUntrusted) {
@@ -173,8 +175,16 @@ export class OpenfortivpnDriver implements VpnDriver {
             lastError || `O openfortivpn encerrou (código ${result.code ?? '?'})`
           )
         }
-        if (Date.now() > deadline)
+        if (Date.now() > deadline) {
+          // nothing answered on host:port at all — almost always a wrong port
+          if (!reachedGateway) {
+            throw new VpnError(
+              'GATEWAY_UNREACHABLE',
+              `Nada respondeu em ${config.gateway}:${config.port}. Confira a porta (o FortiClient mostra em "Porta personalizada") e sua conexão com a internet.`
+            )
+          }
           throw new VpnError('TIMEOUT', 'O FortiGate não respondeu a tempo')
+        }
         await sleep(this.deps.pollMs ?? 250)
       }
     } catch (error) {
