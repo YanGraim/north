@@ -1,5 +1,5 @@
 #!/bin/sh
-# north-vpn-helper v3
+# north-vpn-helper v4
 #
 # Installed once, root-owned, next to root-owned copies of the VPN binaries. A sudoers
 # rule lets the installing user run ONLY this file without a password, so it must never
@@ -19,7 +19,7 @@ umask 077
 
 case "${1:-}" in
   version)
-    echo 3
+    echo 4
     ;;
   forti)
     bin="$dir/openfortivpn"
@@ -71,8 +71,12 @@ case "${1:-}" in
       case "$v" in ''|-*|*[!a-z0-9-]*) echo "north-vpn-helper: invalid value"; exit 64 ;; esac
     done
     tmp=$(mktemp -d /tmp/north-vpn.XXXXXX) || exit 70
-    # root-owned, empty: ignore the (user-writable) Homebrew strongswan.conf
-    : >"$tmp/strongswan.conf"
+    # root-owned: ignore the (user-writable) Homebrew strongswan.conf. IKE from UDP 500
+    # like FortiClient (charon-cmd defaults to a random port + 4500, which FortiGate drops),
+    # and flush every log line so North sees progress live.
+    printf '%s\n' 'charon-cmd {' '  port = 500' '  port_nat_t = 4500' \
+      '  filelog {' '    stderr {' '      default = 1' '      flush_line = yes' '    }' '  }' '}' \
+      >"$tmp/strongswan.conf"
     set -- --host "$host" --remote-identity %any --profile ikev1-xauth-psk-am \
       --xauth-username "$user" --ike-proposal "$ike" --esp-proposal "$esp"
     # charon-cmd needs a local identity; FortiClient's "Local ID" when set, else the user

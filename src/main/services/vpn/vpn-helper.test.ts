@@ -221,7 +221,7 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     })
     expect(info.localIp).toBe('10.212.134.200')
     await driver.disconnect()
-    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v3')
+    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v4')
   }, 15_000)
 
   const ipsecProfile = (username: string) => ({
@@ -285,6 +285,13 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
   it('IPsec: gateway never answers → GATEWAY_UNREACHABLE', async () => {
     const err = await ipsecDriver()
       .connect(ipsecCtx('unreachable'))
+      .catch((e) => e)
+    expect(err.code).toBe('GATEWAY_UNREACHABLE')
+  }, 15_000)
+
+  it('IPsec: gateway silent (no packet received) → GATEWAY_UNREACHABLE, not a bare timeout', async () => {
+    const err = await ipsecDriver(500)
+      .connect(ipsecCtx('silent'))
       .catch((e) => e)
     expect(err.code).toBe('GATEWAY_UNREACHABLE')
   }, 15_000)

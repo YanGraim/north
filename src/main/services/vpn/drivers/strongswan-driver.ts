@@ -85,11 +85,13 @@ export class StrongswanDriver implements VpnDriver {
     let localIp: string | undefined
     let lastError = ''
     let unreachable: string | undefined
+    let answered = false
     try {
       while (true) {
         if (signal.aborted) throw new VpnError('TIMEOUT', 'Conexão cancelada')
         for (const line of lines.splice(0)) {
           log(line)
+          if (/received packet/.test(line)) answered = true
           const event = parseStrongswanLine(line)
           if (event.type === 'address') localIp = event.ip
           else if (event.type === 'auth-failed') {
@@ -124,10 +126,10 @@ export class StrongswanDriver implements VpnDriver {
         }
         if (Date.now() > deadline) {
           throw new VpnError(
-            unreachable ? 'GATEWAY_UNREACHABLE' : 'TIMEOUT',
-            unreachable
-              ? `Nada respondeu em ${config.gateway} (UDP 500/4500).`
-              : 'O FortiGate não respondeu a tempo'
+            answered ? 'TIMEOUT' : 'GATEWAY_UNREACHABLE',
+            answered
+              ? 'O FortiGate não respondeu a tempo'
+              : `O FortiGate não respondeu em ${config.gateway} (UDP 500/4500). Confira o gateway e se sua rede libera IPsec.`
           )
         }
         await sleep(100)
