@@ -132,6 +132,57 @@ describe('ProtocolManager', () => {
     return connection.id
   }
 
+  function gateRecorder(fail = false) {
+    const calls: string[] = []
+    return {
+      calls,
+      gate: {
+        profileForConnection: () => 'poly',
+        profileForAccess: () => null,
+        ensure: async (profileId: string | null, holder: string) => {
+          calls.push(`ensure ${profileId} ${holder.slice(0, 4)}`)
+          if (fail) throw new Error('VPN POLY: Chave pré-compartilhada incorreta')
+        },
+        release: (holder: string) => {
+          calls.push(`release ${holder.slice(0, 4)}`)
+        }
+      }
+    }
+  }
+
+  it('brings the VPN up before the driver and releases it when the session closes', async () => {
+    const { manager, repos, driver } = setup()
+    const { gate, calls } = gateRecorder()
+    manager.setVpnGate(gate)
+    const order: string[] = []
+    const create = driver.createSession.bind(driver)
+    driver.createSession = async (opts) => {
+      order.push(`driver after ${calls.length} gate call(s)`)
+      return create(opts)
+    }
+    const { descriptor } = await manager.open(seedConnection(repos), crypto.randomUUID())
+    expect(order).toEqual(['driver after 1 gate call(s)'])
+    await manager.close(descriptor.id)
+    const id = descriptor.id.slice(0, 4)
+    expect(calls).toEqual([`ensure poly ${id}`, `release ${id}`])
+  })
+
+  it('a VPN failure fails the session with its message and never calls the driver', async () => {
+    const { manager, repos, driver } = setup()
+    const { gate } = gateRecorder(true)
+    manager.setVpnGate(gate)
+    let driverCalled = false
+    driver.createSession = async () => {
+      driverCalled = true
+      throw new Error('unreachable')
+    }
+    await expect(manager.open(seedConnection(repos), crypto.randomUUID())).rejects.toThrow(
+      'VPN POLY: Chave pré-compartilhada incorreta'
+    )
+    expect(driverCalled).toBe(false)
+    expect(manager.list()).toEqual([])
+  })
+
   it('opens a session, lists it, and closes with history', async () => {
     const { manager, repos } = setup()
     const connectionId = seedConnection(repos)

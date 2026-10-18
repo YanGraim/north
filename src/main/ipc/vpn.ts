@@ -19,9 +19,11 @@ import {
 } from '../services/vpn/privilege-broker'
 import { TunnelRegistry } from '../services/vpn/tunnel-registry'
 import { listTunnelRoutes } from '../services/vpn/tunnel-routes'
+import { VpnGate } from '../services/vpn/vpn-gate'
 import { VpnHelper } from '../services/vpn/vpn-helper'
 import { createVpnHandlers, createVpnRuntime, type VpnRuntime } from '../services/vpn/vpn-runtime'
 import type { CredentialVault } from '../vault'
+import { getProtocolManager } from './sessions'
 
 let runtime: VpnRuntime | null = null
 
@@ -135,6 +137,8 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
   if (helper) void offerHelperInstall(helper, repos, join(vpnDir, 'helper-declined'))
 
   const manager = runtime.manager
+  // sessions opened from now on bring their VPN up first
+  getProtocolManager().setVpnGate(new VpnGate({ repos, manager }))
   powerMonitor.on('suspend', () => manager.suspend())
   powerMonitor.on('resume', () => void manager.resume())
 }

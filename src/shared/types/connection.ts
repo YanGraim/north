@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { IdSchema, IsoDateSchema } from './client'
+import { VpnModeSchema } from './vpn'
 
 export const ConnectionProtocolSchema = z.enum([
   'ssh',
@@ -56,6 +57,9 @@ export const ConnectionSchema = z.object({
   owner: z.string().nullable(),
   links: z.array(ConnectionLinkSchema),
   vpnRequired: z.boolean(),
+  /** inherit = Environment's VPN, then Client's; none = never; profile = vpnProfileId */
+  vpnMode: VpnModeSchema,
+  vpnProfileId: IdSchema.nullable(),
   checklist: z.array(ChecklistItemSchema),
   relatedFiles: z.array(z.string()),
   isFavorite: z.boolean(),
@@ -88,6 +92,8 @@ export const CreateConnectionInputSchema = z.object({
   owner: z.string().nullable().optional(),
   links: z.array(ConnectionLinkSchema).optional(),
   vpnRequired: z.boolean().optional(),
+  vpnMode: VpnModeSchema.optional(),
+  vpnProfileId: IdSchema.nullable().optional(),
   checklist: z.array(ChecklistItemSchema).optional(),
   relatedFiles: z.array(z.string()).optional(),
   isFavorite: z.boolean().optional()

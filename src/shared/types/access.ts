@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { IdSchema, IsoDateSchema } from './client'
 import { ConnectionLinkSchema } from './connection'
+import { VpnModeSchema } from './vpn'
 
 export const AccessTypeSchema = z.enum(['database', 'login', 'other', 'api'])
 
@@ -83,6 +84,8 @@ export const AccessSchema = z.object({
   ssl: z.boolean().nullable(),
   apiConfig: ApiConfigSchema.nullable(),
   apiEnvironmentEnabled: z.boolean(),
+  vpnMode: VpnModeSchema,
+  vpnProfileId: IdSchema.nullable(),
   createdAt: IsoDateSchema,
   updatedAt: IsoDateSchema
 })
@@ -108,7 +111,9 @@ export const CreateAccessInputSchema = z.object({
   database: z.string().nullable().optional(),
   ssl: z.boolean().nullable().optional(),
   apiConfig: ApiConfigSchema.nullable().optional(),
-  apiEnvironmentEnabled: z.boolean().optional()
+  apiEnvironmentEnabled: z.boolean().optional(),
+  vpnMode: VpnModeSchema.optional(),
+  vpnProfileId: IdSchema.nullable().optional()
 })
 
 export type CreateAccessInput = z.infer<typeof CreateAccessInputSchema>

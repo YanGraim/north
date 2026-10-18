@@ -26,6 +26,8 @@ function connection(
     icon: null,
     color: null,
     vpnRequired: false,
+    vpnMode: 'inherit',
+    vpnProfileId: null,
     checklist: [],
     relatedFiles: [],
     isFavorite: false,
@@ -57,6 +59,8 @@ function access(partial: Partial<Access> & Pick<Access, 'id' | 'name' | 'groupId
     ssl: false,
     apiConfig: null,
     apiEnvironmentEnabled: false,
+    vpnMode: 'inherit',
+    vpnProfileId: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...partial

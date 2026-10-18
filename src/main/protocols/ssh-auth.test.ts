@@ -26,6 +26,8 @@ function baseConnection(overrides: Partial<Connection> = {}): Connection {
     owner: null,
     links: [],
     vpnRequired: false,
+    vpnMode: 'inherit',
+    vpnProfileId: null,
     checklist: [],
     relatedFiles: [],
     isFavorite: false,

@@ -4,7 +4,8 @@ import type {
   ConnectionLink,
   CreateConnectionInput,
   ListConnectionsFilter,
-  UpdateConnectionInput
+  UpdateConnectionInput,
+  VpnMode
 } from '@shared/types'
 import type { SqliteDatabase } from '../database/connection'
 import { boolToInt, intToBool, newId, nowIso, parseJsonArray, toJson } from './row-utils'
@@ -30,6 +31,8 @@ type ConnectionRow = {
   owner: string | null
   links: string | null
   vpn_required: number
+  vpn_mode: string | null
+  vpn_profile_id: string | null
   checklist: string | null
   related_files: string | null
   is_favorite: number
@@ -43,7 +46,7 @@ type ConnectionRow = {
 const CONNECTION_COLUMNS = `
   id, group_id, name, description, protocol, host, port, username, auth_method,
   credential_ref, private_key_path, jump_host_id, default_command, notes, os, icon,
-  color, owner, links, vpn_required, checklist, related_files, is_favorite,
+  color, owner, links, vpn_required, vpn_mode, vpn_profile_id, checklist, related_files, is_favorite,
   access_count, total_connected_ms, last_connected_at, created_at, updated_at
 `
 
@@ -69,6 +72,8 @@ function mapConnection(row: ConnectionRow): Connection {
     owner: row.owner,
     links: parseJsonArray<ConnectionLink>(row.links),
     vpnRequired: intToBool(row.vpn_required),
+    vpnMode: (row.vpn_mode ?? 'inherit') as VpnMode,
+    vpnProfileId: row.vpn_profile_id ?? null,
     checklist: parseJsonArray<ChecklistItem>(row.checklist),
     relatedFiles: parseJsonArray<string>(row.related_files),
     isFavorite: intToBool(row.is_favorite),
@@ -102,6 +107,8 @@ function toInsertParams(connection: Connection): Record<string, unknown> {
     owner: connection.owner,
     links: toJson(connection.links),
     vpn_required: boolToInt(connection.vpnRequired),
+    vpn_mode: connection.vpnMode,
+    vpn_profile_id: connection.vpnProfileId,
     checklist: toJson(connection.checklist),
     related_files: toJson(connection.relatedFiles),
     is_favorite: boolToInt(connection.isFavorite),
@@ -137,12 +144,12 @@ export class ConnectionsRepository {
       INSERT INTO connections (
         id, group_id, name, description, protocol, host, port, username, auth_method,
         credential_ref, private_key_path, jump_host_id, default_command, notes, os, icon,
-        color, owner, links, vpn_required, checklist, related_files, is_favorite,
+        color, owner, links, vpn_required, vpn_mode, vpn_profile_id, checklist, related_files, is_favorite,
         access_count, total_connected_ms, last_connected_at, created_at, updated_at
       ) VALUES (
         @id, @group_id, @name, @description, @protocol, @host, @port, @username, @auth_method,
         @credential_ref, @private_key_path, @jump_host_id, @default_command, @notes, @os, @icon,
-        @color, @owner, @links, @vpn_required, @checklist, @related_files, @is_favorite,
+        @color, @owner, @links, @vpn_required, @vpn_mode, @vpn_profile_id, @checklist, @related_files, @is_favorite,
         @access_count, @total_connected_ms, @last_connected_at, @created_at, @updated_at
       )
     `)
@@ -167,6 +174,8 @@ export class ConnectionsRepository {
         owner = @owner,
         links = @links,
         vpn_required = @vpn_required,
+        vpn_mode = @vpn_mode,
+        vpn_profile_id = @vpn_profile_id,
         checklist = @checklist,
         related_files = @related_files,
         is_favorite = @is_favorite,
@@ -261,6 +270,8 @@ export class ConnectionsRepository {
       owner: input.owner ?? null,
       links: input.links ?? [],
       vpnRequired: input.vpnRequired ?? false,
+      vpnMode: input.vpnMode ?? 'inherit',
+      vpnProfileId: input.vpnProfileId ?? null,
       checklist: input.checklist ?? [],
       relatedFiles: input.relatedFiles ?? [],
       isFavorite: input.isFavorite ?? false,
@@ -303,6 +314,8 @@ export class ConnectionsRepository {
       owner: input.owner === undefined ? existing.owner : input.owner,
       links: input.links ?? existing.links,
       vpnRequired: input.vpnRequired ?? existing.vpnRequired,
+      vpnMode: input.vpnMode ?? existing.vpnMode,
+      vpnProfileId: input.vpnProfileId === undefined ? existing.vpnProfileId : input.vpnProfileId,
       checklist: input.checklist ?? existing.checklist,
       relatedFiles: input.relatedFiles ?? existing.relatedFiles,
       isFavorite: input.isFavorite ?? existing.isFavorite,

@@ -48,6 +48,18 @@ export type ProtocolManagerEvents = {
 
 export type MessageChannelFactory = () => { port1: MessagePortMain; port2: MessagePortMain }
 
+/** What ProtocolManager needs from VpnGate (kept structural so tests can stub it). */
+export type VpnGateLike = {
+  profileForConnection(connectionId: string): string | null
+  profileForAccess(accessId: string): string | null
+  ensure(
+    profileId: string | null,
+    holderId: string,
+    target?: { host: string; port: number }
+  ): Promise<void>
+  release(holderId: string): void
+}
+
 export class ProtocolManager {
   private readonly drivers = new Map<string, ProtocolDriver>()
   private readonly sessions = new Map<string, ActiveSession>()
@@ -66,6 +78,7 @@ export class ProtocolManager {
   private readonly stdoutBuffer = new Map<string, SessionPortMessage[]>()
 
   private events: ProtocolManagerEvents | null = null
+  private vpnGate: VpnGateLike | null = null
   private readonly createChannel: MessageChannelFactory
   private readonly localShellDriver = new LocalShellDriver()
 
@@ -79,6 +92,11 @@ export class ProtocolManager {
 
   setEvents(events: ProtocolManagerEvents): void {
     this.events = events
+  }
+
+  /** VPN before sessions (ADR 0017): resolved per Connection/Access, one lease per session. */
+  setVpnGate(gate: VpnGateLike | null): void {
+    this.vpnGate = gate
   }
 
   /** Kept for callers that track the focused window; unused internally for now. */
@@ -212,6 +230,16 @@ export class ProtocolManager {
     this.emitState(descriptor)
 
     try {
+      // serial is local; behind a jump host only the jump needs to be reachable
+      const probeTarget =
+        connection.protocol === 'serial' || connection.jumpHostId
+          ? undefined
+          : { host: connection.host, port: connection.port }
+      await this.vpnGate?.ensure(
+        this.vpnGate.profileForConnection(connectionId),
+        sessionId,
+        probeTarget
+      )
       const session = await driver.createSession({
         connection,
         sessionId,
@@ -418,6 +446,8 @@ export class ProtocolManager {
     this.emitState(descriptor)
 
     try {
+      // requests run in main, so the tunnel must be up before the first one
+      await this.vpnGate?.ensure(this.vpnGate.profileForAccess(accessId), sessionId)
       const session = new ApiProtocolSession(sessionId, accessId, this.repositories, this.vault)
       session.state = 'connected'
 
@@ -481,6 +511,11 @@ export class ProtocolManager {
     try {
       const full = this.repositories.accesses.get(accessId)
       if (!full) throw new Error('Acesso não encontrado')
+      await this.vpnGate?.ensure(
+        this.vpnGate.profileForAccess(accessId),
+        sessionId,
+        full.host && full.port ? { host: full.host, port: full.port } : undefined
+      )
       let password: string | null = null
       if (full.credentialRef) {
         password = await this.vault.resolveSecret(full.credentialRef)
@@ -675,6 +710,7 @@ export class ProtocolManager {
     }
 
     this.sessions.delete(sessionId)
+    this.vpnGate?.release(sessionId)
     this.stdoutReady.delete(sessionId)
     this.stdoutBuffer.delete(sessionId)
   }

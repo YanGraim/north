@@ -63,6 +63,8 @@ export class VpnProfilesRepository {
   private readonly setEnvironmentLinkStmt
   private readonly clientLinksStmt
   private readonly environmentLinksStmt
+  private readonly clientLinkStmt
+  private readonly environmentLinkStmt
 
   constructor(db: SqliteDatabase) {
     this.listStmt = db.prepare(
@@ -84,6 +86,10 @@ export class VpnProfilesRepository {
     this.setClientLinkStmt = db.prepare(`UPDATE clients SET vpn_profile_id = ? WHERE id = ?`)
     this.setEnvironmentLinkStmt = db.prepare(
       `UPDATE environments SET vpn_profile_id = ? WHERE id = ?`
+    )
+    this.clientLinkStmt = db.prepare(`SELECT vpn_profile_id FROM clients WHERE id = ?`)
+    this.environmentLinkStmt = db.prepare(
+      `SELECT vpn_profile_id, client_id FROM environments WHERE id = ?`
     )
     this.clientLinksStmt = db.prepare(`SELECT id FROM clients WHERE vpn_profile_id = ? ORDER BY id`)
     this.environmentLinksStmt = db.prepare(
@@ -156,5 +162,22 @@ export class VpnProfilesRepository {
         (r) => r.id
       )
     }
+  }
+
+  /** The VPN an Environment inherits: its own link, else its Client's. */
+  linkForEnvironment(environmentId: string): { environment: string | null; client: string | null } {
+    const env = this.environmentLinkStmt.get(environmentId) as
+      | { vpn_profile_id: string | null; client_id: string }
+      | undefined
+    if (!env) return { environment: null, client: null }
+    const client = this.clientLinkStmt.get(env.client_id) as
+      | { vpn_profile_id: string | null }
+      | undefined
+    return { environment: env.vpn_profile_id, client: client?.vpn_profile_id ?? null }
+  }
+
+  linkForClient(clientId: string): string | null {
+    const row = this.clientLinkStmt.get(clientId) as { vpn_profile_id: string | null } | undefined
+    return row?.vpn_profile_id ?? null
   }
 }

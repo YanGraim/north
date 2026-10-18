@@ -3,7 +3,8 @@ import type {
   ConnectionLink,
   CreateAccessInput,
   ListAccessesFilter,
-  UpdateAccessInput
+  UpdateAccessInput,
+  VpnMode
 } from '@shared/types'
 import { ApiConfigSchema, emptyApiConfig } from '@shared/types'
 import type { SqliteDatabase } from '../database/connection'
@@ -31,13 +32,15 @@ type AccessRow = {
   api_config: string | null
   api_environment_enabled: number
   created_at: string
+  vpn_mode: string | null
+  vpn_profile_id: string | null
   updated_at: string
 }
 
 const ACCESS_COLUMNS = `
   id, group_id, type, name, description, notes, username, credential_ref, url, links,
   icon, color, is_favorite, engine, host, port, database_name, ssl, api_config, api_environment_enabled,
-  created_at, updated_at
+  vpn_mode, vpn_profile_id, created_at, updated_at
 `
 
 function parseApiConfig(raw: string | null, type: Access['type']): Access['apiConfig'] {
@@ -74,6 +77,8 @@ function mapAccess(row: AccessRow): Access {
     apiConfig: parseApiConfig(row.api_config, row.type),
     apiEnvironmentEnabled: intToBool(row.api_environment_enabled),
     createdAt: row.created_at,
+    vpnMode: (row.vpn_mode ?? 'inherit') as VpnMode,
+    vpnProfileId: row.vpn_profile_id ?? null,
     updatedAt: row.updated_at
   }
 }
@@ -101,6 +106,8 @@ function toInsertParams(access: Access): Record<string, unknown> {
     api_config: access.apiConfig ? JSON.stringify(access.apiConfig) : null,
     api_environment_enabled: boolToInt(access.apiEnvironmentEnabled),
     created_at: access.createdAt,
+    vpn_mode: access.vpnMode,
+    vpn_profile_id: access.vpnProfileId,
     updated_at: access.updatedAt
   }
 }
@@ -123,11 +130,11 @@ export class AccessesRepository {
       INSERT INTO accesses (
         id, group_id, type, name, description, notes, username, credential_ref, url, links,
         icon, color, is_favorite, engine, host, port, database_name, ssl, api_config, api_environment_enabled,
-        created_at, updated_at
+        vpn_mode, vpn_profile_id, created_at, updated_at
       ) VALUES (
         @id, @group_id, @type, @name, @description, @notes, @username, @credential_ref, @url, @links,
         @icon, @color, @is_favorite, @engine, @host, @port, @database_name, @ssl, @api_config, @api_environment_enabled,
-        @created_at, @updated_at
+        @vpn_mode, @vpn_profile_id, @created_at, @updated_at
       )
     `)
     this.updateStmt = db.prepare(`
@@ -151,6 +158,8 @@ export class AccessesRepository {
         ssl = @ssl,
         api_config = @api_config,
         api_environment_enabled = @api_environment_enabled,
+        vpn_mode = @vpn_mode,
+        vpn_profile_id = @vpn_profile_id,
         updated_at = @updated_at
       WHERE id = @id
     `)
@@ -258,6 +267,8 @@ export class AccessesRepository {
             ? emptyApiConfig()
             : null,
       apiEnvironmentEnabled: input.apiEnvironmentEnabled ?? false,
+      vpnMode: input.vpnMode ?? 'inherit',
+      vpnProfileId: input.vpnProfileId ?? null,
       createdAt: now,
       updatedAt: now
     }
@@ -295,6 +306,8 @@ export class AccessesRepository {
         input.apiEnvironmentEnabled === undefined
           ? existing.apiEnvironmentEnabled
           : input.apiEnvironmentEnabled,
+      vpnMode: input.vpnMode ?? existing.vpnMode,
+      vpnProfileId: input.vpnProfileId === undefined ? existing.vpnProfileId : input.vpnProfileId,
       updatedAt: nowIso()
     }
     this.updateStmt.run(toInsertParams(updated))
