@@ -1,15 +1,17 @@
 /**
  * Pure parser for strongSwan charon-cmd output, plus the helper's stdin builder.
- * Proposals match FortiClient's defaults for a FortiGate dial-up tunnel
- * (AES128/AES256 · SHA1/SHA256 · DH 5 in phase 1; AES · SHA1 · PFS DH 5 in phase 2).
+ * One exact FortiClient default per phase (AES256 · SHA256 · DH 5, then AES256 · SHA1 ·
+ * PFS DH 5): offering every combination in one proposal makes FortiGate drop the packet
+ * silently (seen on a real gateway), while a single matching one is answered.
  */
-export const FORTICLIENT_IKE_PROPOSAL = 'aes128-aes256-sha256-sha1-modp1536'
-export const FORTICLIENT_ESP_PROPOSAL = 'aes128-aes256-sha1-modp1536'
+export const FORTICLIENT_IKE_PROPOSAL = 'aes256-sha256-modp1536'
+export const FORTICLIENT_ESP_PROPOSAL = 'aes256-sha1-modp1536'
 
 export type StrongswanEvent =
   | { type: 'up' }
   | { type: 'address'; ip: string }
   | { type: 'auth-failed' }
+  | { type: 'psk-mismatch' }
   | { type: 'no-proposal' }
   | { type: 'unreachable'; message: string }
   | { type: 'error'; message: string }
@@ -23,6 +25,7 @@ export function parseStrongswanLine(raw: string): StrongswanEvent {
   if (/NO_PROPOSAL_CHOSEN|no (matching )?proposal (found|chosen)/i.test(line)) {
     return { type: 'no-proposal' }
   }
+  if (/calculated HASH does not match/i.test(line)) return { type: 'psk-mismatch' }
   if (
     /AUTHENTICATION_FAILED|XAuth authentication of .* failed|verification of .* failed|INVALID_HASH_INFORMATION|PSK mismatch/i.test(
       line

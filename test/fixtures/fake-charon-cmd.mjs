@@ -26,7 +26,11 @@ process.stdin.on('end', () => {
     out('received NO_PROPOSAL_CHOSEN error notify')
     process.exit(1)
   }
-  if (psk !== 'psk-ok' || password !== 'pw-ok' || scenario === 'auth') {
+  if (psk !== 'psk-ok') {
+    out('calculated HASH does not match HASH payload')
+    process.exit(1)
+  }
+  if (password !== 'pw-ok' || scenario === 'auth') {
     out("XAuth authentication of 'x' (myself) failed")
     process.exit(1)
   }

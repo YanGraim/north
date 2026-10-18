@@ -94,7 +94,9 @@ export class StrongswanDriver implements VpnDriver {
           if (/received packet/.test(line)) answered = true
           const event = parseStrongswanLine(line)
           if (event.type === 'address') localIp = event.ip
-          else if (event.type === 'auth-failed') {
+          else if (event.type === 'psk-mismatch') {
+            throw new VpnError('AUTH_FAILED', 'Chave pré-compartilhada incorreta')
+          } else if (event.type === 'auth-failed') {
             throw new VpnError(
               'AUTH_FAILED',
               'O FortiGate recusou a chave pré-compartilhada ou o usuário/senha'
