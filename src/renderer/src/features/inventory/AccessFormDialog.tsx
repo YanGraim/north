@@ -21,6 +21,7 @@ import {
   FormMessage
 } from '@renderer/components/ui/form'
 import { Input } from '@renderer/components/ui/input'
+import { Label } from '@renderer/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -29,6 +30,7 @@ import {
   SelectValue
 } from '@renderer/components/ui/select'
 import { Textarea } from '@renderer/components/ui/textarea'
+import { VpnModeSelect } from '@renderer/features/vpns/VpnLinkSelect'
 import { useAccess, useCreateAccess, useUpdateAccess } from '@renderer/hooks/use-accesses'
 import { useSetApiVariable } from '@renderer/hooks/use-api'
 import { useCreateClient } from '@renderer/hooks/use-clients'
@@ -38,7 +40,7 @@ import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
 import { useAccessTags, useSetAccessTags } from '@renderer/hooks/use-tags'
 import { useHasSecret, useVaultAvailable } from '@renderer/hooks/use-vault'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
-import type { CreateAccessInput } from '@shared/types'
+import type { CreateAccessInput, VpnMode } from '@shared/types'
 import { emptyApiConfig } from '@shared/types'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -125,6 +127,10 @@ export function AccessFormDialog(): React.JSX.Element | null {
   const { data: vaultAvailable = false } = useVaultAvailable()
   const { data: hasSecret = false } = useHasSecret(existing?.credentialRef)
 
+  const [vpn, setVpn] = useState<{ vpnMode: VpnMode; vpnProfileId: string | null }>({
+    vpnMode: 'inherit',
+    vpnProfileId: null
+  })
   const [passwordMode, setPasswordMode] = useState<'keep' | 'replace' | 'set'>('set')
   const [removingSecret, setRemovingSecret] = useState(false)
   const [quickCreate, setQuickCreate] = useState<'client' | 'environment' | 'group' | null>(null)
@@ -198,6 +204,7 @@ export function AccessFormDialog(): React.JSX.Element | null {
       if (existing.type === 'database') return
       const org = resolveGroup(existing.groupId)
       const auth = existing.apiConfig?.auth
+      setVpn({ vpnMode: existing.vpnMode, vpnProfileId: existing.vpnProfileId })
       form.reset({
         name: existing.name,
         type: existing.type === 'api' ? 'api' : existing.type,
@@ -231,6 +238,7 @@ export function AccessFormDialog(): React.JSX.Element | null {
     const org = groupId ? resolveGroup(groupId) : null
     const type =
       createAccessType === 'other' ? 'other' : createAccessType === 'api' ? 'api' : 'login'
+    setVpn({ vpnMode: 'inherit', vpnProfileId: null })
     form.reset({
       name: '',
       type,
@@ -338,7 +346,9 @@ export function AccessFormDialog(): React.JSX.Element | null {
       database: null,
       ssl: null,
       apiConfig,
-      apiEnvironmentEnabled: isApi && values.exposeAsVariable
+      apiEnvironmentEnabled: isApi && values.exposeAsVariable,
+      vpnMode: vpn.vpnMode,
+      vpnProfileId: vpn.vpnMode === 'profile' ? vpn.vpnProfileId : null
     }
 
     let accessId: string
@@ -951,6 +961,18 @@ export function AccessFormDialog(): React.JSX.Element | null {
                   </FormItem>
                 )}
               />
+
+              {isApi ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="access-vpn">{t('vpn.link.label')}</Label>
+                  <VpnModeSelect
+                    id="access-vpn"
+                    mode={vpn.vpnMode}
+                    profileId={vpn.vpnProfileId}
+                    onChange={setVpn}
+                  />
+                </div>
+              ) : null}
 
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={close}>

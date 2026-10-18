@@ -83,6 +83,6 @@ export function registerIpcHandlers(): void {
   registerAgentWorkspaceHandlers(repositories)
   registerEnvironmentUpdateHandlers(repositories)
   registerTerminalHandlers()
-  registerConnectionHealthHandlers(repositories)
-  registerVpnHandlers(repositories, vault)
+  const monitor = registerConnectionHealthHandlers(repositories)
+  registerVpnHandlers(repositories, vault, monitor)
 }

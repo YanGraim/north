@@ -88,6 +88,7 @@ export const queryKeys = {
     logs: (id: string) => ['vpn', 'logs', id] as const,
     history: (id: string) => ['vpn', 'history', id] as const,
     platformSupport: ['vpn', 'platform-support'] as const,
-    helper: ['vpn', 'helper'] as const
+    helper: ['vpn', 'helper'] as const,
+    link: (target: string, id: string) => ['vpn', 'link', target, id] as const
   }
 }

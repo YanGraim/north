@@ -34,6 +34,20 @@ describe('ConnectionMonitorService', () => {
     expect(repos.connectionMonitors.get(connection.id)).toBeNull()
   })
 
+  it('a server behind a VPN that is off is not probed or reported down', async () => {
+    const connection = seedConnection(repos)
+    repos.connectionMonitors.setEnabled(connection.id, true)
+    const checkPort = vi.fn().mockResolvedValue({ ok: false, latencyMs: 0 })
+    const onChange = vi.fn()
+    const service = new ConnectionMonitorService(repos, { checkPort, onChange })
+    service.setVpnReady(() => false)
+
+    await service.checkAllOnce()
+
+    expect(checkPort).not.toHaveBeenCalled()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('records an event and calls onChange on the first check (null → up)', async () => {
     const connection = seedConnection(repos)
     repos.connectionMonitors.setEnabled(connection.id, true)

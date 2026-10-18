@@ -30,3 +30,7 @@ Two VPNs with different networks can stay on together. If the networks overlap, 
 ## When something goes wrong
 
 The message says what happened and offers the right action: **Update password** when the server rejects the credential, **Try again** when the server doesn't respond or the administrator prompt is denied, **How to install** when OpenVPN is missing. In **Logs**, **Copy diagnostics** copies the log with passwords already removed.
+
+## Turn the VPN on automatically
+
+In **Edit environment** (or **Edit client**), pick its **VPN**. From then on, opening an SSH, RDP, database or API session in that environment turns the VPN on first, waits for the server to answer and only then opens the session; several sessions share one tunnel, which turns off by itself when the last one closes (if the VPN auto-disconnects). The environment's own VPN wins; without one, the client's applies. On each connection or access, the **VPN** field offers **Inherit** (default), **Never use a VPN** or another VPN. If the VPN fails, the session shows the error with its name. The connection monitor doesn't flag a server as down while its VPN is off.

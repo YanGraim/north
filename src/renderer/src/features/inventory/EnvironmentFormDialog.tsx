@@ -18,16 +18,20 @@ import {
   FormMessage
 } from '@renderer/components/ui/form'
 import { Input } from '@renderer/components/ui/input'
+import { Label } from '@renderer/components/ui/label'
 import { Textarea } from '@renderer/components/ui/textarea'
+import { VpnLinkSelect } from '@renderer/features/vpns/VpnLinkSelect'
 import {
   useCreateEnvironment,
   useEnvironment,
   useUpdateEnvironment
 } from '@renderer/hooks/use-environments'
+import { useSetVpnLink, useVpnLink } from '@renderer/hooks/use-vpn'
 import { defaultEnvironmentColor, hasEnvironmentContext } from '@renderer/lib/environment-color'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
 const FormSchema = z.object({
@@ -49,6 +53,14 @@ export function EnvironmentFormDialog(): React.JSX.Element | null {
   const { data: existing } = useEnvironment(editId)
   const createEnvironment = useCreateEnvironment()
   const updateEnvironment = useUpdateEnvironment()
+
+  const { t } = useTranslation()
+  const { data: linkedVpn } = useVpnLink('environment', editId)
+  const setVpnLink = useSetVpnLink()
+  const [vpnProfileId, setVpnProfileId] = useState<string | null>(null)
+  useEffect(() => {
+    if (open) setVpnProfileId(mode === 'edit' ? (linkedVpn ?? null) : null)
+  }, [open, mode, linkedVpn])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
@@ -73,18 +85,23 @@ export function EnvironmentFormDialog(): React.JSX.Element | null {
 
   async function onSubmit(values: FormValues): Promise<void> {
     const color = values.color ?? null
+    let savedId: string | undefined = editId
     if (mode === 'edit' && editId) {
       await updateEnvironment.mutateAsync({
         id: editId,
         input: { name: values.name, notes: values.notes ?? null, color }
       })
     } else if (clientId) {
-      await createEnvironment.mutateAsync({
+      const created = await createEnvironment.mutateAsync({
         clientId,
         name: values.name,
         notes: values.notes ?? null,
         color
       })
+      savedId = created.id
+    }
+    if (savedId && vpnProfileId !== (mode === 'edit' ? (linkedVpn ?? null) : null)) {
+      await setVpnLink.mutateAsync({ target: 'environment', id: savedId, profileId: vpnProfileId })
     }
     close()
   }
@@ -165,6 +182,11 @@ export function EnvironmentFormDialog(): React.JSX.Element | null {
                 </FormItem>
               )}
             />
+            <div className="space-y-1.5">
+              <Label htmlFor="environment-vpn">{t('vpn.link.label')}</Label>
+              <VpnLinkSelect id="environment-vpn" value={vpnProfileId} onChange={setVpnProfileId} />
+              <p className="text-xs text-muted">{t('vpn.link.envHint')}</p>
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={close} disabled={pending}>
                 Cancelar

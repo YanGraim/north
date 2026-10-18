@@ -18,12 +18,16 @@ import {
   FormMessage
 } from '@renderer/components/ui/form'
 import { Input } from '@renderer/components/ui/input'
+import { Label } from '@renderer/components/ui/label'
 import { Textarea } from '@renderer/components/ui/textarea'
+import { VpnLinkSelect } from '@renderer/features/vpns/VpnLinkSelect'
 import { useClient, useCreateClient, useUpdateClient } from '@renderer/hooks/use-clients'
+import { useSetVpnLink, useVpnLink } from '@renderer/hooks/use-vpn'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { CreateClientInputSchema } from '@shared/types'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
 const FormSchema = CreateClientInputSchema.extend({
@@ -44,6 +48,14 @@ export function ClientFormDialog(): React.JSX.Element | null {
   const { data: existing } = useClient(editId)
   const createClient = useCreateClient()
   const updateClient = useUpdateClient()
+
+  const { t } = useTranslation()
+  const { data: linkedVpn } = useVpnLink('client', editId)
+  const setVpnLink = useSetVpnLink()
+  const [vpnProfileId, setVpnProfileId] = useState<string | null>(null)
+  useEffect(() => {
+    if (open) setVpnProfileId(mode === 'edit' ? (linkedVpn ?? null) : null)
+  }, [open, mode, linkedVpn])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
@@ -67,6 +79,7 @@ export function ClientFormDialog(): React.JSX.Element | null {
   }, [open, mode, existing, form])
 
   async function onSubmit(values: FormValues): Promise<void> {
+    let savedId: string | undefined = editId
     if (mode === 'edit' && editId) {
       await updateClient.mutateAsync({
         id: editId,
@@ -77,11 +90,15 @@ export function ClientFormDialog(): React.JSX.Element | null {
         }
       })
     } else {
-      await createClient.mutateAsync({
+      const created = await createClient.mutateAsync({
         name: values.name,
         notes: values.notes ?? null,
         color: values.color ?? null
       })
+      savedId = created.id
+    }
+    if (savedId && vpnProfileId !== (mode === 'edit' ? (linkedVpn ?? null) : null)) {
+      await setVpnLink.mutateAsync({ target: 'client', id: savedId, profileId: vpnProfileId })
     }
     close()
   }
@@ -142,6 +159,11 @@ export function ClientFormDialog(): React.JSX.Element | null {
                 </FormItem>
               )}
             />
+            <div className="space-y-1.5">
+              <Label htmlFor="client-vpn">{t('vpn.link.label')}</Label>
+              <VpnLinkSelect id="client-vpn" value={vpnProfileId} onChange={setVpnProfileId} />
+              <p className="text-xs text-muted">{t('vpn.link.clientHint')}</p>
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={close} disabled={pending}>
                 Cancelar

@@ -118,6 +118,15 @@ export const SetVpnSecretInputSchema = z.object({
 })
 export type SetVpnSecretInput = z.infer<typeof SetVpnSecretInputSchema>
 
+/** Which VPN a Client or Environment brings up for its sessions (Connections/Accesses inherit). */
+export const VpnLinkTargetSchema = z.object({
+  target: z.enum(['client', 'environment']),
+  id: IdSchema
+})
+export type VpnLinkTarget = z.infer<typeof VpnLinkTargetSchema>
+export const SetVpnLinkInputSchema = VpnLinkTargetSchema.extend({ profileId: IdSchema.nullable() })
+export type SetVpnLinkInput = z.infer<typeof SetVpnLinkInputSchema>
+
 /** Root helper that lets tunnels start without an admin prompt (macOS/Linux). */
 export const VpnHelperStatusSchema = z.enum(['installed', 'missing', 'outdated', 'unsupported'])
 export type VpnHelperStatus = z.infer<typeof VpnHelperStatusSchema>

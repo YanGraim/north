@@ -5,5 +5,6 @@
 - **FortiGate SSL-VPN:** los mismos campos de la pestaña SSL-VPN de FortiClient, con confirmación de la huella del certificado en la primera conexión (macOS y Linux)
 - **Sin contraseña en cada conexión:** instala el componente de VPN una vez (North lo ofrece en el primer inicio) y SSL-VPN, IPsec y OpenVPN dejan de pedir la contraseña de administrador
 - **FortiGate/IPsec:** regístrala con los mismos campos de FortiClient y conéctala con strongSwan usando sus mismas propuestas, sin FortiClient y sin aprobar perfiles en Ajustes (macOS y Linux)
+- **VPN que se enciende sola:** vincula una VPN al ambiente o cliente y North la enciende al abrir una de sus sesiones, y la apaga cuando nadie la usa
 
 Ver el capítulo [VPNs](vpns) en el manual.

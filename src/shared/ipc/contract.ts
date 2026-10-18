@@ -115,12 +115,14 @@ import type {
   CreateVpnProfileInput,
   ImportOvpnInput,
   OvpnImportResult,
+  SetVpnLinkInput,
   SetVpnSecretInput,
   UpdateVpnProfileInput,
   VpnConflict,
   VpnConnectInput,
   VpnHelperStatus,
   VpnHistoryEntry,
+  VpnLinkTarget,
   VpnPlatformSupport,
   VpnProfile,
   VpnSecretStatus,
@@ -691,6 +693,8 @@ export interface IpcInvokeMap {
   [IpcChannels.VPN_HISTORY]: { args: [id: string, limit?: number]; result: VpnHistoryEntry[] }
   [IpcChannels.VPN_CHECK_CONFLICTS]: { args: [id: string]; result: VpnConflict[] }
   [IpcChannels.VPN_PLATFORM_SUPPORT]: { args: []; result: VpnPlatformSupport }
+  [IpcChannels.VPN_LINK_GET]: { args: [input: VpnLinkTarget]; result: string | null }
+  [IpcChannels.VPN_LINK_SET]: { args: [input: SetVpnLinkInput]; result: undefined }
   [IpcChannels.VPN_HELPER_STATUS]: { args: []; result: VpnHelperStatus }
   [IpcChannels.VPN_HELPER_INSTALL]: { args: []; result: VpnHelperStatus }
   [IpcChannels.VPN_HELPER_UNINSTALL]: { args: []; result: VpnHelperStatus }
@@ -970,6 +974,9 @@ export interface NorthApi {
     history: (id: string, limit?: number) => Promise<VpnHistoryEntry[]>
     checkConflicts: (id: string) => Promise<VpnConflict[]>
     platformSupport: () => Promise<VpnPlatformSupport>
+    /** VPN a Client/Environment brings up for its sessions (null = none). */
+    getLink: (input: VpnLinkTarget) => Promise<string | null>
+    setLink: (input: SetVpnLinkInput) => Promise<void>
     /** Passwordless-connect helper: installed once with one admin prompt (macOS/Linux). */
     helperStatus: () => Promise<VpnHelperStatus>
     installHelper: () => Promise<VpnHelperStatus>

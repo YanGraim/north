@@ -88,6 +88,30 @@ export function useVpnPlatformSupport(): UseQueryResult<VpnPlatformSupport, Erro
   })
 }
 
+export function useVpnLink(
+  target: 'client' | 'environment',
+  id: string | undefined
+): UseQueryResult<string | null, Error> {
+  return useQuery({
+    queryKey: queryKeys.vpn.link(target, id ?? ''),
+    queryFn: () => window.north.vpn.getLink({ target, id: id as string }),
+    enabled: Boolean(id)
+  })
+}
+
+export function useSetVpnLink(): UseMutationResult<
+  void,
+  Error,
+  { target: 'client' | 'environment'; id: string; profileId: string | null }
+> {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input) => window.north.vpn.setLink(input),
+    onSuccess: (_r, input) =>
+      queryClient.setQueryData(queryKeys.vpn.link(input.target, input.id), input.profileId)
+  })
+}
+
 export function useVpnHelperStatus(): UseQueryResult<VpnHelperStatus, Error> {
   return useQuery({
     queryKey: queryKeys.vpn.helper,

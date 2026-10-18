@@ -21,6 +21,7 @@ import {
   FormMessage
 } from '@renderer/components/ui/form'
 import { Input } from '@renderer/components/ui/input'
+import { Label } from '@renderer/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ import {
 } from '@renderer/components/ui/select'
 import { Switch } from '@renderer/components/ui/switch'
 import { Textarea } from '@renderer/components/ui/textarea'
+import { VpnModeSelect } from '@renderer/features/vpns/VpnLinkSelect'
 import { useAccess, useCreateAccess, useUpdateAccess } from '@renderer/hooks/use-accesses'
 import { useCreateClient } from '@renderer/hooks/use-clients'
 import { useCreateEnvironment } from '@renderer/hooks/use-environments'
@@ -42,7 +44,7 @@ import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { openAccessSession } from '@renderer/stores/sessions-store'
 import { isSqlStudioEngine } from '@shared/protocols'
-import { type CreateAccessInput, DatabaseEngineSchema } from '@shared/types'
+import { type CreateAccessInput, DatabaseEngineSchema, type VpnMode } from '@shared/types'
 import { FolderOpen } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -114,6 +116,10 @@ export function DatabaseConnectionFormDialog(): React.JSX.Element | null {
   const { data: vaultAvailable = false } = useVaultAvailable()
   const { data: hasSecret = false } = useHasSecret(existing?.credentialRef)
 
+  const [vpn, setVpn] = useState<{ vpnMode: VpnMode; vpnProfileId: string | null }>({
+    vpnMode: 'inherit',
+    vpnProfileId: null
+  })
   const [passwordMode, setPasswordMode] = useState<'keep' | 'replace' | 'set'>('set')
   const [removingSecret, setRemovingSecret] = useState(false)
   const [quickCreate, setQuickCreate] = useState<'client' | 'environment' | 'group' | null>(null)
@@ -185,6 +191,7 @@ export function DatabaseConnectionFormDialog(): React.JSX.Element | null {
 
     if (mode === 'edit' && existing) {
       const org = resolveGroup(existing.groupId)
+      setVpn({ vpnMode: existing.vpnMode, vpnProfileId: existing.vpnProfileId })
       form.reset({
         name: existing.name,
         description: existing.description,
@@ -211,6 +218,7 @@ export function DatabaseConnectionFormDialog(): React.JSX.Element | null {
 
     const groupId = createGroupId
     const org = groupId ? resolveGroup(groupId) : null
+    setVpn({ vpnMode: 'inherit', vpnProfileId: null })
     form.reset({
       name: '',
       description: null,
@@ -294,7 +302,9 @@ export function DatabaseConnectionFormDialog(): React.JSX.Element | null {
       host: values.host ?? null,
       port: values.engine === 'sqlite' ? null : (values.port ?? null),
       database: values.database ?? null,
-      ssl: values.engine === 'sqlite' ? false : (values.ssl ?? false)
+      ssl: values.engine === 'sqlite' ? false : (values.ssl ?? false),
+      vpnMode: vpn.vpnMode,
+      vpnProfileId: vpn.vpnMode === 'profile' ? vpn.vpnProfileId : null
     }
 
     if (mode === 'edit' && editId) {
@@ -863,6 +873,16 @@ export function DatabaseConnectionFormDialog(): React.JSX.Element | null {
                   </FormItem>
                 )}
               />
+
+              <div className="space-y-1.5">
+                <Label htmlFor="access-vpn">{t('vpn.link.label')}</Label>
+                <VpnModeSelect
+                  id="access-vpn"
+                  mode={vpn.vpnMode}
+                  profileId={vpn.vpnProfileId}
+                  onChange={setVpn}
+                />
+              </div>
 
               <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
                 <Button

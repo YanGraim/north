@@ -7,6 +7,7 @@ import * as sudo from '@vscode/sudo-prompt'
 import { app, BrowserWindow, dialog, ipcMain, powerMonitor } from 'electron'
 import helperSource from '../../../resources/vpn/north-vpn-helper?asset&asarUnpack'
 import type { Repositories } from '../repositories'
+import type { ConnectionMonitorService } from '../services/connection-monitor-service'
 import { cleanupFortiOrphans } from '../services/vpn/drivers/openfortivpn-driver'
 import { cleanupOpenvpnOrphans } from '../services/vpn/drivers/openvpn-driver'
 import {
@@ -33,7 +34,11 @@ function broadcast(channel: string, payload: unknown): void {
   }
 }
 
-export function registerVpnHandlers(repos: Repositories, vault: CredentialVault): void {
+export function registerVpnHandlers(
+  repos: Repositories,
+  vault: CredentialVault,
+  monitor?: ConnectionMonitorService
+): void {
   const vpnDir = join(app.getPath('userData'), 'vpn')
   const tmpDir = join(vpnDir, 'tmp')
   const tunnels = new TunnelRegistry(join(vpnDir, 'tunnels'))
@@ -138,7 +143,13 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
 
   const manager = runtime.manager
   // sessions opened from now on bring their VPN up first
-  getProtocolManager().setVpnGate(new VpnGate({ repos, manager }))
+  const gate = new VpnGate({ repos, manager })
+  getProtocolManager().setVpnGate(gate)
+  // a server behind a VPN that is off isn't "down" — don't alert or poll it
+  monitor?.setVpnReady((connectionId) => {
+    const profileId = gate.profileForConnection(connectionId)
+    return !profileId || manager.getState(profileId).status === 'connected'
+  })
   powerMonitor.on('suspend', () => manager.suspend())
   powerMonitor.on('resume', () => void manager.resume())
 }

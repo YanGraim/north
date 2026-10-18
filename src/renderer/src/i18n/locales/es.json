@@ -741,6 +741,14 @@
       "install": "Conectar sin pedir contraseña",
       "remove": "Quitar componente de VPN",
       "failed": "No se pudo cambiar el componente de VPN"
+    },
+    "link": {
+      "label": "VPN",
+      "none": "Ninguna",
+      "inherit": "Heredar del ambiente/cliente",
+      "never": "Nunca usar VPN",
+      "envHint": "Las conexiones de este ambiente encienden esta VPN solas al abrirse y la apagan cuando nadie la usa.",
+      "clientHint": "Vale para los ambientes del cliente que no tienen VPN propia."
     }
   }
 }

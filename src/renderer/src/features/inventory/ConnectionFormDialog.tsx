@@ -21,6 +21,7 @@ import {
   FormMessage
 } from '@renderer/components/ui/form'
 import { Input } from '@renderer/components/ui/input'
+import { Label } from '@renderer/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -28,8 +29,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@renderer/components/ui/select'
-import { Switch } from '@renderer/components/ui/switch'
 import { Textarea } from '@renderer/components/ui/textarea'
+import { VpnModeSelect } from '@renderer/features/vpns/VpnLinkSelect'
 import { useCreateClient } from '@renderer/hooks/use-clients'
 import {
   useConnection,
@@ -78,6 +79,8 @@ const FormSchema = z.object({
   icon: z.string().nullable().optional(),
   color: z.string().nullable().optional(),
   vpnRequired: z.boolean(),
+  vpnMode: z.enum(['inherit', 'none', 'profile']),
+  vpnProfileId: z.string().uuid().nullable(),
   notes: z.string().nullable().optional(),
   tagIds: z.array(z.string().uuid())
 })
@@ -138,6 +141,8 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
       icon: null,
       color: null,
       vpnRequired: false,
+      vpnMode: 'inherit',
+      vpnProfileId: null,
       notes: null,
       tagIds: []
     },
@@ -195,6 +200,8 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
         icon: existing.icon,
         color: existing.color,
         vpnRequired: existing.vpnRequired,
+        vpnMode: existing.vpnMode,
+        vpnProfileId: existing.vpnProfileId,
         notes: existing.notes,
         tagIds: existingTagIdsKey ? existingTagIdsKey.split(',') : []
       })
@@ -222,6 +229,8 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
       icon: null,
       color: null,
       vpnRequired: false,
+      vpnMode: 'inherit',
+      vpnProfileId: null,
       notes: null,
       tagIds: []
     })
@@ -293,6 +302,8 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
       icon: values.icon ?? null,
       color: values.color ?? null,
       vpnRequired: values.vpnRequired,
+      vpnMode: values.vpnMode,
+      vpnProfileId: values.vpnMode === 'profile' ? values.vpnProfileId : null,
       notes: values.notes ?? null
     }
 
@@ -815,18 +826,18 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
                 <h3 className="text-xs font-medium uppercase tracking-wider text-muted">
                   Operação
                 </h3>
-                <FormField
-                  control={form.control}
-                  name="vpnRequired"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center gap-2 space-y-0">
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                      <FormLabel className="font-normal text-muted">VPN obrigatória</FormLabel>
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor="connection-vpn">{t('vpn.link.label')}</Label>
+                  <VpnModeSelect
+                    id="connection-vpn"
+                    mode={form.watch('vpnMode')}
+                    profileId={form.watch('vpnProfileId')}
+                    onChange={(next) => {
+                      form.setValue('vpnMode', next.vpnMode, { shouldDirty: true })
+                      form.setValue('vpnProfileId', next.vpnProfileId, { shouldDirty: true })
+                    }}
+                  />
+                </div>
                 <FormField
                   control={form.control}
                   name="notes"

@@ -17,6 +17,11 @@ export type ConnectionMonitorDeps = {
   checkPort?: CheckPortFn
   /** Called on every status transition — main wires this to a desktop notification + IPC broadcast. */
   onChange?: (change: ConnectionHealthChange) => void
+  /**
+   * false = the connection needs a VPN that is off: skip the probe (no false "down"
+   * alert, no tunnel brought up just to poll). Absent = always probe.
+   */
+  vpnReady?: (connectionId: string) => boolean
 }
 
 /**
@@ -41,6 +46,10 @@ export class ConnectionMonitorService {
   start(intervalMs = DEFAULT_INTERVAL_MS): void {
     if (this.timer) return
     this.timer = setInterval(() => void this.checkAllOnce(), intervalMs)
+  }
+
+  setVpnReady(vpnReady: (connectionId: string) => boolean): void {
+    this.deps.vpnReady = vpnReady
   }
 
   stop(): void {
@@ -68,6 +77,7 @@ export class ConnectionMonitorService {
   ): Promise<void> {
     const connection = this.repos.connections.get(connectionId)
     if (!connection) return
+    if (this.deps.vpnReady && !this.deps.vpnReady(connectionId)) return
 
     const result = await this.checkPort(connection.host, connection.port)
     const status: ConnectionHealthStatus = result.ok ? 'up' : 'down'

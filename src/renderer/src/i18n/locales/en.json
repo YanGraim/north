@@ -741,6 +741,14 @@
       "install": "Connect without a password prompt",
       "remove": "Remove VPN component",
       "failed": "Could not change the VPN component"
+    },
+    "link": {
+      "label": "VPN",
+      "none": "None",
+      "inherit": "Inherit from environment/client",
+      "never": "Never use a VPN",
+      "envHint": "Connections in this environment turn this VPN on by themselves when opened and off when nobody uses it.",
+      "clientHint": "Applies to the client's environments that don't have their own VPN."
     }
   }
 }

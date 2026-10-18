@@ -23,6 +23,7 @@ export function createVpnMock() {
   const secrets = new Map<string, Set<VpnSecretKind>>()
   const logs = new Map<string, string[]>()
   const history: VpnHistoryEntry[] = []
+  const links = new Map<string, string | null>()
   const listeners = new Set<Listener>()
   let version = 0
   let nextFailure: VpnErrorCode | null = null
@@ -199,6 +200,11 @@ export function createVpnMock() {
       'ipsec-ikev2': { ok: false as const, reason: 'em breve' },
       'fortinet-sslvpn': { ok: true as const }
     }),
+    getLink: async (input: { target: string; id: string }) =>
+      links.get(`${input.target}:${input.id}`) ?? null,
+    setLink: async (input: { target: string; id: string; profileId: string | null }) => {
+      links.set(`${input.target}:${input.id}`, input.profileId)
+    },
     helperStatus: async () => 'installed' as const,
     installHelper: async () => 'installed' as const,
     uninstallHelper: async () => 'missing' as const,

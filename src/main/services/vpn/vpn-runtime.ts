@@ -4,11 +4,13 @@ import {
   CreateVpnProfileInputSchema,
   IdSchema,
   ImportOvpnInputSchema,
+  SetVpnLinkInputSchema,
   SetVpnSecretInputSchema,
   UpdateVpnProfileInputSchema,
   VpnConnectInputSchema,
   type VpnHelperStatus,
   type VpnKind,
+  VpnLinkTargetSchema,
   type VpnSecretKind,
   type VpnState
 } from '@shared/types'
@@ -120,7 +122,7 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
     emit: deps.emit
   })
 
-  return { profiles, drivers, manager }
+  return { profiles, drivers, manager, links: deps.repos.vpnProfiles }
 }
 
 export type VpnRuntime = ReturnType<typeof createVpnRuntime>
@@ -191,6 +193,19 @@ export function createVpnHandlers(
       profiles.history(IdSchema.parse(id), limit === undefined ? undefined : Number(limit)),
     [IpcChannels.VPN_CHECK_CONFLICTS]: (id: unknown) => manager.checkConflicts(IdSchema.parse(id)),
     [IpcChannels.VPN_PLATFORM_SUPPORT]: () => drivers.support(platform),
+    [IpcChannels.VPN_LINK_GET]: (input: unknown) => {
+      const { target, id } = VpnLinkTargetSchema.parse(input)
+      const links = runtime.links
+      return target === 'client'
+        ? links.linkForClient(id)
+        : links.linkForEnvironment(id).environment
+    },
+    [IpcChannels.VPN_LINK_SET]: (input: unknown) => {
+      const { target, id, profileId } = SetVpnLinkInputSchema.parse(input)
+      if (profileId && !profiles.get(profileId)) throw new Error('VPN não encontrada')
+      if (target === 'client') runtime.links.setClientLink(id, profileId)
+      else runtime.links.setEnvironmentLink(id, profileId)
+    },
     [IpcChannels.VPN_HELPER_STATUS]: () => helperStatus(),
     [IpcChannels.VPN_HELPER_INSTALL]: async () => {
       try {

@@ -26,6 +26,8 @@ describe('vpn IPC surface', () => {
     ['VPN_HISTORY', 'history'],
     ['VPN_CHECK_CONFLICTS', 'checkConflicts'],
     ['VPN_PLATFORM_SUPPORT', 'platformSupport'],
+    ['VPN_LINK_GET', 'getLink'],
+    ['VPN_LINK_SET', 'setLink'],
     ['VPN_HELPER_STATUS', 'helperStatus'],
     ['VPN_HELPER_INSTALL', 'installHelper'],
     ['VPN_HELPER_UNINSTALL', 'uninstallHelper']

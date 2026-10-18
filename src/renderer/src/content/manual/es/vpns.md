@@ -30,3 +30,7 @@ Dos VPNs con redes distintas pueden quedar activas juntas. Si las redes se super
 ## Cuando algo sale mal
 
 El mensaje dice qué pasó y ofrece la acción correcta: **Actualizar contraseña** cuando el servidor rechaza la credencial, **Reintentar** cuando el servidor no responde o se deniega el permiso de administrador, **Cómo instalar** cuando falta OpenVPN. En **Logs**, **Copiar diagnóstico** copia el log ya sin contraseñas.
+
+## Encender la VPN automáticamente
+
+En **Editar ambiente** (o **Editar cliente**), elige su **VPN**. Desde entonces, abrir una sesión SSH, RDP, de base de datos o API de ese ambiente enciende primero la VPN, espera a que el servidor responda y solo entonces abre la sesión; varias sesiones comparten el mismo túnel, que se apaga solo cuando se cierra la última (si la VPN tiene apagado automático). Vale la VPN del ambiente; sin ella, la del cliente. En cada conexión o acceso, el campo **VPN** ofrece **Heredar** (por defecto), **Nunca usar VPN** u otra VPN. Si la VPN falla, la sesión muestra el error con su nombre. El monitor de conexiones no marca como caído un servidor mientras su VPN está apagada.
