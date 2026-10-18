@@ -136,6 +136,12 @@ export type VpnHelperDeps = HelperPlatform & {
   broker: PrivilegeBroker
   fortiBinary: () => string | null
   spawn?: HelperSpawn
+  /**
+   * Copies the bundled helper somewhere root can read (macOS privacy rules block root from
+   * ~/Documents etc.). The installed copy is then compared to the bundled one, so a swap
+   * in between only makes the install fail.
+   */
+  stage?: (source: string) => string
 }
 
 export class VpnHelper {
@@ -160,7 +166,8 @@ export class VpnHelper {
 
   async install(): Promise<void> {
     const forti = this.deps.fortiBinary()
-    const { binary, args } = buildHelperInstall(this.deps, forti)
+    const source = this.deps.stage?.(this.deps.source) ?? this.deps.source
+    const { binary, args } = buildHelperInstall({ ...this.deps, source }, forti)
     const result = await this.deps.broker.launch(binary, args).exited
     if (result.error) throw result.error
   }

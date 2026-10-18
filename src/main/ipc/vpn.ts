@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { userInfo } from 'node:os'
 import { join } from 'node:path'
 import { IpcChannels } from '@shared/ipc'
@@ -61,7 +61,13 @@ export function registerVpnHandlers(repos: Repositories, vault: CredentialVault)
             }
           },
           broker,
-          fortiBinary: findForti
+          fortiBinary: findForti,
+          stage: (source) => {
+            mkdirSync(tmpDir, { recursive: true, mode: 0o700 })
+            const staged = join(tmpDir, 'north-vpn-helper')
+            copyFileSync(source, staged)
+            return staged
+          }
         })
       : undefined
 
