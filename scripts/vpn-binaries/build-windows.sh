@@ -47,8 +47,8 @@ copy_deps() {
     copy_deps "$src"
   done
 }
-cp "$INST/bin/openconnect.exe" "$OUT/openconnect/"
-copy_deps "$INST/bin/openconnect.exe"
+cp "$INST/sbin/openconnect.exe" "$OUT/openconnect/"
+copy_deps "$INST/sbin/openconnect.exe"
 script=$(find "$tmp/inst" /usr/share /etc -name 'vpnc-script-win.js' 2>/dev/null | head -1)
 if [ -n "$script" ]; then
   cp "$script" "$OUT/openconnect/vpnc-script-win.js"
