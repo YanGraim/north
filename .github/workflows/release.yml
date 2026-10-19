@@ -137,7 +137,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: resources/vpn/bin
-          key: vpn-bin-${{ matrix.os }}-${{ hashFiles('scripts/vpn-binaries/*') }}
+          key: vpn-bin-${{ matrix.os }}-glibc231-${{ hashFiles('scripts/vpn-binaries/*') }}
 
       - name: Build VPN engines (openfortivpn, charon-cmd, openvpn)
         if: matrix.target != 'win' && steps.vpn-cache.outputs.cache-hit != 'true'
@@ -146,10 +146,17 @@ jobs:
           set -euo pipefail
           if [ "${{ matrix.target }}" = mac ]; then
             brew install autoconf automake libtool pkgconf
+            scripts/vpn-binaries/build.sh resources/vpn/bin
           else
-            sudo apt-get install -y autoconf automake libtool pkg-config libcap-ng-dev ppp
+            # built against an old glibc (Ubuntu 20.04: 2.31): binaries from the runner's
+            # Ubuntu 24.04 need glibc 2.38+ and fail on 22.04 / Debian 12 / Mint 21
+            docker run --rm -v "$PWD:/src" -w /src -e DEBIAN_FRONTEND=noninteractive ubuntu:20.04 sh -euc "
+              apt-get update -qq
+              apt-get install -y -qq build-essential autoconf automake libtool pkg-config \
+                libcap-ng-dev ppp curl ca-certificates perl python3 bzip2 >/dev/null
+              scripts/vpn-binaries/build.sh resources/vpn/bin
+              chown -R $(id -u):$(id -g) resources/vpn/bin"
           fi
-          scripts/vpn-binaries/build.sh resources/vpn/bin
 
       - name: Windows VPN engines (built on Linux)
         if: matrix.target == 'win'
@@ -184,6 +191,12 @@ jobs:
           if [ "${{ matrix.target }}" = mac ]; then
             # only system libraries: nothing from Homebrew may leak into the app
             ! otool -L resources/vpn/bin/* 2>/dev/null | grep -E '/opt/homebrew|/usr/local'
+          else
+            # runs on any distro with glibc >= 2.31 (Ubuntu 20.04, Debian 11, RHEL 9…)
+            newest=$(objdump -T resources/vpn/bin/openfortivpn resources/vpn/bin/charon-cmd resources/vpn/bin/openvpn |
+              grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)
+            echo "newest glibc symbol: $newest"
+            [ "$(printf '%s\n' "$newest" GLIBC_2.31 | sort -V | tail -1)" = GLIBC_2.31 ]
           fi
 
       - name: Prepare macOS signing certificate
