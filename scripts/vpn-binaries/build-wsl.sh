@@ -20,6 +20,13 @@ mkdir -p "$root/etc/apk" "$root/opt/north"
 cp -r /etc/apk/keys "$root/etc/apk/"
 cp /etc/apk/repositories "$root/etc/apk/"
 apk add -q --root "$root" --initdb --no-cache --no-scripts alpine-baselayout busybox musl iptables
+# --no-scripts skipped busybox's own install step: without its applet links the distro has
+# no dirname, mount, ip, sysctl… (same musl as this container, so its busybox runs here)
+for applet in $("$root/bin/busybox" --list-full); do
+  [ -e "$root/$applet" ] || ln -s /bin/busybox "$root/$applet"
+done
+test -x "$root/usr/bin/dirname" && test -x "$root/bin/mount"
+: >"$root/etc/fstab" # wsl runs "mount -a" at boot
 cp "$work/engines/charon-cmd" "$root/opt/north/"
 cp "$HERE/../../resources/vpn/north-vpn-helper" "$root/opt/north/"
 chmod 755 "$root/opt/north/charon-cmd" "$root/opt/north/north-vpn-helper"
