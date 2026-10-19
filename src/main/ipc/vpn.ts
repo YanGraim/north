@@ -10,7 +10,7 @@ import {
   statSync,
   writeFileSync
 } from 'node:fs'
-import { userInfo } from 'node:os'
+import { networkInterfaces, userInfo } from 'node:os'
 import { basename, join } from 'node:path'
 import { IpcChannels } from '@shared/ipc'
 import * as sudo from '@vscode/sudo-prompt'
@@ -30,6 +30,7 @@ import {
 } from '../services/vpn/privilege-broker'
 import { TunnelRegistry } from '../services/vpn/tunnel-registry'
 import { listTunnelRoutes } from '../services/vpn/tunnel-routes'
+import { VpnError } from '../services/vpn/vpn-error'
 import { VpnGate } from '../services/vpn/vpn-gate'
 import { VpnHelper } from '../services/vpn/vpn-helper'
 import { createVpnHandlers, createVpnRuntime, type VpnRuntime } from '../services/vpn/vpn-runtime'
@@ -37,6 +38,7 @@ import { OpenvpnServiceBroker } from '../services/vpn/windows-openvpn-service'
 import { WindowsVpnComponent } from '../services/vpn/windows-vpn-component'
 import { WindowsVpnService } from '../services/vpn/windows-vpn-service'
 import { WindowsVpnSetup } from '../services/vpn/windows-vpn-setup'
+import { WslIpsec } from '../services/vpn/wsl-ipsec'
 import type { CredentialVault } from '../vault'
 import { getProtocolManager } from './sessions'
 
@@ -166,6 +168,76 @@ export function registerVpnHandlers(
       : undefined
   const component = helper ?? windows
 
+  // Windows IPsec: North's WSL distro runs strongSwan; north-vpn-service routes to it
+  function windowsIpsec(setup: WindowsVpnSetup, service: WindowsVpnService) {
+    const tarball = () => {
+      const tar = join(bundledDir, 'north-wsl.tar.gz')
+      return existsSync(tar) ? tar : null
+    }
+    const importedFile = join(vpnDir, 'wsl-imported')
+    const wsl = new WslIpsec({
+      tarball,
+      digest,
+      installDir: join(vpnDir, 'wsl'),
+      imported: {
+        read: () => {
+          try {
+            return readFileSync(importedFile, 'utf8').trim()
+          } catch {
+            return null
+          }
+        },
+        write: (value) => writeFileSync(importedFile, value)
+      },
+      wsl: (args) =>
+        new Promise((resolve) => {
+          // WSL_UTF8: wsl.exe's own messages are UTF-16 otherwise
+          execFile(
+            'wsl.exe',
+            args,
+            { timeout: 120_000, windowsHide: true, env: { ...process.env, WSL_UTF8: '1' } },
+            (error, stdout, stderr) => {
+              const code = error ? (typeof error.code === 'number' ? error.code : 1) : 0
+              resolve({ code, stdout: `${stdout}${stderr}` })
+            }
+          )
+        }),
+      hostIps: () =>
+        Object.values(networkInterfaces())
+          .flat()
+          .filter((a) => a?.family === 'IPv4')
+          .map((a) => a?.address ?? '')
+    })
+    return {
+      binary: tarball,
+      helper: {
+        ensure: async () => {
+          await setup.ensure() // the service holds the Windows routes
+          await wsl.ensure()
+        },
+        startIpsec: (input: string, onOutput: (chunk: Buffer) => void) =>
+          wsl.startIpsec(input, onOutput)
+      },
+      tunnel: {
+        up: async (
+          info: { routes: string[]; redirectGateway: boolean },
+          log: (line: string) => void
+        ) => {
+          if (info.redirectGateway || info.routes.length === 0) {
+            throw new VpnError(
+              'UNSUPPORTED_ON_PLATFORM',
+              'Esta VPN manda todo o tráfego pelo túnel; no Windows o North só a liga em túnel dividido (redes específicas). Use o FortiClient para ela.'
+            )
+          }
+          const gateway = await wsl.gatewayIp()
+          const run = await service.holdRoutes(gateway, info.routes, log)
+          log(`[north] Windows: ${info.routes.length} rede(s) da VPN via WSL (${gateway})`)
+          return () => run.stop()
+        }
+      }
+    }
+  }
+
   runtime = createVpnRuntime({
     repos,
     vault,
@@ -193,7 +265,11 @@ export function registerVpnHandlers(
       tmpDir,
       installedFile: join(vpnDir, 'ipsec-installed.json')
     },
-    strongswan: helper ? { binary: findCharon, helper } : undefined,
+    strongswan: helper
+      ? { binary: findCharon, helper }
+      : windows && windowsService
+        ? windowsIpsec(windows, windowsService)
+        : undefined,
     openconnect:
       windows && windowsService
         ? {

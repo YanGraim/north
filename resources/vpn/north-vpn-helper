@@ -1,5 +1,5 @@
 #!/bin/sh
-# north-vpn-helper v8
+# north-vpn-helper v9
 #
 # Installed once, root-owned, next to root-owned copies of the VPN binaries. A sudoers
 # rule lets the installing user run ONLY this file without a password, so it must never
@@ -26,7 +26,7 @@ umask 077
 
 case "${1:-}" in
   version)
-    echo 8
+    echo 9
     ;;
   forti)
     bin="$dir/openfortivpn"
@@ -84,6 +84,15 @@ case "${1:-}" in
     # Explicit plugin list (missing ones are skipped) so "unity" is loaded: it reads the
     # split-tunnel networks FortiGate pushes, like FortiClient, instead of taking all traffic.
     plugins='charon-cmd pkcs11 aes des sha1 sha2 md5 hmac random nonce x509 revocation constraints pubkey pkcs1 pkcs8 sshkey pem openssl gmp curve25519 kdf curl kernel-pfkey kernel-pfroute kernel-netlink socket-default eap-identity eap-md5 eap-gtc eap-mschapv2 eap-peap xauth-generic osx-attr resolve unity'
+    # Windows (North's WSL distro, marked by /etc/north-wsl): ESP in userspace on a TUN
+    # (no dependency on the WSL kernel's XFRM), and Windows' traffic for the VPN's networks
+    # — routed here by north-vpn-service — is forwarded into the tunnel and NATed to it.
+    if [ -f /etc/north-wsl ]; then
+      plugins="$plugins kernel-libipsec"
+      sysctl -qw net.ipv4.ip_forward=1
+      iptables -t nat -C POSTROUTING -o ipsec+ -j MASQUERADE 2>/dev/null ||
+        iptables -t nat -A POSTROUTING -o ipsec+ -j MASQUERADE
+    fi
     printf '%s\n' 'charon-cmd {' "  load = $plugins" '  cisco_unity = yes' '  port = 500' '  port_nat_t = 4500' \
       '  filelog {' '    stderr {' '      default = 1' '      flush_line = yes' '    }' '  }' '}' \
       >"$tmp/strongswan.conf"

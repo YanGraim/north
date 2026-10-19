@@ -48,7 +48,7 @@ export type VpnRuntimeDeps = {
     prepare?: OpenVpnDriverDeps['prepare']
   }
   macosIpsec?: MacosIpsecDriverDeps
-  /** IKEv1 via strongSwan + root helper (macOS/Linux); wins over macosIpsec when given. */
+  /** IKEv1 via strongSwan: root helper (macOS/Linux) or WSL (Windows); wins over macosIpsec. */
   strongswan?: StrongswanDriverDeps
   /** Windows FortiGate SSL-VPN: openconnect via north-vpn-service */
   openconnect?: OpenconnectDriverDeps
@@ -76,10 +76,8 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
     const strongswan = deps.strongswan
     drivers.register({
       kind: 'ipsec-ikev1',
-      isSupported: (platform) =>
-        platform === 'win32'
-          ? { ok: false, reason: 'No Windows, o IPsec ainda não é suportado (em breve)' }
-          : { ok: true },
+      // Windows: the same strongSwan inside North's WSL distro (wsl-ipsec.ts)
+      isSupported: () => ({ ok: true }),
       create: () => new StrongswanDriver(strongswan)
     })
   } else if (!deps.fake && deps.macosIpsec) {

@@ -4,6 +4,7 @@
 # monolithic with its plugins built in), so nothing depends on Homebrew or distro libs.
 #
 #   scripts/vpn-binaries/build.sh <out-dir>     (macOS or Linux; CI runs it before dist)
+#   VPN_ENGINES=charon SWAN_EXTRA=--enable-kernel-libipsec …   (only charon-cmd, for North's WSL distro)
 #
 # Sources are pinned by version + sha256. Licenses and source links go to <out-dir>/LICENSES.
 set -eu
@@ -25,7 +26,8 @@ SWAN_SHA=fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4
 
 fetch() { # url sha file
   [ -f "$WORK/$3" ] || curl -fsSL "$1" -o "$WORK/$3"
-  echo "$2  $WORK/$3" | shasum -a 256 -c - >/dev/null || { echo "checksum mismatch: $3" >&2; exit 1; }
+  got=$( (sha256sum "$WORK/$3" 2>/dev/null || shasum -a 256 "$WORK/$3") | cut -d' ' -f1)
+  [ "$got" = "$2" ] || { echo "checksum mismatch: $3" >&2; exit 1; }
 }
 
 # before OpenSSL too: every object must target the same minimum OS
@@ -53,7 +55,11 @@ export PKG_CONFIG_PATH=
 export CPPFLAGS="-I$PREFIX/include"
 export LDFLAGS="-L$PREFIX/lib"
 
+ENGINES=${VPN_ENGINES:-forti openvpn charon}
+has() { case " $ENGINES " in *" $1 "*) return 0 ;; esac; return 1; }
+
 # openfortivpn
+if has forti; then
 rm -rf openfortivpn-$FORTI && tar xzf openfortivpn.tar.gz && cd openfortivpn-$FORTI
 ./autogen.sh >/dev/null
 ./configure --prefix=/ --sysconfdir=/etc >/dev/null
@@ -61,7 +67,9 @@ make -j"$JOBS" >/dev/null
 cp openfortivpn "$OUT/openfortivpn"
 cp LICENSE "$OUT/LICENSES/openfortivpn-LICENSE"
 cd "$WORK"
+fi
 
+if has openvpn; then
 # openvpn (no LZO/LZ4/pkcs11: the helper's whitelist doesn't allow compression anyway)
 rm -rf openvpn-$OVPN && tar xzf openvpn.tar.gz && cd openvpn-$OVPN
 OVPN_EXTRA=""
@@ -73,6 +81,7 @@ make -j"$JOBS" >/dev/null
 cp src/openvpn/openvpn "$OUT/openvpn"
 cp COPYING "$OUT/LICENSES/openvpn-COPYING"
 cd "$WORK"
+fi
 
 # strongSwan charon-cmd: monolithic + static, the plugins the helper loads are built in
 rm -rf strongswan-$SWAN && tar xjf strongswan.tar.bz2 && cd strongswan-$SWAN
@@ -83,7 +92,7 @@ SWAN_KERNEL="--enable-kernel-netlink --enable-resolve"
   --enable-charon --enable-cmd --enable-ikev1 --enable-ikev2 --enable-openssl --enable-nonce \
   --enable-random --enable-pem --enable-pkcs1 --enable-pkcs8 --enable-x509 --enable-pubkey \
   --enable-constraints --enable-revocation --enable-socket-default --enable-unity \
-  --enable-xauth-generic --enable-kdf $SWAN_KERNEL >/dev/null
+  --enable-xauth-generic --enable-kdf $SWAN_KERNEL ${SWAN_EXTRA:-} >/dev/null
 make -j"$JOBS" >/dev/null
 cp src/charon-cmd/charon-cmd "$OUT/charon-cmd"
 cp COPYING "$OUT/LICENSES/strongswan-COPYING"
@@ -92,6 +101,9 @@ cd "$WORK"
 cp "openssl-$OPENSSL/LICENSE.txt" "$OUT/LICENSES/openssl-LICENSE.txt"
 sed -e "s/@OPENSSL@/$OPENSSL/g" -e "s/@FORTI@/$FORTI/g" -e "s/@OVPN@/$OVPN/g" -e "s/@SWAN@/$SWAN/g" \
   "$HERE/SOURCES.txt.in" >"$OUT/LICENSES/SOURCES.txt"
-chmod 755 "$OUT/openfortivpn" "$OUT/openvpn" "$OUT/charon-cmd"
-strip "$OUT/openfortivpn" "$OUT/openvpn" "$OUT/charon-cmd" 2>/dev/null || true
+for b in openfortivpn openvpn charon-cmd; do
+  [ -f "$OUT/$b" ] || continue
+  chmod 755 "$OUT/$b"
+  strip "$OUT/$b" 2>/dev/null || true
+done
 echo "built into $OUT"

@@ -8,6 +8,11 @@ export type StrongswanDriverDeps = {
   helper: Pick<VpnHelper, 'ensure' | 'startIpsec'> & Partial<Pick<VpnHelper, 'setDns' | 'clearDns'>>
   handshakeTimeoutMs?: number
   stopTimeoutMs?: number
+  /**
+   * Windows (WSL): makes the tunnel reachable from the host once it's up (routes to the WSL
+   * VM); returns how to undo it. A failure tears the tunnel down.
+   */
+  tunnel?: { up(info: VpnTunnelInfo, log: (line: string) => void): Promise<() => void> }
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -38,6 +43,7 @@ export class StrongswanDriver implements VpnDriver {
   private exited = false
   private dropCallbacks: Array<(error?: Error) => void> = []
   private dnsDomains: string[] = []
+  private releaseTunnel: (() => void) | null = null
 
   constructor(private readonly deps: StrongswanDriverDeps) {}
 
@@ -169,11 +175,13 @@ export class StrongswanDriver implements VpnDriver {
             const remote = (/===\s*(.+)$/.exec(line)?.[1] ?? '').trim().split(/\s+/).filter(Boolean)
             const redirectGateway = remote.includes('0.0.0.0/0')
             await this.applyDns(ctx, dnsServer)
-            return {
+            const info = {
               localIp,
               routes: remote.filter((r) => r !== '0.0.0.0/0'),
               redirectGateway
             }
+            if (this.deps.tunnel) this.releaseTunnel = await this.deps.tunnel.up(info, log)
+            return info
           }
         }
         if (this.exited) {
@@ -235,6 +243,7 @@ export class StrongswanDriver implements VpnDriver {
 
   private async stop(): Promise<void> {
     this.stopping = true
+    this.release()
     await this.clearDns()
     const run = this.run
     if (run && !this.exited) {
@@ -244,8 +253,15 @@ export class StrongswanDriver implements VpnDriver {
     this.connected = false
   }
 
+  private release(): void {
+    const release = this.releaseTunnel
+    this.releaseTunnel = null
+    release?.()
+  }
+
   private onExit(): void {
     if (!this.connected || this.stopping) return
+    this.release()
     void this.clearDns()
     this.connected = false
     const callbacks = this.dropCallbacks

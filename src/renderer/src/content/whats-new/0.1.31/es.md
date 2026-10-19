@@ -8,5 +8,6 @@
 - **VPN que se enciende sola:** vincula una VPN al ambiente o cliente y North la enciende al abrir una de sus sesiones, y la apaga cuando nadie la usa
 - **Nada que instalar:** North ya incluye openfortivpn, strongSwan y OpenVPN (macOS y Linux), sin necesitar Homebrew
 - **OpenVPN y FortiGate SSL-VPN en Windows:** North instala lo necesario en la primera conexión, con un único permiso de Windows
+- **IPsec de FortiGate en Windows:** con WSL, usando el mismo strongSwan de macOS y Linux
 
 Ver el capítulo [VPNs](vpns) en el manual.

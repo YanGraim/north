@@ -55,10 +55,30 @@ jobs:
           if-no-files-found: error
           path: resources/vpn/bin
 
+  vpn-wsl:
+    name: WSL IPsec distro
+    runs-on: ubuntu-latest
+    needs: verify
+    timeout-minutes: 30
+    container: alpine:3.22
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build north-wsl.tar.gz (charon-cmd with libipsec + helper)
+        run: scripts/vpn-binaries/build-wsl.sh wsl-out
+
+      - name: Upload WSL distro
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpn-wsl
+          if-no-files-found: error
+          path: wsl-out
+
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-    needs: [verify, vpn-windows]
+    needs: [verify, vpn-windows, vpn-wsl]
     timeout-minutes: 40
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -137,6 +157,21 @@ jobs:
         with:
           name: vpn-windows
           path: resources/vpn/bin
+
+      - name: WSL IPsec distro
+        if: matrix.target == 'win'
+        uses: actions/download-artifact@v4
+        with:
+          name: vpn-wsl
+          path: wsl-out
+
+      - name: Merge WSL distro into the Windows engines
+        if: matrix.target == 'win'
+        shell: bash
+        run: |
+          cp wsl-out/north-wsl.tar.gz resources/vpn/bin/
+          cp -n wsl-out/LICENSES/strongswan-COPYING resources/vpn/bin/LICENSES/ || true
+          cat wsl-out/LICENSES/SOURCES.txt >> resources/vpn/bin/LICENSES/SOURCES.txt
 
       - name: Check VPN engines
         if: matrix.target != 'win'

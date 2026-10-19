@@ -93,15 +93,41 @@ export class WindowsVpnService {
     if (command) await this.deps.elevate(command)
   }
 
+  /**
+   * Windows routes for the VPN's networks through North's WSL distro (IPsec). Resolves once
+   * they are in place; `stop()` (or North going away) makes the service remove them.
+   */
+  async holdRoutes(
+    gateway: string,
+    routes: string[],
+    log: (line: string) => void
+  ): Promise<HelperRun> {
+    let ready: () => void = () => {}
+    const added = new Promise<void>((r) => {
+      ready = r
+    })
+    const run = this.request({ cmd: 'routes', gateway, routes }, (line) => {
+      if (/^ROUTES-UP \d+$/.test(line)) ready()
+      else log(line)
+    })
+    const outcome = await Promise.race([added.then(() => null), run.exited])
+    if (outcome) {
+      throw outcome.error ?? new VpnError('DRIVER_CRASHED', 'O Windows recusou as rotas da VPN')
+    }
+    return run
+  }
+
   startForti(request: FortiServiceRequest, onOutput: (line: string) => void): HelperRun {
+    return this.request({ cmd: 'forti', ...request, realm: request.realm ?? '' }, onOutput)
+  }
+
+  private request(payload: Record<string, unknown>, onOutput: (line: string) => void): HelperRun {
     const socket = (this.deps.open ?? connect)(this.deps.pipe ?? NORTH_VPN_PIPE)
     let buffer = ''
     let code: number | null = null
     const exited = new Promise<LaunchResult>((resolve) => {
       socket.once('connect', () => {
-        socket.write(
-          `${JSON.stringify({ cmd: 'forti', ...request, realm: request.realm ?? '' })}\n`
-        )
+        socket.write(`${JSON.stringify(payload)}\n`)
       })
       socket.on('data', (chunk: Buffer) => {
         buffer += chunk.toString('utf8')

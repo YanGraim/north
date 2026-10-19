@@ -8,13 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"path/filepath"
 	"regexp"
 	"strings"
 )
 
 // Version is compared by North to decide whether to reinstall after an update.
-const Version = "1"
+const Version = "2"
 
 type Request struct {
 	Cmd      string `json:"cmd"`
@@ -24,6 +25,9 @@ type Request struct {
 	Password string `json:"password,omitempty"`
 	Realm    string `json:"realm,omitempty"`
 	Cert     string `json:"cert,omitempty"`
+	// "routes": Windows routes for the VPN's networks through North's WSL distro (IPsec)
+	Gateway string   `json:"gateway,omitempty"`
+	Routes  []string `json:"routes,omitempty"`
 }
 
 var (
@@ -67,6 +71,26 @@ func ParseRequest(line []byte) (*Request, error) {
 			return nil, errors.New("invalid certificate pin")
 		}
 		return &r, nil
+	case "routes":
+		gw := net.ParseIP(r.Gateway).To4()
+		// only a private next hop (the WSL VM): never redirect traffic to an arbitrary host
+		if gw == nil || !gw.IsPrivate() {
+			return nil, errors.New("invalid gateway")
+		}
+		if len(r.Routes) == 0 || len(r.Routes) > 64 {
+			return nil, errors.New("invalid routes")
+		}
+		for _, cidr := range r.Routes {
+			ip, n, err := net.ParseCIDR(cidr)
+			if err != nil || ip.To4() == nil || !ip.Equal(n.IP) {
+				return nil, errors.New("invalid route " + cidr)
+			}
+			// a default route through WSL would capture all traffic: not this command's job
+			if ones, _ := n.Mask.Size(); ones == 0 {
+				return nil, errors.New("invalid route " + cidr)
+			}
+		}
+		return &r, nil
 	}
 	return nil, errors.New("unknown command")
 }
@@ -87,4 +111,18 @@ func FortiArgs(r *Request, dir string) []string {
 		args = append(args, "--usergroup="+r.Realm)
 	}
 	return append(args, fmt.Sprintf("https://%s:%d/", r.Host, r.Port))
+}
+
+// RouteArgs is the route.exe command line to add (or delete) one VPN network via WSL.
+func RouteArgs(add bool, cidr, gateway string) []string {
+	_, n, _ := net.ParseCIDR(cidr)
+	op := "DELETE"
+	if add {
+		op = "ADD"
+	}
+	args := []string{op, n.IP.String(), "MASK", net.IP(n.Mask).String(), gateway}
+	if add {
+		args = append(args, "METRIC", "5")
+	}
+	return args
 }

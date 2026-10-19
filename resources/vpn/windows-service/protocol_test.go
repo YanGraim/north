@@ -102,3 +102,57 @@ func TestServerRefusesBadRequest(t *testing.T) {
 		t.Fatalf("got %q", out)
 	}
 }
+
+func TestRoutesValidation(t *testing.T) {
+	ok := `{"cmd":"routes","gateway":"172.28.80.5","routes":["172.16.0.0/20","10.10.100.0/24"]}`
+	if _, err := ParseRequest([]byte(ok)); err != nil {
+		t.Fatal(err)
+	}
+	bad := []string{
+		`{"cmd":"routes","gateway":"8.8.8.8","routes":["10.0.0.0/8"]}`,
+		`{"cmd":"routes","gateway":"172.28.80.5","routes":["0.0.0.0/0"]}`,
+		`{"cmd":"routes","gateway":"172.28.80.5","routes":["10.0.0.1/8"]}`,
+		`{"cmd":"routes","gateway":"172.28.80.5","routes":["10.0.0.0/8 x"]}`,
+		`{"cmd":"routes","gateway":"172.28.80.5","routes":[]}`,
+	}
+	for _, line := range bad {
+		if _, err := ParseRequest([]byte(line)); err == nil {
+			t.Errorf("accepted %s", line)
+		}
+	}
+	got := strings.Join(RouteArgs(true, "172.16.0.0/20", "172.28.80.5"), " ")
+	if got != "ADD 172.16.0.0 MASK 255.255.240.0 172.28.80.5 METRIC 5" {
+		t.Fatal(got)
+	}
+}
+
+func TestRoutesRemovedWhenNorthGoesAway(t *testing.T) {
+	dir := t.TempDir()
+	l, _ := net.Listen("unix", filepath.Join(dir, "s"))
+	defer l.Close()
+	var calls []string
+	done := make(chan struct{})
+	srv := &Server{Dir: dir, Route: func(args []string) error {
+		calls = append(calls, args[0]+" "+args[1])
+		if args[0] == "DELETE" && args[1] == "10.10.100.0" {
+			close(done)
+		}
+		return nil
+	}}
+	go srv.Serve(l)
+	conn, _ := net.Dial("unix", filepath.Join(dir, "s"))
+	conn.Write([]byte(`{"cmd":"routes","gateway":"172.28.80.5","routes":["172.16.0.0/20","10.10.100.0/24"]}` + "\n"))
+	line, _ := bufio.NewReader(conn).ReadString('\n')
+	if line != "ROUTES-UP 2\n" {
+		t.Fatalf("got %q", line)
+	}
+	conn.Close()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("routes not removed")
+	}
+	if strings.Join(calls, ",") != "ADD 172.16.0.0,ADD 10.10.100.0,DELETE 172.16.0.0,DELETE 10.10.100.0" {
+		t.Fatal(calls)
+	}
+}

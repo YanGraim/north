@@ -286,7 +286,7 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
     })
     expect(info.localIp).toBe('10.212.134.200')
     await driver.disconnect()
-    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v8')
+    expect(readFileSync(HELPER, 'utf8')).toContain('north-vpn-helper v9')
   }, 15_000)
 
   const ipsecProfile = (username: string) => ({
