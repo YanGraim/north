@@ -12,7 +12,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 apk add -q build-base linux-headers perl python3 curl autoconf automake libtool pkgconf tar
 
 work=$(mktemp -d)
-VPN_ENGINES=charon SWAN_EXTRA=--enable-kernel-libipsec VPN_BUILD_DIR="$work/build" \
+VPN_ENGINES=charon SWAN_EXTRA=--enable-kernel-libipsec SWAN_SECRETS_STDIN=1 VPN_BUILD_DIR="$work/build" \
   "$HERE/build.sh" "$work/engines"
 
 root="$work/root"

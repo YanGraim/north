@@ -5,6 +5,7 @@
 #
 #   scripts/vpn-binaries/build.sh <out-dir>     (macOS or Linux; CI runs it before dist)
 #   VPN_ENGINES=charon SWAN_EXTRA=--enable-kernel-libipsec …   (only charon-cmd, for North's WSL distro)
+#   SWAN_SECRETS_STDIN=1   charon-cmd reads the PSK/XAuth password from stdin (musl: see below)
 #
 # Sources are pinned by version + sha256. Licenses and source links go to <out-dir>/LICENSES.
 set -eu
@@ -89,6 +90,29 @@ fi
 
 # strongSwan charon-cmd: monolithic + static, the plugins the helper loads are built in
 rm -rf strongswan-$SWAN && tar xjf strongswan.tar.bz2 && cd strongswan-$SWAN
+if [ "${SWAN_SECRETS_STDIN:-}" = 1 ]; then
+  # charon-cmd asks for secrets with getpass(); glibc and macOS fall back to stdin without a
+  # tty (that's how the helper feeds them), musl's getpass only reads /dev/tty and returns
+  # nothing under wsl.exe. Read one line from stdin instead.
+  f=src/charon-cmd/cmd/cmd_creds.c
+  grep -q 'pwd = getpass(label);' "$f"
+  sed -i 's/pwd = getpass(label);/pwd = north_read_secret(label);/' "$f"
+  sed -i 's|^#include <unistd.h>$|#include <unistd.h>\
+#include <stdio.h>\
+#include <string.h>\
+static char *north_read_secret(const char *label)\
+{\
+	static char line[1024];\
+	(void)label;\
+	if (!fgets(line, sizeof(line), stdin))\
+	{\
+		return NULL;\
+	}\
+	line[strcspn(line, "\\r\\n")] = 0;\
+	return line;\
+}|' "$f"
+  grep -q 'north_read_secret(const char' "$f"
+fi
 SWAN_KERNEL="--enable-kernel-netlink --enable-resolve"
 [ "$(uname -s)" = Darwin ] && SWAN_KERNEL="--enable-kernel-pfkey --enable-kernel-pfroute --enable-osx-attr --disable-kernel-netlink"
 # shellcheck disable=SC2086
