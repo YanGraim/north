@@ -9,7 +9,7 @@
 set -eu
 OUT=$1
 HERE=$(cd "$(dirname "$0")" && pwd)
-apk add -q build-base linux-headers perl curl autoconf automake libtool pkgconf tar
+apk add -q build-base linux-headers perl python3 curl autoconf automake libtool pkgconf tar
 
 work=$(mktemp -d)
 VPN_ENGINES=charon SWAN_EXTRA=--enable-kernel-libipsec VPN_BUILD_DIR="$work/build" \
