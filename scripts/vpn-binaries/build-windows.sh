@@ -19,7 +19,7 @@ ROOT=/usr/x86_64-w64-mingw32/sys-root/mingw
 
 # the image ships curl-minimal: asking for curl would conflict. Fedora has no openconnect
 # for mingw, so it is built from the release tarball, like upstream's own Windows CI does
-dnf -y --allowerasing install mingw64-gcc mingw64-binutils mingw64-gnutls mingw64-libxml2 \
+dnf -y install --allowerasing mingw64-gcc mingw64-binutils mingw64-gnutls mingw64-libxml2 \
   mingw64-zlib mingw64-pkg-config make gzip unzip tar findutils
 mkdir -p "$OUT/openconnect" "$OUT/LICENSES"
 OUT=$(cd "$OUT" && pwd)
