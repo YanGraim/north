@@ -73,7 +73,11 @@ if has openvpn; then
 # openvpn (no LZO/LZ4/pkcs11: the helper's whitelist doesn't allow compression anyway)
 rm -rf openvpn-$OVPN && tar xzf openvpn.tar.gz && cd openvpn-$OVPN
 OVPN_EXTRA=""
-[ "$(uname -s)" = Linux ] && OVPN_EXTRA="--disable-dco"
+if [ "$(uname -s)" = Linux ]; then
+  OVPN_EXTRA="--disable-dco"
+  # libcap-ng is the system's (pkg-config only sees our prefix, to keep OpenSSL ours)
+  export LIBCAPNG_CFLAGS="" LIBCAPNG_LIBS="-lcap-ng"
+fi
 # shellcheck disable=SC2086
 ./configure --disable-lzo --disable-lz4 --disable-plugins --disable-plugin-auth-pam \
   --disable-plugin-down-root --disable-pkcs11 --disable-unit-tests $OVPN_EXTRA >/dev/null
