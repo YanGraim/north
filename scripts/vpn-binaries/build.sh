@@ -55,9 +55,6 @@ export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"
 export PKG_CONFIG_PATH=
 export CPPFLAGS="-I$PREFIX/include"
 export LDFLAGS="-L$PREFIX/lib"
-# static OpenSSL needs libdl/libpthread, separate libraries before glibc 2.34 (CI builds the
-# Linux engines on glibc 2.31 so they run on older distros)
-[ "$(uname -s)" = Linux ] && export LIBS="-ldl -pthread"
 
 ENGINES=${VPN_ENGINES:-forti openvpn charon}
 has() { case " $ENGINES " in *" $1 "*) return 0 ;; esac; return 1; }
@@ -81,6 +78,8 @@ if [ "$(uname -s)" = Linux ]; then
   OVPN_EXTRA="--disable-dco"
   # libcap-ng is the system's (pkg-config only sees our prefix, to keep OpenSSL ours)
   export LIBCAPNG_CFLAGS="-I/usr/include" LIBCAPNG_LIBS="-lcap-ng" # pkg.m4 ignores empty ones
+  # openvpn puts LIBS before OpenSSL; a static libcrypto needs -ldl/-pthread after it
+  export OPENSSL_CFLAGS="-I$PREFIX/include" OPENSSL_LIBS="-L$PREFIX/lib -lssl -lcrypto -ldl -pthread"
 fi
 # shellcheck disable=SC2086
 ./configure --disable-lzo --disable-lz4 --disable-plugins --disable-plugin-auth-pam \
