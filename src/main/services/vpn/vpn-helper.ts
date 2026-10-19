@@ -182,7 +182,7 @@ export type VpnHelperDeps = HelperPlatform & {
   openvpnBinary?: () => string | null
   spawn?: HelperSpawn
   /**
-   * Copies the bundled helper somewhere root can read (macOS privacy rules block root from
+   * Copies a bundled file (helper, engines) somewhere root can read (macOS privacy rules block root from
    * ~/Documents etc.). The installed copy is then compared to the bundled one, so a swap
    * in between only makes the install fail.
    */
@@ -223,10 +223,12 @@ export class VpnHelper {
   }
 
   async install(): Promise<void> {
-    const forti = this.deps.fortiBinary()
-    const source = this.deps.stage?.(this.deps.source) ?? this.deps.source
-    const charon = this.deps.charonBinary?.() ?? null
-    const openvpn = this.deps.openvpnBinary?.() ?? null
+    const stage = (path: string | null) => (path ? (this.deps.stage?.(path) ?? path) : null)
+    const source = stage(this.deps.source) ?? this.deps.source
+    // the engines too: in dev they sit in the repo, which root can't read on macOS either
+    const forti = stage(this.deps.fortiBinary())
+    const charon = stage(this.deps.charonBinary?.() ?? null)
+    const openvpn = stage(this.deps.openvpnBinary?.() ?? null)
     const { binary, args } = buildHelperInstall({ ...this.deps, source }, forti, charon, openvpn)
     const result = await this.deps.broker.launch(binary, args).exited
     if (result.error) throw result.error

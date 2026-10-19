@@ -159,6 +159,34 @@ describe('VpnHelper.ensure', () => {
     await helper.ensure({ forti: true })
     expect(launches).toHaveLength(1)
   })
+
+  it('stages the helper and the engines before root copies them (macOS blocks ~/Documents)', async () => {
+    const launches: string[][] = []
+    const broker: PrivilegeBroker = {
+      launch(_binary, args) {
+        launches.push(args)
+        return { exited: Promise.resolve({ code: 0 }) }
+      },
+      kill: async () => {}
+    }
+    const helper = new VpnHelper({
+      ...platform(memFs({ '/src/helper': { content: 'v1' } })),
+      broker,
+      fortiBinary: () => '/repo/bin/openfortivpn',
+      charonBinary: () => '/repo/bin/charon-cmd',
+      openvpnBinary: () => null,
+      stage: (path) => `/stage/${path.split('/').pop()}`
+    })
+    await helper.install()
+    expect(launches[0].slice(3)).toEqual([
+      '/stage/helper',
+      DIR,
+      'yan',
+      '/stage/openfortivpn',
+      '/stage/charon-cmd',
+      ''
+    ])
+  })
 })
 
 /** Runs the real helper script (without sudo) next to a fake openfortivpn. */

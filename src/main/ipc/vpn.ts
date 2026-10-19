@@ -1,8 +1,16 @@
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { userInfo } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { IpcChannels } from '@shared/ipc'
 import * as sudo from '@vscode/sudo-prompt'
 import { app, BrowserWindow, dialog, ipcMain, powerMonitor } from 'electron'
@@ -100,8 +108,9 @@ export function registerVpnHandlers(
             // own dir: the boot-time tmp cleanup must not wipe it mid-install
             const stageDir = join(vpnDir, 'helper-stage')
             mkdirSync(stageDir, { recursive: true, mode: 0o700 })
-            const staged = join(stageDir, 'north-vpn-helper')
+            const staged = join(stageDir, basename(source))
             copyFileSync(source, staged)
+            chmodSync(staged, 0o755)
             return staged
           }
         })
