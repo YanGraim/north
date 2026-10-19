@@ -90,12 +90,25 @@ type SudoExec = (
   callback: (error?: Error, stdout?: string | Buffer, stderr?: string | Buffer) => void
 ) => void
 
+/**
+ * On Linux sudo-prompt runs `pkexec … /bin/bash -c "<command>"`, escaping only `"`: the outer
+ * bash would expand `$x`, `$(…)` and backticks in our command (as the user, before root's
+ * shell sees them). Escape them so the command reaches root's shell unchanged.
+ */
+export function escapeForPkexec(command: string): string {
+  return command.replace(/[\\$`]/g, '\\$&')
+}
+
 /** mac/Linux v1: native admin prompt (osascript / pkexec) per launch. */
 export class SudoPromptBroker implements PrivilegeBroker {
-  constructor(private readonly exec: SudoExec) {}
+  constructor(
+    private readonly exec: SudoExec,
+    private readonly platform: NodeJS.Platform = process.platform
+  ) {}
 
   launch(binary: string, args: string[]): LaunchedProcess {
-    const command = buildElevatedCommand(binary, args)
+    const elevated = buildElevatedCommand(binary, args)
+    const command = this.platform === 'linux' ? escapeForPkexec(elevated) : elevated
     const exited = new Promise<LaunchResult>((resolve) => {
       this.exec(command, { name: 'North' }, (error) => {
         if (!error) return resolve({ code: 0 })

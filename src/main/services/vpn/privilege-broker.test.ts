@@ -1,6 +1,8 @@
+import { execSync } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
 import {
   buildElevatedCommand,
+  escapeForPkexec,
   findOpenfortivpnBinary,
   findOpenvpnBinary,
   SudoPromptBroker
@@ -58,7 +60,7 @@ describe('SudoPromptBroker', () => {
     const exec = vi.fn((_cmd: string, _opts: unknown, cb: (e?: Error) => void) =>
       cb(new Error('User did not grant permission.'))
     )
-    const broker = new SudoPromptBroker(exec)
+    const broker = new SudoPromptBroker(exec, 'darwin')
     const proc = broker.launch('/usr/sbin/openvpn', ['--version'])
     const result = await proc.exited
     expect(result.error).toBeInstanceOf(VpnError)
@@ -76,5 +78,31 @@ describe('SudoPromptBroker', () => {
     const broker = new SudoPromptBroker((_c, _o, cb) => cb(new Error('Command failed: exit 1')))
     const result = await broker.launch('/usr/sbin/openvpn', []).exited
     expect(result.error?.code).toBe('DRIVER_CRASHED')
+  })
+})
+
+describe('SudoPromptBroker on Linux (pkexec wraps the command in bash -c "…")', () => {
+  // what @vscode/sudo-prompt runs on Linux, minus pkexec: only `"` gets escaped
+  // what @vscode/sudo-prompt runs on Linux, minus pkexec: one shell line, only `"` escaped
+  const asSudoPrompt = (command: string) =>
+    execSync(`/bin/bash -c "echo SUDOPROMPT; ${command.replace(/"/g, '\\"')}"`, {
+      encoding: 'utf8',
+      shell: '/bin/sh'
+    })
+
+  it('positional args, $(…) and quotes reach the elevated shell unexpanded', async () => {
+    let sent = ''
+    const broker = new SudoPromptBroker((cmd, _o, cb) => {
+      sent = cmd
+      cb(undefined)
+    }, 'linux')
+    const script = 'd="$2"; t=$(printf x); printf \'%s|%s|%s\\n\' "$1" "$d" "$t"; echo `printf y`'
+    await broker.launch('/bin/sh', ['-c', script, 'north-vpn', 'a b', "/usr/local/it's"]).exited
+    expect(asSudoPrompt(sent)).toBe("SUDOPROMPT\na b|/usr/local/it's|x\ny\n")
+  })
+
+  it('mac (osascript) gets the command as is', () => {
+    expect(escapeForPkexec('a')).toBe('a')
+    expect(escapeForPkexec('"$1" `x` \\')).toBe('"\\$1" \\`x\\` \\\\')
   })
 })
