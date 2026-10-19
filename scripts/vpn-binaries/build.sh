@@ -55,6 +55,9 @@ export PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig"
 export PKG_CONFIG_PATH=
 export CPPFLAGS="-I$PREFIX/include"
 export LDFLAGS="-L$PREFIX/lib"
+# static OpenSSL needs libdl/libpthread, separate libraries before glibc 2.34 (CI builds the
+# Linux engines on glibc 2.31 so they run on older distros)
+[ "$(uname -s)" = Linux ] && export LIBS="-ldl -pthread"
 
 ENGINES=${VPN_ENGINES:-forti openvpn charon}
 has() { case " $ENGINES " in *" $1 "*) return 0 ;; esac; return 1; }
