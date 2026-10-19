@@ -6,5 +6,6 @@
 - **Sem senha a cada conexão:** instale o componente de VPN uma vez (o North oferece na primeira abertura) e SSL-VPN, IPsec e OpenVPN deixam de pedir a senha de administrador
 - **FortiGate/IPsec:** cadastre com os mesmos campos do FortiClient e conecte pelo strongSwan com as mesmas propostas dele, sem o FortiClient e sem aprovar perfil em Ajustes (macOS e Linux)
 - **VPN que liga sozinha:** vincule uma VPN ao ambiente ou cliente e o North a liga ao abrir uma sessão dele, e desliga quando ninguém mais usa
+- **Nada para instalar:** o North já traz o openfortivpn, o strongSwan e o OpenVPN (macOS e Linux), sem precisar do Homebrew
 
 Veja o capítulo [VPNs](vpns) no manual.

@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import { isAbsolute } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { shellQuote } from '@shared/lib/shell-quote'
 import { VpnError } from './vpn-error'
 
@@ -35,28 +35,45 @@ const CHARON_CMD_CANDIDATES: Partial<Record<NodeJS.Platform, string[]>> = {
   linux: ['/usr/sbin/charon-cmd', '/usr/bin/charon-cmd', '/usr/local/sbin/charon-cmd']
 }
 
+/**
+ * The engine North ships (resources/vpn/bin, built by scripts/vpn-binaries/build.sh)
+ * comes first; a system install (Homebrew, distro package) is the fallback.
+ */
+function findBinary(
+  name: string,
+  candidates: string[] | undefined,
+  exists: (path: string) => boolean,
+  bundledDir?: string | null
+): string | null {
+  const bundled = bundledDir ? join(bundledDir, name) : null
+  return [...(bundled ? [bundled] : []), ...(candidates ?? [])].find((p) => exists(p)) ?? null
+}
+
 /** strongSwan's one-shot IKE client (IPsec IKEv1 on macOS/Linux). */
 export function findCharonCmdBinary(
   platform: NodeJS.Platform,
-  exists: (path: string) => boolean
+  exists: (path: string) => boolean,
+  bundledDir?: string | null
 ): string | null {
-  return (CHARON_CMD_CANDIDATES[platform] ?? []).find((p) => exists(p)) ?? null
+  return findBinary('charon-cmd', CHARON_CMD_CANDIDATES[platform], exists, bundledDir)
 }
 
 /** openfortivpn has no Windows build — Windows SSL-VPN needs another engine. */
 export function findOpenfortivpnBinary(
   platform: NodeJS.Platform,
-  exists: (path: string) => boolean
+  exists: (path: string) => boolean,
+  bundledDir?: string | null
 ): string | null {
-  return (OPENFORTIVPN_CANDIDATES[platform] ?? []).find((p) => exists(p)) ?? null
+  return findBinary('openfortivpn', OPENFORTIVPN_CANDIDATES[platform], exists, bundledDir)
 }
 
-/** v1 uses the system openvpn (Homebrew on mac); bundling arrives in phase 6. */
+/** Windows still uses the OpenVPN installer's openvpn.exe (no bundled build there yet). */
 export function findOpenvpnBinary(
   platform: NodeJS.Platform,
-  exists: (path: string) => boolean
+  exists: (path: string) => boolean,
+  bundledDir?: string | null
 ): string | null {
-  return (OPENVPN_CANDIDATES[platform] ?? []).find((p) => exists(p)) ?? null
+  return findBinary('openvpn', OPENVPN_CANDIDATES[platform], exists, bundledDir)
 }
 
 export function buildElevatedCommand(binary: string, args: string[]): string {

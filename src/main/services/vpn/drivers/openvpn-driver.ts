@@ -88,7 +88,7 @@ export class OpenVpnDriver implements VpnDriver {
     if (!binary) {
       throw new VpnError(
         'BINARY_MISSING',
-        'OpenVPN não encontrado. Instale com "brew install openvpn" (macOS) ou o pacote openvpn (Linux).'
+        'OpenVPN não veio nesta instalação do North. Reinstale o North (em desenvolvimento: scripts/vpn-binaries/build.sh resources/vpn/bin).'
       )
     }
 

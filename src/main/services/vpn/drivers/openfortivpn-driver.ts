@@ -74,7 +74,7 @@ export class OpenfortivpnDriver implements VpnDriver {
     if (!binary) {
       throw new VpnError(
         'BINARY_MISSING',
-        'openfortivpn não encontrado. Instale com "brew install openfortivpn" (macOS) ou o pacote openfortivpn (Linux).'
+        'openfortivpn não veio nesta instalação do North. Reinstale o North (em desenvolvimento: scripts/vpn-binaries/build.sh resources/vpn/bin).'
       )
     }
     const password = secrets.get('password')

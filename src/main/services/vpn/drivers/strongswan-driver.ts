@@ -54,7 +54,7 @@ export class StrongswanDriver implements VpnDriver {
     if (!this.deps.binary()) {
       throw new VpnError(
         'BINARY_MISSING',
-        'strongSwan não encontrado. Instale com "brew install strongswan" (macOS) ou o pacote strongswan / charon-cmd (Linux).'
+        'strongSwan não veio nesta instalação do North. Reinstale o North (em desenvolvimento: scripts/vpn-binaries/build.sh resources/vpn/bin).'
       )
     }
     const psk = secrets.get('psk')

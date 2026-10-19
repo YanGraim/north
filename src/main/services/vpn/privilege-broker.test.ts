@@ -28,6 +28,16 @@ describe('findOpenfortivpnBinary', () => {
     )
     expect(findOpenfortivpnBinary('win32', () => true)).toBeNull()
   })
+  it('prefers the engine bundled with North over a system install', () => {
+    const exists = (p: string) =>
+      p === '/app/vpn-bin/openfortivpn' || p === '/opt/homebrew/bin/openfortivpn'
+    expect(findOpenfortivpnBinary('darwin', exists, '/app/vpn-bin')).toBe(
+      '/app/vpn-bin/openfortivpn'
+    )
+    expect(findOpenfortivpnBinary('darwin', exists, '/missing')).toBe(
+      '/opt/homebrew/bin/openfortivpn'
+    )
+  })
 })
 
 describe('buildElevatedCommand', () => {

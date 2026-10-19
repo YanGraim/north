@@ -89,6 +89,23 @@ describe('helperStatus', () => {
       })
     ).toBe('outdated')
   })
+  it('outdated when North ships a different engine than the root copy (app update)', () => {
+    const fs = (bundled: string): HelperFs => ({
+      ...installedFs({
+        [`${DIR}/openfortivpn`]: { content: 'forti-1.23' },
+        '/app/vpn-bin/openfortivpn': { content: bundled }
+      }),
+      digest: (p) =>
+        p === `${DIR}/openfortivpn`
+          ? 'forti-1.23'
+          : p === '/app/vpn-bin/openfortivpn'
+            ? bundled
+            : null
+    })
+    const sources = { forti: '/app/vpn-bin/openfortivpn' }
+    expect(helperStatus(platform(fs('forti-1.23')), { forti: true }, sources)).toBe('installed')
+    expect(helperStatus(platform(fs('forti-1.24')), { forti: true }, sources)).toBe('outdated')
+  })
   it('unsupported on Windows', () => {
     expect(helperStatus({ ...platform(installedFs()), platform: 'win32' })).toBe('unsupported')
   })

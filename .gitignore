@@ -40,3 +40,6 @@ CLAUDE.md
 
 # Agent workspace worktrees (Agentes feature) — never committed to the main repo
 .north/
+
+# VPN engines built by scripts/vpn-binaries/build.sh — never committed
+resources/vpn/bin/

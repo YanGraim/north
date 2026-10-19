@@ -1,0 +1,21 @@
+VPN engines bundled with North
+==============================
+
+North ships unmodified builds of the programs below, compiled by
+scripts/vpn-binaries/build.sh in the North repository. Each keeps its own
+license (files next to this one). The exact source code used is available at:
+
+openfortivpn @FORTI@  GPL-3.0 (with OpenSSL exception)
+  https://github.com/adrienverge/openfortivpn/archive/refs/tags/v@FORTI@.tar.gz
+
+strongSwan @SWAN@ (charon-cmd)  GPL-2.0-or-later
+  https://download.strongswan.org/strongswan-@SWAN@.tar.bz2
+
+OpenVPN @OVPN@  GPL-2.0 (with OpenSSL exception)
+  https://swupdate.openvpn.org/community/releases/openvpn-@OVPN@.tar.gz
+
+OpenSSL @OPENSSL@  Apache-2.0 (statically linked into the three above)
+  https://github.com/openssl/openssl/releases/download/openssl-@OPENSSL@/openssl-@OPENSSL@.tar.gz
+
+The build script and its configure flags are part of the North source code:
+  https://github.com/YanGraim/north/tree/main/scripts/vpn-binaries

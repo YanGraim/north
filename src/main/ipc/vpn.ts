@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { userInfo } from 'node:os'
 import { join } from 'node:path'
@@ -45,8 +46,28 @@ export function registerVpnHandlers(
   const broker: PrivilegeBroker =
     process.platform === 'win32' ? new DirectBroker() : new SudoPromptBroker(sudo.exec)
 
-  const findForti = () => findOpenfortivpnBinary(process.platform, existsSync)
-  const findCharon = () => findCharonCmdBinary(process.platform, existsSync)
+  // engines built by scripts/vpn-binaries/build.sh (extraResources "vpn-bin" when packaged)
+  const bundledDir = app.isPackaged
+    ? join(process.resourcesPath, 'vpn-bin')
+    : join(app.getAppPath(), 'resources/vpn/bin')
+  const findForti = () => findOpenfortivpnBinary(process.platform, existsSync, bundledDir)
+  const findCharon = () => findCharonCmdBinary(process.platform, existsSync, bundledDir)
+  const findOpenvpn = () => findOpenvpnBinary(process.platform, existsSync, bundledDir)
+  // status runs often; hash a binary again only when it changed on disk
+  const digests = new Map<string, { key: string; hash: string }>()
+  const digest = (path: string): string | null => {
+    try {
+      const s = statSync(path)
+      const key = `${s.size}:${s.mtimeMs}`
+      const cached = digests.get(path)
+      if (cached?.key === key) return cached.hash
+      const hash = createHash('sha256').update(readFileSync(path)).digest('hex')
+      digests.set(path, { key, hash })
+      return hash
+    } catch {
+      return null
+    }
+  }
   const helper =
     process.platform === 'darwin' || process.platform === 'linux'
       ? new VpnHelper({
@@ -68,12 +89,13 @@ export function registerVpnHandlers(
               } catch {
                 return null
               }
-            }
+            },
+            digest
           },
           broker,
           fortiBinary: findForti,
           charonBinary: findCharon,
-          openvpnBinary: () => findOpenvpnBinary(process.platform, existsSync),
+          openvpnBinary: findOpenvpn,
           stage: (source) => {
             // own dir: the boot-time tmp cleanup must not wipe it mid-install
             const stageDir = join(vpnDir, 'helper-stage')
@@ -92,7 +114,7 @@ export function registerVpnHandlers(
     emit: (state) => broadcast(IpcChannels.VPN_STATE_CHANGED, state),
     fake: process.env.NORTH_VPN_FAKE === '1',
     openvpn: {
-      binary: () => findOpenvpnBinary(process.platform, existsSync),
+      binary: findOpenvpn,
       broker,
       tmpDir,
       tunnels,

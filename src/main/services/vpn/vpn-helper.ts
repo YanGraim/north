@@ -24,6 +24,15 @@ export type HelperFs = {
   read: (path: string) => string | null
   /** uid and mode, or null when missing */
   stat: (path: string) => { uid: number; mode: number } | null
+  /** content hash (sha256), or null when missing; omitted = binaries aren't compared */
+  digest?: (path: string) => string | null
+}
+
+/** where each tunnel binary is copied from, to spot a root copy older than the bundled one */
+export type HelperSources = {
+  forti?: string | null
+  charon?: string | null
+  openvpn?: string | null
 }
 
 export type HelperPlatform = {
@@ -75,7 +84,11 @@ export function helperPaths(platform: NodeJS.Platform) {
 const rootOwned = (s: { uid: number; mode: number } | null) =>
   s !== null && s.uid === 0 && (s.mode & 0o022) === 0
 
-export function helperStatus(p: HelperPlatform, needs: HelperNeeds = {}): HelperStatus {
+export function helperStatus(
+  p: HelperPlatform,
+  needs: HelperNeeds = {},
+  sources: HelperSources = {}
+): HelperStatus {
   const paths = helperPaths(p.platform)
   if (!paths) return 'unsupported'
   const installed = p.fs.read(paths.helper)
@@ -85,6 +98,12 @@ export function helperStatus(p: HelperPlatform, needs: HelperNeeds = {}): Helper
   if (needs.forti && !rootOwned(p.fs.stat(paths.forti))) return 'outdated'
   if (needs.ipsec && !rootOwned(p.fs.stat(paths.charon))) return 'outdated'
   if (needs.openvpn && !rootOwned(p.fs.stat(paths.openvpn))) return 'outdated'
+  // a North update ships new engines: the root copies must follow
+  const stale = (installedPath: string, source?: string | null) =>
+    !!p.fs.digest && !!source && p.fs.digest(installedPath) !== p.fs.digest(source)
+  if (needs.forti && stale(paths.forti, sources.forti)) return 'outdated'
+  if (needs.ipsec && stale(paths.charon, sources.charon)) return 'outdated'
+  if (needs.openvpn && stale(paths.openvpn, sources.openvpn)) return 'outdated'
   return 'installed'
 }
 
@@ -175,7 +194,11 @@ export class VpnHelper {
 
   /** Default: every tunnel binary found on this machine must have its root copy. */
   status(needs: HelperNeeds = this.available()): HelperStatus {
-    return helperStatus(this.deps, needs)
+    return helperStatus(this.deps, needs, {
+      forti: this.deps.fortiBinary(),
+      charon: this.deps.charonBinary?.() ?? null,
+      openvpn: this.deps.openvpnBinary?.() ?? null
+    })
   }
 
   private available(): HelperNeeds {
