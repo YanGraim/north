@@ -60,23 +60,42 @@ export class WindowsVpnComponent {
     }
   }
 
-  async install(): Promise<void> {
+  installCommand(): string {
     const msi = this.deps.msi()
-    if (!msi)
+    if (!msi) {
       throw new VpnError(
         'BINARY_MISSING',
         'O instalador do OpenVPN não veio nesta instalação do North'
       )
-    const wasInstalled = this.status() === 'installed'
-    await this.deps.elevate(buildWindowsInstall(msi, this.deps.user))
+    }
+    return buildWindowsInstall(msi, this.deps.user)
+  }
+
+  /** after installCommand ran: remember North put OpenVPN there (if it wasn't before) */
+  installed(wasInstalled: boolean): void {
     if (!wasInstalled) this.deps.marker.set()
   }
 
-  /** Only removes an OpenVPN that North itself installed. */
-  async uninstall(): Promise<void> {
+  async install(): Promise<void> {
+    const wasInstalled = this.status() === 'installed'
+    await this.deps.elevate(this.installCommand())
+    this.installed(wasInstalled)
+  }
+
+  /** Only removes an OpenVPN that North itself installed (null: nothing to remove). */
+  uninstallCommand(): string | null {
     const msi = this.deps.msi()
-    if (!msi || !this.deps.marker.has()) return
-    await this.deps.elevate(buildWindowsUninstall(msi))
+    return msi && this.deps.marker.has() ? buildWindowsUninstall(msi) : null
+  }
+
+  uninstalled(): void {
     this.deps.marker.clear()
+  }
+
+  async uninstall(): Promise<void> {
+    const command = this.uninstallCommand()
+    if (!command) return
+    await this.deps.elevate(command)
+    this.uninstalled()
   }
 }

@@ -51,6 +51,30 @@ export function interfaceForIp(ip: string): string | null {
   return null
 }
 
+/** Netmask "255.255.240.0" → 20, or null when it isn't contiguous. */
+export function maskToPrefix(mask: string): number | null {
+  const octets = mask.split('.').map(Number)
+  if (octets.length !== 4 || octets.some((o) => !Number.isInteger(o) || o < 0 || o > 255))
+    return null
+  const bits = octets.map((o) => o.toString(2).padStart(8, '0')).join('')
+  return /^1*0*$/.test(bits) ? (bits.indexOf('0') === -1 ? 32 : bits.indexOf('0')) : null
+}
+
+/** `route print -4` (Windows) "Active Routes": Destination Netmask Gateway Interface Metric. */
+export function parseWindowsRoutes(output: string, localIp: string): string[] {
+  const routes: string[] = []
+  for (const line of output.split('\n')) {
+    const cols = line.trim().split(/\s+/)
+    if (cols.length !== 5 || cols[3] !== localIp || !/^\d+$/.test(cols[4])) continue
+    const prefix = maskToPrefix(cols[1])
+    if (prefix === null) continue
+    const cidr = normalizeCidr(`${cols[0]}/${prefix}`)
+    // the tunnel's own address and its subnet broadcast aren't networks it routes
+    if (cidr && !IGNORED(cidr) && cidr !== `${localIp}/32`) routes.push(cidr)
+  }
+  return [...new Set(routes)]
+}
+
 const run = (cmd: string, args: string[]) =>
   new Promise<string>((resolve) => {
     execFile(cmd, args, { timeout: 5000 }, (_error, stdout) => resolve(String(stdout ?? '')))
@@ -61,6 +85,12 @@ export async function listTunnelRoutes(
   localIp: string,
   platform: NodeJS.Platform = process.platform
 ): Promise<string[]> {
+  if (platform === 'win32') {
+    return parseWindowsRoutes(
+      await run('C:\\Windows\\System32\\route.exe', ['print', '-4']),
+      localIp
+    )
+  }
   const iface = interfaceForIp(localIp)
   if (!iface) return []
   if (platform === 'darwin')

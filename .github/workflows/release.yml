@@ -30,10 +30,35 @@ jobs:
       - name: Run tests
         run: npm run test
 
+  vpn-windows:
+    name: Windows VPN engines
+    runs-on: ubuntu-latest
+    needs: verify
+    timeout-minutes: 30
+    container: fedora:42
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test north-vpn-service
+        run: |
+          dnf -y -q install golang
+          cd resources/vpn/windows-service && go test ./... && GOOS=windows go vet ./...
+
+      - name: Build openconnect bundle, north-vpn-service and fetch OpenVPN
+        run: scripts/vpn-binaries/build-windows.sh resources/vpn/bin
+
+      - name: Upload Windows VPN engines
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpn-windows
+          if-no-files-found: error
+          path: resources/vpn/bin
+
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-    needs: verify
+    needs: [verify, vpn-windows]
     timeout-minutes: 40
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -106,10 +131,12 @@ jobs:
           fi
           scripts/vpn-binaries/build.sh resources/vpn/bin
 
-      - name: Fetch OpenVPN for Windows
+      - name: Windows VPN engines (built on Linux)
         if: matrix.target == 'win'
-        shell: bash
-        run: scripts/vpn-binaries/fetch-windows.sh resources/vpn/bin
+        uses: actions/download-artifact@v4
+        with:
+          name: vpn-windows
+          path: resources/vpn/bin
 
       - name: Check VPN engines
         if: matrix.target != 'win'
@@ -194,6 +221,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
+          # only the installers, not the vpn-windows engines artifact
+          pattern: north-*
 
       - name: Create draft release
         uses: softprops/action-gh-release@v2

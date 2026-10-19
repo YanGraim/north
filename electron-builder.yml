@@ -26,6 +26,7 @@ files:
   - '!**/migrations.test.ts'
   - '!**/repositories.test.ts'
   - '!resources/vpn/bin/**'
+  - '!resources/vpn/windows-service/**'
   - '!scripts/**'
 extraResources:
   # VPN engines from scripts/vpn-binaries/build.sh (CI builds them before dist)

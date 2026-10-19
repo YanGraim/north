@@ -7,6 +7,6 @@
 - **FortiGate/IPsec:** cadastre com os mesmos campos do FortiClient e conecte pelo strongSwan com as mesmas propostas dele, sem o FortiClient e sem aprovar perfil em Ajustes (macOS e Linux)
 - **VPN que liga sozinha:** vincule uma VPN ao ambiente ou cliente e o North a liga ao abrir uma sessão dele, e desliga quando ninguém mais usa
 - **Nada para instalar:** o North já traz o openfortivpn, o strongSwan e o OpenVPN (macOS e Linux), sem precisar do Homebrew
-- **OpenVPN no Windows:** conecta pelo pacote oficial do OpenVPN, instalado pelo North na primeira conexão
+- **OpenVPN e FortiGate SSL-VPN no Windows:** o North instala o que precisa na primeira conexão, com uma única permissão do Windows
 
 Veja o capítulo [VPNs](vpns) no manual.

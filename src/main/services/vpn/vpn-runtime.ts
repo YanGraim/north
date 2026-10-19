@@ -18,6 +18,7 @@ import type { Repositories } from '../../repositories'
 import type { CredentialVault } from '../../vault'
 import { createFakeVpnDriverFactory } from './drivers/fake-vpn-driver'
 import { MacosIpsecDriver, type MacosIpsecDriverDeps } from './drivers/macos-ipsec-driver'
+import { OpenconnectDriver, type OpenconnectDriverDeps } from './drivers/openconnect-driver'
 import { OpenfortivpnDriver, type OpenfortivpnDriverDeps } from './drivers/openfortivpn-driver'
 import { OpenVpnDriver, type OpenVpnDriverDeps } from './drivers/openvpn-driver'
 import { StrongswanDriver, type StrongswanDriverDeps } from './drivers/strongswan-driver'
@@ -49,6 +50,8 @@ export type VpnRuntimeDeps = {
   macosIpsec?: MacosIpsecDriverDeps
   /** IKEv1 via strongSwan + root helper (macOS/Linux); wins over macosIpsec when given. */
   strongswan?: StrongswanDriverDeps
+  /** Windows FortiGate SSL-VPN: openconnect via north-vpn-service */
+  openconnect?: OpenconnectDriverDeps
   openfortivpn?: OpenfortivpnDriverDeps
 }
 
@@ -93,7 +96,14 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
       create: () => new MacosIpsecDriver(ipsec)
     })
   }
-  if (!deps.fake && deps.openfortivpn) {
+  if (!deps.fake && deps.platform === 'win32' && deps.openconnect) {
+    const openconnect = deps.openconnect
+    drivers.register({
+      kind: 'fortinet-sslvpn',
+      isSupported: () => ({ ok: true }),
+      create: () => new OpenconnectDriver(openconnect)
+    })
+  } else if (!deps.fake && deps.openfortivpn) {
     const forti = deps.openfortivpn
     drivers.register({
       kind: 'fortinet-sslvpn',

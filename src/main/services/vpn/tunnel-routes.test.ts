@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeCidr, parseIpRoutes, parseNetstatRoutes } from './tunnel-routes'
+import {
+  maskToPrefix,
+  normalizeCidr,
+  parseIpRoutes,
+  parseNetstatRoutes,
+  parseWindowsRoutes
+} from './tunnel-routes'
 
 // trimmed from the real PAC SSL-VPN (openfortivpn on macOS)
 const NETSTAT = `Routing tables
@@ -40,5 +46,28 @@ describe('tunnel routes', () => {
         'default scope link\n10.10.100.0/24 proto kernel scope link src 10.10.100.50\n172.16.40.0/24 scope link\n'
       )
     ).toEqual(['10.10.100.0/24', '172.16.40.0/24'])
+  })
+
+  it('Windows: route print -4, only routes through the tunnel address', () => {
+    const out = `IPv4 Route Table
+===========================================================================
+Active Routes:
+Network Destination        Netmask          Gateway       Interface  Metric
+          0.0.0.0          0.0.0.0      192.168.1.1    192.168.1.20     25
+      10.10.100.0    255.255.255.0         On-link     10.10.100.50    257
+     10.10.100.50  255.255.255.255         On-link     10.10.100.50    257
+      172.16.40.0    255.255.255.0         On-link     10.10.100.50      1
+     172.16.136.0    255.255.248.0         On-link     10.10.100.50      1
+        224.0.0.0        240.0.0.0         On-link     10.10.100.50    257
+===========================================================================
+Persistent Routes:
+  None`
+    expect(parseWindowsRoutes(out, '10.10.100.50')).toEqual([
+      '10.10.100.0/24',
+      '172.16.40.0/24',
+      '172.16.136.0/21'
+    ])
+    expect(maskToPrefix('255.255.240.0')).toBe(20)
+    expect(maskToPrefix('255.0.255.0')).toBeNull()
   })
 })

@@ -7,6 +7,6 @@
 - **FortiGate/IPsec:** add it with the same fields as FortiClient and connect through strongSwan with the same proposals, without FortiClient and without approving a profile in System Settings (macOS and Linux)
 - **VPN that turns on by itself:** link a VPN to an environment or client and North turns it on when you open one of its sessions, and off when nobody uses it
 - **Nothing to install:** North ships openfortivpn, strongSwan and OpenVPN (macOS and Linux), no Homebrew needed
-- **OpenVPN on Windows:** connects through the official OpenVPN package, installed by North on the first connection
+- **OpenVPN and FortiGate SSL-VPN on Windows:** North installs what it needs on the first connection, with a single Windows permission prompt
 
 See the [VPNs](vpns) chapter in the manual.

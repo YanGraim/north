@@ -35,6 +35,8 @@ import { VpnHelper } from '../services/vpn/vpn-helper'
 import { createVpnHandlers, createVpnRuntime, type VpnRuntime } from '../services/vpn/vpn-runtime'
 import { OpenvpnServiceBroker } from '../services/vpn/windows-openvpn-service'
 import { WindowsVpnComponent } from '../services/vpn/windows-vpn-component'
+import { WindowsVpnService } from '../services/vpn/windows-vpn-service'
+import { WindowsVpnSetup } from '../services/vpn/windows-vpn-setup'
 import type { CredentialVault } from '../vault'
 import { getProtocolManager } from './sessions'
 
@@ -122,8 +124,26 @@ export function registerVpnHandlers(
         })
       : undefined
 
-  // Windows: the official OpenVPN package (bundled MSI, one UAC prompt) plays the helper's role
-  const windows =
+  // Windows: the official OpenVPN package + north-vpn-service play the helper's role,
+  // installed together with one UAC prompt
+  const elevate = (command: string) =>
+    new Promise<void>((resolve, reject) => {
+      sudo.exec(command, { name: 'North' }, (error) => (error ? reject(error) : resolve()))
+    })
+  const windowsService =
+    process.platform === 'win32'
+      ? new WindowsVpnService({
+          bundled: () => {
+            const exe = join(bundledDir, 'north-vpn-service.exe')
+            return existsSync(exe) ? exe : null
+          },
+          programFiles: process.env.ProgramFiles ?? 'C:\\Program Files',
+          userSid: currentUserSid,
+          digest,
+          elevate
+        })
+      : undefined
+  const windowsOpenvpn =
     process.platform === 'win32'
       ? new WindowsVpnComponent({
           msi: () => {
@@ -132,16 +152,17 @@ export function registerVpnHandlers(
           },
           user: userInfo().username,
           exists: existsSync,
-          elevate: (command) =>
-            new Promise((resolve, reject) => {
-              sudo.exec(command, { name: 'North' }, (error) => (error ? reject(error) : resolve()))
-            }),
+          elevate,
           marker: {
             has: () => existsSync(join(vpnDir, 'openvpn-installed-by-north')),
             set: () => writeFileSync(join(vpnDir, 'openvpn-installed-by-north'), ''),
             clear: () => rmSync(join(vpnDir, 'openvpn-installed-by-north'), { force: true })
           }
         })
+      : undefined
+  const windows =
+    windowsOpenvpn && windowsService
+      ? new WindowsVpnSetup(windowsOpenvpn, windowsService, elevate)
       : undefined
   const component = helper ?? windows
 
@@ -173,6 +194,19 @@ export function registerVpnHandlers(
       installedFile: join(vpnDir, 'ipsec-installed.json')
     },
     strongswan: helper ? { binary: findCharon, helper } : undefined,
+    openconnect:
+      windows && windowsService
+        ? {
+            service: {
+              ensure: () => windows.ensure(),
+              startForti: (r, o) => windowsService.startForti(r, o)
+            },
+            routes: async (localIp) => {
+              await new Promise((r) => setTimeout(r, 1000))
+              return listTunnelRoutes(localIp)
+            }
+          }
+        : undefined,
     openfortivpn: {
       binary: findForti,
       broker,
@@ -213,6 +247,17 @@ export function registerVpnHandlers(
   })
   powerMonitor.on('suspend', () => manager.suspend())
   powerMonitor.on('resume', () => void manager.resume())
+}
+
+/** "S-1-5-21-…" of the user running North (the north-vpn-service pipe only admits it). */
+function currentUserSid(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile('whoami', ['/user', '/fo', 'csv', '/nh'], { timeout: 10_000 }, (error, stdout) => {
+      const sid = /"(S-1-(?:5-21|12-1)(?:-\d+)+)"/.exec(String(stdout))?.[1]
+      if (error || !sid) reject(new Error('Não foi possível identificar o usuário do Windows'))
+      else resolve(sid)
+    })
+  })
 }
 
 export function hasActiveVpnTunnels(): boolean {
