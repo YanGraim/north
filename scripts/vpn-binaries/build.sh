@@ -76,7 +76,7 @@ OVPN_EXTRA=""
 if [ "$(uname -s)" = Linux ]; then
   OVPN_EXTRA="--disable-dco"
   # libcap-ng is the system's (pkg-config only sees our prefix, to keep OpenSSL ours)
-  export LIBCAPNG_CFLAGS="" LIBCAPNG_LIBS="-lcap-ng"
+  export LIBCAPNG_CFLAGS="-I/usr/include" LIBCAPNG_LIBS="-lcap-ng" # pkg.m4 ignores empty ones
 fi
 # shellcheck disable=SC2086
 ./configure --disable-lzo --disable-lz4 --disable-plugins --disable-plugin-auth-pam \
