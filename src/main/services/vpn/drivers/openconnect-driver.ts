@@ -26,7 +26,10 @@ export function parseOpenconnectLine(raw: string): OpenconnectEvent {
     return { type: 'auth-failed' }
   }
   if (
-    /Server certificate verify failed|certificate (hash|pin) (does not match|mismatch)/i.test(line)
+    // "Server certificate verify failed" alone is normal with a pin: openconnect checks the pin next
+    /fingerprint\(s\) specified via --servercert match|certificate (hash|pin) (does not match|mismatch)/i.test(
+      line
+    )
   ) {
     return { type: 'cert-rejected' }
   }
@@ -40,9 +43,50 @@ export function parseOpenconnectLine(raw: string): OpenconnectEvent {
   return { type: 'other' }
 }
 
-export type GatewayCert = { digest: string; trustedBySystem: boolean }
+/**
+ * digest: sha256 of the certificate (DER), the value the user trusts (openfortivpn's trusted-cert,
+ * same on every OS). spki: sha256 of its public key, what openconnect's --servercert sha256: pins.
+ */
+export type GatewayCert = { digest: string; spki: string; trustedBySystem: boolean }
 
-/** sha256 of the gateway's certificate (DER) — the same value openfortivpn calls trusted-cert. */
+/** One DER element at `at`: where its content starts and where the element ends. */
+function derElement(der: Buffer, at: number): { tag: number; body: number; end: number } {
+  const tag = der[at]
+  let len = der[at + 1]
+  let body = at + 2
+  if (len & 0x80) {
+    const n = len & 0x7f
+    len = 0
+    for (let i = 0; i < n; i++) len = len * 256 + der[body + i]
+    body += n
+  }
+  const end = body + len
+  if (tag === undefined || end > der.length) throw new Error('certificado DER inválido')
+  return { tag, body, end }
+}
+
+/**
+ * The certificate's SubjectPublicKeyInfo, byte for byte as the gateway sent it (re-encoding the
+ * key could change it, and openconnect hashes the original).
+ */
+function rawSpki(der: Buffer): Buffer {
+  const tbs = derElement(der, derElement(der, 0).body)
+  let at = tbs.body
+  if (derElement(der, at).tag === 0xa0) at = derElement(der, at).end // [0] version
+  // serial, signature algorithm, issuer, validity, subject, then the key
+  for (let i = 0; i < 5; i++) at = derElement(der, at).end
+  return der.subarray(at, derElement(der, at).end)
+}
+
+/** Both fingerprints of a DER certificate. */
+export function certFingerprints(raw: Buffer): { digest: string; spki: string } {
+  const spki = rawSpki(raw)
+  return {
+    digest: createHash('sha256').update(raw).digest('hex'),
+    spki: createHash('sha256').update(spki).digest('hex')
+  }
+}
+
 export function fetchGatewayCert(
   host: string,
   port: number,
@@ -65,7 +109,7 @@ export function fetchGatewayCert(
       const trustedBySystem = socket.authorized
       socket.end()
       if (!raw) return fail(`${host}:${port} não apresentou certificado`)
-      resolve({ digest: createHash('sha256').update(raw).digest('hex'), trustedBySystem })
+      resolve({ ...certFingerprints(raw), trustedBySystem })
     })
   })
 }
@@ -134,7 +178,7 @@ export class OpenconnectDriver implements VpnDriver {
         user: config.username,
         password,
         realm: config.realm,
-        cert: cert.digest
+        cert: cert.spki
       },
       (line) => {
         log(line)

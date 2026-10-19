@@ -7,9 +7,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { VpnError } from '../vpn-error'
 import type { HelperRun } from '../vpn-helper'
 import { WindowsVpnService } from '../windows-vpn-service'
-import { OpenconnectDriver, parseOpenconnectLine } from './openconnect-driver'
+import { certFingerprints, OpenconnectDriver, parseOpenconnectLine } from './openconnect-driver'
 
 const PIN = 'a'.repeat(64)
+const SPKI = 'c'.repeat(64)
 
 const profile = (trustedCert?: string) =>
   ({
@@ -61,7 +62,35 @@ function fakeService(script: string[], exitCode = 0) {
 
 const cert =
   (digest: string, trustedBySystem = false) =>
-  async () => ({ digest, trustedBySystem })
+  async () => ({ digest, spki: SPKI, trustedBySystem })
+
+// self-signed, with the EC curve written out in full: re-encoding the key would change its hash
+const CERT_PEM = `-----BEGIN CERTIFICATE-----
+MIICFjCCAb4CCQC7mMVlVHxq5zAKBggqhkjOPQQDAjAaMRgwFgYDVQQDDA92cG4u
+ZXhhbXBsZS5jb20wHhcNMjYxMDE5MTkyMzA1WhcNMzYxMDE2MTkyMzA1WjAaMRgw
+FgYDVQQDDA92cG4uZXhhbXBsZS5jb20wggFLMIIBAwYHKoZIzj0CATCB9wIBATAs
+BgcqhkjOPQEBAiEA/////wAAAAEAAAAAAAAAAAAAAAD///////////////8wWwQg
+/////wAAAAEAAAAAAAAAAAAAAAD///////////////wEIFrGNdiqOpPns+u9VXaY
+hrxlHQawzFOw9jvOPD4n0mBLAxUAxJ02CIbnBJNqZnjhE50mt4GffpAEQQRrF9Hy
+4SxCR/i85uVjpEDydwN9gS3rM6D0oTlF2JjClk/jQuL+Gn+bjufrSnwPnhYrzjNX
+azFezsu2QGg3v1H1AiEA/////wAAAAD//////////7zm+q2nF56E87nKwvxjJVEC
+AQEDQgAEl+f5fqnQW4x/fJlmladXPEolU5G8qgTeps3hswipzkam+HMgfwi1KPlk
+P9MbtyKcpVFiQka9Fjl4T6mfmBYy0TAKBggqhkjOPQQDAgNGADBDAh80mb6uE/01
+7ICGkqOiYAYvg97N0Ewco+O5YkgIReIOAiA3hgPCyeBepicWrXipVRbhWx2a4B4B
+ouhCEGkMjEU8/g==
+-----END CERTIFICATE-----`
+
+describe('certFingerprints', () => {
+  it('certificate sha256 for the user, public-key sha256 for openconnect (as openssl computes them)', () => {
+    const der = Buffer.from(CERT_PEM.replace(/-----[A-Z ]+-----|\s/g, ''), 'base64')
+    expect(certFingerprints(der)).toEqual({
+      // openssl x509 -outform der | sha256
+      digest: '86aa71c9e84fddd364d238ecf2fcf84bffb1fe0fb9f33487e0a54f30858a1928',
+      // openssl x509 -pubkey | openssl pkey -pubin -outform der | sha256
+      spki: '2f6b0948f8efa545578e02045ed30fe5d022ca70d8025e44b4a96044826ab01f'
+    })
+  })
+})
 
 describe('parseOpenconnectLine', () => {
   it('recognizes up, auth, certificate and reachability lines', () => {
@@ -75,9 +104,15 @@ describe('parseOpenconnectLine', () => {
       type: 'up'
     })
     expect(parseOpenconnectLine('Login failed.').type).toBe('auth-failed')
+    // printed before openconnect checks the pin: not a rejection by itself
     expect(parseOpenconnectLine('Server certificate verify failed: signer not found').type).toBe(
-      'cert-rejected'
+      'other'
     )
+    expect(
+      parseOpenconnectLine(
+        "None of the 1 fingerprint(s) specified via --servercert match server's certificate: pin-sha256:Tmf="
+      ).type
+    ).toBe('cert-rejected')
     expect(parseOpenconnectLine('Failed to connect to host vpn.example.com').type).toBe(
       'unreachable'
     )
@@ -107,7 +142,7 @@ describe('OpenconnectDriver (Windows SSL-VPN)', () => {
       user: 'ana',
       password: 'pw',
       realm: undefined,
-      cert: PIN
+      cert: SPKI // openconnect pins the public key, not the DER the user trusted
     })
     await driver.disconnect()
     expect(fake.stopped()).toBe(true)
