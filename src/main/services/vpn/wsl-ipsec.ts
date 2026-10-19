@@ -22,6 +22,8 @@ export type WslIpsecDeps = {
   digest: (path: string) => string | null
   /** where the distro's disk lives (userData/vpn/wsl) and the digest of what was imported */
   installDir: string
+  /** creates installDir (and its parents): wsl --import won't, and fails with PATH_NOT_FOUND */
+  mkdir: (dir: string) => void
   imported: { read: () => string | null; write: (digest: string) => void }
   /** runs wsl.exe with these args (no shell) */
   wsl: WslRun
@@ -69,6 +71,7 @@ export class WslIpsec {
     const digest = this.deps.digest(tarball)
     if (digest && this.deps.imported.read() === digest) return
     await this.deps.wsl(['--unregister', WSL_DISTRO]) // a stale copy; fine if there was none
+    this.deps.mkdir(this.deps.installDir)
     const result = await this.deps.wsl([
       '--import',
       WSL_DISTRO,

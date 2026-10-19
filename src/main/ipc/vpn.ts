@@ -179,6 +179,7 @@ export function registerVpnHandlers(
       tarball,
       digest,
       installDir: join(vpnDir, 'wsl'),
+      mkdir: (dir) => mkdirSync(dir, { recursive: true }),
       imported: {
         read: () => {
           try {

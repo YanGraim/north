@@ -6,11 +6,16 @@ import { WSL_DISTRO, WslIpsec, type WslIpsecDeps } from './wsl-ipsec'
 
 function deps(over: Partial<WslIpsecDeps> = {}) {
   const calls: string[][] = []
+  const made: string[] = []
   let imported: string | null = null
   const d: WslIpsecDeps = {
     tarball: () => 'C:\\North\\vpn-bin\\north-wsl.tar.gz',
     digest: () => 'tar-v1',
     installDir: 'C:\\Users\\ana\\AppData\\Roaming\\North\\vpn\\wsl',
+    mkdir: (dir) => {
+      made.push(dir)
+      calls.push(['mkdir', dir])
+    },
     imported: {
       read: () => imported,
       write: (v) => {
@@ -29,7 +34,7 @@ function deps(over: Partial<WslIpsecDeps> = {}) {
     hostIps: () => ['192.168.1.20'],
     ...over
   }
-  return { d, calls }
+  return { d, calls, made }
 }
 
 describe('WslIpsec', () => {
@@ -38,6 +43,10 @@ describe('WslIpsec', () => {
     const wsl = new WslIpsec(d)
     await wsl.ensure()
     await wsl.ensure()
+    // the disk's folder exists before wsl --import (which fails with PATH_NOT_FOUND otherwise)
+    const mkdirAt = calls.findIndex((c) => c[0] === 'mkdir')
+    expect(mkdirAt).toBeGreaterThan(-1)
+    expect(mkdirAt).toBeLessThan(calls.findIndex((c) => c[0] === '--import'))
     const imports = calls.filter((c) => c[0] === '--import')
     expect(imports).toEqual([
       [
