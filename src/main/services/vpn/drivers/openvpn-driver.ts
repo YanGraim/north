@@ -27,6 +27,8 @@ export type OpenVpnDriverDeps = {
   disconnectTimeoutMs?: number
   /** Root helper: no admin prompt per connection, for configs inside its whitelist. */
   helper?: Pick<VpnHelper, 'ensure' | 'startOpenvpn'>
+  /** Windows: install the OpenVPN service once (UAC) before the first launch. */
+  prepare?: () => Promise<void>
 }
 
 const LOOPBACK = '127.0.0.1'
@@ -84,6 +86,7 @@ export class OpenVpnDriver implements VpnDriver {
       throw new VpnError('INVALID_CONFIG', 'Perfil não é OpenVPN')
     }
     const config = profile.config
+    await this.deps.prepare?.()
     const binary = this.deps.binary()
     if (!binary) {
       throw new VpnError(

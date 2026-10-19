@@ -44,6 +44,7 @@ export type VpnRuntimeDeps = {
     tmpDir: string
     tunnels: TunnelRegistry
     helper?: OpenVpnDriverDeps['helper']
+    prepare?: OpenVpnDriverDeps['prepare']
   }
   macosIpsec?: MacosIpsecDriverDeps
   /** IKEv1 via strongSwan + root helper (macOS/Linux); wins over macosIpsec when given. */
@@ -63,10 +64,8 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
     const openvpn = deps.openvpn
     drivers.register({
       kind: 'openvpn',
-      isSupported: (platform) =>
-        platform === 'win32'
-          ? { ok: false, reason: 'No Windows, o OpenVPN depende do Interactive Service (em breve)' }
-          : { ok: true },
+      // Windows: through OpenVPN's Interactive Service (windows-openvpn-service.ts)
+      isSupported: () => ({ ok: true }),
       create: () => new OpenVpnDriver(openvpn)
     })
   }

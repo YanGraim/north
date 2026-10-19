@@ -6,6 +6,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync
 } from 'node:fs'
@@ -32,10 +33,15 @@ import { listTunnelRoutes } from '../services/vpn/tunnel-routes'
 import { VpnGate } from '../services/vpn/vpn-gate'
 import { VpnHelper } from '../services/vpn/vpn-helper'
 import { createVpnHandlers, createVpnRuntime, type VpnRuntime } from '../services/vpn/vpn-runtime'
+import { OpenvpnServiceBroker } from '../services/vpn/windows-openvpn-service'
+import { WindowsVpnComponent } from '../services/vpn/windows-vpn-component'
 import type { CredentialVault } from '../vault'
 import { getProtocolManager } from './sessions'
 
 let runtime: VpnRuntime | null = null
+
+/** pinned in scripts/vpn-binaries/fetch-windows.sh; x64 is the only Windows build North ships */
+const WINDOWS_OPENVPN_MSI = 'OpenVPN-2.6.14-I001-amd64.msi'
 
 function broadcast(channel: string, payload: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -116,6 +122,29 @@ export function registerVpnHandlers(
         })
       : undefined
 
+  // Windows: the official OpenVPN package (bundled MSI, one UAC prompt) plays the helper's role
+  const windows =
+    process.platform === 'win32'
+      ? new WindowsVpnComponent({
+          msi: () => {
+            const msi = join(bundledDir, WINDOWS_OPENVPN_MSI)
+            return existsSync(msi) ? msi : null
+          },
+          user: userInfo().username,
+          exists: existsSync,
+          elevate: (command) =>
+            new Promise((resolve, reject) => {
+              sudo.exec(command, { name: 'North' }, (error) => (error ? reject(error) : resolve()))
+            }),
+          marker: {
+            has: () => existsSync(join(vpnDir, 'openvpn-installed-by-north')),
+            set: () => writeFileSync(join(vpnDir, 'openvpn-installed-by-north'), ''),
+            clear: () => rmSync(join(vpnDir, 'openvpn-installed-by-north'), { force: true })
+          }
+        })
+      : undefined
+  const component = helper ?? windows
+
   runtime = createVpnRuntime({
     repos,
     vault,
@@ -124,10 +153,11 @@ export function registerVpnHandlers(
     fake: process.env.NORTH_VPN_FAKE === '1',
     openvpn: {
       binary: findOpenvpn,
-      broker,
+      broker: windows ? new OpenvpnServiceBroker(tmpDir) : broker,
       tmpDir,
       tunnels,
-      helper
+      helper,
+      prepare: windows ? () => windows.ensure() : undefined
     },
     macosIpsec: {
       run: (cmd, args) =>
@@ -163,14 +193,14 @@ export function registerVpnHandlers(
     .then(() => cleanupOpenvpnOrphans({ tunnels, broker, tmpDir }))
     .catch((error) => console.error('[vpn] orphan cleanup failed', error))
 
-  const handlers = createVpnHandlers(runtime, process.platform, helper)
+  const handlers = createVpnHandlers(runtime, process.platform, component)
   for (const [channel, handler] of Object.entries(handlers)) {
     ipcMain.handle(channel, (_event, ...args: unknown[]) =>
       (handler as (...a: unknown[]) => unknown)(...args)
     )
   }
 
-  if (helper) void offerHelperInstall(helper, repos, join(vpnDir, 'helper-declined'))
+  if (component) void offerHelperInstall(component, repos, join(vpnDir, 'helper-declined'))
 
   const manager = runtime.manager
   // sessions opened from now on bring their VPN up first
@@ -203,7 +233,7 @@ export async function disposeVpn(): Promise<void> {
  * the first connect (or the VPNs page) still offers it.
  */
 async function offerHelperInstall(
-  helper: VpnHelper,
+  helper: Pick<VpnHelper, 'status' | 'ensure'>,
   repos: Repositories,
   declinedFile: string
 ): Promise<void> {
