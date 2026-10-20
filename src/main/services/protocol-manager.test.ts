@@ -6,6 +6,7 @@ import type {
   SessionDataPort,
   SessionState
 } from '@shared/protocols'
+import type { Connection } from '@shared/types'
 import type { MessagePortMain } from 'electron'
 import { afterEach, describe, expect, it } from 'vitest'
 import { openDatabase } from '../database/connection'
@@ -181,6 +182,108 @@ describe('ProtocolManager', () => {
     )
     expect(driverCalled).toBe(false)
     expect(manager.list()).toEqual([])
+  })
+
+  describe('connection source (organizations)', () => {
+    const orgConnection: Connection = {
+      id: '7e57c0de-0000-4000-8000-000000000001',
+      groupId: '7e57c0de-0000-4000-8000-000000000002',
+      name: 'org-box',
+      description: null,
+      protocol: 'ssh',
+      host: '10.9.9.9',
+      port: 22,
+      username: 'root',
+      authMethod: 'password',
+      credentialRef: '7e57c0de-0000-4000-8000-0000000000aa',
+      privateKeyPath: null,
+      jumpHostId: null,
+      defaultCommand: null,
+      notes: null,
+      os: null,
+      icon: null,
+      color: null,
+      owner: null,
+      links: [],
+      vpnRequired: false,
+      vpnMode: 'inherit',
+      vpnProfileId: null,
+      checklist: [],
+      relatedFiles: [],
+      isFavorite: false,
+      accessCount: 0,
+      totalConnectedMs: 0,
+      lastConnectedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+
+    function orgSource() {
+      const reads: string[] = []
+      return {
+        reads,
+        source: {
+          connection: async (id: string) => (id === orgConnection.id ? { ...orgConnection } : null),
+          resolveSecret: async (ref: string) => {
+            reads.push(ref)
+            return 'org-password'
+          },
+          vpnProfile: () => null
+        }
+      }
+    }
+
+    it('opens a connection that only exists on the server, fetching the password just in time', async () => {
+      const { manager, driver } = setup()
+      const { source, reads } = orgSource()
+      manager.setConnectionSource(() => source)
+      driver.requireSecret = true
+      let resolved: string | null = null
+      const create = driver.createSession.bind(driver)
+      driver.createSession = async (opts) => {
+        resolved = await opts.resolveSecret(opts.connection.credentialRef as string)
+        return create(opts)
+      }
+      const { descriptor } = await manager.open(orgConnection.id, crypto.randomUUID())
+      expect(descriptor).toMatchObject({ state: 'connected', title: 'org-box' })
+      expect(resolved).toBe('org-password')
+      expect(reads.every((ref) => ref === orgConnection.credentialRef)).toBe(true)
+    })
+
+    it('reports a connection missing from the source', async () => {
+      const { manager } = setup()
+      manager.setConnectionSource(() => orgSource().source)
+      await expect(
+        manager.open('7e57c0de-0000-4000-8000-0000000000ff', crypto.randomUUID())
+      ).rejects.toThrow('Conexão não encontrada')
+    })
+
+    it('asks the source for the VPN, not the local inventory', async () => {
+      const { manager } = setup()
+      const { gate, calls } = gateRecorder()
+      manager.setVpnGate(gate)
+      manager.setConnectionSource(() => orgSource().source)
+      const { descriptor } = await manager.open(orgConnection.id, crypto.randomUUID())
+      expect(calls[0]).toBe(`ensure null ${descriptor.id.slice(0, 4)}`)
+    })
+
+    it('a session that fails in an organization still tears down cleanly', async () => {
+      const { manager, driver } = setup()
+      manager.setConnectionSource(() => orgSource().source)
+      driver.fail = true
+      await expect(manager.open(orgConnection.id, crypto.randomUUID())).rejects.toThrow(
+        'auth failed'
+      )
+      expect(manager.list()).toEqual([])
+    })
+
+    it('clearing the source goes back to the local inventory', async () => {
+      const { manager, repos } = setup()
+      manager.setConnectionSource(() => orgSource().source)
+      manager.setConnectionSource(null)
+      const { descriptor } = await manager.open(seedConnection(repos), crypto.randomUUID())
+      expect(descriptor.title).toBe('ssh-box')
+    })
   })
 
   it('opens a session, lists it, and closes with history', async () => {

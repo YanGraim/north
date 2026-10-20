@@ -50,12 +50,27 @@ describe('loadConfig', () => {
         ...base,
         NODE_ENV: 'production',
         NORTH_AUTH_MODES: 'dev',
-        NORTH_ALLOW_DEV_AUTH: '1'
+        NORTH_ALLOW_DEV_AUTH: '1',
+        NORTH_MASTER_KEY: Buffer.alloc(32).toString('base64')
       }).authModes
     ).toEqual(['dev'])
   })
 
   it('takes the organization display name', () => {
     expect(loadConfig({ ...base, NORTH_ORGANIZATION_NAME: 'Acme' }).organizationName).toBe('Acme')
+  })
+
+  it('has no master key unless one is configured', () => {
+    expect(loadConfig(base).masterKey).toBeNull()
+    const key = Buffer.alloc(32, 7).toString('base64')
+    expect(loadConfig({ ...base, NORTH_MASTER_KEY: key }).masterKey?.length).toBe(32)
+  })
+
+  it('requires a master key in production', () => {
+    const prod = { ...base, NODE_ENV: 'production', NORTH_AUTH_MODES: 'entra' }
+    expect(() => loadConfig(prod)).toThrow(/NORTH_MASTER_KEY/)
+    expect(
+      loadConfig({ ...prod, NORTH_MASTER_KEY: Buffer.alloc(32).toString('base64') }).masterKey
+    ).not.toBeNull()
   })
 })

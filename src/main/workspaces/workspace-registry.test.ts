@@ -165,6 +165,40 @@ describe('WorkspaceRegistry — organizations', () => {
     expect(vault.hasSecret(ref)).toBe(false)
   })
 
+  it('keeps organization passwords on the server, not in the local vault', async () => {
+    const { registry, local } = setup()
+    expect(registry.secrets().kind).toBe('local')
+    const org = await registry.addOrganization({ serverUrl: server.url, email: 'hugo@acme.com' })
+    await registry.activate(org.id)
+    const secrets = registry.secrets()
+    expect(secrets.kind).toBe('remote')
+    const before = local.credentials
+    const ref = await secrets.set('org-password')
+    const client = await registry.inventory().clients.create({ name: 'Sec' })
+    const env = await registry.inventory().environments.create({ clientId: client.id, name: 'E' })
+    const group = await registry.inventory().groups.create({ environmentId: env.id, name: 'G' })
+    await registry.inventory().connections.create({
+      groupId: group.id,
+      name: 'db',
+      protocol: 'ssh',
+      host: 'h',
+      port: 22,
+      authMethod: 'password',
+      credentialRef: ref
+    })
+    expect(before.has(ref)).toBe(false)
+    expect(await secrets.resolve(ref, 'session')).toBe('org-password')
+    await registry.activate(LOCAL_WORKSPACE_ID)
+    expect(registry.secrets().kind).toBe('local')
+  })
+
+  it('host keys stay per machine, whatever workspace is active', async () => {
+    const { registry, local } = setup()
+    const org = await registry.addOrganization({ serverUrl: server.url, email: 'ines@acme.com' })
+    await registry.activate(org.id)
+    expect(registry.activeSource().repositories.knownHosts).toBe(local.knownHosts)
+  })
+
   it('never removes the local workspace', async () => {
     const { registry } = setup()
     await expect(registry.removeOrganization(LOCAL_WORKSPACE_ID)).rejects.toThrow()

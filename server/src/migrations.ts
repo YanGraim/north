@@ -5,8 +5,8 @@ export type Migration = { version: number; name: string; sql: string }
 /**
  * Versioned SQL, applied in a transaction at boot (same discipline as the
  * desktop's SQLite migrations). Inventory mirrors the desktop tree; per-user
- * state (favorites) lives in its own table. No secret columns: org secrets
- * arrive in phase 4 with envelope encryption.
+ * state (favorites) lives in its own table. Secrets (002) are envelope
+ * encrypted and only ever leave the server through an audited reveal.
  */
 export const migrations: Migration[] = [
   {
@@ -110,6 +110,54 @@ export const migrations: Migration[] = [
         connection_id UUID NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
         PRIMARY KEY (user_id, connection_id)
       );
+    `
+  },
+  {
+    version: 2,
+    name: '002-secrets-and-audit',
+    sql: `
+      -- Envelope-encrypted (ADR 0018 §8): per-secret data key wrapped by the master key.
+      CREATE TABLE secrets (
+        id UUID PRIMARY KEY,
+        wrapped_key TEXT NOT NULL,
+        ciphertext TEXT NOT NULL,
+        created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+
+      ALTER TABLE connections
+        ADD COLUMN credential_ref UUID REFERENCES secrets(id) ON DELETE SET NULL;
+      CREATE INDEX idx_connections_credential ON connections(credential_ref);
+
+      -- A secret lives and dies with its connection, including cascades from
+      -- client/environment/group and a connection switching to another secret.
+      CREATE FUNCTION drop_connection_secret() RETURNS trigger AS $$
+      BEGIN
+        IF OLD.credential_ref IS NOT NULL
+           AND (TG_OP = 'DELETE' OR NEW.credential_ref IS DISTINCT FROM OLD.credential_ref) THEN
+          DELETE FROM secrets WHERE id = OLD.credential_ref;
+        END IF;
+        RETURN NULL;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE TRIGGER connections_drop_secret
+        AFTER DELETE OR UPDATE OF credential_ref ON connections
+        FOR EACH ROW EXECUTE FUNCTION drop_connection_secret();
+
+      CREATE TABLE audit_events (
+        id BIGSERIAL PRIMARY KEY,
+        at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+        user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        user_email TEXT,
+        action TEXT NOT NULL,
+        target_type TEXT,
+        target_id UUID,
+        target_name TEXT,
+        detail JSONB NOT NULL DEFAULT '{}'
+      );
+      CREATE INDEX idx_audit_events_at ON audit_events(at DESC);
     `
   }
 ]

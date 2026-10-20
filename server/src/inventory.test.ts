@@ -176,7 +176,7 @@ describe('connections', () => {
     })
   })
 
-  it('never stores a credential reference coming from a desktop vault', async () => {
+  it('refuses a credential reference from a desktop vault (not a secret on this server)', async () => {
     const { group } = await seedTree()
     const res = await call('POST', '/api/v1/connections', {
       groupId: group.id,
@@ -187,8 +187,8 @@ describe('connections', () => {
       authMethod: 'password',
       credentialRef: '3f1c2b9e-1111-4222-8333-444455556666'
     })
-    expect(res.statusCode).toBe(201)
-    expect(res.json().credentialRef).toBeNull()
+    expect(res.statusCode).toBe(404)
+    expect((await call('GET', '/api/v1/connections')).json()).toHaveLength(1)
   })
 
   it('ignores machine-local fields (private key path, local VPN profile)', async () => {

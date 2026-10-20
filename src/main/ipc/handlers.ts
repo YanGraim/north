@@ -22,7 +22,7 @@ import { registerHistoryHandlers } from './history'
 import { registerInventoryHandlers } from './inventory'
 import { registerSearchHandlers } from './search'
 import { registerSerialHandlers } from './serial'
-import { registerSessionHandlers } from './sessions'
+import { getProtocolManager, registerSessionHandlers } from './sessions'
 import { registerStatsHandlers } from './stats'
 import { registerTagHandlers } from './tags'
 import { registerTerminalHandlers } from './terminal'
@@ -63,6 +63,7 @@ export function registerIpcHandlers(): void {
   // Handlers read through the active workspace: the tree via the async inventory, the rest via repos.
   repositories = createScopedRepositories(registry)
   const inventory = () => registry.inventory()
+  const secrets = () => registry.secrets()
 
   maybeSeedDevData(localRepositories)
   registerWorkspaceHandlers(registry)
@@ -75,16 +76,27 @@ export function registerIpcHandlers(): void {
   }))
   registerThemeHandlers()
 
-  registerVaultHandlers(vault, repositories)
+  registerVaultHandlers(vault, repositories, secrets, inventory)
   registerClientHandlers(repositories, vault, inventory)
   registerEnvironmentHandlers(repositories, vault, inventory)
   registerGroupHandlers(repositories, vault, inventory)
-  registerConnectionHandlers(vault, inventory)
+  registerConnectionHandlers(vault, inventory, secrets)
   registerAccessHandlers(repositories, vault)
   registerTagHandlers(inventory)
   registerHistoryHandlers(repositories)
   registerSearchHandlers(repositories, inventory)
   registerSessionHandlers(repositories, vault)
+  // Organizations open sessions from the server's inventory, fetching each password just in time.
+  getProtocolManager().setConnectionSource(() => {
+    if (registry.activeSource().kind === 'local') return null
+    const store = registry.inventory()
+    const passwords = registry.secrets()
+    return {
+      connection: (id) => store.connections.get(id),
+      resolveSecret: (ref) => passwords.resolve(ref, 'session'),
+      vpnProfile: () => null
+    }
+  })
   registerDatabaseHandlers(repositories, vault)
   registerApiHandlers(repositories, vault)
   registerFsHandlers()

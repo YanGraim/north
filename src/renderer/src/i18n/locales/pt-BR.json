@@ -240,7 +240,8 @@
       "password": "Senha",
       "cancel": "Cancelar",
       "save": "Salvar",
-      "create": "Criar"
+      "create": "Criar",
+      "passwordOrganizationHint": "Fica criptografada no servidor da organização. O North busca a senha só na hora de conectar, e cada acesso fica registrado."
     },
     "badge": "Servidor"
   },

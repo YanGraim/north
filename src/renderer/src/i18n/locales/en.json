@@ -240,7 +240,8 @@
       "password": "Password",
       "cancel": "Cancel",
       "save": "Save",
-      "create": "Create"
+      "create": "Create",
+      "passwordOrganizationHint": "Stored encrypted on the organization's server. North fetches it only when connecting, and every access is logged."
     },
     "badge": "Server"
   },

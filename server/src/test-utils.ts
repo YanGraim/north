@@ -13,7 +13,8 @@ export const TEST_CONFIG: ServerConfig = {
   refreshTokenTtlSec: 30 * 24 * 3600,
   port: 0,
   host: '127.0.0.1',
-  organizationName: 'Acme Test'
+  organizationName: 'Acme Test',
+  masterKey: Buffer.alloc(32, 42)
 }
 
 let template: Promise<PGlite> | null = null

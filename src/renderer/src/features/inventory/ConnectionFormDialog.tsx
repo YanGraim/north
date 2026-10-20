@@ -42,6 +42,7 @@ import { useCreateGroup } from '@renderer/hooks/use-groups'
 import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
 import { useConnectionTags, useSetConnectionTags } from '@renderer/hooks/use-tags'
 import { useDeleteSecret, useHasSecret, useVaultAvailable } from '@renderer/hooks/use-vault'
+import { useCurrentWorkspace } from '@renderer/hooks/use-workspaces'
 import { defaultPortForProtocol } from '@renderer/lib/protocol-defaults'
 import { queryKeys } from '@renderer/lib/query-keys'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
@@ -109,6 +110,7 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
   const updateConnection = useUpdateConnection()
   const setConnectionTags = useSetConnectionTags()
   const { data: vaultAvailable = false } = useVaultAvailable()
+  const inOrganization = useCurrentWorkspace()?.kind === 'organization'
   const { data: hasSecret = false } = useHasSecret(existing?.credentialRef)
   const deleteSecret = useDeleteSecret()
 
@@ -632,7 +634,9 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
                                 />
                               </FormControl>
                               <FormDescription>
-                                Write-only — a senha nunca é lida de volta do vault.
+                                {inOrganization
+                                  ? t('connection.form.passwordOrganizationHint')
+                                  : 'Write-only — a senha nunca é lida de volta do vault.'}
                               </FormDescription>
                               <FormMessage />
                             </FormItem>

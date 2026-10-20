@@ -711,7 +711,7 @@ export function applyOrganizationOverlay(api: Record<string, Record<string, unkn
     host: '10.50.0.10',
     port: 22,
     username: 'ops',
-    authMethod: 'key',
+    authMethod: 'password',
     credentialRef: null,
     privateKeyPath: null,
     jumpHostId: null,
@@ -748,8 +748,54 @@ export function applyOrganizationOverlay(api: Record<string, Record<string, unkn
   overlay('environments', 'get', (id) => (id === env.id ? env : null))
   overlay('groups', 'list', (envId) => (!envId || envId === env.id ? [group] : []))
   overlay('groups', 'get', (id) => (id === group.id ? group : null))
-  overlay('connections', 'list', () => [connection])
-  overlay('connections', 'get', (id) => (id === connection.id ? connection : null))
+  overlay('connections', 'list', () => [{ ...connection }])
+  overlay('connections', 'get', (id) => (id === connection.id ? { ...connection } : null))
+  overlay('connections', 'update', (id, input) => {
+    if (id !== connection.id) throw new Error('Connection not found')
+    Object.assign(connection, input as Partial<Connection>)
+    return { ...connection }
+  })
+
+  // Org passwords live "on the server": recorded apart from the local vault.
+  const serverSecrets = new Map<string, string>()
+  const vaultCalls: Array<{ method: string; workspace: 'organization' }> = []
+  ;(window as unknown as { __e2eOrgVault: typeof vaultCalls }).__e2eOrgVault = vaultCalls
+  const orgVault = (method: string, value: (...args: unknown[]) => unknown): void =>
+    overlay('vault', method, (...args) => {
+      vaultCalls.push({ method, workspace: 'organization' })
+      return value(...args)
+    })
+  orgVault('setSecret', (input) => {
+    const { secret, credentialRef } = input as { secret: string; credentialRef?: string }
+    const ref = credentialRef ?? crypto.randomUUID()
+    serverSecrets.set(ref, secret)
+    return ref
+  })
+  orgVault('hasSecret', (ref) => serverSecrets.has(ref as string))
+  orgVault('deleteSecret', (ref) => {
+    serverSecrets.delete(ref as string)
+  })
+  orgVault('isAvailable', () => true)
+
+  overlay('sessions', 'open', (id, onPort) => {
+    if (id !== connection.id) throw new Error('Conexão não encontrada')
+    if (!connection.credentialRef || !serverSecrets.has(connection.credentialRef)) {
+      throw new Error('Senha não configurada para esta conexão')
+    }
+    const channel = new MessageChannel()
+    ;(onPort as (port: MessagePort) => void)(channel.port2)
+    channel.port1.start()
+    return {
+      id: crypto.randomUUID(),
+      connectionId: connection.id,
+      accessId: null,
+      kind: 'terminal',
+      protocol: 'ssh',
+      title: connection.name,
+      state: 'connected',
+      errorMessage: null
+    }
+  })
   overlay('accesses', 'list', () => [])
   overlay('tags', 'list', () => [])
   overlay('tags', 'listForConnection', () => [])
@@ -1044,6 +1090,13 @@ export function installMockNorth(opts?: {
       listForConnection: async () => [],
       setForAccess: async () => [],
       listForAccess: async () => []
+    },
+    connectionMonitors: {
+      list: async () => [],
+      setEnabled: async (connectionId: string, enabled: boolean) => ({ connectionId, enabled }),
+      listEvents: async () => [],
+      listRecentEvents: async () => [],
+      onHealthChanged: () => () => undefined
     },
     vault: {
       setSecret: async () => crypto.randomUUID(),
@@ -1380,6 +1433,13 @@ function installDatabaseMock(workflowsApi: ReturnType<typeof createWorkflowsApi>
       listForConnection: async () => [],
       setForAccess: async () => [],
       listForAccess: async () => []
+    },
+    connectionMonitors: {
+      list: async () => [],
+      setEnabled: async (connectionId: string, enabled: boolean) => ({ connectionId, enabled }),
+      listEvents: async () => [],
+      listRecentEvents: async () => [],
+      onHealthChanged: () => () => undefined
     },
     vault: {
       setSecret: async () => crypto.randomUUID(),

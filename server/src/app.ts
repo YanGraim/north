@@ -4,8 +4,10 @@ import { verifyAccessToken } from './auth/tokens'
 import type { ServerConfig } from './config'
 import type { Db } from './db'
 import { ApiError, unauthorized } from './errors'
+import { registerAuditRoutes } from './routes/audit'
 import { registerAuthRoutes } from './routes/auth'
 import { registerInventoryRoutes } from './routes/inventory'
+import { registerSecretRoutes } from './routes/secrets'
 import { findActiveUser, type User } from './store/users'
 
 declare module 'fastify' {
@@ -85,6 +87,8 @@ export async function buildApp(deps: { db: Db; config: ServerConfig }): Promise<
   }))
 
   registerAuthRoutes(app, db, config)
-  registerInventoryRoutes(app, db)
+  registerInventoryRoutes(app, db, config.masterKey)
+  registerSecretRoutes(app, db, config.masterKey)
+  registerAuditRoutes(app, db)
   return app
 }

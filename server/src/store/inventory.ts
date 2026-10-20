@@ -218,9 +218,10 @@ export async function deleteGroup(db: Db, id: string): Promise<boolean> {
 // ── connections ────────────────────────────────────────────────────────────
 
 /**
- * Shared columns only. `credentialRef`, `privateKeyPath` and `vpnProfileId`
- * point at things on one person's machine (vault row, key file, local VPN),
- * so the organization never stores them; usage stats are per user (later).
+ * Shared columns only. `privateKeyPath` and `vpnProfileId` point at things on
+ * one person's machine (key file, local VPN), so the organization never stores
+ * them; usage stats are per user (later). `credentialRef` is the id of a
+ * server-side secret (see store/secrets).
  */
 const CONNECTION_COLUMNS: Record<string, string> = {
   name: 'name',
@@ -230,6 +231,7 @@ const CONNECTION_COLUMNS: Record<string, string> = {
   port: 'port',
   username: 'username',
   authMethod: 'auth_method',
+  credentialRef: 'credential_ref',
   jumpHostId: 'jump_host_id',
   defaultCommand: 'default_command',
   notes: 'notes',
@@ -255,7 +257,7 @@ const mapConnection = (r: Row): Connection => ({
   port: Number(r.port),
   username: (r.username as string | null) ?? null,
   authMethod: r.auth_method as Connection['authMethod'],
-  credentialRef: null,
+  credentialRef: (r.credential_ref as string | null) ?? null,
   privateKeyPath: null,
   jumpHostId: (r.jump_host_id as string | null) ?? null,
   defaultCommand: (r.default_command as string | null) ?? null,
@@ -329,6 +331,7 @@ export async function createConnection(
   input: CreateConnectionInput
 ): Promise<Connection> {
   if (!(await getGroup(db, input.groupId))) throw notFound('Group')
+  await assertSecret(db, input.credentialRef)
   const id = randomUUID()
   const values: Record<string, unknown> = {
     links: [],
@@ -361,6 +364,7 @@ export async function updateConnection(
   input: UpdateConnectionInput
 ): Promise<Connection | null> {
   if (input.groupId && !(await getGroup(db, input.groupId))) throw notFound('Group')
+  await assertSecret(db, input.credentialRef)
   const set = setClause(input, { ...CONNECTION_COLUMNS, groupId: 'group_id' }, JSON_COLUMNS)
   const { rows } = await db.query(`UPDATE connections SET ${set.sql} WHERE id = $1 RETURNING id`, [
     id,
@@ -374,6 +378,12 @@ export async function updateConnection(
 export async function deleteConnection(db: Db, id: string): Promise<boolean> {
   const { rows } = await db.query('DELETE FROM connections WHERE id = $1 RETURNING id', [id])
   return rows.length > 0
+}
+
+async function assertSecret(db: Db, credentialRef: string | null | undefined): Promise<void> {
+  if (!credentialRef) return
+  const { rows } = await db.query('SELECT 1 FROM secrets WHERE id = $1', [credentialRef])
+  if (!rows[0]) throw notFound('Secret')
 }
 
 async function setFavorite(db: Db, userId: string, id: string, favorite: boolean): Promise<void> {
@@ -396,10 +406,12 @@ export async function toggleFavorite(
   return getConnection(db, userId, id)
 }
 
+/** `copySecret` re-seals the source's secret so each copy owns its own row. */
 export async function duplicateConnection(
   db: Db,
   userId: string,
-  id: string
+  id: string,
+  copySecret: (credentialRef: string) => Promise<string | null>
 ): Promise<Connection | null> {
   const source = await getConnection(db, userId, id)
   if (!source) return null
@@ -413,7 +425,8 @@ export async function duplicateConnection(
     lastConnectedAt: _l,
     ...rest
   } = source
-  return createConnection(db, userId, { ...rest, name: `${source.name} (cópia)` })
+  const credentialRef = rest.credentialRef ? await copySecret(rest.credentialRef) : null
+  return createConnection(db, userId, { ...rest, credentialRef, name: `${source.name} (cópia)` })
 }
 
 // ── tags ───────────────────────────────────────────────────────────────────

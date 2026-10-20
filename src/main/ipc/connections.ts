@@ -8,6 +8,7 @@ import {
 import { ipcMain } from 'electron'
 import type { CredentialVault } from '../vault'
 import type { InventoryStore } from '../workspaces/inventory-store'
+import type { SecretStore } from '../workspaces/secret-store'
 import { deleteSecretsForConnections } from './vault-cleanup'
 
 function requireEntity<T>(entity: T | null, label: string): T {
@@ -19,7 +20,8 @@ function requireEntity<T>(entity: T | null, label: string): T {
 
 export function registerConnectionHandlers(
   vault: CredentialVault,
-  inventory: () => InventoryStore
+  inventory: () => InventoryStore,
+  secrets: () => SecretStore
 ): void {
   ipcMain.handle(IpcChannels.CONNECTIONS_LIST, async (_event, filter?: unknown) => {
     const parsed =
@@ -49,7 +51,8 @@ export function registerConnectionHandlers(
     if (!existing) {
       throw new Error('Connection not found')
     }
-    if (existing.credentialRef) {
+    // An organization drops the secret along with the connection, on the server.
+    if (existing.credentialRef && secrets().kind === 'local') {
       vault.deleteSecret(existing.credentialRef)
     }
     await inventory().connections.delete(connectionId)
@@ -70,6 +73,8 @@ export function registerConnectionHandlers(
     }
 
     const copy = requireEntity(await inventory().connections.duplicate(connectionId), 'Connection')
+    // The North Server re-seals the secret for the copy by itself.
+    if (secrets().kind === 'remote') return copy
 
     if (
       existing.credentialRef &&

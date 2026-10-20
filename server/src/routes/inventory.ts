@@ -15,7 +15,9 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import type { Db } from '../db'
 import { notFound, orNotFound } from '../errors'
+import { recordAudit } from '../store/audit'
 import * as store from '../store/inventory'
+import { copySecret } from '../store/secrets'
 
 const IdParams = z.object({ id: IdSchema })
 const id = (request: FastifyRequest): string => IdParams.parse(request.params).id
@@ -38,7 +40,11 @@ async function noContent(deleted: boolean, what: string, reply: FastifyReply): P
   await reply.status(204).send()
 }
 
-export function registerInventoryRoutes(app: FastifyInstance, db: Db): void {
+export function registerInventoryRoutes(
+  app: FastifyInstance,
+  db: Db,
+  masterKey: Buffer | null
+): void {
   const v1 = '/api/v1'
 
   // clients
@@ -137,9 +143,26 @@ export function registerInventoryRoutes(app: FastifyInstance, db: Db): void {
     orNotFound(await store.toggleFavorite(db, req.user.id, id(req)), 'Connection')
   )
   app.post(`${v1}/connections/:id/duplicate`, async (req, reply) =>
-    reply
-      .status(201)
-      .send(orNotFound(await store.duplicateConnection(db, req.user.id, id(req)), 'Connection'))
+    reply.status(201).send(
+      orNotFound(
+        await store.duplicateConnection(db, req.user.id, id(req), async (ref) => {
+          const copy = await copySecret(db, masterKey, req.user.id, ref)
+          if (copy) {
+            await recordAudit(
+              db,
+              req.user,
+              'secret.create',
+              { type: 'secret', id: copy },
+              {
+                copiedFrom: ref
+              }
+            )
+          }
+          return copy
+        }),
+        'Connection'
+      )
+    )
   )
   app.get(`${v1}/connections/:id/tags`, async (req) => {
     orNotFound(await store.getConnection(db, req.user.id, id(req)), 'Connection')

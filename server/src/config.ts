@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { loadMasterKey } from './secrets/envelope'
 
 export const AuthModeSchema = z.enum(['dev', 'entra'])
 export type AuthMode = z.infer<typeof AuthModeSchema>
@@ -12,6 +13,8 @@ export type ServerConfig = {
   port: number
   host: string
   organizationName: string
+  /** Wraps the per-secret data keys (ADR 0018 §8). Without it, org secrets are off. */
+  masterKey: Buffer | null
 }
 
 const EnvSchema = z.object({
@@ -43,7 +46,10 @@ const EnvSchema = z.object({
   NODE_ENV: z.string().optional()
 })
 
-export function loadConfig(env: Record<string, string | undefined>): ServerConfig {
+export function loadConfig(
+  env: Record<string, string | undefined>,
+  readFile?: (path: string) => string
+): ServerConfig {
   const parsed = EnvSchema.safeParse(env)
   if (!parsed.success) {
     const detail = parsed.error.issues
@@ -61,6 +67,12 @@ export function loadConfig(env: Record<string, string | undefined>): ServerConfi
       'Invalid configuration — the dev auth mode signs anyone in by e-mail; set NORTH_ALLOW_DEV_AUTH=1 to use it in production'
     )
   }
+  const masterKey = loadMasterKey(env, readFile)
+  if (e.NODE_ENV === 'production' && !masterKey) {
+    throw new Error(
+      'Invalid configuration — set NORTH_MASTER_KEY or NORTH_MASTER_KEY_FILE (openssl rand -base64 32) to store passwords'
+    )
+  }
   return {
     databaseUrl: e.DATABASE_URL,
     jwtSecret: e.NORTH_JWT_SECRET,
@@ -69,6 +81,7 @@ export function loadConfig(env: Record<string, string | undefined>): ServerConfi
     refreshTokenTtlSec: e.NORTH_REFRESH_TOKEN_TTL_SEC,
     port: e.PORT,
     host: e.HOST,
-    organizationName: e.NORTH_ORGANIZATION_NAME
+    organizationName: e.NORTH_ORGANIZATION_NAME,
+    masterKey
   }
 }

@@ -15,25 +15,36 @@ import {
   type TokenStore
 } from './organization-client'
 import { ORGANIZATION_UNAVAILABLE, RemoteInventoryStore } from './remote-inventory-store'
+import { localSecretStore, RemoteSecretStore, type SecretStore } from './secret-store'
 
 /**
  * Where a workspace's data lives (ADR 0018 §10). The inventory tree goes
- * through the async `InventoryStore`; every other repository is SQLite for
- * the personal workspace and "not yet" for organizations.
+ * through the async `InventoryStore` and passwords through a `SecretStore`;
+ * every other repository is SQLite for the personal workspace and "not yet"
+ * for organizations (except machine-level trust such as host keys).
  */
 export interface WorkspaceDataSource {
   readonly kind: 'local' | 'remote'
   readonly inventory: InventoryStore
   readonly repositories: Repositories
+  readonly secrets: SecretStore
 }
 
 class LocalDataSource implements WorkspaceDataSource {
   readonly kind = 'local' as const
   readonly inventory: InventoryStore
-  constructor(readonly repositories: Repositories) {
+  readonly secrets: SecretStore
+  constructor(
+    readonly repositories: Repositories,
+    vault: CredentialVault
+  ) {
     this.inventory = localInventoryStore(repositories)
+    this.secrets = localSecretStore(vault)
   }
 }
+
+/** Trust that belongs to this computer, not to a workspace (TOFU host keys). */
+const MACHINE_REPOSITORIES = new Set<keyof Repositories>(['knownHosts'])
 
 /**
  * Repositories an organization does not serve yet: `list*` reads come back
@@ -52,18 +63,25 @@ function unavailableRepositories(shape: Repositories): Repositories {
       }
     }
   )
-  return Object.fromEntries(Object.keys(shape).map((key) => [key, repo])) as Repositories
+  return Object.fromEntries(
+    Object.keys(shape).map((key) => [
+      key,
+      MACHINE_REPOSITORIES.has(key as keyof Repositories) ? shape[key as keyof Repositories] : repo
+    ])
+  ) as Repositories
 }
 
 class RemoteDataSource implements WorkspaceDataSource {
   readonly kind = 'remote' as const
   readonly inventory: InventoryStore
   readonly repositories: Repositories
+  readonly secrets: SecretStore
   constructor(
     readonly client: OrganizationClient,
     shape: Repositories
   ) {
     this.inventory = new RemoteInventoryStore(client)
+    this.secrets = new RemoteSecretStore(client)
     this.repositories = unavailableRepositories(shape)
   }
 }
@@ -111,7 +129,7 @@ export class WorkspaceRegistry {
   }) {
     this.workspaces = deps.workspaces
     this.vault = deps.vault
-    this.local = new LocalDataSource(deps.local)
+    this.local = new LocalDataSource(deps.local, deps.vault)
     const localWorkspace = deps.workspaces.get(LOCAL_WORKSPACE_ID)
     if (!localWorkspace) {
       throw new Error('Local workspace missing — migration 017 not applied')
@@ -133,6 +151,10 @@ export class WorkspaceRegistry {
 
   inventory(): InventoryStore {
     return this.active.source.inventory
+  }
+
+  secrets(): SecretStore {
+    return this.active.source.secrets
   }
 
   /** Points main at a workspace. Organizations must have a live session (checked with `/me`). */

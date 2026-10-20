@@ -11,6 +11,7 @@ import {
   type SessionPortMessage,
   type SessionState
 } from '@shared/protocols'
+import type { Connection } from '@shared/types'
 import type { MessagePortMain, WebContents } from 'electron'
 import { MessageChannelMain } from 'electron'
 import {
@@ -60,6 +61,17 @@ export type VpnGateLike = {
   release(holderId: string): void
 }
 
+/**
+ * Where `open()` finds a Connection and its password. Defaults to the local
+ * inventory + vault; an organization swaps in the North Server (ADR 0018 §8),
+ * which fetches each password just in time.
+ */
+export type ConnectionSource = {
+  connection(connectionId: string): Promise<Connection | null>
+  resolveSecret(credentialRef: string): Promise<string>
+  vpnProfile(connectionId: string): string | null
+}
+
 export class ProtocolManager {
   private readonly drivers = new Map<string, ProtocolDriver>()
   private readonly sessions = new Map<string, ActiveSession>()
@@ -79,6 +91,7 @@ export class ProtocolManager {
 
   private events: ProtocolManagerEvents | null = null
   private vpnGate: VpnGateLike | null = null
+  private connectionSource: (() => ConnectionSource | null) | null = null
   private readonly createChannel: MessageChannelFactory
   private readonly localShellDriver = new LocalShellDriver()
 
@@ -97,6 +110,21 @@ export class ProtocolManager {
   /** VPN before sessions (ADR 0017): resolved per Connection/Access, one lease per session. */
   setVpnGate(gate: VpnGateLike | null): void {
     this.vpnGate = gate
+  }
+
+  /** Asked on every open (follows the active workspace); null = the local inventory and vault. */
+  setConnectionSource(provider: (() => ConnectionSource | null) | null): void {
+    this.connectionSource = provider
+  }
+
+  private sourceForOpen(): ConnectionSource {
+    return (
+      this.connectionSource?.() ?? {
+        connection: async (id) => this.repositories.connections.get(id),
+        resolveSecret: async (ref) => this.vault.resolveSecret(ref),
+        vpnProfile: (id) => this.vpnGate?.profileForConnection(id) ?? null
+      }
+    )
   }
 
   /** Kept for callers that track the focused window; unused internally for now. */
@@ -187,7 +215,9 @@ export class ProtocolManager {
     connectionId: string,
     _requestId: string
   ): Promise<{ descriptor: SessionDescriptor; port: MessagePortMain }> {
-    const connection = this.repositories.connections.get(connectionId)
+    // Captured once so a workspace switch mid-handshake can't mix sources.
+    const source = this.sourceForOpen()
+    const connection = await source.connection(connectionId)
     if (!connection) {
       throw new Error('Conexão não encontrada')
     }
@@ -235,15 +265,11 @@ export class ProtocolManager {
         connection.protocol === 'serial' || connection.jumpHostId
           ? undefined
           : { host: connection.host, port: connection.port }
-      await this.vpnGate?.ensure(
-        this.vpnGate.profileForConnection(connectionId),
-        sessionId,
-        probeTarget
-      )
+      await this.vpnGate?.ensure(source.vpnProfile(connectionId), sessionId, probeTarget)
       const session = await driver.createSession({
         connection,
         sessionId,
-        resolveSecret: (ref) => this.vault.resolveSecret(ref),
+        resolveSecret: (ref) => source.resolveSecret(ref),
         verifyHostKey: (info) => this.verifyHostKey(sessionId, info)
       })
 
