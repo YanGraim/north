@@ -231,7 +231,11 @@ export class VpnManager {
 
   private async runConnect(entry: Entry): Promise<VpnState> {
     const profile = this.requireProfile(entry.profileId)
-    if (entry.reconnectAttempt === 0) this.setStatus(entry, 'connecting')
+    if (entry.reconnectAttempt === 0) {
+      // a new connection starts a clean log; retries keep the history that explains them
+      entry.logs = []
+      this.setStatus(entry, 'connecting')
+    }
     const historyId = this.deps.history?.start(profile.id, entry.trigger ?? 'auto')
     const abort = new AbortController()
     entry.abort = abort

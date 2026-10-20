@@ -50,11 +50,16 @@ function sleep(ms: number): Promise<void> {
 }
 
 /** Rebuild the runnable config: stored ovpn (no secret blocks) + inline blocks from the vault. */
+/** `2026-10-20 14:51:14 us=818081 …` */
+const OPENVPN_LOG_LINE = /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d us=\d+ /
+const MAX_EARLY_RESETS = 3
+
 function buildConfig(ovpn: string, inline: Record<string, string>): string {
   const blocks = SECRET_INLINE_BLOCKS.filter((tag) => inline[tag] !== undefined).map(
     (tag) => `<${tag}>\n${inline[tag]}\n</${tag}>`
   )
-  return [ovpn.trimEnd(), ...blocks, ''].join('\n')
+  // a "mute" in the .ovpn hides exactly the line that says why the server dropped us
+  return [ovpn.trimEnd(), ...blocks, 'mute 0', ''].join('\n')
 }
 
 /**
@@ -131,7 +136,10 @@ export class OpenVpnDriver implements VpnDriver {
       this.run = this.deps.helper.startOpenvpn(
         { port, managementPassword: mgmtPassword, ovpn: fullConfig },
         (chunk) => {
-          for (const line of chunk.toString('utf8').split('\n')) if (line.trim()) log(line.trim())
+          // openvpn's own (timestamped) lines also arrive over management ("log on all")
+          for (const line of chunk.toString('utf8').split('\n')) {
+            if (line.trim() && !OPENVPN_LOG_LINE.test(line)) log(line.trim())
+          }
         }
       )
       exited = this.run.exited
@@ -227,6 +235,7 @@ export class OpenVpnDriver implements VpnDriver {
     }
     const info: VpnTunnelInfo = { routes: [], redirectGateway: false }
     const buffer = new ManagementLineBuffer()
+    let resets = 0
 
     return new Promise<VpnTunnelInfo>((resolve) => {
       socket.on('close', () => {
@@ -244,7 +253,7 @@ export class OpenVpnDriver implements VpnDriver {
               break
             case 'hold':
               send('state on')
-              send('log on')
+              send('log on all')
               send('pid')
               send('hold release')
               break
@@ -294,6 +303,19 @@ export class OpenVpnDriver implements VpnDriver {
               break
             case 'log': {
               log(event.message)
+              // TLS is fine but the server hangs up right after the login, over and over:
+              // waiting for the timeout would only fill the log
+              if (!this.connected && /Connection reset, restarting/.test(event.message)) {
+                resets += 1
+                if (resets >= MAX_EARLY_RESETS) {
+                  fail(
+                    new VpnError(
+                      'CONNECTION_REJECTED',
+                      'O servidor fecha a conexão logo depois do login. Confira usuário e senha; se estiverem certos, o servidor pode estar recusando este cliente (veja a linha antes de "Connection reset" no log)'
+                    )
+                  )
+                }
+              }
               const push = parsePushReply(event.message)
               if (push) {
                 info.routes = push.routes
