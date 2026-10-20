@@ -24,7 +24,6 @@ describe('buildTrayMenu', () => {
       'Abrir North',
       'Sair do North'
     ])
-    expect(menu[4]).toMatchObject({ type: 'checkbox', checked: true })
 
     click(menu[1])
     expect(a.connect).toHaveBeenCalledWith('g')
@@ -35,6 +34,16 @@ describe('buildTrayMenu', () => {
     expect(a.disconnect).toHaveBeenCalledWith('m')
     click(menu[7])
     expect(a.quit).toHaveBeenCalled()
+  })
+
+  it('puts a status dot beside each VPN: green up, amber on its way, gray off', () => {
+    const vpns: TrayVpn[] = [
+      { id: 'a', name: 'A', status: 'connected' },
+      { id: 'b', name: 'B', status: 'reconnecting' },
+      { id: 'c', name: 'C', status: 'error' }
+    ]
+    const menu = buildTrayMenu(vpns, { ...actions(), dot: (d) => `dot-${d}` })
+    expect(menu.slice(1, 4).map((i) => i.icon)).toEqual(['dot-on', 'dot-busy', 'dot-off'])
   })
 
   it('no VPN yet: says so, still opens and quits North', () => {

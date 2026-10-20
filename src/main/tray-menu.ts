@@ -8,22 +8,34 @@ import type { MenuItemConstructorOptions } from 'electron'
  */
 export type TrayVpn = { id: string; name: string; status: VpnStatus }
 
+/** The colored dot beside each VPN: green up, amber on its way, gray off. */
+export type TrayDot = 'on' | 'busy' | 'off'
+
 export type TrayActions = {
   connect: (id: string) => void
   disconnect: (id: string) => void
   open: () => void
   quit: () => void
+  /** The dot image for a status (left out in tests). */
+  dot?: (dot: TrayDot) => MenuItemConstructorOptions['icon']
+}
+
+export function trayDot(status: VpnStatus): TrayDot {
+  if (status === 'connected') return 'on'
+  if (status === 'connecting' || status === 'reconnecting' || status === 'disconnecting') {
+    return 'busy'
+  }
+  return 'off'
 }
 
 function vpnItem(vpn: TrayVpn, actions: TrayActions): MenuItemConstructorOptions {
+  return { ...vpnAction(vpn, actions), icon: actions.dot?.(trayDot(vpn.status)) }
+}
+
+function vpnAction(vpn: TrayVpn, actions: TrayActions): MenuItemConstructorOptions {
   switch (vpn.status) {
     case 'connected':
-      return {
-        label: `Desconectar de ${vpn.name}`,
-        type: 'checkbox',
-        checked: true,
-        click: () => actions.disconnect(vpn.id)
-      }
+      return { label: `Desconectar de ${vpn.name}`, click: () => actions.disconnect(vpn.id) }
     case 'connecting':
     case 'reconnecting':
       return {
