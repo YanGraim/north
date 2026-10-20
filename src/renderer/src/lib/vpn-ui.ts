@@ -9,15 +9,18 @@ export function summarizeVpns(
   states: VpnState[],
   names: Map<string, string>
 ): { tone: VpnTone; count: number; label: string | null } {
-  const connected = states.filter((s) => s.status === 'connected')
-  let tone: VpnTone = 'idle'
-  if (connected.length > 0) tone = 'connected'
-  if (states.some((s) => ['connecting', 'reconnecting', 'disconnecting'].includes(s.status))) {
-    tone = 'connecting'
-  }
-  if (states.some((s) => s.status === 'error')) tone = 'error'
-  const label = connected.length === 1 ? (names.get(connected[0].profileId) ?? null) : null
-  return { tone, count: connected.length, label }
+  // the pill names the VPN behind its color: error > connecting > connected
+  const groups: Array<[VpnTone, VpnState[]]> = [
+    ['error', states.filter((s) => s.status === 'error')],
+    [
+      'connecting',
+      states.filter((s) => ['connecting', 'reconnecting', 'disconnecting'].includes(s.status))
+    ],
+    ['connected', states.filter((s) => s.status === 'connected')]
+  ]
+  const [tone, group] = groups.find(([, list]) => list.length > 0) ?? ['idle', []]
+  const label = group.length === 1 ? (names.get(group[0].profileId) ?? null) : null
+  return { tone, count: group.length, label }
 }
 
 /** Apply a `vpn:state-changed` event, ignoring anything older than what we hold. */

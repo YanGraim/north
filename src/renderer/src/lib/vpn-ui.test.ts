@@ -54,6 +54,13 @@ describe('summarizeVpns', () => {
     )
     expect(error.tone).toBe('error')
   })
+  it('names the VPN behind the color, not another one that is up', () => {
+    const s = summarizeVpns(
+      [state({ status: 'connected' }), state({ profileId: 'b', status: 'connecting' })],
+      names
+    )
+    expect(s).toEqual({ tone: 'connecting', count: 1, label: 'ACME' })
+  })
 })
 
 describe('mergeVpnState', () => {
