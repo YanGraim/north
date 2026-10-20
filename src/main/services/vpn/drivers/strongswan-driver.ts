@@ -140,6 +140,7 @@ export class StrongswanDriver implements VpnDriver {
     let answered = false
     let phase1Up = false
     let dnsServer: string | undefined
+    let xauthRequests = 0
     try {
       while (true) {
         if (signal.aborted) throw new VpnError('TIMEOUT', 'Conexão cancelada')
@@ -150,7 +151,12 @@ export class StrongswanDriver implements VpnDriver {
           const event = parseStrongswanLine(line)
           if (event.type === 'address') localIp = event.ip
           else if (event.type === 'dns') dnsServer ??= event.server
-          else if (event.type === 'psk-mismatch') {
+          else if (event.type === 'xauth-request' && ++xauthRequests > 1) {
+            throw new VpnError(
+              'AUTH_FAILED',
+              'O FortiGate recusou o usuário ou a senha (XAuth) — confira em Editar'
+            )
+          } else if (event.type === 'psk-mismatch') {
             throw new VpnError('AUTH_FAILED', 'Chave pré-compartilhada incorreta')
           } else if (event.type === 'auth-failed') {
             throw new VpnError(

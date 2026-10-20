@@ -30,4 +30,13 @@ describe('buildIpsecHelperInput', () => {
     expect(() => buildIpsecHelperInput({ ...base, username: 'a b' })).toThrow()
     expect(() => buildIpsecHelperInput({ ...base, password: 'a\nhost=evil' })).toThrow()
   })
+
+  it('flags XAuth credential prompts', () => {
+    expect(
+      parseStrongswanLine('parsed TRANSACTION request 123 [ HASH CPRQ(X_TYPE X_USER X_PWD) ]')
+    ).toEqual({ type: 'xauth-request' })
+    expect(
+      parseStrongswanLine('generating TRANSACTION response 123 [ HASH CPRP(X_USER X_PWD) ]').type
+    ).toBe('other')
+  })
 })

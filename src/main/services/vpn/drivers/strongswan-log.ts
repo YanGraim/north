@@ -12,6 +12,7 @@ export type StrongswanEvent =
   | { type: 'address'; ip: string }
   | { type: 'dns'; server: string }
   | { type: 'auth-failed' }
+  | { type: 'xauth-request' }
   | { type: 'psk-mismatch' }
   | { type: 'no-proposal' }
   | { type: 'unreachable'; message: string }
@@ -28,6 +29,8 @@ export function parseStrongswanLine(raw: string): StrongswanEvent {
   if (/NO_PROPOSAL_CHOSEN|no (matching )?proposal (found|chosen)/i.test(line)) {
     return { type: 'no-proposal' }
   }
+  // FortiGate asks for X_USER/X_PWD again when it rejects them, instead of a clear failure
+  if (/parsed TRANSACTION request .*CPRQ\(.*X_USER/.test(line)) return { type: 'xauth-request' }
   if (/calculated HASH does not match/i.test(line)) return { type: 'psk-mismatch' }
   if (
     /AUTHENTICATION_FAILED|XAuth authentication of .* failed|verification of .* failed|INVALID_HASH_INFORMATION|PSK mismatch/i.test(
