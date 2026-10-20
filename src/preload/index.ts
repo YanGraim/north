@@ -95,7 +95,8 @@ const api: NorthApi = {
     activate: (id) => ipcRenderer.invoke(IpcChannels.WORKSPACES_ACTIVATE, id),
     probe: (serverUrl) => ipcRenderer.invoke(IpcChannels.WORKSPACES_PROBE, serverUrl),
     addOrganization: (input) => ipcRenderer.invoke(IpcChannels.WORKSPACES_ADD_ORGANIZATION, input),
-    remove: (id) => ipcRenderer.invoke(IpcChannels.WORKSPACES_REMOVE, id)
+    remove: (id) => ipcRenderer.invoke(IpcChannels.WORKSPACES_REMOVE, id),
+    access: () => ipcRenderer.invoke(IpcChannels.WORKSPACES_ACCESS)
   },
 
   clients: {

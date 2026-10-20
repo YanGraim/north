@@ -795,7 +795,8 @@
     "leaveTitle": "Sair de {{name}}?",
     "leaveBody": "O North esquece esta organização neste computador e encerra a sua sessão. Nada é apagado no servidor; você pode adicioná-la de novo depois.",
     "leaveConfirm": "Sair",
-    "leaveCancel": "Cancelar"
+    "leaveCancel": "Cancelar",
+    "noProjectsGranted": "Nenhum projeto liberado para você ainda. Peça acesso a um admin da organização."
   },
   "sessions": {
     "homeTab": "Painel"

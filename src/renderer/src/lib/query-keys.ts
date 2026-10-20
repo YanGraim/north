@@ -6,7 +6,8 @@ export const queryKeys = {
     identity: ['app', 'identity'] as const
   },
   workspaces: {
-    list: ['workspaces'] as const
+    list: ['workspaces'] as const,
+    access: ['workspaces', 'access'] as const
   },
   clients: {
     all: ['clients'] as const,

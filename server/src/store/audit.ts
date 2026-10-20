@@ -1,7 +1,15 @@
 import type { Db } from '../db'
 import type { User } from './users'
 
-export type AuditAction = 'secret.create' | 'secret.write' | 'secret.delete' | 'secret.read'
+export type AuditAction =
+  | 'secret.create'
+  | 'secret.write'
+  | 'secret.delete'
+  | 'secret.read'
+  | 'user.create'
+  | 'user.update'
+  | 'grant.set'
+  | 'grant.delete'
 
 export type AuditEvent = {
   id: number

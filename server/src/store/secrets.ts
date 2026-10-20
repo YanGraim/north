@@ -29,9 +29,31 @@ export async function createSecret(
   return id
 }
 
-export async function secretExists(db: Db, id: string): Promise<boolean> {
-  const { rows } = await db.query('SELECT 1 FROM secrets WHERE id = $1', [id])
-  return rows.length > 0
+/** Who a secret belongs to: the connection that uses it, or its author while still loose. */
+export async function secretOwner(
+  db: Db,
+  id: string
+): Promise<{
+  createdBy: string | null
+  connection: { id: string; groupId: string } | null
+} | null> {
+  const { rows } = await db.query<{
+    created_by: string | null
+    connection_id: string | null
+    group_id: string | null
+  }>(
+    `SELECT s.created_by, c.id AS connection_id, c.group_id
+     FROM secrets s LEFT JOIN connections c ON c.credential_ref = s.id
+     WHERE s.id = $1 LIMIT 1`,
+    [id]
+  )
+  const row = rows[0]
+  if (!row) return null
+  return {
+    createdBy: row.created_by,
+    connection:
+      row.connection_id && row.group_id ? { id: row.connection_id, groupId: row.group_id } : null
+  }
 }
 
 export async function replaceSecret(

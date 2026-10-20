@@ -24,6 +24,7 @@ import {
   useDuplicateConnection,
   useToggleFavoriteConnection
 } from '@renderer/hooks/use-connections'
+import { usePermissions } from '@renderer/hooks/use-permissions'
 import { useSelectedConnectionId } from '@renderer/hooks/use-route-selection'
 import { useSearchIndex } from '@renderer/hooks/use-search-index'
 import { useWorkflows } from '@renderer/hooks/use-workflows'
@@ -98,6 +99,7 @@ export function CommandPalette(): React.JSX.Element {
   const open = useCommandPaletteStore((s) => s.open)
   const setOpen = useCommandPaletteStore((s) => s.setOpen)
   const openDialog = useInventoryDialogsStore((s) => s.open)
+  const can = usePermissions()
   const openWhatsNew = useWhatsNewStore((s) => s.openWhatsNew)
   const navigate = useWorkspaceNavigate()
   const queryClient = useQueryClient()
@@ -395,17 +397,19 @@ export function CommandPalette(): React.JSX.Element {
                         Gerenciar workflows…
                       </CommandItem>
                     ) : null}
-                    <CommandItem
-                      value="action-new-connection"
-                      onSelect={() => {
-                        close()
-                        openDialog({ type: 'connection', mode: 'create' })
-                      }}
-                    >
-                      <Server className="size-4 text-muted" />
-                      Nova conexão · servidor
-                      <CommandShortcut>{shortcutDisplayLabel('newConnection')}</CommandShortcut>
-                    </CommandItem>
+                    {can.editsSomething ? (
+                      <CommandItem
+                        value="action-new-connection"
+                        onSelect={() => {
+                          close()
+                          openDialog({ type: 'connection', mode: 'create' })
+                        }}
+                      >
+                        <Server className="size-4 text-muted" />
+                        Nova conexão · servidor
+                        <CommandShortcut>{shortcutDisplayLabel('newConnection')}</CommandShortcut>
+                      </CommandItem>
+                    ) : null}
                     <CommandItem
                       value="action-open-local-terminal"
                       onSelect={() => {
@@ -438,16 +442,18 @@ export function CommandPalette(): React.JSX.Element {
                       <Globe className="size-4 text-muted" />
                       Nova API
                     </CommandItem>
-                    <CommandItem
-                      value="action-new-client"
-                      onSelect={() => {
-                        close()
-                        openDialog({ type: 'client', mode: 'create' })
-                      }}
-                    >
-                      <Building2 className="size-4 text-muted" />
-                      Novo cliente
-                    </CommandItem>
+                    {can.createClient ? (
+                      <CommandItem
+                        value="action-new-client"
+                        onSelect={() => {
+                          close()
+                          openDialog({ type: 'client', mode: 'create' })
+                        }}
+                      >
+                        <Building2 className="size-4 text-muted" />
+                        Novo cliente
+                      </CommandItem>
+                    ) : null}
                     <CommandItem
                       value="action-dashboard"
                       onSelect={() => {

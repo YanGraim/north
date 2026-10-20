@@ -32,6 +32,7 @@ import {
   useToggleFavoriteConnection
 } from '@renderer/hooks/use-connections'
 import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
+import { usePermissions } from '@renderer/hooks/use-permissions'
 import { useSelectedConnectionId } from '@renderer/hooks/use-route-selection'
 import { useConnectionTags } from '@renderer/hooks/use-tags'
 import { useWorkflows } from '@renderer/hooks/use-workflows'
@@ -60,6 +61,7 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
   const { data: connection, isLoading, isError } = useConnection(connectionId ?? undefined)
   const { data: tags = [] } = useConnectionTags(connectionId ?? undefined)
   const { resolveGroup } = useOrgLookup()
+  const can = usePermissions()
   const toggleFavorite = useToggleFavoriteConnection()
   const duplicate = useDuplicateConnection()
   const deleteConnection = useDeleteConnection()
@@ -131,6 +133,11 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
   }
 
   const org = resolveGroup(connection.groupId)
+  const canEdit = can.edit({
+    clientId: org.client?.id,
+    environmentId: org.environment?.id,
+    groupId: connection.groupId
+  })
 
   return (
     <>
@@ -191,10 +198,14 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => duplicate.mutate(connection.id)}>
-                      Duplicar
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
+                    {canEdit ? (
+                      <>
+                        <DropdownMenuItem onSelect={() => duplicate.mutate(connection.id)}>
+                          Duplicar
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    ) : null}
                     <DropdownMenuItem
                       onSelect={() => void copyToClipboard(connection.host, 'Host')}
                     >
@@ -210,10 +221,17 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
                     >
                       Copiar usuário
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive" onSelect={() => setConfirmOpen(true)}>
-                      Excluir
-                    </DropdownMenuItem>
+                    {canEdit ? (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => setConfirmOpen(true)}
+                        >
+                          Excluir
+                        </DropdownMenuItem>
+                      </>
+                    ) : null}
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button
@@ -286,15 +304,19 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-8 min-w-0 flex-1"
-                onClick={() => openDialog({ type: 'connection', mode: 'edit', id: connection.id })}
-              >
-                Editar
-              </Button>
+              {canEdit ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 min-w-0 flex-1"
+                  onClick={() =>
+                    openDialog({ type: 'connection', mode: 'edit', id: connection.id })
+                  }
+                >
+                  Editar
+                </Button>
+              ) : null}
             </div>
           </header>
 
@@ -455,10 +477,16 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
                   <DetailSection title="Notas">
                     <MarkdownNotes
                       notes={connection.notes}
-                      onSave={async (notes) => {
-                        await window.north.connections.update(connection.id, { notes })
-                        void queryClient.invalidateQueries({ queryKey: queryKeys.connections.all })
-                      }}
+                      onSave={
+                        canEdit
+                          ? async (notes) => {
+                              await window.north.connections.update(connection.id, { notes })
+                              void queryClient.invalidateQueries({
+                                queryKey: queryKeys.connections.all
+                              })
+                            }
+                          : undefined
+                      }
                     />
                   </DetailSection>
                 </>

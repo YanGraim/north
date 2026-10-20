@@ -19,6 +19,8 @@ export function registerWorkspaceHandlers(registry: WorkspaceRegistry): void {
     registry.addOrganization(AddOrganizationInputSchema.parse(input))
   )
 
+  ipcMain.handle(IpcChannels.WORKSPACES_ACCESS, () => registry.access())
+
   ipcMain.handle(IpcChannels.WORKSPACES_REMOVE, async (_event, id: unknown) => {
     await registry.removeOrganization(WorkspaceIdSchema.parse(id))
   })

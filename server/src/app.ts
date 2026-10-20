@@ -4,6 +4,7 @@ import { verifyAccessToken } from './auth/tokens'
 import type { ServerConfig } from './config'
 import type { Db } from './db'
 import { ApiError, unauthorized } from './errors'
+import { registerAdminRoutes } from './routes/admin'
 import { registerAuditRoutes } from './routes/audit'
 import { registerAuthRoutes } from './routes/auth'
 import { registerInventoryRoutes } from './routes/inventory'
@@ -90,5 +91,6 @@ export async function buildApp(deps: { db: Db; config: ServerConfig }): Promise<
   registerInventoryRoutes(app, db, config.masterKey)
   registerSecretRoutes(app, db, config.masterKey)
   registerAuditRoutes(app, db)
+  registerAdminRoutes(app, db)
   return app
 }

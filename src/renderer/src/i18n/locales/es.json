@@ -795,7 +795,8 @@
     "leaveTitle": "¿Salir de {{name}}?",
     "leaveBody": "North olvida esta organización en este equipo y cierra tu sesión. No se borra nada en el servidor; puedes agregarla de nuevo después.",
     "leaveConfirm": "Salir",
-    "leaveCancel": "Cancelar"
+    "leaveCancel": "Cancelar",
+    "noProjectsGranted": "Todavía no tienes proyectos asignados. Pide acceso a un admin de la organización."
   },
   "sessions": {
     "homeTab": "Panel"

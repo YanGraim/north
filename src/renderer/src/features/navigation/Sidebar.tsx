@@ -11,6 +11,7 @@ import { ProfileChip } from '@renderer/features/navigation/ProfileChip'
 import { SidebarSection } from '@renderer/features/navigation/SidebarSection'
 import { TagList } from '@renderer/features/navigation/TagList'
 import { useCreateApiCollection } from '@renderer/hooks/use-api'
+import { usePermissions } from '@renderer/hooks/use-permissions'
 import { cn } from '@renderer/lib/utils'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { openApiStudioTab } from '@renderer/stores/sessions-store'
@@ -41,6 +42,7 @@ export function Sidebar(): React.JSX.Element {
   const setSidebarAgentsExpanded = useUiStore((s) => s.setSidebarAgentsExpanded)
   const setSidebarTagsExpanded = useUiStore((s) => s.setSidebarTagsExpanded)
   const openDialog = useInventoryDialogsStore((s) => s.open)
+  const can = usePermissions()
   const createCollection = useCreateApiCollection()
   const [nameKind, setNameKind] = useState<'create' | null>(null)
   const [transferOpen, setTransferOpen] = useState(false)
@@ -110,7 +112,9 @@ export function Sidebar(): React.JSX.Element {
             title={t('nav.clients')}
             collapsed={collapsed}
             addLabel={t('nav.newClient')}
-            onAdd={() => openDialog({ type: 'client', mode: 'create' })}
+            onAdd={
+              can.createClient ? () => openDialog({ type: 'client', mode: 'create' }) : undefined
+            }
             expandable
             expanded={clientsExpanded}
             onExpandedChange={setSidebarClientsExpanded}
@@ -170,7 +174,9 @@ export function Sidebar(): React.JSX.Element {
             title={t('nav.tags')}
             collapsed={collapsed}
             addLabel={t('nav.newTag')}
-            onAdd={() => openDialog({ type: 'tag', mode: 'create' })}
+            onAdd={
+              can.editsSomething ? () => openDialog({ type: 'tag', mode: 'create' }) : undefined
+            }
             expandable
             expanded={tagsExpanded}
             onExpandedChange={setSidebarTagsExpanded}

@@ -1,7 +1,10 @@
 import {
   type AddOrganizationInput,
+  FULL_ACCESS,
   LOCAL_WORKSPACE_ID,
   type Workspace,
+  type WorkspaceAccess,
+  WorkspaceAccessSchema,
   WorkspaceIdSchema
 } from '@shared/types'
 import type { Repositories } from '../repositories'
@@ -171,6 +174,13 @@ export class WorkspaceRegistry {
     await source.client.request('GET', '/api/v1/me')
     this.active = { workspace, source }
     return workspace
+  }
+
+  /** Role and project grants in the active workspace; the personal one owns everything. */
+  async access(): Promise<WorkspaceAccess> {
+    const source = this.active.source
+    if (!(source instanceof RemoteDataSource)) return FULL_ACCESS
+    return WorkspaceAccessSchema.parse(await source.client.request('GET', '/api/v1/me/access'))
   }
 
   async probe(serverUrl: string) {

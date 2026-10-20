@@ -345,3 +345,13 @@ export {
   WorkspaceKindSchema,
   WorkspaceSchema
 } from './workspace'
+export {
+  FULL_ACCESS,
+  type Permissions,
+  type ProjectGrant,
+  ProjectGrantSchema,
+  type ProjectPath,
+  permissionsFor,
+  type WorkspaceAccess,
+  WorkspaceAccessSchema
+} from './workspace-access'

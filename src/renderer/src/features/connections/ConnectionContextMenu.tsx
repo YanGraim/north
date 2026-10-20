@@ -11,6 +11,7 @@ import {
   useDuplicateConnection,
   useToggleFavoriteConnection
 } from '@renderer/hooks/use-connections'
+import { useCanEditConnection } from '@renderer/hooks/use-permissions'
 import { copyToClipboard } from '@renderer/lib/clipboard'
 import { toastError } from '@renderer/lib/toast'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
@@ -33,6 +34,7 @@ export function ConnectionContextMenu({
   const deleteConnection = useDeleteConnection()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [connecting, setConnecting] = useState(false)
+  const canEdit = useCanEditConnection(connection)
 
   async function handleConnect(): Promise<void> {
     setConnecting(true)
@@ -62,14 +64,18 @@ export function ConnectionContextMenu({
           >
             {connecting ? 'Conectando…' : 'Conectar'}
           </ContextMenuItem>
-          <ContextMenuItem
-            onSelect={() => openDialog({ type: 'connection', mode: 'edit', id: connection.id })}
-          >
-            Editar
-          </ContextMenuItem>
-          <ContextMenuItem onSelect={() => duplicate.mutate(connection.id)}>
-            Duplicar
-          </ContextMenuItem>
+          {canEdit ? (
+            <>
+              <ContextMenuItem
+                onSelect={() => openDialog({ type: 'connection', mode: 'edit', id: connection.id })}
+              >
+                Editar
+              </ContextMenuItem>
+              <ContextMenuItem onSelect={() => duplicate.mutate(connection.id)}>
+                Duplicar
+              </ContextMenuItem>
+            </>
+          ) : null}
           <ContextMenuSeparator />
           <ContextMenuItem onSelect={() => void copyToClipboard(connection.host, 'Host')}>
             Copiar IP
@@ -85,10 +91,14 @@ export function ConnectionContextMenu({
           <ContextMenuItem onSelect={() => toggleFavorite.mutate(connection.id)}>
             {connection.isFavorite ? 'Remover dos favoritos' : 'Favoritar'}
           </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem variant="destructive" onSelect={() => setConfirmOpen(true)}>
-            Excluir
-          </ContextMenuItem>
+          {canEdit ? (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem variant="destructive" onSelect={() => setConfirmOpen(true)}>
+                Excluir
+              </ContextMenuItem>
+            </>
+          ) : null}
         </ContextMenuContent>
       </ContextMenu>
 

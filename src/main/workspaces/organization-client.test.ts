@@ -111,6 +111,7 @@ describe('OrganizationClient', () => {
   it('returns undefined for 204 responses', async () => {
     const client = new OrganizationClient(server.url, memoryTokenStore())
     await client.devLogin('fabi@acme.com')
+    await server.makeAdmin('fabi@acme.com')
     const created = await client.request<{ id: string }>('POST', '/api/v1/clients', { name: 'X' })
     expect(await client.request('DELETE', `/api/v1/clients/${created.id}`)).toBeUndefined()
   })

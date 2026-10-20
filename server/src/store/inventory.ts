@@ -331,7 +331,7 @@ export async function createConnection(
   input: CreateConnectionInput
 ): Promise<Connection> {
   if (!(await getGroup(db, input.groupId))) throw notFound('Group')
-  await assertSecret(db, input.credentialRef)
+  await assertAttachable(db, userId, input.credentialRef, null)
   const id = randomUUID()
   const values: Record<string, unknown> = {
     links: [],
@@ -364,7 +364,7 @@ export async function updateConnection(
   input: UpdateConnectionInput
 ): Promise<Connection | null> {
   if (input.groupId && !(await getGroup(db, input.groupId))) throw notFound('Group')
-  await assertSecret(db, input.credentialRef)
+  await assertAttachable(db, userId, input.credentialRef, id)
   const set = setClause(input, { ...CONNECTION_COLUMNS, groupId: 'group_id' }, JSON_COLUMNS)
   const { rows } = await db.query(`UPDATE connections SET ${set.sql} WHERE id = $1 RETURNING id`, [
     id,
@@ -380,10 +380,26 @@ export async function deleteConnection(db: Db, id: string): Promise<boolean> {
   return rows.length > 0
 }
 
-async function assertSecret(db: Db, credentialRef: string | null | undefined): Promise<void> {
+/**
+ * One secret belongs to one connection: it can keep its own, or take a loose
+ * secret its author just stored. Anything else answers 404, so nobody can
+ * point a connection at another connection's password and reveal it.
+ */
+async function assertAttachable(
+  db: Db,
+  userId: string,
+  credentialRef: string | null | undefined,
+  connectionId: string | null
+): Promise<void> {
   if (!credentialRef) return
-  const { rows } = await db.query('SELECT 1 FROM secrets WHERE id = $1', [credentialRef])
-  if (!rows[0]) throw notFound('Secret')
+  const { rows } = await db.query<{ created_by: string | null; owner: string | null }>(
+    `SELECT s.created_by, (SELECT c.id FROM connections c WHERE c.credential_ref = s.id LIMIT 1) AS owner
+     FROM secrets s WHERE s.id = $1`,
+    [credentialRef]
+  )
+  const row = rows[0]
+  const ok = row && (row.owner ? row.owner === connectionId : row.created_by === userId)
+  if (!ok) throw notFound('Secret')
 }
 
 async function setFavorite(db: Db, userId: string, id: string, favorite: boolean): Promise<void> {

@@ -13,6 +13,7 @@ import { WorkspaceLink } from '@renderer/components/WorkspaceLink'
 import { ConnectionHealthWidget } from '@renderer/features/dashboard/ConnectionHealthWidget'
 import { RecentUpdatesWidget } from '@renderer/features/dashboard/RecentUpdatesWidget'
 import { useAccesses } from '@renderer/hooks/use-accesses'
+import { usePermissions } from '@renderer/hooks/use-permissions'
 import { useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
 import { formatRelativeDate } from '@renderer/lib/connection-ui'
 import { formatDuration } from '@renderer/lib/format-duration'
@@ -48,6 +49,7 @@ export function DashboardPage(): React.JSX.Element {
   const navigate = useWorkspaceNavigate()
   const setPaletteOpen = useCommandPaletteStore((s) => s.setOpen)
   const openDialog = useInventoryDialogsStore((s) => s.open)
+  const can = usePermissions()
   const { data, isLoading, isError } = useStatsOverview()
   const { data: accesses = [] } = useAccesses()
 
@@ -99,47 +101,51 @@ export function DashboardPage(): React.JSX.Element {
                 <StatChip label="Favoritos" value={data.totals.favorites} to="/favorites" />
               </div>
               <div className="flex flex-wrap gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button type="button" size="sm">
-                      <Plus className="size-3.5" />
-                      Nova conexão
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onSelect={() => openDialog({ type: 'connection', mode: 'create' })}
-                    >
-                      <Server className="size-3.5" />
-                      Servidor
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() =>
-                        openDialog({ type: 'access', mode: 'create', accessType: 'database' })
-                      }
-                    >
-                      <Database className="size-3.5" />
-                      Banco
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() =>
-                        openDialog({ type: 'access', mode: 'create', accessType: 'api' })
-                      }
-                    >
-                      <Globe className="size-3.5" />
-                      API
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => openDialog({ type: 'client', mode: 'create' })}
-                >
-                  <UserPlus className="size-3.5" />
-                  Novo cliente
-                </Button>
+                {can.editsSomething ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" size="sm">
+                        <Plus className="size-3.5" />
+                        Nova conexão
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onSelect={() => openDialog({ type: 'connection', mode: 'create' })}
+                      >
+                        <Server className="size-3.5" />
+                        Servidor
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          openDialog({ type: 'access', mode: 'create', accessType: 'database' })
+                        }
+                      >
+                        <Database className="size-3.5" />
+                        Banco
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          openDialog({ type: 'access', mode: 'create', accessType: 'api' })
+                        }
+                      >
+                        <Globe className="size-3.5" />
+                        API
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
+                {can.createClient ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => openDialog({ type: 'client', mode: 'create' })}
+                  >
+                    <UserPlus className="size-3.5" />
+                    Novo cliente
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   size="sm"

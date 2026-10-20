@@ -11,6 +11,7 @@ import { useConnections } from '@renderer/hooks/use-connections'
 import { useDeleteEnvironment } from '@renderer/hooks/use-environments'
 import { useDeleteGroup } from '@renderer/hooks/use-groups'
 import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
+import { usePermissions } from '@renderer/hooks/use-permissions'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import type { Client, Environment, Group } from '@shared/types'
 import { useMemo, useState } from 'react'
@@ -34,6 +35,14 @@ export function TreeNodeContextMenu(props: TreeNodeContextMenuProps): React.JSX.
   const deleteEnvironment = useDeleteEnvironment()
   const deleteGroup = useDeleteGroup()
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const can = usePermissions()
+  const canEdit = can.edit(
+    props.kind === 'client'
+      ? { clientId: props.client.id }
+      : props.kind === 'environment'
+        ? { clientId: props.clientId, environmentId: props.environment.id }
+        : { clientId: props.clientId, environmentId: props.environmentId, groupId: props.group.id }
+  )
 
   const cascade = useMemo((): CascadeSummary => {
     if (props.kind === 'client') {
@@ -74,6 +83,9 @@ export function TreeNodeContextMenu(props: TreeNodeContextMenuProps): React.JSX.
         : 'Conexões deste grupo serão excluídas em cascata.'
 
   const confirming = deleteClient.isPending || deleteEnvironment.isPending || deleteGroup.isPending
+
+  // Every item creates, edits or deletes; read-only projects get no menu at all.
+  if (!canEdit) return <>{props.children}</>
 
   return (
     <>

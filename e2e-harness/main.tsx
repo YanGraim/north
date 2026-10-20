@@ -30,7 +30,8 @@ installMockNorth({
       ? 'org'
       : params.get('workspaces') === 'org-signed-out'
         ? 'org-signed-out'
-        : 'none'
+        : 'none',
+  orgRole: (['viewer', 'editor', 'none'] as const).find((r) => r === params.get('role')) ?? 'admin'
 })
 
 applyOrganizationOverlay(

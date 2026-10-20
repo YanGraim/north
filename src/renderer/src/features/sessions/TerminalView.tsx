@@ -3,6 +3,7 @@ import { SessionIdentityBar } from '@renderer/features/sessions/SessionIdentityB
 import { TerminalContextMenu } from '@renderer/features/sessions/TerminalContextMenu'
 import { TerminalFindBar } from '@renderer/features/sessions/TerminalFindBar'
 import { useClaudeUsage } from '@renderer/hooks/use-claude-usage'
+import { useCanRevealConnectionPassword } from '@renderer/hooks/use-permissions'
 import { copyToClipboard } from '@renderer/lib/clipboard'
 import { environmentStatusColor, hasEnvironmentContext } from '@renderer/lib/environment-color'
 import { attachTerminalInteraction } from '@renderer/lib/terminal/attach-interaction'
@@ -57,6 +58,7 @@ export function TerminalView({
   connectionId
 }: TerminalViewProps): React.JSX.Element {
   const { data: claudeUsage } = useClaudeUsage(sessionId, Boolean(isLocalShell))
+  const canPasteSecret = useCanRevealConnectionPassword(connectionId)
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
@@ -346,7 +348,7 @@ export function TerminalView({
           }}
           onClearSelection={() => interactionRef.current?.clearSelection()}
           onPasteSecret={
-            connectionId
+            connectionId && canPasteSecret
               ? () => {
                   void (async () => {
                     try {

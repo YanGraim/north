@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import { listGrants } from '../access'
 import type { ServerConfig } from '../config'
 import type { Db } from '../db'
 import { unauthorized } from '../errors'
@@ -36,4 +37,10 @@ export function registerAuthRoutes(app: FastifyInstance, db: Db, config: ServerC
   })
 
   app.get('/api/v1/me', async (request) => request.user)
+
+  // Lets the desktop hide what the user cannot do; the server still checks every call.
+  app.get('/api/v1/me/access', async (request) => ({
+    role: request.user.role,
+    grants: request.user.role === 'admin' ? [] : await listGrants(db, request.user.id)
+  }))
 }

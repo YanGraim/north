@@ -16,6 +16,7 @@ import {
   useDuplicateConnection,
   useToggleFavoriteConnection
 } from '@renderer/hooks/use-connections'
+import { useCanEditConnection } from '@renderer/hooks/use-permissions'
 import { useConnectionTags } from '@renderer/hooks/use-tags'
 import { copyToClipboard } from '@renderer/lib/clipboard'
 import { formatRelativeDate } from '@renderer/lib/connection-ui'
@@ -47,6 +48,7 @@ export function ConnectionListItem({
   const deleteConnection = useDeleteConnection()
   const openDialog = useInventoryDialogsStore((s) => s.open)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const canEdit = useCanEditConnection(connection)
 
   return (
     <li>
@@ -133,17 +135,21 @@ export function ConnectionListItem({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
-                <DropdownMenuItem
-                  onSelect={() =>
-                    openDialog({ type: 'connection', mode: 'edit', id: connection.id })
-                  }
-                >
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => duplicate.mutate(connection.id)}>
-                  Duplicar
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                {canEdit ? (
+                  <>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        openDialog({ type: 'connection', mode: 'edit', id: connection.id })
+                      }
+                    >
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => duplicate.mutate(connection.id)}>
+                      Duplicar
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                ) : null}
                 <DropdownMenuItem onSelect={() => void copyToClipboard(connection.host, 'Host')}>
                   Copiar IP
                 </DropdownMenuItem>
@@ -157,10 +163,14 @@ export function ConnectionListItem({
                 >
                   Copiar usuário
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onSelect={() => setConfirmOpen(true)}>
-                  Excluir
-                </DropdownMenuItem>
+                {canEdit ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onSelect={() => setConfirmOpen(true)}>
+                      Excluir
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           </span>

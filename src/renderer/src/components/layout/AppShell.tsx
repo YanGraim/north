@@ -10,6 +10,7 @@ import { SessionTabs } from '@renderer/features/sessions/SessionTabs'
 import { SessionView } from '@renderer/features/sessions/SessionView'
 import { VpnDialogs } from '@renderer/features/vpns/VpnDialogs'
 import { WorkflowRunView } from '@renderer/features/workflows/WorkflowRunView'
+import { usePermissions } from '@renderer/hooks/use-permissions'
 import { releaseStaleBodyPointerEvents } from '@renderer/lib/release-body-pointer-events'
 import { matchesShortcut } from '@renderer/lib/shortcuts'
 import { toastError } from '@renderer/lib/toast'
@@ -24,6 +25,7 @@ export function AppShell(): React.JSX.Element {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar)
   const togglePalette = useCommandPaletteStore((s) => s.toggle)
   const openDialog = useInventoryDialogsStore((s) => s.open)
+  const canCreate = usePermissions().editsSomething
   const activeTabId = useSessionsStore((s) => s.activeTabId)
   const tabs = useSessionsStore((s) => s.tabs)
   const closeTab = useSessionsStore((s) => s.closeTab)
@@ -61,7 +63,7 @@ export function AppShell(): React.JSX.Element {
         return
       }
 
-      if (!typing && matchesShortcut(event, 'newConnection')) {
+      if (!typing && canCreate && matchesShortcut(event, 'newConnection')) {
         event.preventDefault()
         openDialog({ type: 'connection', mode: 'create' })
         return
@@ -86,7 +88,7 @@ export function AppShell(): React.JSX.Element {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [toggleSidebar, togglePalette, openDialog, activeTabId, closeTab, duplicateTab])
+  }, [toggleSidebar, togglePalette, openDialog, canCreate, activeTabId, closeTab, duplicateTab])
 
   return (
     <TooltipProvider>

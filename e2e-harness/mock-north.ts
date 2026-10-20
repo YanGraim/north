@@ -20,7 +20,8 @@ import type {
   WorkflowRun,
   WorkflowRunEvent,
   WorkflowRunRespondInput,
-  Workspace
+  Workspace,
+  WorkspaceAccess
 } from '@shared/types'
 import {
   cloneWorkflowDefinition,
@@ -573,13 +574,22 @@ type WorkspacesMock = {
   probe: (serverUrl: string) => Promise<OrganizationServerInfo>
   addOrganization: (input: AddOrganizationInput) => Promise<Workspace>
   remove: (id: string) => Promise<void>
+  access: () => Promise<WorkspaceAccess>
   /** Harness-only: which workspace the overlay serves. */
   activeKind: () => 'local' | 'organization'
+  /** Harness-only: the signed-in user's role in the organization (`?role=`). */
+  orgRole: OrgRole
 }
+
+/** `admin` by default; `viewer`/`editor` are granted on the org dataset; `none` sees nothing. */
+type OrgRole = 'admin' | 'editor' | 'viewer' | 'none'
 
 let workspacesMock: WorkspacesMock
 
-function createWorkspacesMock(mode: 'none' | 'org' | 'org-signed-out'): WorkspacesMock {
+function createWorkspacesMock(
+  mode: 'none' | 'org' | 'org-signed-out',
+  orgRole: OrgRole
+): WorkspacesMock {
   const ts = '2026-10-20T00:00:00.000Z'
   const rows: Workspace[] = [
     {
@@ -658,7 +668,21 @@ function createWorkspacesMock(mode: 'none' | 'org' | 'org-signed-out'): Workspac
       rows.splice(index, 1)
       if (active === id) active = LOCAL_WORKSPACE_ID
     },
-    activeKind: () => (active === LOCAL_WORKSPACE_ID ? 'local' : 'organization')
+    access: async () => {
+      if (active === LOCAL_WORKSPACE_ID || orgRole === 'admin') return { role: 'admin', grants: [] }
+      if (orgRole === 'none') return { role: 'member', grants: [] }
+      return orgRole === 'viewer'
+        ? {
+            role: 'member',
+            grants: [{ scopeType: 'client', scopeId: ORG_IDS.client, role: 'viewer' }]
+          }
+        : {
+            role: 'member',
+            grants: [{ scopeType: 'group', scopeId: ORG_IDS.group, role: 'editor' }]
+          }
+    },
+    activeKind: () => (active === LOCAL_WORKSPACE_ID ? 'local' : 'organization'),
+    orgRole
   }
 }
 
@@ -735,12 +759,17 @@ export function applyOrganizationOverlay(api: Record<string, Record<string, unkn
     updatedAt: ts
   }
   const org = (): boolean => workspacesMock.activeKind() === 'organization'
+  // Without any grant the server answers every list empty.
+  const hidden = (): boolean => workspacesMock.orgRole === 'none'
   const overlay = (ns: string, method: string, value: (...args: unknown[]) => unknown): void => {
     const target = api[ns]
     if (!target || typeof target[method] !== 'function') return
     const original = target[method] as (...args: unknown[]) => unknown
-    target[method] = (...args: unknown[]) =>
-      org() ? Promise.resolve(value(...args)) : original(...args)
+    target[method] = (...args: unknown[]) => {
+      if (!org()) return original(...args)
+      const result = value(...args)
+      return Promise.resolve(hidden() && Array.isArray(result) ? [] : result)
+    }
   }
   overlay('clients', 'list', () => [client])
   overlay('clients', 'get', (id) => (id === client.id ? client : null))
@@ -816,8 +845,9 @@ export function installMockNorth(opts?: {
   scenario?: 'workflows' | 'ftp' | 'database'
   fsFail?: boolean
   workspaces?: 'none' | 'org' | 'org-signed-out'
+  orgRole?: OrgRole
 }): void {
-  workspacesMock = createWorkspacesMock(opts?.workspaces ?? 'none')
+  workspacesMock = createWorkspacesMock(opts?.workspaces ?? 'none', opts?.orgRole ?? 'admin')
   workflows = []
   variables = []
   runs = []

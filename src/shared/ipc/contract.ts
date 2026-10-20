@@ -129,6 +129,7 @@ import type {
   VpnState
 } from '../types/vpn'
 import type { AddOrganizationInput, OrganizationServerInfo, Workspace } from '../types/workspace'
+import type { WorkspaceAccess } from '../types/workspace-access'
 import { IpcChannels } from './channels'
 
 /**
@@ -160,6 +161,7 @@ export interface IpcInvokeMap {
     result: Workspace
   }
   [IpcChannels.WORKSPACES_REMOVE]: { args: [id: string]; result: undefined }
+  [IpcChannels.WORKSPACES_ACCESS]: { args: []; result: WorkspaceAccess }
 
   [IpcChannels.CLIENTS_LIST]: { args: []; result: Client[] }
   [IpcChannels.CLIENTS_GET]: { args: [id: string]; result: Client | null }
@@ -736,6 +738,8 @@ export interface NorthApi {
     addOrganization: (input: AddOrganizationInput) => Promise<Workspace>
     /** Signs out and forgets an organization (never the personal workspace). */
     remove: (id: string) => Promise<void>
+    /** Role and project grants in the active workspace, to hide what the user cannot do. */
+    access: () => Promise<WorkspaceAccess>
   }
   clients: {
     list: () => Promise<Client[]>

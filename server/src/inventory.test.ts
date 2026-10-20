@@ -273,6 +273,14 @@ describe('favorites are per user', () => {
     expect((await call('GET', '/api/v1/connections?isFavorite=true')).json()).toHaveLength(1)
 
     const bob = await login(app, 'bob@acme.com')
+    const bobId = (await app.inject({ method: 'GET', url: '/api/v1/me', headers: bob.auth })).json()
+      .id
+    await call('PUT', '/api/v1/admin/grants', {
+      userId: bobId,
+      scopeType: 'group',
+      scopeId: conn.groupId,
+      role: 'viewer'
+    })
     const asBob = await app.inject({
       method: 'GET',
       url: `/api/v1/connections/${conn.id}`,
@@ -333,10 +341,10 @@ describe('tags', () => {
 })
 
 describe('shared organization inventory', () => {
-  it('every signed-in user sees the same tree (RBAC lands in phase 3)', async () => {
+  it('a member sees only the projects granted to them (see rbac.test.ts)', async () => {
     await seedTree()
     const bob = await login(app, 'bob@acme.com')
     const res = await app.inject({ method: 'GET', url: '/api/v1/clients', headers: bob.auth })
-    expect(res.json()).toHaveLength(1)
+    expect(res.json()).toEqual([])
   })
 })

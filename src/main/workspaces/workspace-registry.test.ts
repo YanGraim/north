@@ -98,6 +98,7 @@ describe('WorkspaceRegistry — organizations', () => {
     const { registry, local } = setup()
     local.clients.create({ name: 'Only on this computer' })
     const org = await registry.addOrganization({ serverUrl: server.url, email: 'bia@acme.com' })
+    await server.makeAdmin('bia@acme.com')
     await registry.activate(org.id)
     expect(registry.activeSource().kind).toBe('remote')
     const created = await registry.inventory().clients.create({ name: 'Org client' })
@@ -169,6 +170,7 @@ describe('WorkspaceRegistry — organizations', () => {
     const { registry, local } = setup()
     expect(registry.secrets().kind).toBe('local')
     const org = await registry.addOrganization({ serverUrl: server.url, email: 'hugo@acme.com' })
+    await server.makeAdmin('hugo@acme.com')
     await registry.activate(org.id)
     const secrets = registry.secrets()
     expect(secrets.kind).toBe('remote')
@@ -197,6 +199,20 @@ describe('WorkspaceRegistry — organizations', () => {
     const org = await registry.addOrganization({ serverUrl: server.url, email: 'ines@acme.com' })
     await registry.activate(org.id)
     expect(registry.activeSource().repositories.knownHosts).toBe(local.knownHosts)
+  })
+
+  it('the personal workspace gives full access', async () => {
+    const { registry } = setup()
+    expect(await registry.access()).toEqual({ role: 'admin', grants: [] })
+  })
+
+  it('an organization answers with the role and grants from the server', async () => {
+    const { registry } = setup()
+    const org = await registry.addOrganization({ serverUrl: server.url, email: 'ivo@acme.com' })
+    await registry.activate(org.id)
+    expect(await registry.access()).toEqual({ role: 'member', grants: [] })
+    await server.makeAdmin('ivo@acme.com')
+    expect((await registry.access()).role).toBe('admin')
   })
 
   it('never removes the local workspace', async () => {

@@ -6,7 +6,8 @@ export type Migration = { version: number; name: string; sql: string }
  * Versioned SQL, applied in a transaction at boot (same discipline as the
  * desktop's SQLite migrations). Inventory mirrors the desktop tree; per-user
  * state (favorites) lives in its own table. Secrets (002) are envelope
- * encrypted and only ever leave the server through an audited reveal.
+ * encrypted and only ever leave the server through an audited reveal. Project
+ * grants (003) give members editor/viewer access to part of the tree.
  */
 export const migrations: Migration[] = [
   {
@@ -158,6 +159,32 @@ export const migrations: Migration[] = [
         detail JSONB NOT NULL DEFAULT '{}'
       );
       CREATE INDEX idx_audit_events_at ON audit_events(at DESC);
+    `
+  },
+  {
+    version: 3,
+    name: '003-project-grants',
+    sql: `
+      -- Editor/viewer per project (ADR 0018 §7). One FK per level so deleting
+      -- the project, or the user, drops the grant.
+      CREATE TABLE project_grants (
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        scope_type TEXT NOT NULL CHECK (scope_type IN ('client', 'environment', 'group')),
+        client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+        environment_id UUID REFERENCES environments(id) ON DELETE CASCADE,
+        group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+        scope_id UUID GENERATED ALWAYS AS (COALESCE(client_id, environment_id, group_id)) STORED,
+        role TEXT NOT NULL CHECK (role IN ('editor', 'viewer')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, scope_id),
+        CHECK (num_nonnulls(client_id, environment_id, group_id) = 1),
+        CHECK (
+          (scope_type = 'client' AND client_id IS NOT NULL) OR
+          (scope_type = 'environment' AND environment_id IS NOT NULL) OR
+          (scope_type = 'group' AND group_id IS NOT NULL)
+        )
+      );
+      CREATE INDEX idx_project_grants_scope ON project_grants(scope_id);
     `
   }
 ]

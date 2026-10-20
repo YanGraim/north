@@ -17,12 +17,14 @@ import { TreeNodeContextMenu } from '@renderer/features/navigation/TreeNodeConte
 import { useAccesses } from '@renderer/hooks/use-accesses'
 import { useConnections } from '@renderer/hooks/use-connections'
 import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
+import { usePermissions } from '@renderer/hooks/use-permissions'
 import { environmentStatusColor } from '@renderer/lib/environment-color'
 import { cn } from '@renderer/lib/utils'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { Building2, ChevronRight, Folder } from 'lucide-react'
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useSearchParams } from 'react-router-dom'
 
 const ROW_ACTIVE = 'bg-surface-elevated/80 text-foreground'
@@ -51,6 +53,8 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
   const activeConnection = searchParams.get('connection')
   const activeAccess = searchParams.get('access')
   const openDialog = useInventoryDialogsStore((s) => s.open)
+  const can = usePermissions()
+  const { t } = useTranslation()
 
   const { clients, environments, groups, isLoading } = useOrgLookup()
   const { data: connections = [] } = useConnections()
@@ -131,14 +135,22 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
   if (clients.length === 0) {
     return (
       <div className="space-y-2 px-2 py-1">
-        <p className="text-xs text-muted">Nenhum cliente ainda.</p>
-        <button
-          type="button"
-          className="text-xs text-accent hover:underline"
-          onClick={() => openDialog({ type: 'client', mode: 'create' })}
-        >
-          Criar cliente
-        </button>
+        {can.createClient ? (
+          <>
+            <p className="text-xs text-muted">Nenhum cliente ainda.</p>
+            <button
+              type="button"
+              className="text-xs text-accent hover:underline"
+              onClick={() => openDialog({ type: 'client', mode: 'create' })}
+            >
+              Criar cliente
+            </button>
+          </>
+        ) : (
+          <p className="text-xs text-muted" data-testid="no-projects-granted">
+            {t('workspaces.noProjectsGranted')}
+          </p>
+        )}
       </div>
     )
   }
