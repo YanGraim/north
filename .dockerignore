@@ -1,0 +1,8 @@
+# Only the North Server image builds from the repo root; send it just what it needs.
+*
+!src/shared
+!server
+server/node_modules
+server/dist
+server/.env
+**/*.test.ts

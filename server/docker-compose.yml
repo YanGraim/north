@@ -1,0 +1,32 @@
+# Local/self-hosted North Server: API + Postgres.
+#   cp server/.env.example server/.env   # then edit secrets
+#   docker compose -f server/docker-compose.yml up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: north
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-north}
+      POSTGRES_DB: north
+    volumes:
+      - north-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U north']
+      interval: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://north:${POSTGRES_PASSWORD:-north}@db:5432/north
+    ports:
+      - '${NORTH_PORT:-8080}:8080'
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  north-db:

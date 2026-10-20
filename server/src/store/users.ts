@@ -1,0 +1,50 @@
+import { randomUUID } from 'node:crypto'
+import type { UserRole } from '../auth/tokens'
+import type { Db } from '../db'
+
+export type User = { id: string; email: string; name: string; role: UserRole }
+
+type UserRow = User & { disabled_at: Date | null }
+
+export async function findActiveUser(db: Db, id: string): Promise<User | null> {
+  const { rows } = await db.query<UserRow>(
+    'SELECT id, email, name, role, disabled_at FROM users WHERE id = $1',
+    [id]
+  )
+  const row = rows[0]
+  if (!row || row.disabled_at) return null
+  return { id: row.id, email: row.email, name: row.name, role: row.role }
+}
+
+/** Finds by e-mail or creates; the very first user of the instance becomes admin. */
+export async function upsertUserByEmail(db: Db, email: string, name: string): Promise<User | null> {
+  return db.transaction(async (tx) => {
+    const normalized = email.trim().toLowerCase()
+    const existing = await tx.query<UserRow>(
+      'SELECT id, email, name, role, disabled_at FROM users WHERE email = $1',
+      [normalized]
+    )
+    if (existing.rows[0]) {
+      const row = existing.rows[0]
+      return row.disabled_at
+        ? null
+        : { id: row.id, email: row.email, name: row.name, role: row.role }
+    }
+    await tx.query('LOCK TABLE users IN EXCLUSIVE MODE')
+    const { rows } = await tx.query<{ n: number }>('SELECT count(*)::int AS n FROM users')
+    const role: UserRole = rows[0].n === 0 ? 'admin' : 'member'
+    const user: User = {
+      id: randomUUID(),
+      email: normalized,
+      name: name.trim() || normalized,
+      role
+    }
+    await tx.query('INSERT INTO users (id, email, name, role) VALUES ($1, $2, $3, $4)', [
+      user.id,
+      user.email,
+      user.name,
+      user.role
+    ])
+    return user
+  })
+}
