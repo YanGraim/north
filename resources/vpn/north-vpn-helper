@@ -84,15 +84,37 @@ case "${1:-}" in
     # Explicit plugin list (missing ones are skipped) so "unity" is loaded: it reads the
     # split-tunnel networks FortiGate pushes, like FortiClient, instead of taking all traffic.
     plugins='charon-cmd pkcs11 aes des sha1 sha2 md5 hmac random nonce x509 revocation constraints pubkey pkcs1 pkcs8 sshkey pem openssl gmp curve25519 kdf curl kernel-pfkey kernel-pfroute kernel-netlink socket-default eap-identity eap-md5 eap-gtc eap-mschapv2 eap-peap xauth-generic osx-attr resolve unity'
-    # Windows (North's WSL distro, marked by /etc/north-wsl): ESP in userspace on a TUN
-    # (no dependency on the WSL kernel's XFRM), and Windows' traffic for the VPN's networks
-    # — routed here by north-vpn-service — is forwarded into the tunnel and NATed to it.
+    # Windows (North's WSL distro, marked by /etc/north-wsl): Windows' traffic for the VPN's
+    # networks — routed here by north-vpn-service — is forwarded into the tunnel. The tunnel
+    # only carries the virtual IP (its policy is VIP === networks), so that traffic is SNATed
+    # to it (wsl_nat below). kernel-libipsec is the fallback when the WSL kernel has no XFRM.
+    wsl=''
     if [ -f /etc/north-wsl ]; then
+      wsl=1
       plugins="$plugins kernel-libipsec"
       sysctl -qw net.ipv4.ip_forward=1
-      iptables -t nat -C POSTROUTING -o ipsec+ -j MASQUERADE 2>/dev/null ||
-        iptables -t nat -A POSTROUTING -o ipsec+ -j MASQUERADE
+      # all WSL distros share one network: a chain of North's own, emptied on every start
+      iptables -t nat -N NORTH_VPN 2>/dev/null
+      iptables -t nat -F NORTH_VPN
+      iptables -t nat -C POSTROUTING -j NORTH_VPN 2>/dev/null ||
+        iptables -t nat -I POSTROUTING -j NORTH_VPN
+      # rule of North <= 0.1.36, never matched
+      iptables -t nat -D POSTROUTING -o ipsec+ -j MASQUERADE 2>/dev/null
     fi
+    nat=''
+    # one SNAT per network strongSwan routed (table 220), to the virtual IP it used as src;
+    # rebuilt whenever that changes (rekey, new address)
+    wsl_nat() {
+      now=$(ip -4 route show table 220 2>/dev/null |
+        awk '{for (i = 2; i < NF; i++) if ($i == "src") print $1, $(i + 1)}' | sort)
+      [ "$now" = "$nat" ] && return
+      iptables -t nat -F NORTH_VPN
+      printf '%s\n' "$now" | while read -r net vip; do
+        [ -n "$net" ] && iptables -t nat -A NORTH_VPN -d "$net" ! -s "$vip" -j SNAT --to-source "$vip"
+      done
+      [ -n "$now" ] && echo "[north] WSL: $(printf '%s\n' "$now" | wc -l) rede(s) da VPN com NAT para $(printf '%s\n' "$now" | awk 'NR == 1 {print $2}')"
+      nat=$now
+    }
     printf '%s\n' 'charon-cmd {' "  load = $plugins" '  cisco_unity = yes' '  port = 500' '  port_nat_t = 4500' \
       '  filelog {' '    stderr {' '      default = 1' '      flush_line = yes' '    }' '  }' '}' \
       >"$tmp/strongswan.conf"
@@ -106,10 +128,16 @@ case "${1:-}" in
     psk='' pw=''
     trap 'kill -TERM "$pid" 2>/dev/null' TERM INT HUP
     while kill -0 "$pid" 2>/dev/null; do
+      [ -n "$wsl" ] && wsl_nat
       sleep 1 &
       wait $!
     done
     rm -rf "$tmp"
+    if [ -n "$wsl" ]; then
+      iptables -t nat -D POSTROUTING -j NORTH_VPN 2>/dev/null
+      iptables -t nat -F NORTH_VPN 2>/dev/null
+      iptables -t nat -X NORTH_VPN 2>/dev/null
+    fi
     wait "$pid"
     ;;
   openvpn)

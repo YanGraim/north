@@ -29,6 +29,8 @@ export type WslIpsecDeps = {
   wsl: WslRun
   /** spawns wsl.exe streaming stdout+stderr, stdin = input */
   spawn?: (args: string[], input: string, onOutput: (chunk: Buffer) => void) => HelperRun
+  /** how long stop() waits for the helper to clean up before terminating the distro */
+  stopGraceMs?: number
   /** this PC's own IPv4 addresses (to spot WSL's mirrored networking) */
   hostIps: () => string[]
 }
@@ -99,10 +101,18 @@ export class WslIpsec {
     return {
       exited: run.exited,
       stop: () => {
-        // killing wsl.exe doesn't reach the Linux side: stopping the VM ends charon-cmd
-        // (its tunnel lives in there) and gives the memory back to Windows
-        void this.deps.wsl(['--terminate', WSL_DISTRO])
-        run.stop()
+        // killing wsl.exe doesn't reach the Linux side. All WSL distros share one network,
+        // so charon-cmd must remove its routes/policies and the helper its NAT itself:
+        // stop them first, then terminate the distro (frees its memory)
+        void (async () => {
+          await this.deps.wsl(['-d', WSL_DISTRO, '-u', 'root', '--', HELPER, 'stop-all'])
+          await Promise.race([
+            run.exited,
+            new Promise((resolve) => setTimeout(resolve, this.deps.stopGraceMs ?? 5000))
+          ])
+          await this.deps.wsl(['--terminate', WSL_DISTRO])
+          run.stop()
+        })()
       }
     }
   }

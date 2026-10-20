@@ -73,17 +73,25 @@ describe('WslIpsec', () => {
     await expect(mirrored.gatewayIp()).rejects.toThrow(/espelhado/)
   })
 
-  it('runs the helper as root in the distro; stopping terminates the VM', async () => {
+  it('runs the helper as root in the distro; stopping lets it clean up, then terminates', async () => {
     const { d, calls } = deps()
     const spawned: string[][] = []
+    let killed = false
     const wsl = new WslIpsec({
       ...d,
+      stopGraceMs: 10,
       spawn: (args) => {
         spawned.push(args)
-        return { exited: new Promise(() => {}), stop: () => {} }
+        return {
+          exited: new Promise(() => {}),
+          stop: () => {
+            killed = true
+          }
+        }
       }
     })
     wsl.startIpsec('host=x\n', () => {}).stop()
+    await new Promise((r) => setTimeout(r, 50))
     expect(spawned[0]).toEqual([
       '-d',
       WSL_DISTRO,
@@ -93,7 +101,20 @@ describe('WslIpsec', () => {
       '/opt/north/north-vpn-helper',
       'ipsec'
     ])
-    expect(calls).toContainEqual(['--terminate', WSL_DISTRO])
+    // the network is shared with the user's other distros: strongSwan and the NAT go first
+    const stopAll = calls.findIndex((c) => c.includes('stop-all'))
+    const terminate = calls.findIndex((c) => c[0] === '--terminate')
+    expect(calls[stopAll]).toEqual([
+      '-d',
+      WSL_DISTRO,
+      '-u',
+      'root',
+      '--',
+      '/opt/north/north-vpn-helper',
+      'stop-all'
+    ])
+    expect(stopAll).toBeLessThan(terminate)
+    expect(killed).toBe(true)
   })
 })
 
