@@ -9,9 +9,11 @@ import {
 } from '@renderer/components/ui/dropdown-menu'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Skeleton } from '@renderer/components/ui/skeleton'
+import { WorkspaceLink } from '@renderer/components/WorkspaceLink'
 import { ConnectionHealthWidget } from '@renderer/features/dashboard/ConnectionHealthWidget'
 import { RecentUpdatesWidget } from '@renderer/features/dashboard/RecentUpdatesWidget'
 import { useAccesses } from '@renderer/hooks/use-accesses'
+import { useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
 import { formatRelativeDate } from '@renderer/lib/connection-ui'
 import { formatDuration } from '@renderer/lib/format-duration'
 import { queryKeys } from '@renderer/lib/query-keys'
@@ -32,7 +34,6 @@ import {
   UserPlus,
   Zap
 } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
 
 const ACTIVITY_LIMIT = 12
 
@@ -44,7 +45,7 @@ function useStatsOverview() {
 }
 
 export function DashboardPage(): React.JSX.Element {
-  const navigate = useNavigate()
+  const navigate = useWorkspaceNavigate()
   const setPaletteOpen = useCommandPaletteStore((s) => s.setOpen)
   const openDialog = useInventoryDialogsStore((s) => s.open)
   const { data, isLoading, isError } = useStatsOverview()
@@ -195,13 +196,13 @@ function StatChip({
   to: string
 }): React.JSX.Element {
   return (
-    <Link
+    <WorkspaceLink
       to={to}
       className="min-w-28 rounded-md border border-border bg-surface px-3 py-2 transition-colors hover:bg-surface-elevated"
     >
       <p className="text-[11px] uppercase tracking-wider text-muted">{label}</p>
       <p className="mt-1 font-mono text-lg text-foreground">{value}</p>
-    </Link>
+    </WorkspaceLink>
   )
 }
 
@@ -298,7 +299,7 @@ function ActivityRow({
 
   return (
     <li>
-      <Link
+      <WorkspaceLink
         to={href}
         className="flex items-center justify-between gap-2 px-3 py-2 transition-colors hover:bg-surface-elevated/60"
       >
@@ -312,7 +313,7 @@ function ActivityRow({
         <Badge variant={entry.success ? 'default' : 'outline'}>
           {entry.success ? 'ok' : 'erro'}
         </Badge>
-      </Link>
+      </WorkspaceLink>
     </li>
   )
 }

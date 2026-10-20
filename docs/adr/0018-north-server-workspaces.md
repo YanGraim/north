@@ -44,3 +44,10 @@ Empresas querem uma instância própria que centralize projetos, usuários e per
 - Cobre o item "cloud sync opt-in" do roadmap: o mesmo backend pode virar SaaS.
 - Manual + what's-new quando a primeira parte chegar ao usuário.
 - Próximo passo: spike de login OIDC no Electron contra um tenant Entra de teste.
+
+## Notas de implementação — Fase 1 (workspaces locais)
+
+- **Rotas:** tudo vive em `/w/:workspaceId/...`. Rotas antigas (`/connections`, `/clients/:id`, `/help`…) redirecionam para o último workspace usado (`ui-store.lastWorkspaceId`) ou para `local`, mantendo query e hash. Links e `navigate` usam `useWorkspaceHref` / `useWorkspaceNavigate` / `WorkspaceLink`.
+- **Cache isolado:** em vez de prefixar cada `queryKeys.*` com o `workspaceId`, cada workspace tem o próprio `QueryClient` (`WorkspaceScope`). O isolamento é o mesmo, e as chaves e invalidações existentes continuam valendo sem mudança. Trocar de workspace remonta o shell; manter abas/sessões vivas entre workspaces fica para a fase 2.
+- **Main:** `WorkspaceRegistry` + `WorkspaceDataSource` (`LocalDataSource` hoje; `RemoteDataSource` na fase 2). Os handlers recebem uma visão de `Repositories` que resolve pelo workspace ativo a cada acesso. O renderer ativa o workspace por `workspaces:activate` antes de montar o shell. Organizações aparecem na lista, mas ativá-las falha até existir o North Server. Na fase 2, reavaliar passar o `workspaceId` em cada chamada em vez de um "ativo" global (necessário para multi-janela).
+- **Dados:** tabela `workspaces` (migração 017) com a linha `local`. O vault continua no banco local.

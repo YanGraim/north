@@ -766,5 +766,17 @@
       "sstp": "SSTP",
       "ikev2": "IKEv2"
     }
+  },
+  "workspaces": {
+    "title": "Workspace",
+    "personal": "Meu workspace",
+    "addOrganization": "Adicionar organização",
+    "soon": "em breve",
+    "unavailable": "Organizações ficam disponíveis com o North Server. Voltando para o Meu workspace.",
+    "organizations": "Organizações",
+    "organizationsEmpty": "O servidor North da sua empresa aparece aqui. Em breve."
+  },
+  "sessions": {
+    "homeTab": "Painel"
   }
 }

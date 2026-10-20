@@ -1,5 +1,6 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/popover'
 import { Switch } from '@renderer/components/ui/switch'
+import { WorkspaceLink } from '@renderer/components/WorkspaceLink'
 import { useDisconnectVpn, useVpnProfiles, useVpnStates } from '@renderer/hooks/use-vpn'
 import { formatRelativeDate } from '@renderer/lib/connection-ui'
 import { cn } from '@renderer/lib/utils'
@@ -7,7 +8,6 @@ import { summarizeVpns } from '@renderer/lib/vpn-ui'
 import { ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
 import { useVpnConnect } from './use-vpn-connect'
 import { VpnDot, VpnStatusLabel } from './VpnStatus'
 
@@ -95,13 +95,13 @@ export function VpnTitlebarIndicator(): React.JSX.Element {
           </ul>
         )}
         <div className="border-t border-border p-2">
-          <Link
+          <WorkspaceLink
             to="/vpns"
             onClick={() => setOpen(false)}
             className="block rounded px-2 py-1 text-xs text-accent hover:underline"
           >
             {t('vpn.manage')}
-          </Link>
+          </WorkspaceLink>
         </div>
       </PopoverContent>
     </Popover>

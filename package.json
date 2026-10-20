@@ -18,6 +18,8 @@
     "test:watch": "vitest",
     "test:e2e": "env -u ELECTRON_RUN_AS_NODE CYPRESS_CACHE_FOLDER=\"$PWD/.cypress-cache\" start-server-and-test \"vite --config e2e-harness/vite.config.ts\" http://127.0.0.1:5179 \"cypress run\"",
     "test:e2e:open": "env -u ELECTRON_RUN_AS_NODE CYPRESS_CACHE_FOLDER=\"$PWD/.cypress-cache\" start-server-and-test \"vite --config e2e-harness/vite.config.ts\" http://127.0.0.1:5179 \"cypress open\"",
+    "test:pw": "env -u ELECTRON_RUN_AS_NODE playwright test",
+    "test:pw:ui": "env -u ELECTRON_RUN_AS_NODE playwright test --ui",
     "e2e:harness": "vite --config e2e-harness/vite.config.ts",
     "start": "env -u ELECTRON_RUN_AS_NODE electron-vite preview",
     "dev": "env -u ELECTRON_RUN_AS_NODE electron-vite dev",
@@ -92,6 +94,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.5",
     "@electron-toolkit/tsconfig": "^2.0.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.1.11",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.19.1",

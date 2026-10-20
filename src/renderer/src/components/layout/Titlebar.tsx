@@ -1,5 +1,6 @@
 import { Button } from '@renderer/components/ui/button'
 import { VpnTitlebarIndicator } from '@renderer/features/vpns/VpnTitlebarIndicator'
+import { WorkspaceSwitcher } from '@renderer/features/workspaces/WorkspaceSwitcher'
 import { useAppVersion } from '@renderer/hooks/use-app-version'
 import { isApplePlatform } from '@renderer/lib/platform'
 import {
@@ -46,6 +47,7 @@ export function Titlebar(): React.JSX.Element {
         </div>
         <div className="flex items-center gap-3">
           <VpnTitlebarIndicator />
+          <WorkspaceSwitcher />
           <span className="font-mono text-xs text-muted">
             {isLoading ? '…' : `v${version ?? '—'}`}
           </span>

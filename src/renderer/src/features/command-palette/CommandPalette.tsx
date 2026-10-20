@@ -27,6 +27,7 @@ import {
 import { useSelectedConnectionId } from '@renderer/hooks/use-route-selection'
 import { useSearchIndex } from '@renderer/hooks/use-search-index'
 import { useWorkflows } from '@renderer/hooks/use-workflows'
+import { useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
 import { copyToClipboard } from '@renderer/lib/clipboard'
 import { resolveEntityIcon } from '@renderer/lib/entity-icons'
 import { exportInventory, importInventory } from '@renderer/lib/inventory-actions'
@@ -73,7 +74,6 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
 
 const KIND_LABELS: Record<SearchIndexKind, string> = {
   connection: 'Conexões',
@@ -99,7 +99,7 @@ export function CommandPalette(): React.JSX.Element {
   const setOpen = useCommandPaletteStore((s) => s.setOpen)
   const openDialog = useInventoryDialogsStore((s) => s.open)
   const openWhatsNew = useWhatsNewStore((s) => s.openWhatsNew)
-  const navigate = useNavigate()
+  const navigate = useWorkspaceNavigate()
   const queryClient = useQueryClient()
   const { data: index = [] } = useSearchIndex()
   const [query, setQuery] = useState('')

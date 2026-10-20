@@ -334,3 +334,11 @@ export {
   type WorkflowTracking,
   WorkflowTrackingSchema
 } from './workflow'
+export {
+  LOCAL_WORKSPACE_ID,
+  type Workspace,
+  WorkspaceIdSchema,
+  type WorkspaceKind,
+  WorkspaceKindSchema,
+  WorkspaceSchema
+} from './workspace'

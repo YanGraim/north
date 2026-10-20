@@ -13,3 +13,7 @@ Organiza clientes, entornos, conexiones remotas y accesos (credenciales de base 
 - Command Palette y atajos para ir del inventario a la sesión en segundos
 - Perfil local (nombre y correo opcional) en **Ajustes** — solo en este equipo, visible en el chip de la barra lateral
 - Fuente de la app (familia y tamaño) en **Ajustes → Fuente de la app** — se aplica a toda la interfaz, terminal, editores de código, hosts/puertos y atajos
+
+## Workspaces
+
+El botón en la esquina superior derecha, junto a VPN, muestra en qué workspace estás. Por ahora solo existe **Mi workspace**: todo queda en este equipo, en la base local y en el vault del sistema. Pronto, el **+** junto a **Organizaciones** conectará North al servidor de tu empresa. Cada organización tendrá su propio árbol, favoritos, historial y búsqueda, separados de Mi workspace.

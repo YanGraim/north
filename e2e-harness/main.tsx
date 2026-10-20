@@ -2,6 +2,7 @@ import { Toaster } from '@renderer/components/ui/sonner'
 import { TooltipProvider } from '@renderer/components/ui/tooltip'
 import './harness.css'
 import '@renderer/i18n'
+import { workspaceQueryClients } from '@renderer/features/workspaces/WorkspaceScope'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -23,7 +24,8 @@ installMockNorth({
   failSecondStep: params.get('fail') === '1',
   failFirstStep: params.get('failFirst') === '1',
   scenario: scenario === 'app' ? 'database' : scenario,
-  fsFail: params.get('fsFail') === '1'
+  fsFail: params.get('fsFail') === '1',
+  withOrganization: params.get('workspaces') === 'org'
 })
 
 const queryClient = new QueryClient({
@@ -35,6 +37,7 @@ const queryClient = new QueryClient({
 
 ;(window as unknown as { __e2eInvalidate?: () => void }).__e2eInvalidate = () => {
   void queryClient.invalidateQueries()
+  for (const client of workspaceQueryClients()) void client.invalidateQueries()
 }
 
 const root = document.getElementById('root')

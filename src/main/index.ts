@@ -102,8 +102,11 @@ function createWindow(): void {
   }
 }
 
-// one North: opening it again (shortcut, Dock, Start menu) brings back the one in the tray
-if (!app.requestSingleInstanceLock()) {
+// one North: opening it again (shortcut, Dock, Start menu) brings back the one in the tray.
+// Packaged only: the lock is per userData dir, which dev shares with the installed app
+// (dev keeps its own north-dev.db), so `npm run dev` must not hand over to it.
+const singleInstance = !app.isPackaged || app.requestSingleInstanceLock()
+if (!singleInstance) {
   app.quit()
 } else {
   app.on('second-instance', () => showWindow())
@@ -111,7 +114,7 @@ if (!app.requestSingleInstanceLock()) {
 
 app.whenReady().then(() => {
   // the second copy only hands over to the first (second-instance) and quits
-  if (!app.hasSingleInstanceLock()) return
+  if (!singleInstance) return
   if (process.platform === 'win32') {
     app.setAppUserModelId('app.north.desktop')
   }

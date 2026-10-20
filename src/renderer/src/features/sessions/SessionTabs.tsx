@@ -24,6 +24,7 @@ import {
   X
 } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 function protocolIconGlyph(tab: SessionTab): React.JSX.Element {
   if (tab.kind === 'workflow-run') return <Workflow className="size-3.5 shrink-0" />
@@ -99,6 +100,7 @@ function TabButton({
   onDragStart: (index: number) => void
   onDrop: (index: number) => void
 }): React.JSX.Element {
+  const { t } = useTranslation()
   const isWorkspace = tab.kind === 'workspace'
   const hasContext = Boolean(tab.environmentName && hasEnvironmentContext(tab.environmentName))
   const accent = hasContext
@@ -181,7 +183,7 @@ function TabButton({
         </span>
       ) : null}
       <span className="min-w-0 flex-1 truncate font-medium">
-        {isWorkspace ? 'Workspace' : tab.title}
+        {isWorkspace ? t('sessions.homeTab') : tab.title}
       </span>
       {!isWorkspace && onClose ? (
         <button

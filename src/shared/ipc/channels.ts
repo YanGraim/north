@@ -9,6 +9,9 @@ export const IpcChannels = {
   APP_GET_LAUNCH_AT_LOGIN: 'app:get-launch-at-login',
   APP_SET_LAUNCH_AT_LOGIN: 'app:set-launch-at-login',
 
+  WORKSPACES_LIST: 'workspaces:list',
+  WORKSPACES_ACTIVATE: 'workspaces:activate',
+
   CLIENTS_LIST: 'clients:list',
   CLIENTS_GET: 'clients:get',
   CLIENTS_CREATE: 'clients:create',

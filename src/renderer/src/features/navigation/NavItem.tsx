@@ -1,5 +1,6 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { SIDEBAR_ROW, SIDEBAR_TRAILING } from '@renderer/features/navigation/SidebarSection'
+import { useWorkspaceHref } from '@renderer/hooks/use-workspaces'
 import { cn } from '@renderer/lib/utils'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
@@ -26,10 +27,12 @@ export function NavItem({
   color,
   plain = false
 }: NavItemProps): React.JSX.Element {
+  const href = useWorkspaceHref()
+  const target = href(to)
   if (collapsed) {
     const link = (
       <NavLink
-        to={to}
+        to={target}
         end={end}
         aria-label={label}
         title={label}
@@ -67,7 +70,7 @@ export function NavItem({
   if (typeof count === 'number') {
     return (
       <div className={cn(SIDEBAR_ROW, 'h-8')}>
-        <NavLink to={to} end={end} className={linkClass}>
+        <NavLink to={target} end={end} className={linkClass}>
           <Icon className="size-3.5 shrink-0" style={color ? { color } : undefined} />
           <span className="min-w-0 flex-1 truncate">{label}</span>
         </NavLink>
@@ -78,7 +81,7 @@ export function NavItem({
 
   return (
     <NavLink
-      to={to}
+      to={target}
       end={end}
       className={({ isActive }) => cn(linkClass({ isActive }), 'h-8 w-full px-2')}
     >

@@ -12,7 +12,7 @@ import {
 
 function resetStore(): void {
   useSessionsStore.setState({
-    tabs: [{ id: WORKSPACE_TAB_ID, kind: 'workspace', title: 'Workspace' }],
+    tabs: [{ id: WORKSPACE_TAB_ID, kind: 'workspace', title: 'Painel' }],
     activeTabId: WORKSPACE_TAB_ID
   })
 }

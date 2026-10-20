@@ -90,6 +90,11 @@ const api: NorthApi = {
   getLaunchAtLogin: () => ipcRenderer.invoke(IpcChannels.APP_GET_LAUNCH_AT_LOGIN),
   setLaunchAtLogin: (enabled) => ipcRenderer.invoke(IpcChannels.APP_SET_LAUNCH_AT_LOGIN, enabled),
 
+  workspaces: {
+    list: () => ipcRenderer.invoke(IpcChannels.WORKSPACES_LIST),
+    activate: (id) => ipcRenderer.invoke(IpcChannels.WORKSPACES_ACTIVATE, id)
+  },
+
   clients: {
     list: () => ipcRenderer.invoke(IpcChannels.CLIENTS_LIST),
     get: (id) => ipcRenderer.invoke(IpcChannels.CLIENTS_GET, id),

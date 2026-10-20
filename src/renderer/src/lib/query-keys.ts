@@ -5,6 +5,9 @@ export const queryKeys = {
     version: ['app', 'version'] as const,
     identity: ['app', 'identity'] as const
   },
+  workspaces: {
+    list: ['workspaces'] as const
+  },
   clients: {
     all: ['clients'] as const,
     detail: (id: string) => ['clients', id] as const

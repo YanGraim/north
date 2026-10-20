@@ -17,6 +17,7 @@ import {
 } from '@renderer/components/ui/select'
 import { useClients } from '@renderer/hooks/use-clients'
 import { useCreateVpn, useImportOvpn, useVpnPlatformSupport } from '@renderer/hooks/use-vpn'
+import { useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
 import { isWindowsPlatform } from '@renderer/lib/platform'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
 import { vpnErrorFromUnknown } from '@renderer/lib/vpn-ui'
@@ -26,7 +27,6 @@ import type { VpnConfig, VpnKind, VpnProfile } from '@shared/types'
 import { FileKey, Globe, MonitorCog, Network, ShieldCheck } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
 import { OvpnSummary } from './OvpnSummary'
 import { VpnCredentialsForm } from './VpnCredentialsForm'
 import { WindowsVpnStep } from './WindowsVpnStep'
@@ -52,7 +52,7 @@ export function VpnWizardDialog(): React.JSX.Element {
   const close = useVpnDialogsStore((s) => s.closeWizard)
   const [step, setStep] = useState<Step>('kind')
   const [created, setCreated] = useState<VpnProfile | null>(null)
-  const navigate = useNavigate()
+  const navigate = useWorkspaceNavigate()
 
   const reset = (): void => {
     setStep('kind')

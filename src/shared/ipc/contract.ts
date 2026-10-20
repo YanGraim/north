@@ -128,6 +128,7 @@ import type {
   VpnSecretStatus,
   VpnState
 } from '../types/vpn'
+import type { Workspace } from '../types/workspace'
 import { IpcChannels } from './channels'
 
 /**
@@ -150,6 +151,9 @@ export interface IpcInvokeMap {
   [IpcChannels.APP_GET_LAUNCH_AT_LOGIN]: { args: []; result: boolean }
   /** returns what the OS actually has afterwards */
   [IpcChannels.APP_SET_LAUNCH_AT_LOGIN]: { args: [enabled: boolean]; result: boolean }
+
+  [IpcChannels.WORKSPACES_LIST]: { args: []; result: Workspace[] }
+  [IpcChannels.WORKSPACES_ACTIVATE]: { args: [id: string]; result: Workspace }
 
   [IpcChannels.CLIENTS_LIST]: { args: []; result: Client[] }
   [IpcChannels.CLIENTS_GET]: { args: [id: string]; result: Client | null }
@@ -716,6 +720,11 @@ export interface NorthApi {
   setTheme: (theme: ThemePreference) => Promise<void>
   getLaunchAtLogin: () => Promise<boolean>
   setLaunchAtLogin: (enabled: boolean) => Promise<boolean>
+  workspaces: {
+    list: () => Promise<Workspace[]>
+    /** Points main's repositories at this workspace; the renderer calls it on route change. */
+    activate: (id: string) => Promise<Workspace>
+  }
   clients: {
     list: () => Promise<Client[]>
     get: (id: string) => Promise<Client | null>

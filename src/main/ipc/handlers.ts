@@ -4,7 +4,9 @@ import { app, ipcMain } from 'electron'
 import { initDatabase } from '../database'
 import { maybeSeedDevData } from '../database/seed'
 import { createRepositories, type Repositories } from '../repositories'
+import { WorkspacesRepository } from '../repositories/workspaces-repository'
 import { CredentialVault, SafeStorageEncryptor } from '../vault'
+import { createScopedRepositories, WorkspaceRegistry } from '../workspaces/workspace-registry'
 import { registerAccessHandlers } from './accesses'
 import { registerAgentWorkspaceHandlers } from './agent-workspaces'
 import { registerApiHandlers } from './api'
@@ -29,6 +31,7 @@ import { registerUpdateHandlers } from './updates'
 import { registerVaultHandlers } from './vault'
 import { registerVpnHandlers } from './vpn'
 import { registerWorkflowHandlers } from './workflows'
+import { registerWorkspaceHandlers } from './workspaces'
 
 let repositories: Repositories | null = null
 let vault: CredentialVault | null = null
@@ -49,10 +52,14 @@ export function getVault(): CredentialVault {
 
 export function registerIpcHandlers(): void {
   const db = initDatabase()
-  repositories = createRepositories(db)
-  vault = new CredentialVault(repositories.credentials, new SafeStorageEncryptor())
+  const localRepositories = createRepositories(db)
+  const registry = new WorkspaceRegistry(new WorkspacesRepository(db), localRepositories)
+  // Handlers read through the active workspace; the vault stays on the local DB (ADR 0018 §8).
+  repositories = createScopedRepositories(registry)
+  vault = new CredentialVault(localRepositories.credentials, new SafeStorageEncryptor())
 
-  maybeSeedDevData(repositories)
+  maybeSeedDevData(localRepositories)
+  registerWorkspaceHandlers(registry)
 
   ipcMain.handle(IpcChannels.APP_GET_VERSION, (): string => {
     return app.getVersion()

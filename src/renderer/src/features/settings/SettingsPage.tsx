@@ -23,6 +23,7 @@ import { Separator } from '@renderer/components/ui/separator'
 import { Switch } from '@renderer/components/ui/switch'
 import { useAppVersion } from '@renderer/hooks/use-app-version'
 import { useLocalProfile } from '@renderer/hooks/use-local-profile'
+import { useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
 import {
   downloadCsvTemplate,
   exportInventory,
@@ -57,7 +58,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 
 const REPO_URL = 'https://github.com/YanGraim/north'
 
@@ -85,7 +86,7 @@ const MONO_FONT_FAMILY_LABEL_KEYS: Record<MonoFontFamily, string> = {
 
 export function SettingsPage(): React.JSX.Element {
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const navigate = useWorkspaceNavigate()
   const location = useLocation()
   const { data: version, isLoading: versionLoading } = useAppVersion()
   const { displayName, profileEmail, setDisplayName, setProfileEmail } = useLocalProfile()

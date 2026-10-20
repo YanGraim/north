@@ -23,6 +23,7 @@ import { useEnvironment } from '@renderer/hooks/use-environments'
 import { useGroup } from '@renderer/hooks/use-groups'
 import { useClientFilters } from '@renderer/hooks/use-route-selection'
 import { useTags } from '@renderer/hooks/use-tags'
+import { useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
 import { hasEnvironmentContext } from '@renderer/lib/environment-color'
 import { shortcutDisplayLabel } from '@renderer/lib/shortcuts'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
@@ -31,7 +32,7 @@ import type { AccessType, ListAccessesFilter, ListConnectionsFilter } from '@sha
 import { ArrowUpDown, ListFilter, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 
 type ListMode = 'all' | 'favorites' | 'recents' | 'client' | 'tag'
 type KindFilter = 'all' | 'connection' | AccessType
@@ -43,7 +44,7 @@ type ConnectionListPageProps = {
 export function ConnectionListPage({ mode }: ConnectionListPageProps): React.JSX.Element {
   const { t } = useTranslation()
   const { clientId, tagId } = useParams()
-  const navigate = useNavigate()
+  const navigate = useWorkspaceNavigate()
   const { environmentId, groupId } = useClientFilters()
   const listSort = useUiStore((s) => s.listSort)
   const setListSort = useUiStore((s) => s.setListSort)

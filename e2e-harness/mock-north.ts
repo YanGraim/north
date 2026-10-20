@@ -17,11 +17,13 @@ import type {
   Workflow,
   WorkflowRun,
   WorkflowRunEvent,
-  WorkflowRunRespondInput
+  WorkflowRunRespondInput,
+  Workspace
 } from '@shared/types'
 import {
   cloneWorkflowDefinition,
   emptyWorkflowDefinition,
+  LOCAL_WORKSPACE_ID,
   normalizeWorkflowName
 } from '@shared/types'
 
@@ -557,12 +559,55 @@ function createApiClientStub() {
   }
 }
 
+/**
+ * Workspaces (ADR 0018). `?workspaces=org` adds an organization row so the
+ * selector has something to list; activating it fails like main does until
+ * the North Server source exists. Activations land on `window.__e2eWorkspaceActivations`.
+ */
+let workspacesMock: {
+  list: () => Promise<Workspace[]>
+  activate: (id: string) => Promise<Workspace>
+}
+
+function createWorkspacesMock(withOrganization: boolean): typeof workspacesMock {
+  const ts = '2026-10-20T00:00:00.000Z'
+  const rows: Workspace[] = [
+    { id: LOCAL_WORKSPACE_ID, name: 'Pessoal', kind: 'local', serverUrl: null, createdAt: ts }
+  ]
+  if (withOrganization) {
+    rows.push({
+      id: 'acme',
+      name: 'Acme Corp',
+      kind: 'organization',
+      serverUrl: 'https://north.acme.example',
+      createdAt: ts
+    })
+  }
+  const activations: string[] = []
+  ;(window as unknown as { __e2eWorkspaceActivations: string[] }).__e2eWorkspaceActivations =
+    activations
+  return {
+    list: async () => rows,
+    activate: async (id) => {
+      activations.push(id)
+      const row = rows.find((w) => w.id === id)
+      if (!row) throw new Error(`Workspace ${id} not found`)
+      if (row.kind !== 'local') {
+        throw new Error(`Workspace ${id} is not available yet (organizations need North Server)`)
+      }
+      return row
+    }
+  }
+}
+
 export function installMockNorth(opts?: {
   failSecondStep?: boolean
   failFirstStep?: boolean
   scenario?: 'workflows' | 'ftp' | 'database'
   fsFail?: boolean
+  withOrganization?: boolean
 }): void {
+  workspacesMock = createWorkspacesMock(opts?.withOrganization === true)
   workflows = []
   variables = []
   runs = []
@@ -644,6 +689,7 @@ export function installMockNorth(opts?: {
     const api = {
       getVersion: async () => '0.0.0-e2e',
       getIdentity: async () => ({ osUsername: 'e2e-user' }),
+      workspaces: workspacesMock,
       clients: {
         list: async () => [
           {
@@ -766,6 +812,7 @@ export function installMockNorth(opts?: {
   const api = {
     getVersion: async () => '0.0.0-e2e',
     getIdentity: async () => ({ osUsername: 'e2e-user' }),
+    workspaces: workspacesMock,
     clients: {
       list: async () => [inventory.client],
       get: async (id: string) => (id === inventory.client.id ? inventory.client : null),
@@ -1085,6 +1132,7 @@ function installDatabaseMock(workflowsApi: ReturnType<typeof createWorkflowsApi>
   const api = {
     getVersion: async () => '0.0.0-e2e',
     getIdentity: async () => ({ osUsername: 'e2e-user' }),
+    workspaces: workspacesMock,
     clients: {
       list: async () => [client],
       get: async (id: string) => (id === client.id ? client : null),

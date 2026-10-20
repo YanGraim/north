@@ -10,12 +10,12 @@ import {
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { getWhatsNewBody } from '@renderer/content/whats-new'
 import { useWhatsNew } from '@renderer/hooks/use-whats-new'
+import { useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { Sparkles } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
-import { useNavigate } from 'react-router-dom'
 import remarkGfm from 'remark-gfm'
 
 type FeatureBlock = {
@@ -44,7 +44,7 @@ function parseFeatureBlocks(source: string): FeatureBlock[] {
 
 export function WhatsNewDialog(): React.JSX.Element | null {
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const navigate = useWorkspaceNavigate()
   const locale = useUiStore((s) => s.locale)
   const { open, entries, dismiss } = useWhatsNew()
 

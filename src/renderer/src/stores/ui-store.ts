@@ -48,6 +48,9 @@ interface UiState {
   monoFontFamily: MonoFontFamily
   /** Last app version for which the what's-new dialog was dismissed (or silently marked). */
   lastSeenWhatsNewVersion: string | null
+  /** Workspace that legacy (unscoped) routes and app launch land on — ADR 0018. */
+  lastWorkspaceId: string | null
+  setLastWorkspaceId: (id: string) => void
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
   isTreeNodeExpanded: (id: string) => boolean
@@ -103,6 +106,7 @@ export const useUiStore = create<UiState>()(
       monoFontSize: DEFAULT_MONO_FONT_SIZE,
       monoFontFamily: 'ibm-plex-mono',
       lastSeenWhatsNewVersion: null,
+      lastWorkspaceId: null,
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       isTreeNodeExpanded: (id) => Boolean(get().expandedTreeNodes[id]),
@@ -137,7 +141,8 @@ export const useUiStore = create<UiState>()(
       setTerminalCopyOnSelect: (enabled) => set({ terminalCopyOnSelect: enabled }),
       setMonoFontSize: (size) => set({ monoFontSize: size }),
       setMonoFontFamily: (family) => set({ monoFontFamily: family }),
-      setLastSeenWhatsNewVersion: (version) => set({ lastSeenWhatsNewVersion: version })
+      setLastSeenWhatsNewVersion: (version) => set({ lastSeenWhatsNewVersion: version }),
+      setLastWorkspaceId: (id) => set({ lastWorkspaceId: id })
     }),
     {
       name: 'north-ui',
@@ -158,7 +163,8 @@ export const useUiStore = create<UiState>()(
         terminalCopyOnSelect: state.terminalCopyOnSelect,
         monoFontSize: state.monoFontSize,
         monoFontFamily: state.monoFontFamily,
-        lastSeenWhatsNewVersion: state.lastSeenWhatsNewVersion
+        lastSeenWhatsNewVersion: state.lastSeenWhatsNewVersion,
+        lastWorkspaceId: state.lastWorkspaceId
       })
     }
   )

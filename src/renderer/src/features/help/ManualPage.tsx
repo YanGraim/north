@@ -5,18 +5,19 @@ import {
   isManualChapterId,
   type ManualChapterId
 } from '@renderer/content/manual'
+import { useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
 import { cn } from '@renderer/lib/utils'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import remarkGfm from 'remark-gfm'
 
 export function ManualPage(): React.JSX.Element {
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const navigate = useWorkspaceNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const locale = useUiStore((s) => s.locale)
 

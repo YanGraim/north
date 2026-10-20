@@ -102,7 +102,7 @@ type SessionsState = {
 }
 
 function workspaceTab(): SessionTab {
-  return { id: WORKSPACE_TAB_ID, kind: 'workspace', title: 'Workspace' }
+  return { id: WORKSPACE_TAB_ID, kind: 'workspace', title: 'Painel' }
 }
 
 export function sessionKindForProtocol(protocol: string): SessionKind | undefined {

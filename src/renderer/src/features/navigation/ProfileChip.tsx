@@ -1,4 +1,5 @@
 import { useLocalProfile } from '@renderer/hooks/use-local-profile'
+import { useWorkspaceHref } from '@renderer/hooks/use-workspaces'
 import { cn } from '@renderer/lib/utils'
 import { Link } from 'react-router-dom'
 
@@ -8,11 +9,12 @@ type ProfileChipProps = {
 
 export function ProfileChip({ collapsed }: ProfileChipProps): React.JSX.Element {
   const { effectiveName, initials } = useLocalProfile()
+  const href = useWorkspaceHref()
 
   if (collapsed) {
     return (
       <Link
-        to="/settings#profile"
+        to={href('/settings#profile')}
         aria-label={effectiveName}
         title={effectiveName}
         className="flex size-8 shrink-0 items-center justify-center rounded-md text-[11px] font-medium uppercase tracking-wide text-muted transition-colors hover:bg-surface-elevated/40 hover:text-foreground"
@@ -24,7 +26,7 @@ export function ProfileChip({ collapsed }: ProfileChipProps): React.JSX.Element 
 
   return (
     <Link
-      to="/settings#profile"
+      to={href('/settings#profile')}
       title={effectiveName}
       className={cn(
         'flex h-8 min-w-0 items-center gap-2 rounded-md px-2 text-left transition-colors',

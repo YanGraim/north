@@ -43,3 +43,7 @@ CLAUDE.md
 
 # VPN engines built by scripts/vpn-binaries/build.sh — never committed
 resources/vpn/bin/
+
+# Playwright
+test-results/
+playwright-report/

@@ -5,6 +5,7 @@ import {
   CollapsibleTrigger
 } from '@renderer/components/ui/collapsible'
 import { Skeleton } from '@renderer/components/ui/skeleton'
+import { WorkspaceNavLink } from '@renderer/components/WorkspaceLink'
 import { ConnectionContextMenu } from '@renderer/features/connections/ConnectionContextMenu'
 import { countItemsByGroup } from '@renderer/features/navigation/count-items-by-group'
 import {
@@ -22,7 +23,7 @@ import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-sto
 import { useUiStore } from '@renderer/stores/ui-store'
 import { Building2, ChevronRight, Folder } from 'lucide-react'
 import { useEffect } from 'react'
-import { NavLink, useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 
 const ROW_ACTIVE = 'bg-surface-elevated/80 text-foreground'
 const ROW_IDLE = 'text-muted hover:bg-surface-elevated/40 hover:text-foreground'
@@ -94,7 +95,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
         {clients.map((client) => (
           <TreeNodeContextMenu key={client.id} kind="client" client={client}>
             <div className="flex size-8 shrink-0 items-center justify-center">
-              <NavLink
+              <WorkspaceNavLink
                 to={`/clients/${client.id}`}
                 aria-label={client.name}
                 title={client.name}
@@ -109,7 +110,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                   className="size-3.5"
                   style={client.color ? { color: client.color } : undefined}
                 />
-              </NavLink>
+              </WorkspaceNavLink>
             </div>
           </TreeNodeContextMenu>
         ))}
@@ -182,7 +183,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                 </CollapsibleTrigger>
                 <TreeNodeContextMenu kind="client" client={client}>
                   <div className="min-w-0 flex-1">
-                    <NavLink
+                    <WorkspaceNavLink
                       to={`/clients/${client.id}`}
                       onClick={() => setTreeNodeExpanded(clientKey, true)}
                       className={cn(LINK, clientActive ? ROW_ACTIVE : ROW_IDLE)}
@@ -192,7 +193,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                         style={client.color ? { color: client.color } : undefined}
                       />
                       <span className="min-w-0 flex-1 truncate">{client.name}</span>
-                    </NavLink>
+                    </WorkspaceNavLink>
                   </div>
                 </TreeNodeContextMenu>
               </div>
@@ -243,7 +244,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                           clientId={client.id}
                         >
                           <div className="min-w-0 flex-1">
-                            <NavLink
+                            <WorkspaceNavLink
                               to={`/clients/${client.id}?env=${env.id}`}
                               onClick={() => setTreeNodeExpanded(envKey, true)}
                               className={cn(LINK, envActive ? ROW_ACTIVE : ROW_IDLE)}
@@ -254,7 +255,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                                 aria-hidden
                               />
                               <span className="min-w-0 flex-1 truncate">{env.name}</span>
-                            </NavLink>
+                            </WorkspaceNavLink>
                           </div>
                         </TreeNodeContextMenu>
                       </div>
@@ -299,14 +300,14 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                                   environmentId={env.id}
                                 >
                                   <div className="min-w-0 flex-1">
-                                    <NavLink
+                                    <WorkspaceNavLink
                                       to={`/clients/${client.id}?env=${env.id}&group=${group.id}`}
                                       onClick={() => setTreeNodeExpanded(groupKey, true)}
                                       className={cn(LINK, groupActive ? ROW_ACTIVE : ROW_IDLE)}
                                     >
                                       <Folder className="size-3.5 shrink-0" />
                                       <span className="min-w-0 flex-1 truncate">{group.name}</span>
-                                    </NavLink>
+                                    </WorkspaceNavLink>
                                   </div>
                                 </TreeNodeContextMenu>
                               </div>
@@ -334,7 +335,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                                     >
                                       <span className="size-4 shrink-0" aria-hidden />
                                       <div className="min-w-0 flex-1">
-                                        <NavLink
+                                        <WorkspaceNavLink
                                           to={leafHref}
                                           onClick={() => setTreeNodeExpanded(groupKey, true)}
                                           className={cn(LINK, leafActive ? ROW_ACTIVE : ROW_IDLE)}
@@ -353,7 +354,7 @@ export function ClientTree({ collapsed }: { collapsed: boolean }): React.JSX.Ele
                                           <span className="min-w-0 flex-1 truncate">
                                             {leaf.name}
                                           </span>
-                                        </NavLink>
+                                        </WorkspaceNavLink>
                                       </div>
                                     </div>
                                     <span aria-hidden />

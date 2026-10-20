@@ -28,10 +28,10 @@ export function AppShell(): React.JSX.Element {
   const tabs = useSessionsStore((s) => s.tabs)
   const closeTab = useSessionsStore((s) => s.closeTab)
   const duplicateTab = useSessionsStore((s) => s.duplicateTab)
-  const dashboardMatch = useMatch('/dashboard')
-  const historyMatch = useMatch('/history')
-  const manualMatch = useMatch('/settings/manual')
-  const vpnsMatch = useMatch('/vpns')
+  const dashboardMatch = useMatch('/w/:workspaceId/dashboard')
+  const historyMatch = useMatch('/w/:workspaceId/history')
+  const manualMatch = useMatch('/w/:workspaceId/settings/manual')
+  const vpnsMatch = useMatch('/w/:workspaceId/vpns')
   const isFullBleed = Boolean(dashboardMatch || historyMatch || manualMatch || vpnsMatch)
   const workspaceActive = activeTabId === WORKSPACE_TAB_ID
 
