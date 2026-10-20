@@ -43,7 +43,8 @@ export const IpsecIkev1ConfigSchema = z.object({
   kind: z.literal('ipsec-ikev1'),
   gateway: z.string().min(1),
   groupName: z.string().optional(),
-  username: z.string().min(1),
+  /** empty after an inventory import (the user is personal): asked before connecting */
+  username: z.string(),
   xauth: z.enum(['saved', 'prompt']),
   /** Internal domains resolved through the VPN's DNS (split DNS); everything else keeps the local DNS. */
   dnsDomains: z
@@ -56,7 +57,8 @@ export const IpsecIkev2ConfigSchema = z.object({
   kind: z.literal('ipsec-ikev2'),
   gateway: z.string().min(1),
   remoteId: z.string().optional(),
-  username: z.string().min(1),
+  /** empty after an inventory import (the user is personal): asked before connecting */
+  username: z.string(),
   auth: z.enum(['eap', 'psk'])
 })
 
@@ -65,7 +67,8 @@ export const FortinetSslVpnConfigSchema = z.object({
   kind: z.literal('fortinet-sslvpn'),
   gateway: z.string().min(1),
   port: z.number().int().min(1).max(65535),
-  username: z.string().min(1),
+  /** empty after an inventory import (the user is personal): asked before connecting */
+  username: z.string(),
   realm: z.string().optional(),
   /** sha256 of the gateway certificate the user explicitly trusted (self-signed FortiGates). */
   trustedCert: z

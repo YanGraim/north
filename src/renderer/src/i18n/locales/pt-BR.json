@@ -69,7 +69,7 @@
     },
     "inventory": {
       "title": "Inventário",
-      "description": "Backup JSON (v2, com accesses) e import de planilha CSV. Senhas só no CSV com confirmação.",
+      "description": "Backup JSON com clientes, conexões, accesses, workflows, variáveis e VPNs FortiGate (sem usuário de VPN, sem senhas, sem OpenVPN) e import de planilha CSV. Senhas só no CSV com confirmação.",
       "import": "Importar JSON",
       "export": "Exportar JSON",
       "importCsv": "Importar planilha (CSV)",

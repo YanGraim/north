@@ -5,10 +5,15 @@ import { queryKeys } from './query-keys'
 
 export function formatImportReport(report: ImportReport): string {
   const { created, skipped, errors } = report
+  const ignored =
+    skipped.connections + skipped.accesses + skipped.workflows + skipped.variables + skipped.vpns
   const parts = [
     `Criados ${created.connections} conexões`,
     `${created.accesses} accesses`,
-    `ignorados ${skipped.connections + skipped.accesses}`,
+    created.workflows ? `${created.workflows} workflows` : null,
+    created.variables ? `${created.variables} variáveis` : null,
+    created.vpns ? `${created.vpns} VPNs (preencha seu usuário nelas)` : null,
+    `ignorados ${ignored}`,
     errors.length ? `${errors.length} erros` : null
   ].filter(Boolean)
   return parts.join(' · ')
@@ -22,6 +27,8 @@ export async function invalidateAfterInventoryImport(queryClient: QueryClient): 
     queryClient.invalidateQueries({ queryKey: queryKeys.connections.all }),
     queryClient.invalidateQueries({ queryKey: queryKeys.accesses.all }),
     queryClient.invalidateQueries({ queryKey: queryKeys.tags.all }),
+    queryClient.invalidateQueries({ queryKey: ['workflows'] }),
+    queryClient.invalidateQueries({ queryKey: ['vpn'] }),
     queryClient.invalidateQueries({ queryKey: queryKeys.search.index }),
     queryClient.invalidateQueries({ queryKey: queryKeys.stats.overview })
   ])

@@ -69,7 +69,7 @@
     },
     "inventory": {
       "title": "Inventario",
-      "description": "Copia JSON (v2, con accesses) e importación CSV. Contraseñas solo desde CSV con confirmación.",
+      "description": "Copia JSON con clientes, conexiones, accesses, workflows, variables y VPNs FortiGate (sin usuario de VPN, sin contraseñas, sin OpenVPN) e importación CSV. Contraseñas solo desde CSV con confirmación.",
       "import": "Importar JSON",
       "export": "Exportar JSON",
       "importCsv": "Importar hoja (CSV)",

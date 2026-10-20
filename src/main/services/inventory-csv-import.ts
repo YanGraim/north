@@ -1,5 +1,6 @@
 import {
   defaultPortForProtocol,
+  emptyImportReport,
   type ImportReport,
   type InventoryCsvRow,
   parseInventoryCsvRow,
@@ -15,27 +16,7 @@ export type ImportCsvOptions = {
   allowSecrets: boolean
 }
 
-function emptyReport(): ImportReport {
-  return {
-    created: {
-      clients: 0,
-      environments: 0,
-      groups: 0,
-      connections: 0,
-      accesses: 0,
-      tags: 0
-    },
-    skipped: {
-      clients: 0,
-      environments: 0,
-      groups: 0,
-      connections: 0,
-      accesses: 0,
-      tags: 0
-    },
-    errors: []
-  }
-}
+const emptyReport = emptyImportReport
 
 function ensureTags(
   repositories: Repositories,

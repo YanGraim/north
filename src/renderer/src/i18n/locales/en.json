@@ -69,7 +69,7 @@
     },
     "inventory": {
       "title": "Inventory",
-      "description": "JSON backup (v2, with accesses) and CSV spreadsheet import. Passwords only from CSV with confirmation.",
+      "description": "JSON backup with clients, connections, accesses, workflows, variables and FortiGate VPNs (no VPN user, no passwords, no OpenVPN) and CSV spreadsheet import. Passwords only from CSV with confirmation.",
       "import": "Import JSON",
       "export": "Export JSON",
       "importCsv": "Import spreadsheet (CSV)",

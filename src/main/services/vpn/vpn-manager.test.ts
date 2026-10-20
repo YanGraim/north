@@ -315,4 +315,19 @@ describe('VpnManager progress detail', () => {
     expect(events.find((e) => e.detail === 'Aprove o perfil')?.status).toBe('connecting')
     expect(manager.getState('a').detail).toBeUndefined()
   })
+
+  it('a VPN imported without a user asks for it instead of trying to connect', async () => {
+    const { manager } = setup([
+      makeProfile('poly', {
+        name: 'VPN POLY',
+        kind: 'ipsec-ikev1',
+        config: { kind: 'ipsec-ikev1', gateway: '170.82.195.66', username: '', xauth: 'saved' }
+      })
+    ])
+    const error = await manager.connect('poly').catch((e) => e)
+    expect(error).toMatchObject({ code: 'INVALID_CONFIG' })
+    expect(error.message).toMatch(/Informe seu usuário na VPN "VPN POLY"/)
+    // no retries: it waits for the user to fill the field
+    expect(manager.getState('poly').status).toBe('error')
+  })
 })

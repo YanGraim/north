@@ -4,10 +4,10 @@
 
 Under **Settings → Inventory**:
 
-- **Export JSON** — inventory backup (schemaVersion 2: clients → environments → groups → connections **and accesses** + tags)
-- **Import JSON** — restore from an exported JSON (accepts v1 and v2)
+- **Export JSON** — inventory backup: clients → environments → groups → connections and accesses, with each group's **workflows** and **variables**, the tags and the **FortiGate VPNs** (SSL-VPN and IPsec), including which VPN each client, environment and connection uses
+- **Import JSON** — brings an exported JSON (from any North version) into this North. Anything that already exists with the same name stays as it is; only what's missing comes in
 
-The JSON **does not include credentials/secrets**. After importing, reconfigure passwords and keys in the vault.
+The JSON **does not include credentials/secrets**. After importing, reconfigure passwords and keys in the vault. For VPNs, not even the **user** goes in the file (it's personal): when you connect an imported VPN, North asks you to fill in your user in **Edit**, and the password/PSK on the first connection. **OpenVPN** VPNs aren't in the file, because everyone has their own `.ovpn`: import yours on the VPNs page.
 
 ## Spreadsheet CSV
 

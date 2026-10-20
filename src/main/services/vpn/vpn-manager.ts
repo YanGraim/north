@@ -237,6 +237,13 @@ export class VpnManager {
     entry.abort = abort
 
     try {
+      // imported from another North: the user is personal and never travels in the file
+      if ('username' in profile.config && profile.kind !== 'openvpn' && !profile.config.username) {
+        throw new VpnError(
+          'INVALID_CONFIG',
+          `Informe seu usuário na VPN "${profile.name}" (Editar) antes de conectar`
+        )
+      }
       const factory = this.deps.drivers.get(profile.kind)
       const support = factory?.isSupported(this.deps.platform)
       if (!factory || !support?.ok) {

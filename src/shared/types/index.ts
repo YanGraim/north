@@ -164,6 +164,9 @@ export {
 export {
   type ExportAccess,
   type ExportConnection,
+  type ExportVpn,
+  type ExportWorkflow,
+  emptyImportReport,
   type ImportReport,
   ImportReportSchema,
   type InventoryExport,
