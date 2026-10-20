@@ -20,6 +20,8 @@ export const WorkspaceSchema = z
     name: z.string().min(1),
     kind: WorkspaceKindSchema,
     serverUrl: z.string().url().nullable(),
+    /** Who is signed in to this organization (null for the personal workspace). */
+    userEmail: z.string().nullable(),
     createdAt: z.string()
   })
   .refine((w) => w.kind === 'local' || w.serverUrl !== null, {
@@ -28,3 +30,13 @@ export const WorkspaceSchema = z
   })
 
 export type Workspace = z.infer<typeof WorkspaceSchema>
+
+export const AddOrganizationInputSchema = z.object({
+  serverUrl: z.string().min(1).max(500),
+  email: z.string().email(),
+  name: z.string().max(200).optional()
+})
+
+export type AddOrganizationInput = z.infer<typeof AddOrganizationInputSchema>
+
+export type OrganizationServerInfo = { name: string; version: string; authModes: string[] }

@@ -3,6 +3,7 @@ import { CreateClientInputSchema, IdSchema, UpdateClientInputSchema } from '@sha
 import { ipcMain } from 'electron'
 import type { Repositories } from '../repositories'
 import type { CredentialVault } from '../vault'
+import type { InventoryStore } from '../workspaces/inventory-store'
 import { deleteSecretsForScope } from './vault-cleanup'
 
 function requireEntity<T>(entity: T | null, label: string): T {
@@ -12,28 +13,35 @@ function requireEntity<T>(entity: T | null, label: string): T {
   return entity
 }
 
-export function registerClientHandlers(repos: Repositories, vault: CredentialVault): void {
-  ipcMain.handle(IpcChannels.CLIENTS_LIST, () => repos.clients.list())
+export function registerClientHandlers(
+  repos: Repositories,
+  vault: CredentialVault,
+  inventory: () => InventoryStore
+): void {
+  ipcMain.handle(IpcChannels.CLIENTS_LIST, async () => await inventory().clients.list())
 
-  ipcMain.handle(IpcChannels.CLIENTS_GET, (_event, id: unknown) => {
-    return repos.clients.get(IdSchema.parse(id))
+  ipcMain.handle(IpcChannels.CLIENTS_GET, async (_event, id: unknown) => {
+    return await inventory().clients.get(IdSchema.parse(id))
   })
 
-  ipcMain.handle(IpcChannels.CLIENTS_CREATE, (_event, input: unknown) => {
-    return repos.clients.create(CreateClientInputSchema.parse(input))
+  ipcMain.handle(IpcChannels.CLIENTS_CREATE, async (_event, input: unknown) => {
+    return await inventory().clients.create(CreateClientInputSchema.parse(input))
   })
 
-  ipcMain.handle(IpcChannels.CLIENTS_UPDATE, (_event, id: unknown, input: unknown) => {
-    const updated = repos.clients.update(IdSchema.parse(id), UpdateClientInputSchema.parse(input))
+  ipcMain.handle(IpcChannels.CLIENTS_UPDATE, async (_event, id: unknown, input: unknown) => {
+    const updated = await inventory().clients.update(
+      IdSchema.parse(id),
+      UpdateClientInputSchema.parse(input)
+    )
     return requireEntity(updated, 'Client')
   })
 
-  ipcMain.handle(IpcChannels.CLIENTS_DELETE, (_event, id: unknown) => {
+  ipcMain.handle(IpcChannels.CLIENTS_DELETE, async (_event, id: unknown) => {
     const clientId = IdSchema.parse(id)
-    if (!repos.clients.get(clientId)) {
+    if (!(await inventory().clients.get(clientId))) {
       throw new Error('Client not found')
     }
     deleteSecretsForScope(repos, vault, { clientId })
-    repos.clients.delete(clientId)
+    await inventory().clients.delete(clientId)
   })
 }

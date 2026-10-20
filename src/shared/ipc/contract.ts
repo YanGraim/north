@@ -128,7 +128,7 @@ import type {
   VpnSecretStatus,
   VpnState
 } from '../types/vpn'
-import type { Workspace } from '../types/workspace'
+import type { AddOrganizationInput, OrganizationServerInfo, Workspace } from '../types/workspace'
 import { IpcChannels } from './channels'
 
 /**
@@ -154,6 +154,12 @@ export interface IpcInvokeMap {
 
   [IpcChannels.WORKSPACES_LIST]: { args: []; result: Workspace[] }
   [IpcChannels.WORKSPACES_ACTIVATE]: { args: [id: string]; result: Workspace }
+  [IpcChannels.WORKSPACES_PROBE]: { args: [serverUrl: string]; result: OrganizationServerInfo }
+  [IpcChannels.WORKSPACES_ADD_ORGANIZATION]: {
+    args: [input: AddOrganizationInput]
+    result: Workspace
+  }
+  [IpcChannels.WORKSPACES_REMOVE]: { args: [id: string]; result: undefined }
 
   [IpcChannels.CLIENTS_LIST]: { args: []; result: Client[] }
   [IpcChannels.CLIENTS_GET]: { args: [id: string]; result: Client | null }
@@ -724,6 +730,12 @@ export interface NorthApi {
     list: () => Promise<Workspace[]>
     /** Points main's repositories at this workspace; the renderer calls it on route change. */
     activate: (id: string) => Promise<Workspace>
+    /** Reads a North Server's name and sign-in modes before asking for credentials. */
+    probe: (serverUrl: string) => Promise<OrganizationServerInfo>
+    /** Signs in (tokens stay in main) and saves the organization; signing in again reuses it. */
+    addOrganization: (input: AddOrganizationInput) => Promise<Workspace>
+    /** Signs out and forgets an organization (never the personal workspace). */
+    remove: (id: string) => Promise<void>
   }
   clients: {
     list: () => Promise<Client[]>

@@ -16,4 +16,4 @@ Organize clientes, ambientes, conexões remotas e acessos (credenciais de banco 
 
 ## Workspaces
 
-O botão no canto superior direito, ao lado de VPN, mostra em qual workspace você está. Hoje existe só o **Meu workspace**: tudo fica neste computador, no banco local e no vault do sistema. Em breve, o **+** ao lado de **Organizações** vai conectar o North ao servidor da sua empresa. Cada organização terá a própria árvore, favoritos, histórico e busca, sem misturar com o Meu workspace.
+O botão no canto superior direito, ao lado de VPN, mostra em qual workspace você está. O **Meu workspace** fica neste computador, no banco local e no vault do sistema. No **+** ao lado de **Organizações**, informe o endereço do North Server da sua empresa e entre com o seu e-mail (o login corporativo com Entra ID chega em breve). Na organização, clientes, ambientes, grupos, conexões e tags ficam no servidor e são compartilhados com a equipe; favoritos são só seus. Nada é sincronizado entre workspaces. Ainda não dá para conectar nem usar acessos, workflows e APIs numa organização: isso chega nas próximas versões. Para sair, abra o seletor e use **Sair desta organização**.

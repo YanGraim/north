@@ -8,14 +8,24 @@ import type {
   Tag
 } from '@shared/types'
 import type { Repositories } from '../repositories'
+import type { InventoryStore } from '../workspaces/inventory-store'
 
-export function buildSearchIndex(repos: Repositories): SearchIndexItem[] {
-  const clients = repos.clients.list()
-  const environments = repos.environments.list()
-  const groups = repos.groups.list()
-  const connections = repos.connections.list()
+/** Tree from the workspace inventory (local or organization); accesses stay local-only for now. */
+export async function buildSearchIndex(
+  repos: Repositories,
+  inventory: InventoryStore
+): Promise<SearchIndexItem[]> {
+  const [clients, environments, groups, connections, tags] = await Promise.all([
+    inventory.clients.list(),
+    inventory.environments.list(),
+    inventory.groups.list(),
+    inventory.connections.list(),
+    inventory.tags.list()
+  ])
   const accesses = repos.accesses.list()
-  const tags = repos.tags.list()
+  const connectionTags = await Promise.all(
+    connections.map((c) => inventory.tags.listForConnection(c.id))
+  )
 
   const clientsById = new Map(clients.map((c) => [c.id, c]))
   const envsById = new Map(environments.map((e) => [e.id, e]))
@@ -43,12 +53,11 @@ export function buildSearchIndex(repos: Repositories): SearchIndexItem[] {
     items.push(tagItem(tag))
   }
 
-  for (const connection of connections) {
+  for (const [index, connection] of connections.entries()) {
     const group = groupsById.get(connection.groupId) ?? null
     const environment = group ? (envsById.get(group.environmentId) ?? null) : null
     const client = environment ? (clientsById.get(environment.clientId) ?? null) : null
-    const connectionTags = repos.tags.listForConnection(connection.id)
-    const tagNames = connectionTags
+    const tagNames = connectionTags[index]
       .map((t) => tagsById.get(t.id)?.name ?? t.name)
       .filter(Boolean)
       .join(' ')
@@ -60,7 +69,7 @@ export function buildSearchIndex(repos: Repositories): SearchIndexItem[] {
     const group = groupsById.get(access.groupId) ?? null
     const environment = group ? (envsById.get(group.environmentId) ?? null) : null
     const client = environment ? (clientsById.get(environment.clientId) ?? null) : null
-    const accessTags = repos.tags.listForAccess(access.id)
+    const accessTags = await inventory.tags.listForAccess(access.id)
     const tagNames = accessTags
       .map((t) => tagsById.get(t.id)?.name ?? t.name)
       .filter(Boolean)

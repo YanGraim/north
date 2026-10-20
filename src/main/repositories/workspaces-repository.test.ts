@@ -39,3 +39,50 @@ describe('WorkspacesRepository', () => {
     ).toThrow()
   })
 })
+
+describe('WorkspacesRepository — organizations', () => {
+  it('creates an organization with a slug id and finds it by server url', () => {
+    const repo = new WorkspacesRepository(createTestDatabase())
+    const org = repo.createOrganization({
+      name: 'Acme Corp',
+      serverUrl: 'https://north.acme.com',
+      userEmail: 'ana@acme.com'
+    })
+    expect(org.id).toMatch(/^acme-corp-[a-z0-9]{4}$/)
+    expect(repo.findByServerUrl('https://north.acme.com')?.id).toBe(org.id)
+    expect(repo.findByServerUrl('https://other.example')).toBeNull()
+  })
+
+  it('makes a usable id out of names without latin letters', () => {
+    const repo = new WorkspacesRepository(createTestDatabase())
+    const org = repo.createOrganization({
+      name: '北',
+      serverUrl: 'https://x.example',
+      userEmail: null
+    })
+    expect(org.id).toMatch(/^org-[a-z0-9]{4}$/)
+  })
+
+  it('stores and reads the refresh credential ref', () => {
+    const repo = new WorkspacesRepository(createTestDatabase())
+    const org = repo.createOrganization({
+      name: 'A',
+      serverUrl: 'https://a.example',
+      userEmail: null
+    })
+    repo.setRefreshCredentialRef(org.id, 'ref-1')
+    expect(repo.refreshCredentialRef(org.id)).toBe('ref-1')
+  })
+
+  it('deletes organizations but never the local workspace', () => {
+    const repo = new WorkspacesRepository(createTestDatabase())
+    const org = repo.createOrganization({
+      name: 'A',
+      serverUrl: 'https://a.example',
+      userEmail: null
+    })
+    expect(repo.delete(org.id)).toBe(true)
+    expect(repo.delete(LOCAL_WORKSPACE_ID)).toBe(false)
+    expect(repo.get(LOCAL_WORKSPACE_ID)).not.toBeNull()
+  })
+})

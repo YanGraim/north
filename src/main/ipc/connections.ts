@@ -6,8 +6,8 @@ import {
   UpdateConnectionInputSchema
 } from '@shared/types'
 import { ipcMain } from 'electron'
-import type { Repositories } from '../repositories'
 import type { CredentialVault } from '../vault'
+import type { InventoryStore } from '../workspaces/inventory-store'
 import { deleteSecretsForConnections } from './vault-cleanup'
 
 function requireEntity<T>(entity: T | null, label: string): T {
@@ -17,53 +17,59 @@ function requireEntity<T>(entity: T | null, label: string): T {
   return entity
 }
 
-export function registerConnectionHandlers(repos: Repositories, vault: CredentialVault): void {
-  ipcMain.handle(IpcChannels.CONNECTIONS_LIST, (_event, filter?: unknown) => {
+export function registerConnectionHandlers(
+  vault: CredentialVault,
+  inventory: () => InventoryStore
+): void {
+  ipcMain.handle(IpcChannels.CONNECTIONS_LIST, async (_event, filter?: unknown) => {
     const parsed =
       filter === undefined || filter === null ? {} : ListConnectionsFilterSchema.parse(filter)
-    return repos.connections.list(parsed)
+    return await inventory().connections.list(parsed)
   })
 
-  ipcMain.handle(IpcChannels.CONNECTIONS_GET, (_event, id: unknown) => {
-    return repos.connections.get(IdSchema.parse(id))
+  ipcMain.handle(IpcChannels.CONNECTIONS_GET, async (_event, id: unknown) => {
+    return await inventory().connections.get(IdSchema.parse(id))
   })
 
-  ipcMain.handle(IpcChannels.CONNECTIONS_CREATE, (_event, input: unknown) => {
-    return repos.connections.create(CreateConnectionInputSchema.parse(input))
+  ipcMain.handle(IpcChannels.CONNECTIONS_CREATE, async (_event, input: unknown) => {
+    return await inventory().connections.create(CreateConnectionInputSchema.parse(input))
   })
 
-  ipcMain.handle(IpcChannels.CONNECTIONS_UPDATE, (_event, id: unknown, input: unknown) => {
-    const updated = repos.connections.update(
+  ipcMain.handle(IpcChannels.CONNECTIONS_UPDATE, async (_event, id: unknown, input: unknown) => {
+    const updated = await inventory().connections.update(
       IdSchema.parse(id),
       UpdateConnectionInputSchema.parse(input)
     )
     return requireEntity(updated, 'Connection')
   })
 
-  ipcMain.handle(IpcChannels.CONNECTIONS_DELETE, (_event, id: unknown) => {
+  ipcMain.handle(IpcChannels.CONNECTIONS_DELETE, async (_event, id: unknown) => {
     const connectionId = IdSchema.parse(id)
-    const existing = repos.connections.get(connectionId)
+    const existing = await inventory().connections.get(connectionId)
     if (!existing) {
       throw new Error('Connection not found')
     }
     if (existing.credentialRef) {
       vault.deleteSecret(existing.credentialRef)
     }
-    repos.connections.delete(connectionId)
+    await inventory().connections.delete(connectionId)
   })
 
-  ipcMain.handle(IpcChannels.CONNECTIONS_TOGGLE_FAVORITE, (_event, id: unknown) => {
-    return requireEntity(repos.connections.toggleFavorite(IdSchema.parse(id)), 'Connection')
+  ipcMain.handle(IpcChannels.CONNECTIONS_TOGGLE_FAVORITE, async (_event, id: unknown) => {
+    return requireEntity(
+      await inventory().connections.toggleFavorite(IdSchema.parse(id)),
+      'Connection'
+    )
   })
 
-  ipcMain.handle(IpcChannels.CONNECTIONS_DUPLICATE, (_event, id: unknown) => {
+  ipcMain.handle(IpcChannels.CONNECTIONS_DUPLICATE, async (_event, id: unknown) => {
     const connectionId = IdSchema.parse(id)
-    const existing = repos.connections.get(connectionId)
+    const existing = await inventory().connections.get(connectionId)
     if (!existing) {
       throw new Error('Connection not found')
     }
 
-    const copy = requireEntity(repos.connections.duplicate(connectionId), 'Connection')
+    const copy = requireEntity(await inventory().connections.duplicate(connectionId), 'Connection')
 
     if (
       existing.credentialRef &&
@@ -73,7 +79,7 @@ export function registerConnectionHandlers(repos: Repositories, vault: Credentia
       const secret = vault.resolveSecret(existing.credentialRef)
       const newRef = vault.setSecret(secret)
       return requireEntity(
-        repos.connections.update(copy.id, { credentialRef: newRef }),
+        await inventory().connections.update(copy.id, { credentialRef: newRef }),
         'Connection'
       )
     }

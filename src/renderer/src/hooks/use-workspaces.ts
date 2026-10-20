@@ -4,17 +4,49 @@ import {
   parseWorkspacePath,
   workspacePath
 } from '@renderer/lib/workspace-paths'
-import type { Workspace } from '@shared/types'
-import { useQuery } from '@tanstack/react-query'
+import type { AddOrganizationInput, Workspace } from '@shared/types'
+import { type QueryClient, useMutation, useQuery } from '@tanstack/react-query'
 import { createContext, useCallback, useContext } from 'react'
 import { type NavigateOptions, useLocation, useNavigate } from 'react-router-dom'
 
+/**
+ * The app-level cache (outside every workspace's own cache). The workspace
+ * list lives here so the switcher and `WorkspaceScope` always agree.
+ */
+export const RootQueryClientContext = createContext<QueryClient | null>(null)
+
 export function useWorkspaces() {
-  return useQuery({
-    queryKey: queryKeys.workspaces.list,
-    queryFn: (): Promise<Workspace[]> => window.north.workspaces.list(),
-    staleTime: Number.POSITIVE_INFINITY
-  })
+  const root = useContext(RootQueryClientContext) ?? undefined
+  return useQuery(
+    {
+      queryKey: queryKeys.workspaces.list,
+      queryFn: (): Promise<Workspace[]> => window.north.workspaces.list(),
+      staleTime: Number.POSITIVE_INFINITY
+    },
+    root
+  )
+}
+
+export function useAddOrganization() {
+  const root = useContext(RootQueryClientContext) ?? undefined
+  return useMutation(
+    {
+      mutationFn: (input: AddOrganizationInput) => window.north.workspaces.addOrganization(input),
+      onSuccess: () => root?.invalidateQueries({ queryKey: queryKeys.workspaces.list })
+    },
+    root
+  )
+}
+
+export function useRemoveOrganization() {
+  const root = useContext(RootQueryClientContext) ?? undefined
+  return useMutation(
+    {
+      mutationFn: (id: string) => window.north.workspaces.remove(id),
+      onSuccess: () => root?.invalidateQueries({ queryKey: queryKeys.workspaces.list })
+    },
+    root
+  )
 }
 
 export const WorkspaceContext = createContext<Workspace | null>(null)

@@ -774,7 +774,27 @@
     "soon": "soon",
     "unavailable": "Organizations become available with North Server. Back to My workspace.",
     "organizations": "Organizations",
-    "organizationsEmpty": "Your company's North server shows up here. Coming soon."
+    "organizationsEmpty": "Add your company's North Server with +.",
+    "add": {
+      "addressHint": "Address of the North Server your company installed.",
+      "signInHint": "Sign in with your account in this organization.",
+      "serverUrl": "Server address",
+      "continue": "Continue",
+      "back": "Back",
+      "cancel": "Cancel",
+      "email": "E-mail",
+      "name": "Name (optional)",
+      "signIn": "Sign in",
+      "devNotice": "Test sign-in by e-mail. Corporate sign-in (Entra ID) is coming soon.",
+      "entraSoon": "This server uses corporate sign-in (Entra ID), coming soon to North.",
+      "unreachable": "Could not reach the server.",
+      "signInFailed": "Could not sign in."
+    },
+    "leave": "Leave this organization",
+    "leaveTitle": "Leave {{name}}?",
+    "leaveBody": "North forgets this organization on this computer and ends your session. Nothing is deleted on the server; you can add it again later.",
+    "leaveConfirm": "Leave",
+    "leaveCancel": "Cancel"
   },
   "sessions": {
     "homeTab": "Panel"

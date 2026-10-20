@@ -11,7 +11,7 @@ import { AppHarnessApp } from './AppHarnessApp'
 import { DatabaseHarnessApp } from './DatabaseHarnessApp'
 import { FtpHarnessApp } from './FtpHarnessApp'
 import { HarnessApp } from './HarnessApp'
-import { installMockNorth } from './mock-north'
+import { applyOrganizationOverlay, installMockNorth } from './mock-north'
 
 const params = new URLSearchParams(window.location.search)
 const scenarioParam = params.get('scenario')
@@ -25,8 +25,17 @@ installMockNorth({
   failFirstStep: params.get('failFirst') === '1',
   scenario: scenario === 'app' ? 'database' : scenario,
   fsFail: params.get('fsFail') === '1',
-  withOrganization: params.get('workspaces') === 'org'
+  workspaces:
+    params.get('workspaces') === 'org'
+      ? 'org'
+      : params.get('workspaces') === 'org-signed-out'
+        ? 'org-signed-out'
+        : 'none'
 })
+
+applyOrganizationOverlay(
+  (window as unknown as { north: Record<string, Record<string, unknown>> }).north
+)
 
 const queryClient = new QueryClient({
   defaultOptions: {

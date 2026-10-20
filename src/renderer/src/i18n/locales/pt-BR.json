@@ -774,7 +774,27 @@
     "soon": "em breve",
     "unavailable": "Organizações ficam disponíveis com o North Server. Voltando para o Meu workspace.",
     "organizations": "Organizações",
-    "organizationsEmpty": "O servidor North da sua empresa aparece aqui. Em breve."
+    "organizationsEmpty": "Adicione o North Server da sua empresa no +.",
+    "add": {
+      "addressHint": "Endereço do North Server que a sua empresa instalou.",
+      "signInHint": "Entre com a sua conta nesta organização.",
+      "serverUrl": "Endereço do servidor",
+      "continue": "Continuar",
+      "back": "Voltar",
+      "cancel": "Cancelar",
+      "email": "E-mail",
+      "name": "Nome (opcional)",
+      "signIn": "Entrar",
+      "devNotice": "Login de teste por e-mail. O login corporativo (Entra ID) chega em breve.",
+      "entraSoon": "Este servidor usa login corporativo (Entra ID), que chega em breve no North.",
+      "unreachable": "Não foi possível falar com o servidor.",
+      "signInFailed": "Não foi possível entrar."
+    },
+    "leave": "Sair desta organização",
+    "leaveTitle": "Sair de {{name}}?",
+    "leaveBody": "O North esquece esta organização neste computador e encerra a sua sessão. Nada é apagado no servidor; você pode adicioná-la de novo depois.",
+    "leaveConfirm": "Sair",
+    "leaveCancel": "Cancelar"
   },
   "sessions": {
     "homeTab": "Painel"

@@ -7,7 +7,7 @@ import {
   UpdateTagInputSchema
 } from '@shared/types'
 import { ipcMain } from 'electron'
-import type { Repositories } from '../repositories'
+import type { InventoryStore } from '../workspaces/inventory-store'
 
 function requireEntity<T>(entity: T | null, label: string): T {
   if (!entity) {
@@ -16,40 +16,40 @@ function requireEntity<T>(entity: T | null, label: string): T {
   return entity
 }
 
-export function registerTagHandlers(repos: Repositories): void {
-  ipcMain.handle(IpcChannels.TAGS_LIST, () => repos.tags.list())
+export function registerTagHandlers(inventory: () => InventoryStore): void {
+  ipcMain.handle(IpcChannels.TAGS_LIST, async () => await inventory().tags.list())
 
-  ipcMain.handle(IpcChannels.TAGS_CREATE, (_event, input: unknown) => {
-    return repos.tags.create(CreateTagInputSchema.parse(input))
+  ipcMain.handle(IpcChannels.TAGS_CREATE, async (_event, input: unknown) => {
+    return await inventory().tags.create(CreateTagInputSchema.parse(input))
   })
 
-  ipcMain.handle(IpcChannels.TAGS_UPDATE, (_event, id: unknown, input: unknown) => {
+  ipcMain.handle(IpcChannels.TAGS_UPDATE, async (_event, id: unknown, input: unknown) => {
     return requireEntity(
-      repos.tags.update(IdSchema.parse(id), UpdateTagInputSchema.parse(input)),
+      await inventory().tags.update(IdSchema.parse(id), UpdateTagInputSchema.parse(input)),
       'Tag'
     )
   })
 
-  ipcMain.handle(IpcChannels.TAGS_DELETE, (_event, id: unknown) => {
-    const ok = repos.tags.delete(IdSchema.parse(id))
+  ipcMain.handle(IpcChannels.TAGS_DELETE, async (_event, id: unknown) => {
+    const ok = await inventory().tags.delete(IdSchema.parse(id))
     if (!ok) {
       throw new Error('Tag not found')
     }
   })
 
-  ipcMain.handle(IpcChannels.TAGS_SET_FOR_CONNECTION, (_event, input: unknown) => {
-    return repos.tags.setForConnection(SetConnectionTagsInputSchema.parse(input))
+  ipcMain.handle(IpcChannels.TAGS_SET_FOR_CONNECTION, async (_event, input: unknown) => {
+    return await inventory().tags.setForConnection(SetConnectionTagsInputSchema.parse(input))
   })
 
-  ipcMain.handle(IpcChannels.TAGS_LIST_FOR_CONNECTION, (_event, connectionId: unknown) => {
-    return repos.tags.listForConnection(IdSchema.parse(connectionId))
+  ipcMain.handle(IpcChannels.TAGS_LIST_FOR_CONNECTION, async (_event, connectionId: unknown) => {
+    return await inventory().tags.listForConnection(IdSchema.parse(connectionId))
   })
 
-  ipcMain.handle(IpcChannels.TAGS_SET_FOR_ACCESS, (_event, input: unknown) => {
-    return repos.tags.setForAccess(SetAccessTagsInputSchema.parse(input))
+  ipcMain.handle(IpcChannels.TAGS_SET_FOR_ACCESS, async (_event, input: unknown) => {
+    return await inventory().tags.setForAccess(SetAccessTagsInputSchema.parse(input))
   })
 
-  ipcMain.handle(IpcChannels.TAGS_LIST_FOR_ACCESS, (_event, accessId: unknown) => {
-    return repos.tags.listForAccess(IdSchema.parse(accessId))
+  ipcMain.handle(IpcChannels.TAGS_LIST_FOR_ACCESS, async (_event, accessId: unknown) => {
+    return await inventory().tags.listForAccess(IdSchema.parse(accessId))
   })
 }

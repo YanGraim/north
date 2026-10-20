@@ -3,6 +3,7 @@ import { CreateEnvironmentInputSchema, IdSchema, UpdateEnvironmentInputSchema } 
 import { ipcMain } from 'electron'
 import type { Repositories } from '../repositories'
 import type { CredentialVault } from '../vault'
+import type { InventoryStore } from '../workspaces/inventory-store'
 import { deleteSecretsForScope } from './vault-cleanup'
 
 function requireEntity<T>(entity: T | null, label: string): T {
@@ -12,35 +13,39 @@ function requireEntity<T>(entity: T | null, label: string): T {
   return entity
 }
 
-export function registerEnvironmentHandlers(repos: Repositories, vault: CredentialVault): void {
-  ipcMain.handle(IpcChannels.ENVIRONMENTS_LIST, (_event, clientId?: unknown) => {
+export function registerEnvironmentHandlers(
+  repos: Repositories,
+  vault: CredentialVault,
+  inventory: () => InventoryStore
+): void {
+  ipcMain.handle(IpcChannels.ENVIRONMENTS_LIST, async (_event, clientId?: unknown) => {
     const parsed =
       clientId === undefined || clientId === null ? undefined : IdSchema.parse(clientId)
-    return repos.environments.list(parsed)
+    return await inventory().environments.list(parsed)
   })
 
-  ipcMain.handle(IpcChannels.ENVIRONMENTS_GET, (_event, id: unknown) => {
-    return repos.environments.get(IdSchema.parse(id))
+  ipcMain.handle(IpcChannels.ENVIRONMENTS_GET, async (_event, id: unknown) => {
+    return await inventory().environments.get(IdSchema.parse(id))
   })
 
-  ipcMain.handle(IpcChannels.ENVIRONMENTS_CREATE, (_event, input: unknown) => {
-    return repos.environments.create(CreateEnvironmentInputSchema.parse(input))
+  ipcMain.handle(IpcChannels.ENVIRONMENTS_CREATE, async (_event, input: unknown) => {
+    return await inventory().environments.create(CreateEnvironmentInputSchema.parse(input))
   })
 
-  ipcMain.handle(IpcChannels.ENVIRONMENTS_UPDATE, (_event, id: unknown, input: unknown) => {
-    const updated = repos.environments.update(
+  ipcMain.handle(IpcChannels.ENVIRONMENTS_UPDATE, async (_event, id: unknown, input: unknown) => {
+    const updated = await inventory().environments.update(
       IdSchema.parse(id),
       UpdateEnvironmentInputSchema.parse(input)
     )
     return requireEntity(updated, 'Environment')
   })
 
-  ipcMain.handle(IpcChannels.ENVIRONMENTS_DELETE, (_event, id: unknown) => {
+  ipcMain.handle(IpcChannels.ENVIRONMENTS_DELETE, async (_event, id: unknown) => {
     const environmentId = IdSchema.parse(id)
-    if (!repos.environments.get(environmentId)) {
+    if (!(await inventory().environments.get(environmentId))) {
       throw new Error('Environment not found')
     }
     deleteSecretsForScope(repos, vault, { environmentId })
-    repos.environments.delete(environmentId)
+    await inventory().environments.delete(environmentId)
   })
 }

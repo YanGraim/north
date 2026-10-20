@@ -1,31 +1,118 @@
-import { LOCAL_WORKSPACE_ID, type Workspace, WorkspaceIdSchema } from '@shared/types'
+import {
+  type AddOrganizationInput,
+  LOCAL_WORKSPACE_ID,
+  type Workspace,
+  WorkspaceIdSchema
+} from '@shared/types'
 import type { Repositories } from '../repositories'
 import type { WorkspacesRepository } from '../repositories/workspaces-repository'
+import type { CredentialVault } from '../vault'
+import { type InventoryStore, localInventoryStore } from './inventory-store'
+import {
+  normalizeServerUrl,
+  OrganizationClient,
+  probeServer,
+  type TokenStore
+} from './organization-client'
+import { ORGANIZATION_UNAVAILABLE, RemoteInventoryStore } from './remote-inventory-store'
 
 /**
- * Where a workspace's inventory lives (ADR 0018 §10). `local` is SQLite; the
- * `remote` source (North Server API) arrives in phase 2 behind the same shape.
+ * Where a workspace's data lives (ADR 0018 §10). The inventory tree goes
+ * through the async `InventoryStore`; every other repository is SQLite for
+ * the personal workspace and "not yet" for organizations.
  */
 export interface WorkspaceDataSource {
   readonly kind: 'local' | 'remote'
+  readonly inventory: InventoryStore
   readonly repositories: Repositories
 }
 
-export class LocalDataSource implements WorkspaceDataSource {
+class LocalDataSource implements WorkspaceDataSource {
   readonly kind = 'local' as const
-  constructor(readonly repositories: Repositories) {}
+  readonly inventory: InventoryStore
+  constructor(readonly repositories: Repositories) {
+    this.inventory = localInventoryStore(repositories)
+  }
+}
+
+/**
+ * Repositories an organization does not serve yet: `list*` reads come back
+ * empty (screens render, just with nothing), anything else explains why.
+ */
+function unavailableRepositories(shape: Repositories): Repositories {
+  const repo = new Proxy(
+    {},
+    {
+      get(_target, key) {
+        if (typeof key !== 'string') return undefined
+        if (key.startsWith('list')) return () => []
+        return () => {
+          throw new Error(ORGANIZATION_UNAVAILABLE)
+        }
+      }
+    }
+  )
+  return Object.fromEntries(Object.keys(shape).map((key) => [key, repo])) as Repositories
+}
+
+class RemoteDataSource implements WorkspaceDataSource {
+  readonly kind = 'remote' as const
+  readonly inventory: InventoryStore
+  readonly repositories: Repositories
+  constructor(
+    readonly client: OrganizationClient,
+    shape: Repositories
+  ) {
+    this.inventory = new RemoteInventoryStore(client)
+    this.repositories = unavailableRepositories(shape)
+  }
+}
+
+/** Refresh token persisted through the vault; memory-only when encryption is unavailable. */
+function vaultTokenStore(
+  workspaces: WorkspacesRepository,
+  vault: CredentialVault,
+  workspaceId: string
+): TokenStore {
+  let memory: string | null = null
+  return {
+    get: () => {
+      if (memory) return memory
+      const ref = workspaces.refreshCredentialRef(workspaceId)
+      if (!ref || !vault.hasSecret(ref) || !vault.isEncryptionAvailable()) return null
+      memory = vault.resolveSecret(ref)
+      return memory
+    },
+    set: (token) => {
+      memory = token
+      const ref = workspaces.refreshCredentialRef(workspaceId)
+      if (!token) {
+        if (ref) vault.deleteSecret(ref)
+        workspaces.setRefreshCredentialRef(workspaceId, null)
+        return
+      }
+      if (!vault.isEncryptionAvailable()) return
+      workspaces.setRefreshCredentialRef(workspaceId, vault.setSecret(token, ref))
+    }
+  }
 }
 
 export class WorkspaceRegistry {
   private readonly local: LocalDataSource
+  private readonly workspaces: WorkspacesRepository
+  private readonly vault: CredentialVault
+  private readonly remotes = new Map<string, RemoteDataSource>()
   private active: { workspace: Workspace; source: WorkspaceDataSource }
 
-  constructor(
-    private readonly workspaces: WorkspacesRepository,
-    localRepositories: Repositories
-  ) {
-    this.local = new LocalDataSource(localRepositories)
-    const localWorkspace = workspaces.get(LOCAL_WORKSPACE_ID)
+  constructor(deps: {
+    workspaces: WorkspacesRepository
+    local: Repositories
+    vault: CredentialVault
+  }) {
+    this.workspaces = deps.workspaces
+    this.vault = deps.vault
+    this.local = new LocalDataSource(deps.local)
+    const localWorkspace = deps.workspaces.get(LOCAL_WORKSPACE_ID)
     if (!localWorkspace) {
       throw new Error('Local workspace missing — migration 017 not applied')
     }
@@ -44,13 +131,66 @@ export class WorkspaceRegistry {
     return this.active.source
   }
 
-  activate(id: string): Workspace {
+  inventory(): InventoryStore {
+    return this.active.source.inventory
+  }
+
+  /** Points main at a workspace. Organizations must have a live session (checked with `/me`). */
+  async activate(id: string): Promise<Workspace> {
     const workspace = this.workspaces.get(WorkspaceIdSchema.parse(id))
     if (!workspace) {
       throw new Error(`Workspace ${id} not found`)
     }
-    this.active = { workspace, source: this.sourceFor(workspace) }
+    if (workspace.kind === 'local') {
+      this.active = { workspace, source: this.local }
+      return workspace
+    }
+    const source = this.remoteFor(workspace)
+    await source.client.request('GET', '/api/v1/me')
+    this.active = { workspace, source }
     return workspace
+  }
+
+  async probe(serverUrl: string) {
+    return probeServer(serverUrl)
+  }
+
+  /** Signs in to a North Server and remembers it; signing in again reuses the workspace. */
+  async addOrganization(input: AddOrganizationInput): Promise<Workspace> {
+    const serverUrl = normalizeServerUrl(input.serverUrl)
+    const info = await probeServer(serverUrl)
+    if (!info.authModes.includes('dev')) {
+      throw new Error(
+        'Este servidor usa login corporativo (Entra ID), que chega em breve no North.'
+      )
+    }
+    const existing = this.workspaces.findByServerUrl(serverUrl)
+    const workspace =
+      existing ??
+      this.workspaces.createOrganization({ name: info.name, serverUrl, userEmail: input.email })
+    try {
+      const user = await this.remoteFor(workspace).client.devLogin(input.email, input.name)
+      this.workspaces.setUserEmail(workspace.id, user.email)
+    } catch (error) {
+      if (!existing) this.forget(workspace.id)
+      throw error
+    }
+    return this.workspaces.get(workspace.id) as Workspace
+  }
+
+  async removeOrganization(id: string): Promise<void> {
+    const workspace = this.workspaces.get(WorkspaceIdSchema.parse(id))
+    if (!workspace || workspace.kind !== 'organization') {
+      throw new Error('Only organizations can be removed')
+    }
+    await this.remoteFor(workspace).client.logout()
+    if (this.active.workspace.id === id) {
+      this.active = {
+        workspace: this.workspaces.get(LOCAL_WORKSPACE_ID) as Workspace,
+        source: this.local
+      }
+    }
+    this.forget(id)
   }
 
   repositoriesFor(id: string): Repositories {
@@ -58,14 +198,29 @@ export class WorkspaceRegistry {
     if (!workspace) {
       throw new Error(`Workspace ${id} not found`)
     }
-    return this.sourceFor(workspace).repositories
+    return workspace.kind === 'local'
+      ? this.local.repositories
+      : this.remoteFor(workspace).repositories
   }
 
-  private sourceFor(workspace: Workspace): WorkspaceDataSource {
-    if (workspace.kind === 'local') return this.local
-    throw new Error(
-      `Workspace ${workspace.id} is not available yet (organizations need North Server)`
-    )
+  private forget(id: string): void {
+    const ref = this.workspaces.refreshCredentialRef(id)
+    if (ref) this.vault.deleteSecret(ref)
+    this.remotes.delete(id)
+    this.workspaces.delete(id)
+  }
+
+  private remoteFor(workspace: Workspace): RemoteDataSource {
+    let source = this.remotes.get(workspace.id)
+    if (!source) {
+      const client = new OrganizationClient(
+        workspace.serverUrl as string,
+        vaultTokenStore(this.workspaces, this.vault, workspace.id)
+      )
+      source = new RemoteDataSource(client, this.local.repositories)
+      this.remotes.set(workspace.id, source)
+    }
+    return source
   }
 }
 

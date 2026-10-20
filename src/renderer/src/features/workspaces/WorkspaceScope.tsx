@@ -1,9 +1,15 @@
 import { AppShell } from '@renderer/components/layout/AppShell'
-import { useWorkspaceHref, useWorkspaces, WorkspaceContext } from '@renderer/hooks/use-workspaces'
+import {
+  RootQueryClientContext,
+  useWorkspaceHref,
+  useWorkspaces,
+  WorkspaceContext
+} from '@renderer/hooks/use-workspaces'
+import { formatIpcError } from '@renderer/lib/ipc-error'
 import { LOCAL_WORKSPACE_ID, workspacePath } from '@renderer/lib/workspace-paths'
 import { useUiStore } from '@renderer/stores/ui-store'
 import type { Workspace } from '@shared/types'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation, useParams } from 'react-router-dom'
@@ -39,33 +45,36 @@ type Activation =
 /** Route element for `/w/:workspaceId/*`: validates, activates in main, then renders the shell. */
 export function WorkspaceScope(): React.JSX.Element | null {
   const { t } = useTranslation()
+  const rootClient = useQueryClient()
   const { workspaceId = LOCAL_WORKSPACE_ID } = useParams()
   const location = useLocation()
   const { data: workspaces } = useWorkspaces()
   const setLastWorkspaceId = useUiStore((s) => s.setLastWorkspaceId)
   const [activation, setActivation] = useState<Activation>({ status: 'pending' })
   const known = workspaces?.find((w) => w.id === workspaceId)
+  // Activate on id changes only: a refetched list must not remount the shell.
+  const knownId = known?.id
 
   useEffect(() => {
-    if (!known) return
+    if (!knownId) return
     let cancelled = false
     setActivation({ status: 'pending' })
-    window.north.workspaces.activate(known.id).then(
+    window.north.workspaces.activate(knownId).then(
       (workspace) => {
         if (cancelled) return
         setLastWorkspaceId(workspace.id)
         setActivation({ status: 'ready', workspace })
       },
-      () => {
+      (error: unknown) => {
         if (cancelled) return
-        toast.error(t('workspaces.unavailable'))
+        toast.error(formatIpcError(error, t('workspaces.unavailable')))
         setActivation({ status: 'failed' })
       }
     )
     return () => {
       cancelled = true
     }
-  }, [known, setLastWorkspaceId, t])
+  }, [knownId, setLastWorkspaceId, t])
 
   if (!workspaces) return null
 
@@ -82,11 +91,13 @@ export function WorkspaceScope(): React.JSX.Element | null {
   if (activation.status !== 'ready' || activation.workspace.id !== workspaceId) return null
 
   return (
-    <WorkspaceContext.Provider value={activation.workspace}>
-      <QueryClientProvider client={clientFor(workspaceId)}>
-        <AppShell />
-      </QueryClientProvider>
-    </WorkspaceContext.Provider>
+    <RootQueryClientContext.Provider value={rootClient}>
+      <WorkspaceContext.Provider value={activation.workspace}>
+        <QueryClientProvider client={clientFor(workspaceId)}>
+          <AppShell />
+        </QueryClientProvider>
+      </WorkspaceContext.Provider>
+    </RootQueryClientContext.Provider>
   )
 }
 

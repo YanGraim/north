@@ -335,7 +335,10 @@ export {
   WorkflowTrackingSchema
 } from './workflow'
 export {
+  type AddOrganizationInput,
+  AddOrganizationInputSchema,
   LOCAL_WORKSPACE_ID,
+  type OrganizationServerInfo,
   type Workspace,
   WorkspaceIdSchema,
   type WorkspaceKind,

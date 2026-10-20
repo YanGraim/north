@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { createTestRepositories } from '../database/test-utils'
 import { buildSearchIndex } from '../services/search-index'
+import { localInventoryStore } from '../workspaces/inventory-store'
 
 describe('buildSearchIndex', () => {
-  it('flattens org path, host and tags for connections', () => {
+  it('flattens org path, host and tags for connections', async () => {
     const { repos } = createTestRepositories()
 
     const client = repos.clients.create({ name: 'Acme Corp' })
@@ -23,7 +24,7 @@ describe('buildSearchIndex', () => {
     })
     repos.tags.setForConnection({ connectionId: conn.id, tagIds: [tag.id] })
 
-    const index = buildSearchIndex(repos)
+    const index = await buildSearchIndex(repos, localInventoryStore(repos))
     const connectionItem = index.find((item) => item.id === conn.id)
 
     expect(connectionItem).toMatchObject({
@@ -41,5 +42,15 @@ describe('buildSearchIndex', () => {
 
     expect(index.some((item) => item.kind === 'client' && item.id === client.id)).toBe(true)
     expect(index.some((item) => item.kind === 'tag' && item.id === tag.id)).toBe(true)
+  })
+
+  it('indexes the tree from the workspace inventory, not the local tables', async () => {
+    const { repos } = createTestRepositories()
+    repos.clients.create({ name: 'Only local' })
+    const org = createTestRepositories().repos
+    org.clients.create({ name: 'Org client' })
+    const index = await buildSearchIndex(repos, localInventoryStore(org))
+    const titles = index.filter((i) => i.kind === 'client').map((i) => i.title)
+    expect(titles).toEqual(['Org client'])
   })
 })

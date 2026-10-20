@@ -53,10 +53,16 @@ export function getVault(): CredentialVault {
 export function registerIpcHandlers(): void {
   const db = initDatabase()
   const localRepositories = createRepositories(db)
-  const registry = new WorkspaceRegistry(new WorkspacesRepository(db), localRepositories)
-  // Handlers read through the active workspace; the vault stays on the local DB (ADR 0018 §8).
-  repositories = createScopedRepositories(registry)
+  // The vault stays on the local DB for every workspace (ADR 0018 §8).
   vault = new CredentialVault(localRepositories.credentials, new SafeStorageEncryptor())
+  const registry = new WorkspaceRegistry({
+    workspaces: new WorkspacesRepository(db),
+    local: localRepositories,
+    vault
+  })
+  // Handlers read through the active workspace: the tree via the async inventory, the rest via repos.
+  repositories = createScopedRepositories(registry)
+  const inventory = () => registry.inventory()
 
   maybeSeedDevData(localRepositories)
   registerWorkspaceHandlers(registry)
@@ -70,20 +76,20 @@ export function registerIpcHandlers(): void {
   registerThemeHandlers()
 
   registerVaultHandlers(vault, repositories)
-  registerClientHandlers(repositories, vault)
-  registerEnvironmentHandlers(repositories, vault)
-  registerGroupHandlers(repositories, vault)
-  registerConnectionHandlers(repositories, vault)
+  registerClientHandlers(repositories, vault, inventory)
+  registerEnvironmentHandlers(repositories, vault, inventory)
+  registerGroupHandlers(repositories, vault, inventory)
+  registerConnectionHandlers(vault, inventory)
   registerAccessHandlers(repositories, vault)
-  registerTagHandlers(repositories)
+  registerTagHandlers(inventory)
   registerHistoryHandlers(repositories)
-  registerSearchHandlers(repositories)
+  registerSearchHandlers(repositories, inventory)
   registerSessionHandlers(repositories, vault)
   registerDatabaseHandlers(repositories, vault)
   registerApiHandlers(repositories, vault)
   registerFsHandlers()
   registerSerialHandlers()
-  registerStatsHandlers(repositories)
+  registerStatsHandlers(repositories, inventory)
   registerInventoryHandlers(repositories, vault)
   registerUpdateHandlers()
   registerWorkflowHandlers(repositories, vault)

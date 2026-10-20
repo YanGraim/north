@@ -1,19 +1,42 @@
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@renderer/components/ui/alert-dialog'
+import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@renderer/components/ui/dropdown-menu'
-import { useCurrentWorkspace, useWorkspaces } from '@renderer/hooks/use-workspaces'
+import {
+  useCurrentWorkspace,
+  useRemoveOrganization,
+  useWorkspaces
+} from '@renderer/hooks/use-workspaces'
+import { formatIpcError } from '@renderer/lib/ipc-error'
 import { cn } from '@renderer/lib/utils'
-import { stripWorkspacePrefix, workspacePath } from '@renderer/lib/workspace-paths'
+import {
+  LOCAL_WORKSPACE_ID,
+  stripWorkspacePrefix,
+  workspacePath
+} from '@renderer/lib/workspace-paths'
 import type { Workspace } from '@shared/types'
-import { ChevronDown, Plus, User, Users } from 'lucide-react'
+import { ChevronDown, LogOut, Plus, User, Users } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
+import { AddOrganizationDialog } from './AddOrganizationDialog'
 
 function WorkspaceIcon({ workspace }: { workspace: Workspace | null }): React.JSX.Element {
   const Icon = workspace?.kind === 'organization' ? Users : User
@@ -34,6 +57,20 @@ export function WorkspaceSwitcher(): React.JSX.Element {
   const personal = workspaces.filter((w) => w.kind === 'local')
   const organizations = workspaces.filter((w) => w.kind === 'organization')
   const inOrganization = current?.kind === 'organization'
+  const [adding, setAdding] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  const remove = useRemoveOrganization()
+
+  const leave = async (): Promise<void> => {
+    if (!current || current.kind !== 'organization') return
+    try {
+      await remove.mutateAsync(current.id)
+      setLeaving(false)
+      void navigate(workspacePath(LOCAL_WORKSPACE_ID, '/dashboard'))
+    } catch (error) {
+      toast.error(formatIpcError(error))
+    }
+  }
 
   const select = (id: string): void => {
     if (id === current?.id) return
@@ -41,60 +78,98 @@ export function WorkspaceSwitcher(): React.JSX.Element {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        data-testid="workspace-switcher"
-        data-kind={current?.kind ?? 'local'}
-        aria-label={`${t('workspaces.title')}: ${label}`}
-        className={cn(
-          'no-drag inline-flex h-7 max-w-44 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          inOrganization
-            ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/15'
-            : 'border-border text-foreground hover:bg-surface-elevated/60'
-        )}
-      >
-        <WorkspaceIcon workspace={current} />
-        <span className="truncate">{label}</span>
-        <ChevronDown className="size-3.5 shrink-0 opacity-70" aria-hidden />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuRadioGroup value={current?.id ?? ''} onValueChange={select}>
-          {personal.map((workspace) => (
-            <WorkspaceOption key={workspace.id} workspace={workspace} t={t} />
-          ))}
-          <DropdownMenuSeparator />
-          <div className="flex items-center justify-between pr-1">
-            <DropdownMenuLabel className="text-[11px] font-normal text-muted">
-              {t('workspaces.organizations')}
-            </DropdownMenuLabel>
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              data-testid="workspace-add-organization"
-              aria-label={`${t('workspaces.addOrganization')} (${t('workspaces.soon')})`}
-              title={`${t('workspaces.addOrganization')} — ${t('workspaces.soon')}`}
-              className="flex size-6 items-center justify-center rounded text-muted disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Plus className="size-3.5" aria-hidden />
-            </button>
-          </div>
-          {organizations.length === 0 ? (
-            <p
-              data-testid="workspace-organizations-empty"
-              className="px-2 pb-2 text-[11px] text-muted"
-            >
-              {t('workspaces.organizationsEmpty')}
-            </p>
-          ) : (
-            organizations.map((workspace) => (
-              <WorkspaceOption key={workspace.id} workspace={workspace} t={t} />
-            ))
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          data-testid="workspace-switcher"
+          data-kind={current?.kind ?? 'local'}
+          aria-label={`${t('workspaces.title')}: ${label}`}
+          className={cn(
+            'no-drag inline-flex h-7 max-w-44 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            inOrganization
+              ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/15'
+              : 'border-border text-foreground hover:bg-surface-elevated/60'
           )}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        >
+          <WorkspaceIcon workspace={current} />
+          <span className="truncate">{label}</span>
+          <ChevronDown className="size-3.5 shrink-0 opacity-70" aria-hidden />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuRadioGroup value={current?.id ?? ''} onValueChange={select}>
+            {personal.map((workspace) => (
+              <WorkspaceOption key={workspace.id} workspace={workspace} t={t} />
+            ))}
+            <DropdownMenuSeparator />
+            <div className="flex items-center justify-between pr-1">
+              <DropdownMenuLabel className="text-[11px] font-normal text-muted">
+                {t('workspaces.organizations')}
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                data-testid="workspace-add-organization"
+                aria-label={t('workspaces.addOrganization')}
+                title={t('workspaces.addOrganization')}
+                onSelect={() => setAdding(true)}
+                className="size-6 justify-center p-0 text-muted"
+              >
+                <Plus className="size-3.5" aria-hidden />
+              </DropdownMenuItem>
+            </div>
+            {organizations.length === 0 ? (
+              <p
+                data-testid="workspace-organizations-empty"
+                className="px-2 pb-2 text-[11px] text-muted"
+              >
+                {t('workspaces.organizationsEmpty')}
+              </p>
+            ) : (
+              organizations.map((workspace) => (
+                <WorkspaceOption key={workspace.id} workspace={workspace} t={t} />
+              ))
+            )}
+          </DropdownMenuRadioGroup>
+          {inOrganization ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                data-testid="workspace-leave"
+                onSelect={() => setLeaving(true)}
+                className="gap-2 text-muted"
+              >
+                <LogOut className="size-3.5" aria-hidden />
+                {t('workspaces.leave')}
+              </DropdownMenuItem>
+            </>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <AddOrganizationDialog open={adding} onOpenChange={setAdding} />
+      <AlertDialog open={leaving} onOpenChange={setLeaving}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('workspaces.leaveTitle', { name: current?.name ?? '' })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>{t('workspaces.leaveBody')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={remove.isPending}>
+              {t('workspaces.leaveCancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={remove.isPending}
+              onClick={(event) => {
+                event.preventDefault()
+                void leave()
+              }}
+            >
+              {t('workspaces.leaveConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 
@@ -105,18 +180,19 @@ function WorkspaceOption({
   workspace: Workspace
   t: (key: string) => string
 }): React.JSX.Element {
-  // Organizations stay listed but locked until the remote source exists (phase 2).
-  const unavailable = workspace.kind !== 'local'
   return (
     <DropdownMenuRadioItem
       value={workspace.id}
-      disabled={unavailable}
       data-testid={`workspace-option-${workspace.id}`}
       className="gap-2"
     >
       <WorkspaceIcon workspace={workspace} />
-      <span className="min-w-0 flex-1 truncate">{workspaceLabel(workspace, t)}</span>
-      {unavailable ? <span className="text-[11px] text-muted">{t('workspaces.soon')}</span> : null}
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate">{workspaceLabel(workspace, t)}</span>
+        {workspace.userEmail ? (
+          <span className="truncate text-[11px] text-muted">{workspace.userEmail}</span>
+        ) : null}
+      </span>
     </DropdownMenuRadioItem>
   )
 }

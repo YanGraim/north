@@ -8,6 +8,7 @@ describe('workspace schema', () => {
       name: 'Pessoal',
       kind: 'local',
       serverUrl: null,
+      userEmail: null,
       createdAt: '2026-10-20T00:00:00.000Z'
     })
     expect(parsed.kind).toBe('local')
@@ -19,6 +20,7 @@ describe('workspace schema', () => {
       name: 'Acme',
       kind: 'organization',
       serverUrl: 'https://north.acme.com',
+      userEmail: 'ana@acme.com',
       createdAt: '2026-10-20T00:00:00.000Z'
     })
     expect(parsed.serverUrl).toBe('https://north.acme.com')

@@ -2,11 +2,17 @@ import { IpcChannels } from '@shared/ipc'
 import type { StatsOverview } from '@shared/types'
 import { ipcMain } from 'electron'
 import type { Repositories } from '../repositories'
+import type { InventoryStore } from '../workspaces/inventory-store'
 
-export function registerStatsHandlers(repositories: Repositories): void {
-  ipcMain.handle(IpcChannels.STATS_OVERVIEW, (): StatsOverview => {
-    const clients = repositories.clients.list()
-    const connections = repositories.connections.list()
+export function registerStatsHandlers(
+  repositories: Repositories,
+  inventory: () => InventoryStore
+): void {
+  ipcMain.handle(IpcChannels.STATS_OVERVIEW, async (): Promise<StatsOverview> => {
+    const [clients, connections] = await Promise.all([
+      inventory().clients.list(),
+      inventory().connections.list()
+    ])
     const favorites = connections.filter((c) => c.isFavorite)
     const recent = [...connections]
       .filter((c) => c.lastConnectedAt)

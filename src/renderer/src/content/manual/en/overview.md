@@ -16,4 +16,4 @@ Organize clients, environments, remote connections and accesses (database creden
 
 ## Workspaces
 
-The button at the top right, next to VPN, shows which workspace you're in. For now there's only **My workspace**: everything stays on this computer, in the local database and the system vault. Soon, the **+** next to **Organizations** will connect North to your company's server. Each organization will have its own tree, favorites, history and search, kept apart from My workspace.
+The button at the top right, next to VPN, shows which workspace you're in. **My workspace** stays on this computer, in the local database and the system vault. Use the **+** next to **Organizations**, enter your company's North Server address and sign in with your e-mail (corporate sign-in with Entra ID is coming soon). In an organization, clients, environments, groups, connections and tags live on the server and are shared with the team; favorites are yours only. Nothing syncs between workspaces. Connecting and using accesses, workflows and APIs inside an organization comes in the next versions. To leave, open the selector and pick **Leave this organization**.

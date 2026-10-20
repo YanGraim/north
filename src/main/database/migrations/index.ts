@@ -16,6 +16,7 @@ import { migration014ApiRequestDescription } from './014-api-request-description
 import { migration015ConnectionHealth } from './015-connection-health'
 import { migration016Vpn } from './016-vpn'
 import { migration017Workspaces } from './017-workspaces'
+import { migration018WorkspaceSessions } from './018-workspace-sessions'
 
 /** Ordered list of schema migrations. Append new ones; never reorder or reuse versions. */
 export const migrations: Migration[] = [
@@ -35,5 +36,6 @@ export const migrations: Migration[] = [
   migration014ApiRequestDescription,
   migration015ConnectionHealth,
   migration016Vpn,
-  migration017Workspaces
+  migration017Workspaces,
+  migration018WorkspaceSessions
 ]

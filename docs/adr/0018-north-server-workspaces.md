@@ -58,3 +58,11 @@ Empresas querem uma instância própria que centralize projetos, usuários e per
 - **Stack:** Fastify 5 + `pg` (SQL direto, migrações versionadas como no desktop) + `jose`. Os testes usam PGlite (Postgres em WASM, sem Docker) com `fastify.inject`.
 - **Auth provisória:** o modo `dev` faz login por e-mail; produção só aceita com `NORTH_ALLOW_DEV_AUTH=1`. O access token JWT dura 5–10 min. O refresh token é opaco e guardado só como hash, com rotação e detecção de reuso (reuso revoga todas as sessões do usuário). O usuário desativado perde o acesso na próxima chamada. O Entra entra como outro modo na fase 0.
 - **Inventário compartilhado:** clientes, ambientes, grupos, conexões e tags. Favoritos são por usuário. O servidor nunca guarda `credentialRef`, `privateKeyPath` nem `vpnProfileId` (apontam para coisas da máquina de cada um); os segredos chegam na fase 4. O primeiro usuário vira admin; o RBAC por projeto é a fase 3.
+
+## Notas de implementação — Fase 2b (desktop ↔ servidor)
+
+- **`InventoryStore` assíncrono** para a árvore (clientes, ambientes, grupos, conexões, tags), com uma versão Local (SQLite) e uma Remote (HTTP). Os handlers dessas áreas, a busca e o dashboard usam `await`. O main testa o Remote contra o servidor real (PGlite) no mesmo repositório.
+- **O resto numa organização:** os outros repositórios respondem às listas com `[]`, e as ações dão um erro explicando que ainda não estão disponíveis. Abrir sessões a partir de uma organização depende dos segredos (fase 4).
+- **Sessão:** `OrganizationClient` no main. O access token fica só em memória; o refresh token fica no vault (`safeStorage`), referenciado por `workspaces.refresh_credential_ref` (migração 018). Num 401, o app renova uma vez e tenta de novo; se falhar, encerra a sessão local. Fora de loopback, só `https`.
+- **IPC:** `workspaces:probe | add-organization | remove`. Nenhum token chega ao renderer.
+- **UI:** o **+** abre "Adicionar organização" (endereço → nome da organização → e-mail). A organização ativa mostra o e-mail de quem entrou e a opção "Sair desta organização". A lista de workspaces fica no cache raiz do TanStack Query.

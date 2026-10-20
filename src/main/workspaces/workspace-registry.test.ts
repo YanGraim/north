@@ -1,26 +1,34 @@
 import { LOCAL_WORKSPACE_ID } from '@shared/types'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createTestDatabase } from '../database/test-utils'
 import { createRepositories } from '../repositories'
 import { WorkspacesRepository } from '../repositories/workspaces-repository'
+import { CredentialVault, FakeEncryptor } from '../vault'
+import { OrganizationSignedOutError } from './organization-client'
+import { ORGANIZATION_UNAVAILABLE } from './remote-inventory-store'
+import { startTestServer } from './test-server'
 import { createScopedRepositories, WorkspaceRegistry } from './workspace-registry'
+
+let server: Awaited<ReturnType<typeof startTestServer>>
+
+beforeAll(async () => {
+  server = await startTestServer()
+}, 60_000)
+
+afterAll(async () => {
+  await server.stop()
+})
 
 function setup() {
   const db = createTestDatabase()
   const local = createRepositories(db)
   const workspaces = new WorkspacesRepository(db)
-  const registry = new WorkspaceRegistry(workspaces, local)
-  return { db, local, workspaces, registry }
+  const vault = new CredentialVault(local.credentials, new FakeEncryptor())
+  const registry = new WorkspaceRegistry({ workspaces, local, vault })
+  return { db, local, workspaces, vault, registry }
 }
 
-function addOrganization(db: ReturnType<typeof createTestDatabase>, id = 'acme'): void {
-  db.prepare(
-    `INSERT INTO workspaces (id, name, kind, server_url, created_at)
-     VALUES (?, 'Acme', 'organization', 'https://north.acme.com', '2026-10-20T00:00:00.000Z')`
-  ).run(id)
-}
-
-describe('WorkspaceRegistry', () => {
+describe('WorkspaceRegistry — local', () => {
   it('starts on the local workspace', () => {
     const { registry } = setup()
     expect(registry.activeId()).toBe(LOCAL_WORKSPACE_ID)
@@ -32,32 +40,142 @@ describe('WorkspaceRegistry', () => {
     expect(registry.list().map((w) => w.id)).toEqual([LOCAL_WORKSPACE_ID])
   })
 
-  it('activates the local workspace and returns it', () => {
+  it('activates the local workspace and returns it', async () => {
     const { registry } = setup()
-    expect(registry.activate(LOCAL_WORKSPACE_ID).id).toBe(LOCAL_WORKSPACE_ID)
+    expect((await registry.activate(LOCAL_WORKSPACE_ID)).id).toBe(LOCAL_WORKSPACE_ID)
   })
 
-  it('rejects an unknown workspace and keeps the current one active', () => {
+  it('rejects an unknown workspace and keeps the current one active', async () => {
     const { registry } = setup()
-    expect(() => registry.activate('ghost')).toThrow(/not found/i)
+    await expect(registry.activate('ghost')).rejects.toThrow(/not found/i)
     expect(registry.activeId()).toBe(LOCAL_WORKSPACE_ID)
   })
 
-  it('rejects an invalid id before touching the repository', () => {
+  it('rejects an invalid id', async () => {
     const { registry } = setup()
-    expect(() => registry.activate('../x')).toThrow()
+    await expect(registry.activate('../x')).rejects.toThrow()
   })
 
-  it('refuses to activate an organization until the remote source exists', () => {
-    const { db, registry } = setup()
-    addOrganization(db)
-    expect(() => registry.activate('acme')).toThrow(/not available/i)
-    expect(registry.activeId()).toBe(LOCAL_WORKSPACE_ID)
-  })
-
-  it('hands the local repositories to the local source', () => {
+  it('reads the local inventory through the async store', async () => {
     const { local, registry } = setup()
-    expect(registry.repositoriesFor(LOCAL_WORKSPACE_ID)).toBe(local)
+    local.clients.create({ name: 'Mine' })
+    expect((await registry.inventory().clients.list()).map((c) => c.name)).toEqual(['Mine'])
+  })
+})
+
+describe('WorkspaceRegistry — organizations', () => {
+  it('adds an organization: signs in, stores the refresh token in the vault, keeps no secret in the row', async () => {
+    const { registry, db } = setup()
+    const workspace = await registry.addOrganization({
+      serverUrl: server.url,
+      email: 'ana@acme.com',
+      name: 'Ana'
+    })
+    expect(workspace).toMatchObject({
+      kind: 'organization',
+      name: 'Acme Test',
+      serverUrl: server.url,
+      userEmail: 'ana@acme.com'
+    })
+    expect(workspace.id).toMatch(/^acme-test-[a-z0-9]{4}$/)
+    const row = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(workspace.id) as Record<
+      string,
+      unknown
+    >
+    expect(row.refresh_credential_ref).toEqual(expect.any(String))
+    expect(JSON.stringify(row)).not.toMatch(/eyJ/)
+  })
+
+  it('signing in again to the same server reuses the workspace', async () => {
+    const { registry } = setup()
+    const a = await registry.addOrganization({ serverUrl: server.url, email: 'ana@acme.com' })
+    const b = await registry.addOrganization({ serverUrl: `${server.url}/`, email: 'ana@acme.com' })
+    expect(b.id).toBe(a.id)
+    expect(registry.list()).toHaveLength(2)
+  })
+
+  it('activating an organization switches inventory to the server', async () => {
+    const { registry, local } = setup()
+    local.clients.create({ name: 'Only on this computer' })
+    const org = await registry.addOrganization({ serverUrl: server.url, email: 'bia@acme.com' })
+    await registry.activate(org.id)
+    expect(registry.activeSource().kind).toBe('remote')
+    const created = await registry.inventory().clients.create({ name: 'Org client' })
+    const names = (await registry.inventory().clients.list()).map((c) => c.name)
+    expect(names).toContain('Org client')
+    expect(names).not.toContain('Only on this computer')
+    expect(local.clients.get(created.id)).toBeNull()
+  })
+
+  it('switching back to local restores local data', async () => {
+    const { registry, local } = setup()
+    local.clients.create({ name: 'Mine' })
+    const org = await registry.addOrganization({ serverUrl: server.url, email: 'cris@acme.com' })
+    await registry.activate(org.id)
+    await registry.activate(LOCAL_WORKSPACE_ID)
+    expect((await registry.inventory().clients.list()).map((c) => c.name)).toEqual(['Mine'])
+  })
+
+  it('survives a restart: a new registry signs in from the vaulted refresh token', async () => {
+    const first = setup()
+    const org = await first.registry.addOrganization({
+      serverUrl: server.url,
+      email: 'dani@acme.com'
+    })
+    const restarted = new WorkspaceRegistry({
+      workspaces: first.workspaces,
+      local: first.local,
+      vault: first.vault
+    })
+    await restarted.activate(org.id)
+    await expect(restarted.inventory().clients.list()).resolves.toEqual(expect.any(Array))
+  })
+
+  it('refuses to activate when the session is gone and stays where it was', async () => {
+    const { registry } = setup()
+    const org = await registry.addOrganization({ serverUrl: server.url, email: 'edu@acme.com' })
+    await server.db.query(`UPDATE users SET disabled_at = now() WHERE email = 'edu@acme.com'`)
+    await expect(registry.activate(org.id)).rejects.toBeInstanceOf(OrganizationSignedOutError)
+    expect(registry.activeId()).toBe(LOCAL_WORKSPACE_ID)
+  })
+
+  it('features not in the organization yet: lists are empty, actions explain why', async () => {
+    const { registry } = setup()
+    const org = await registry.addOrganization({ serverUrl: server.url, email: 'fabi@acme.com' })
+    await registry.activate(org.id)
+    const repos = registry.activeSource().repositories
+    expect(repos.accesses.list()).toEqual([])
+    expect(repos.history.list({})).toEqual([])
+    expect(() => repos.accesses.get('x')).toThrow(ORGANIZATION_UNAVAILABLE)
+    expect(() => repos.workflows.create({} as never)).toThrow(ORGANIZATION_UNAVAILABLE)
+  })
+
+  it('removing an organization signs out, wipes the vault blob and falls back to local', async () => {
+    const { registry, vault, db } = setup()
+    const org = await registry.addOrganization({ serverUrl: server.url, email: 'gil@acme.com' })
+    const ref = (
+      db.prepare('SELECT refresh_credential_ref AS r FROM workspaces WHERE id = ?').get(org.id) as {
+        r: string
+      }
+    ).r
+    await registry.activate(org.id)
+    await registry.removeOrganization(org.id)
+    expect(registry.activeId()).toBe(LOCAL_WORKSPACE_ID)
+    expect(registry.list().map((w) => w.id)).toEqual([LOCAL_WORKSPACE_ID])
+    expect(vault.hasSecret(ref)).toBe(false)
+  })
+
+  it('never removes the local workspace', async () => {
+    const { registry } = setup()
+    await expect(registry.removeOrganization(LOCAL_WORKSPACE_ID)).rejects.toThrow()
+  })
+
+  it('surfaces probe errors when adding', async () => {
+    const { registry } = setup()
+    await expect(
+      registry.addOrganization({ serverUrl: 'http://127.0.0.1:1', email: 'x@acme.com' })
+    ).rejects.toThrow(/não respondeu/)
+    expect(registry.list()).toHaveLength(1)
   })
 })
 
@@ -66,19 +184,12 @@ describe('createScopedRepositories', () => {
     const { local, registry } = setup()
     const scoped = createScopedRepositories(registry)
     expect(scoped.clients).toBe(local.clients)
-    expect(scoped.tags).toBe(local.tags)
   })
 
   it('exposes every repository key of the local set', () => {
     const { local, registry } = setup()
-    const scoped = createScopedRepositories(registry)
-    expect(Object.keys(scoped).sort()).toEqual(Object.keys(local).sort())
-  })
-
-  it('reads and writes the local database through the scoped view', () => {
-    const { local, registry } = setup()
-    const scoped = createScopedRepositories(registry)
-    const client = scoped.clients.create({ name: 'Acme', color: null })
-    expect(local.clients.get(client.id)?.name).toBe('Acme')
+    expect(Object.keys(createScopedRepositories(registry)).sort()).toEqual(
+      Object.keys(local).sort()
+    )
   })
 })

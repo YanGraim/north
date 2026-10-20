@@ -1,6 +1,7 @@
 import type { RemoteEntry, SessionDescriptor, TransferProgress } from '@shared/protocols'
 import type {
   Access,
+  AddOrganizationInput,
   Client,
   Connection,
   ConnectionSecret,
@@ -10,6 +11,7 @@ import type {
   Environment,
   Group,
   GroupVariable,
+  OrganizationServerInfo,
   SetConnectionSecretInput,
   StartWorkflowRunInput,
   UpdateGroupVariableInput,
@@ -560,44 +562,206 @@ function createApiClientStub() {
 }
 
 /**
- * Workspaces (ADR 0018). `?workspaces=org` adds an organization row so the
- * selector has something to list; activating it fails like main does until
- * the North Server source exists. Activations land on `window.__e2eWorkspaceActivations`.
+ * Workspaces (ADR 0018). `?workspaces=org` adds the "Acme Corp" organization;
+ * `?workspaces=org-signed-out` adds it with an expired session. While an
+ * organization is active, the inventory reads come from a small org dataset
+ * (see `applyOrganizationOverlay`). Activations land on `window.__e2eWorkspaceActivations`.
  */
-let workspacesMock: {
+type WorkspacesMock = {
   list: () => Promise<Workspace[]>
   activate: (id: string) => Promise<Workspace>
+  probe: (serverUrl: string) => Promise<OrganizationServerInfo>
+  addOrganization: (input: AddOrganizationInput) => Promise<Workspace>
+  remove: (id: string) => Promise<void>
+  /** Harness-only: which workspace the overlay serves. */
+  activeKind: () => 'local' | 'organization'
 }
 
-function createWorkspacesMock(withOrganization: boolean): typeof workspacesMock {
+let workspacesMock: WorkspacesMock
+
+function createWorkspacesMock(mode: 'none' | 'org' | 'org-signed-out'): WorkspacesMock {
   const ts = '2026-10-20T00:00:00.000Z'
   const rows: Workspace[] = [
-    { id: LOCAL_WORKSPACE_ID, name: 'Pessoal', kind: 'local', serverUrl: null, createdAt: ts }
+    {
+      id: LOCAL_WORKSPACE_ID,
+      name: 'Pessoal',
+      kind: 'local',
+      serverUrl: null,
+      userEmail: null,
+      createdAt: ts
+    }
   ]
-  if (withOrganization) {
+  if (mode !== 'none') {
     rows.push({
       id: 'acme',
       name: 'Acme Corp',
       kind: 'organization',
       serverUrl: 'https://north.acme.example',
+      userEmail: 'ana@acme.example',
       createdAt: ts
     })
   }
+  const signedOut = new Set(mode === 'org-signed-out' ? ['acme'] : [])
+  let active = LOCAL_WORKSPACE_ID
   const activations: string[] = []
   ;(window as unknown as { __e2eWorkspaceActivations: string[] }).__e2eWorkspaceActivations =
     activations
+
+  const normalize = (raw: string): string =>
+    (/^https?:\/\//.test(raw.trim()) ? raw.trim() : `https://${raw.trim()}`).replace(/\/+$/, '')
+
   return {
-    list: async () => rows,
+    list: async () => [...rows],
     activate: async (id) => {
       activations.push(id)
       const row = rows.find((w) => w.id === id)
       if (!row) throw new Error(`Workspace ${id} not found`)
-      if (row.kind !== 'local') {
-        throw new Error(`Workspace ${id} is not available yet (organizations need North Server)`)
+      if (signedOut.has(id)) {
+        throw new Error('Sua sessão nesta organização terminou. Entre de novo.')
       }
+      active = id
       return row
-    }
+    },
+    probe: async (serverUrl) => {
+      const url = normalize(serverUrl)
+      if (url.includes('down')) {
+        throw new Error(`O servidor ${url} não respondeu. Confira o endereço e a sua rede/VPN.`)
+      }
+      if (url.includes('entra'))
+        return { name: 'Entra Org', version: '0.1.0', authModes: ['entra'] }
+      return { name: 'Acme Corp', version: '0.1.0', authModes: ['dev'] }
+    },
+    addOrganization: async ({ serverUrl, email }) => {
+      const url = normalize(serverUrl)
+      if (url.includes('entra')) {
+        throw new Error(
+          'Este servidor usa login corporativo (Entra ID), que chega em breve no North.'
+        )
+      }
+      if (email.startsWith('blocked@')) throw new Error('Usuário desativado nesta organização')
+      const existing = rows.find((w) => w.serverUrl === url)
+      if (existing) return existing
+      const row: Workspace = {
+        id: 'acme-corp-e2e',
+        name: 'Acme Corp',
+        kind: 'organization',
+        serverUrl: url,
+        userEmail: email,
+        createdAt: ts
+      }
+      rows.push(row)
+      return row
+    },
+    remove: async (id) => {
+      const index = rows.findIndex((w) => w.id === id && w.kind === 'organization')
+      if (index === -1) throw new Error('Only organizations can be removed')
+      rows.splice(index, 1)
+      if (active === id) active = LOCAL_WORKSPACE_ID
+    },
+    activeKind: () => (active === LOCAL_WORKSPACE_ID ? 'local' : 'organization')
   }
+}
+
+const ORG_IDS = {
+  client: 'c1000000-0000-4000-8000-000000000001',
+  env: 'c2000000-0000-4000-8000-000000000002',
+  group: 'c3000000-0000-4000-8000-000000000003',
+  connection: 'c4000000-0000-4000-8000-000000000004'
+}
+
+/**
+ * While an organization is active, inventory reads answer from the org
+ * dataset instead of the scenario's local data (what main's RemoteInventoryStore does).
+ */
+export function applyOrganizationOverlay(api: Record<string, Record<string, unknown>>): void {
+  const ts = '2026-10-20T00:00:00.000Z'
+  const client: Client = {
+    id: ORG_IDS.client,
+    name: 'Acme Cloud',
+    notes: null,
+    color: null,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const env: Environment = {
+    id: ORG_IDS.env,
+    clientId: client.id,
+    name: 'Produção',
+    notes: null,
+    color: null,
+    sortOrder: 0,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const group: Group = {
+    id: ORG_IDS.group,
+    environmentId: env.id,
+    name: 'Kubernetes',
+    notes: null,
+    sortOrder: 0,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const connection: Connection = {
+    id: ORG_IDS.connection,
+    groupId: group.id,
+    name: 'k8s-bastion',
+    description: null,
+    protocol: 'ssh',
+    host: '10.50.0.10',
+    port: 22,
+    username: 'ops',
+    authMethod: 'key',
+    credentialRef: null,
+    privateKeyPath: null,
+    jumpHostId: null,
+    defaultCommand: null,
+    notes: null,
+    os: null,
+    icon: null,
+    color: null,
+    owner: null,
+    links: [],
+    vpnRequired: false,
+    vpnMode: 'inherit',
+    vpnProfileId: null,
+    checklist: [],
+    relatedFiles: [],
+    isFavorite: false,
+    accessCount: 0,
+    totalConnectedMs: 0,
+    lastConnectedAt: null,
+    createdAt: ts,
+    updatedAt: ts
+  }
+  const org = (): boolean => workspacesMock.activeKind() === 'organization'
+  const overlay = (ns: string, method: string, value: (...args: unknown[]) => unknown): void => {
+    const target = api[ns]
+    if (!target || typeof target[method] !== 'function') return
+    const original = target[method] as (...args: unknown[]) => unknown
+    target[method] = (...args: unknown[]) =>
+      org() ? Promise.resolve(value(...args)) : original(...args)
+  }
+  overlay('clients', 'list', () => [client])
+  overlay('clients', 'get', (id) => (id === client.id ? client : null))
+  overlay('environments', 'list', (clientId) => (!clientId || clientId === client.id ? [env] : []))
+  overlay('environments', 'get', (id) => (id === env.id ? env : null))
+  overlay('groups', 'list', (envId) => (!envId || envId === env.id ? [group] : []))
+  overlay('groups', 'get', (id) => (id === group.id ? group : null))
+  overlay('connections', 'list', () => [connection])
+  overlay('connections', 'get', (id) => (id === connection.id ? connection : null))
+  overlay('accesses', 'list', () => [])
+  overlay('tags', 'list', () => [])
+  overlay('tags', 'listForConnection', () => [])
+  overlay('history', 'list', () => [])
+  overlay('search', 'index', () => [])
+  overlay('stats', 'overview', () => ({
+    totals: { clients: 1, connections: 1, favorites: 0 },
+    favorites: [],
+    recent: [],
+    mostUsed: [],
+    activity: []
+  }))
 }
 
 export function installMockNorth(opts?: {
@@ -605,9 +769,9 @@ export function installMockNorth(opts?: {
   failFirstStep?: boolean
   scenario?: 'workflows' | 'ftp' | 'database'
   fsFail?: boolean
-  withOrganization?: boolean
+  workspaces?: 'none' | 'org' | 'org-signed-out'
 }): void {
-  workspacesMock = createWorkspacesMock(opts?.withOrganization === true)
+  workspacesMock = createWorkspacesMock(opts?.workspaces ?? 'none')
   workflows = []
   variables = []
   runs = []

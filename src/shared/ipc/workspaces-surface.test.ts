@@ -11,7 +11,10 @@ describe('workspaces IPC surface', () => {
 
   const required = [
     ['WORKSPACES_LIST', 'list', 'workspaces:list'],
-    ['WORKSPACES_ACTIVATE', 'activate', 'workspaces:activate']
+    ['WORKSPACES_ACTIVATE', 'activate', 'workspaces:activate'],
+    ['WORKSPACES_PROBE', 'probe', 'workspaces:probe'],
+    ['WORKSPACES_ADD_ORGANIZATION', 'addOrganization', 'workspaces:add-organization'],
+    ['WORKSPACES_REMOVE', 'remove', 'workspaces:remove']
   ] as const
 
   it.each(required)('%s uses the domain:action value %s', (key, _method, value) => {
@@ -26,6 +29,10 @@ describe('workspaces IPC surface', () => {
 
   it.each(required)('main registers %s', (key) => {
     expect(handlersSrc).toContain(`ipcMain.handle(IpcChannels.${key}`)
+  })
+
+  it('never returns tokens to the renderer', () => {
+    expect(handlersSrc).not.toMatch(/refreshToken|accessToken/)
   })
 
   it('the e2e mock implements the workspaces namespace', () => {
