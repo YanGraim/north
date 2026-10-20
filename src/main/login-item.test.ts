@@ -6,9 +6,7 @@ const { linuxAutostartEntry, linuxAutostartFile } = await import('./login-item')
 
 describe('launch at login (Linux autostart)', () => {
   it('lives in XDG autostart, honouring XDG_CONFIG_HOME', () => {
-    expect(linuxAutostartFile('/home/ana', undefined)).toBe(
-      '/home/ana/.config/autostart/north.desktop'
-    )
+    expect(linuxAutostartFile('/home/ana', '')).toBe('/home/ana/.config/autostart/north.desktop')
     expect(linuxAutostartFile('/home/ana', '/cfg')).toBe('/cfg/autostart/north.desktop')
   })
 
