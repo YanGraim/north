@@ -353,9 +353,6 @@ function IpsecStep({
       </Field>
       {kind === 'ipsec-ikev1' ? (
         <>
-          <Field id="vpn-auth-method" label={t('vpn.wizard.authMethod')}>
-            <Input id="vpn-auth-method" value={t('vpn.wizard.psk')} readOnly disabled />
-          </Field>
           <Field id="vpn-group" label={t('vpn.wizard.groupName')}>
             <Input
               id="vpn-group"
