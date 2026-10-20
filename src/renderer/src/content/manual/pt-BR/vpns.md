@@ -23,6 +23,12 @@ No topo da VPN, **Editar** abre a configuração. Em **Conexão** você muda o t
 
 O macOS e o Linux precisam de permissão de administrador para a VPN mexer em rotas e DNS. Na primeira abertura com VPNs, o North oferece instalar o **componente de VPN** (como o FortiClient faz): o sistema pede a senha uma única vez e, depois disso, SSL-VPN, IPsec e OpenVPN conectam e desconectam sem pedir senha. Se você recusar, ele oferece de novo na primeira conexão; o botão no fim da lista de VPNs instala ou remove o componente. O componente só aceita conectar e desconectar VPNs, nada além disso. Sem ele, cada conexão pede a senha. Um `.ovpn` com opções fora do comum (scripts, arquivos externos) continua pedindo a senha a cada conexão, por segurança. No Windows, o componente é o pacote oficial do OpenVPN (sem a interface dele) mais um pequeno serviço do North para a SSL-VPN: os dois entram na primeira conexão, com uma única permissão do Windows. O North já traz o openfortivpn, o strongSwan e o OpenVPN no macOS e no Linux: não precisa instalar nada (as licenças ficam junto deles, na pasta `vpn-bin` do app).
 
+## Pelo ícone do North, sem abrir a janela
+
+O North fica com um ícone na barra de menus (macOS) ou na bandeja perto do relógio (Windows e Linux). Clique nele para ver as VPNs e ligar ou desligar qualquer uma com um clique, como no FortiClient. **Abrir North** traz a janela de volta e **Sair do North** desliga as VPNs e fecha o app.
+
+Com pelo menos uma VPN cadastrada, fechar a janela não fecha o North: ele continua no ícone e as VPNs seguem ligadas. Para fechar de verdade, use **Sair do North** no ícone (ou Cmd+Q no macOS). Abrir o North de novo pelo atalho traz a mesma janela, sem abrir uma segunda cópia.
+
 ## Várias VPNs ao mesmo tempo
 
 Duas VPNs com redes diferentes podem ficar ligadas juntas. Se as redes se sobrepõem, ou se uma delas redireciona todo o tráfego, o North avisa antes e deixa você escolher entre **Desligar e conectar**, **Conectar mesmo assim** ou **Cancelar**.

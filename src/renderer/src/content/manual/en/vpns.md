@@ -23,6 +23,12 @@ At the top of a VPN, **Edit** opens its settings. Under **Connection** you can c
 
 macOS and Linux need administrator permission for a VPN to change routes and DNS. On the first launch with VPNs, North offers to install the **VPN component** (the way FortiClient does): the system asks for the password once, and from then on SSL-VPN, IPsec and OpenVPN connect and disconnect without a prompt. If you decline, it offers again on the first connection; the button at the bottom of the VPN list installs or removes it. The component can only connect and disconnect VPNs, nothing else. Without it, every connection asks for the password. An `.ovpn` with unusual options (scripts, external files) still asks every time, for safety. On Windows, the component is the official OpenVPN package (without its GUI) plus a small North service for SSL-VPN: both go in on the first connection, with a single Windows permission prompt. North ships openfortivpn, strongSwan and OpenVPN on macOS and Linux: nothing to install (their licenses sit next to them, in the app's `vpn-bin` folder).
 
+## From North's icon, without opening the window
+
+North keeps an icon in the menu bar (macOS) or in the tray next to the clock (Windows and Linux). Click it to see your VPNs and turn any of them on or off with one click, like FortiClient. **Abrir North** brings the window back and **Sair do North** turns the VPNs off and quits.
+
+With at least one VPN set up, closing the window doesn't quit North: it stays in the icon and the VPNs stay on. To really quit, use **Sair do North** in the icon (or Cmd+Q on macOS). Opening North again from its shortcut brings back the same window instead of starting a second copy.
+
 ## Several VPNs at once
 
 Two VPNs with different networks can stay on together. If the networks overlap, or one of them redirects all traffic, North warns you first and lets you pick **Turn off and connect**, **Connect anyway** or **Cancel**.

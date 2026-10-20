@@ -3,6 +3,7 @@ import { isNewerVersion } from '@shared/lib/semver'
 import type { UpdateStatus } from '@shared/types'
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
+import { markQuitting } from '../app-quit'
 import { stripQuarantine } from '../lib/strip-quarantine'
 
 const DOWNLOAD_TIMEOUT_MS = 15 * 60 * 1000
@@ -292,6 +293,8 @@ async function installUpdate(): Promise<void> {
   }
 
   setImmediate(() => {
+    // the window must close for real, not hide in the tray
+    markQuitting()
     autoUpdater.quitAndInstall(false, true)
   })
 

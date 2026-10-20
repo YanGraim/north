@@ -13,6 +13,7 @@ import {
 import { networkInterfaces, userInfo } from 'node:os'
 import { basename, join } from 'node:path'
 import { IpcChannels } from '@shared/ipc'
+import { formatVpnErrorMessage } from '@shared/lib/vpn/errors'
 import * as sudo from '@vscode/sudo-prompt'
 import { app, BrowserWindow, dialog, ipcMain, powerMonitor } from 'electron'
 import helperSource from '../../../resources/vpn/north-vpn-helper?asset&asarUnpack'
@@ -39,10 +40,16 @@ import { WindowsVpnComponent } from '../services/vpn/windows-vpn-component'
 import { WindowsVpnService } from '../services/vpn/windows-vpn-service'
 import { WindowsVpnSetup } from '../services/vpn/windows-vpn-setup'
 import { WslIpsec } from '../services/vpn/wsl-ipsec'
+import type { TrayVpn } from '../tray-menu'
 import type { CredentialVault } from '../vault'
 import { getProtocolManager } from './sessions'
 
 let runtime: VpnRuntime | null = null
+/** the tray menu (src/main/tray.ts) redraws on every VPN state or profile change */
+const changeListeners = new Set<() => void>()
+const notifyChange = () => {
+  for (const listener of changeListeners) listener()
+}
 
 /** pinned in scripts/vpn-binaries/fetch-windows.sh; x64 is the only Windows build North ships */
 const WINDOWS_OPENVPN_MSI = 'OpenVPN-2.6.14-I001-amd64.msi'
@@ -243,7 +250,10 @@ export function registerVpnHandlers(
     repos,
     vault,
     platform: process.platform,
-    emit: (state) => broadcast(IpcChannels.VPN_STATE_CHANGED, state),
+    emit: (state) => {
+      broadcast(IpcChannels.VPN_STATE_CHANGED, state)
+      notifyChange()
+    },
     fake: process.env.NORTH_VPN_FAKE === '1',
     openvpn: {
       binary: findOpenvpn,
@@ -305,10 +315,18 @@ export function registerVpnHandlers(
     .catch((error) => console.error('[vpn] orphan cleanup failed', error))
 
   const handlers = createVpnHandlers(runtime, process.platform, component)
+  const profileChanges = new Set<string>([
+    IpcChannels.VPN_CREATE,
+    IpcChannels.VPN_UPDATE,
+    IpcChannels.VPN_DELETE,
+    IpcChannels.VPN_IMPORT_OVPN
+  ])
   for (const [channel, handler] of Object.entries(handlers)) {
-    ipcMain.handle(channel, (_event, ...args: unknown[]) =>
-      (handler as (...a: unknown[]) => unknown)(...args)
-    )
+    ipcMain.handle(channel, async (_event, ...args: unknown[]) => {
+      const result = await (handler as (...a: unknown[]) => unknown)(...args)
+      if (profileChanges.has(channel)) notifyChange()
+      return result
+    })
   }
 
   if (component) void offerHelperInstall(component, repos, join(vpnDir, 'helper-declined'))
@@ -335,6 +353,40 @@ function currentUserSid(): Promise<string> {
       else resolve(sid)
     })
   })
+}
+
+/** VPN profiles with their live status, for the tray menu. */
+export function listVpnsForTray(): TrayVpn[] {
+  if (!runtime) return []
+  const { profiles, manager } = runtime
+  return profiles
+    .list()
+    .map((p) => ({ id: p.id, name: p.name, status: manager.getState(p.id).status }))
+}
+
+export function onVpnChange(listener: () => void): () => void {
+  changeListeners.add(listener)
+  return () => changeListeners.delete(listener)
+}
+
+/** Connect from the tray; the error message (already user-facing) when it fails. */
+export async function connectVpnFromTray(profileId: string): Promise<string | null> {
+  if (!runtime) return 'VPN indisponível'
+  try {
+    await runtime.manager.connect(profileId)
+    return null
+  } catch (error) {
+    if (error instanceof VpnError) return formatVpnErrorMessage(error.code, error.message)
+    return error instanceof Error ? error.message : String(error)
+  }
+}
+
+export async function disconnectVpnFromTray(profileId: string): Promise<void> {
+  await runtime?.manager.disconnect(profileId)
+}
+
+export function hasVpnProfiles(): boolean {
+  return (runtime?.profiles.list().length ?? 0) > 0
 }
 
 export function hasActiveVpnTunnels(): boolean {
