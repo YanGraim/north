@@ -78,6 +78,8 @@ export class OpenVpnDriver implements VpnDriver {
   private disconnecting = false
   private dropCallbacks: Array<(error?: Error) => void> = []
   private run: HelperRun | null = null
+  /** from here on openvpn's log arrives over management too */
+  private managementLogging = false
 
   constructor(private readonly deps: OpenVpnDriverDeps) {}
 
@@ -136,9 +138,11 @@ export class OpenVpnDriver implements VpnDriver {
       this.run = this.deps.helper.startOpenvpn(
         { port, managementPassword: mgmtPassword, ovpn: fullConfig },
         (chunk) => {
-          // openvpn's own (timestamped) lines also arrive over management ("log on all")
+          // once management logs, openvpn's own (timestamped) stdout lines would repeat it
           for (const line of chunk.toString('utf8').split('\n')) {
-            if (line.trim() && !OPENVPN_LOG_LINE.test(line)) log(line.trim())
+            if (!line.trim()) continue
+            if (this.managementLogging && OPENVPN_LOG_LINE.test(line)) continue
+            log(line.trim())
           }
         }
       )
@@ -253,7 +257,8 @@ export class OpenVpnDriver implements VpnDriver {
               break
             case 'hold':
               send('state on')
-              send('log on all')
+              send('log on')
+              this.managementLogging = true
               send('pid')
               send('hold release')
               break
