@@ -10,3 +10,7 @@ See the [Import / export](import-export) chapter in the manual.
 - **New Windows VPN (Windows only):** in **New VPN**, pick **Windows VPN** and the protocol: Automatic, PPTP, L2TP/IPsec with pre-shared key, SSTP or IKEv2, just like Windows. Turn it on from North, from the tray icon or automatically before sessions, and it goes into the backup without username and password
 
 See the [VPNs](vpns) chapter in the manual.
+
+## Startup
+
+- **Open North with the computer (optional):** in Settings → Startup, North can open by itself when you sign in to Windows, macOS or Linux. Off by default

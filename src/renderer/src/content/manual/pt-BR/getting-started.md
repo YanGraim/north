@@ -14,3 +14,7 @@ Fluxo sugerido para montar o inventário:
 - Ajuste **nome de exibição** e e-mail opcional em Configurações → Perfil (chip no rodapé da sidebar).
 
 Quando o inventário estiver vazio, a tela de conexões também aponta para este tutorial.
+
+## Abrir com o sistema
+
+Em **Configurações → Inicialização**, ligue **Abrir o North ao iniciar o sistema** para o North abrir sozinho quando você entra no Windows, macOS ou Linux. Vem desligado. Para desligar, desmarque a opção (ou use os apps de inicialização do Windows / Itens de início de sessão do macOS).

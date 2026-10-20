@@ -147,6 +147,9 @@ export interface IpcInvokeMap {
     args: [theme: ThemePreference]
     result: undefined
   }
+  [IpcChannels.APP_GET_LAUNCH_AT_LOGIN]: { args: []; result: boolean }
+  /** returns what the OS actually has afterwards */
+  [IpcChannels.APP_SET_LAUNCH_AT_LOGIN]: { args: [enabled: boolean]; result: boolean }
 
   [IpcChannels.CLIENTS_LIST]: { args: []; result: Client[] }
   [IpcChannels.CLIENTS_GET]: { args: [id: string]; result: Client | null }
@@ -710,6 +713,8 @@ export interface NorthApi {
   getVersion: () => Promise<string>
   getIdentity: () => Promise<AppIdentity>
   setTheme: (theme: ThemePreference) => Promise<void>
+  getLaunchAtLogin: () => Promise<boolean>
+  setLaunchAtLogin: (enabled: boolean) => Promise<boolean>
   clients: {
     list: () => Promise<Client[]>
     get: (id: string) => Promise<Client | null>

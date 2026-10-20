@@ -44,6 +44,11 @@
       "description": "Idioma da interface. Aplicado imediatamente.",
       "label": "Idioma"
     },
+    "startup": {
+      "title": "Inicialização",
+      "description": "Abre o North quando você entra no Windows, macOS ou Linux. Desligado por padrão.",
+      "launchAtLogin": "Abrir o North ao iniciar o sistema"
+    },
     "terminal": {
       "title": "Terminal",
       "description": "Preferências do terminal embutido.",

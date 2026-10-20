@@ -44,6 +44,11 @@
       "description": "Interface language. Applied immediately.",
       "label": "Language"
     },
+    "startup": {
+      "title": "Startup",
+      "description": "Opens North when you sign in to Windows, macOS or Linux. Off by default.",
+      "launchAtLogin": "Open North when the computer starts"
+    },
     "terminal": {
       "title": "Terminal",
       "description": "Built-in terminal preferences.",

@@ -30,6 +30,7 @@ import {
   importInventoryCsv
 } from '@renderer/lib/inventory-actions'
 import { SHORTCUTS, shortcutDisplayLabel } from '@renderer/lib/shortcuts'
+import { toastError } from '@renderer/lib/toast'
 import {
   checkForUpdates,
   installAndRestart,
@@ -106,6 +107,21 @@ export function SettingsPage(): React.JSX.Element {
   const [csvSecretsOpen, setCsvSecretsOpen] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
   const updatesDisabled = updatesLikelyDisabledInDev()
+  const [launchAtLogin, setLaunchAtLogin] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    void window.north.getLaunchAtLogin().then(setLaunchAtLogin)
+  }, [])
+
+  async function onLaunchAtLogin(enabled: boolean): Promise<void> {
+    setLaunchAtLogin(enabled)
+    try {
+      setLaunchAtLogin(await window.north.setLaunchAtLogin(enabled))
+    } catch (error) {
+      setLaunchAtLogin(!enabled)
+      toastError(error)
+    }
+  }
 
   useEffect(() => {
     if (updatesDisabled) return
@@ -272,6 +288,23 @@ export function SettingsPage(): React.JSX.Element {
                   ))}
                 </SelectContent>
               </Select>
+            </Row>
+          </SettingsSection>
+
+          <Separator />
+
+          <SettingsSection
+            title={t('settings.startup.title')}
+            description={t('settings.startup.description')}
+          >
+            <Row label={t('settings.startup.launchAtLogin')}>
+              <Switch
+                checked={launchAtLogin ?? false}
+                disabled={launchAtLogin === null}
+                onCheckedChange={(checked) => void onLaunchAtLogin(checked)}
+                aria-label={t('settings.startup.launchAtLogin')}
+                data-testid="settings-launch-at-login"
+              />
             </Row>
           </SettingsSection>
 

@@ -87,6 +87,8 @@ const api: NorthApi = {
   getVersion: (): Promise<string> => ipcRenderer.invoke(IpcChannels.APP_GET_VERSION),
   getIdentity: (): Promise<AppIdentity> => ipcRenderer.invoke(IpcChannels.APP_GET_IDENTITY),
   setTheme: (theme) => ipcRenderer.invoke(IpcChannels.APP_SET_THEME, theme),
+  getLaunchAtLogin: () => ipcRenderer.invoke(IpcChannels.APP_GET_LAUNCH_AT_LOGIN),
+  setLaunchAtLogin: (enabled) => ipcRenderer.invoke(IpcChannels.APP_SET_LAUNCH_AT_LOGIN, enabled),
 
   clients: {
     list: () => ipcRenderer.invoke(IpcChannels.CLIENTS_LIST),

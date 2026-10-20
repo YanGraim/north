@@ -6,6 +6,8 @@ export const IpcChannels = {
   APP_GET_VERSION: 'app:get-version',
   APP_GET_IDENTITY: 'app:get-identity',
   APP_SET_THEME: 'app:set-theme',
+  APP_GET_LAUNCH_AT_LOGIN: 'app:get-launch-at-login',
+  APP_SET_LAUNCH_AT_LOGIN: 'app:set-launch-at-login',
 
   CLIENTS_LIST: 'clients:list',
   CLIENTS_GET: 'clients:get',

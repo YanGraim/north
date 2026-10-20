@@ -14,3 +14,7 @@ Flujo sugerido para armar el inventario:
 - Ajusta **nombre para mostrar** y correo opcional en Ajustes → Perfil (chip en el pie de la barra lateral).
 
 Cuando el inventario está vacío, la pantalla de conexiones también apunta a este tutorial.
+
+## Abrir con el sistema
+
+En **Configuración → Inicio**, activa **Abrir North al iniciar el sistema** para que North se abra solo al iniciar sesión en Windows, macOS o Linux. Viene desactivado. Para desactivarlo, desmárcalo (o usa las aplicaciones de inicio de Windows / Ítems de inicio de sesión de macOS).

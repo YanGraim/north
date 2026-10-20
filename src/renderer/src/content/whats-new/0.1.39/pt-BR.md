@@ -10,3 +10,7 @@ Veja o capítulo [Importar / exportar](import-export) no manual.
 - **Nova VPN do Windows (só no Windows):** em **Nova VPN**, escolha **VPN do Windows** e o protocolo: Automático, PPTP, L2TP/IPsec com chave pré-compartilhada, SSTP ou IKEv2, igual ao Windows. Liga pelo North, pelo ícone na bandeja e sozinha antes das sessões, e vai no backup sem usuário e senha
 
 Veja o capítulo [VPNs](vpns) no manual.
+
+## Inicialização
+
+- **Abrir o North com o sistema (opcional):** em Configurações → Inicialização, o North pode abrir sozinho ao entrar no Windows, macOS ou Linux. Vem desligado
