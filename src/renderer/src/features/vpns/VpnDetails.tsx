@@ -136,7 +136,6 @@ export function VpnErrorNotice({
   const { t } = useTranslation()
   const openSecrets = useVpnDialogsStore((s) => s.openSecrets)
   const { connect } = useVpnConnect()
-  const [showInstall, setShowInstall] = useState(false)
   const queryClient = useQueryClient()
   const error = state?.lastError
   if (!error || state?.status !== 'error') return null
@@ -200,13 +199,7 @@ export function VpnErrorNotice({
             {t('vpn.actions.retry')}
           </Button>
         ) : null}
-        {action === 'install' ? (
-          <Button size="sm" variant="outline" onClick={() => setShowInstall(true)}>
-            {t('vpn.actions.install')}
-          </Button>
-        ) : null}
       </div>
-      {showInstall ? <p className="mt-2 font-mono text-xs text-muted">{error.message}</p> : null}
     </div>
   )
 }

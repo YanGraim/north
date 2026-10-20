@@ -7,6 +7,7 @@ const SVC = 'C:\\Program Files\\North VPN Service\\north-vpn-service.exe'
 
 function setup() {
   const files = new Map<string, string>()
+  let running = false
   const commands: string[] = []
   const elevate = async (cmd: string) => {
     commands.push(cmd)
@@ -14,7 +15,10 @@ function setup() {
       files.set('C:\\Program Files\\OpenVPN\\bin\\openvpn.exe', 'x')
       files.set('C:\\Program Files\\OpenVPN\\bin\\openvpnserv.exe', 'x')
     }
-    if (cmd.includes('install --user-sid')) files.set(SVC, 'svc-1')
+    if (cmd.includes('install --user-sid')) {
+      files.set(SVC, 'svc-1')
+      running = true
+    }
   }
   const openvpn = new WindowsVpnComponent({
     msi: () => 'C:\\North\\vpn-bin\\OpenVPN.msi',
@@ -33,9 +37,17 @@ function setup() {
     userSid: async () => 'S-1-5-21-1-2-3-1001',
     digest: (p) =>
       p === 'C:\\North\\vpn-bin\\north-vpn-service.exe' ? 'svc-1' : (files.get(p) ?? null),
-    elevate
+    elevate,
+    pipeAlive: () => running
   })
-  return { s: new WindowsVpnSetup(openvpn, service, elevate), commands, files }
+  return {
+    s: new WindowsVpnSetup(openvpn, service, elevate),
+    commands,
+    files,
+    stop: () => {
+      running = false
+    }
+  }
 }
 
 describe('WindowsVpnSetup', () => {
@@ -59,6 +71,17 @@ describe('WindowsVpnSetup', () => {
     await s.install()
     expect(commands[1]).not.toContain('msiexec')
     expect(commands[1]).toContain('install --user-sid')
+  })
+
+  it('a stopped service is re-installed, which starts it again', async () => {
+    const { s, commands, stop } = setup()
+    await s.ensure()
+    stop()
+    expect(s.status()).toBe('outdated')
+    await s.ensure()
+    expect(commands[1]).not.toContain('msiexec')
+    expect(commands[1]).toContain('install --user-sid')
+    expect(s.status()).toBe('installed')
   })
 
   it('remove: the service, and OpenVPN only because North installed it', async () => {

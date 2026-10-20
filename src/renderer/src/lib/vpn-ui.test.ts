@@ -80,7 +80,7 @@ describe('vpnErrorAction', () => {
     ['AUTH_FAILED', 'update-secret'],
     ['KEY_PASSPHRASE_WRONG', 'update-secret'],
     ['SECRET_MISSING', 'update-secret'],
-    ['BINARY_MISSING', 'install'],
+    ['BINARY_MISSING', 'retry'],
     ['PRIVILEGE_DENIED', 'retry'],
     ['TIMEOUT', 'retry'],
     ['UNSUPPORTED_ON_PLATFORM', null]

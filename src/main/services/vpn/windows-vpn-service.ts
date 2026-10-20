@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { connect, type Socket } from 'node:net'
 import { win32 } from 'node:path'
 import type { VpnHelperStatus } from '@shared/types'
@@ -34,6 +35,8 @@ export type WindowsServiceDeps = {
   elevate: (command: string) => Promise<void>
   pipe?: string
   open?: (path: string) => Socket
+  /** whether the service's pipe exists, i.e. the service is running */
+  pipeAlive?: () => boolean
 }
 
 const SID = /^S-1-(5-21|12-1)(-\d{1,10}){3,5}$/
@@ -52,13 +55,19 @@ export class WindowsVpnService {
     return win32.join(this.deps.programFiles, SERVICE_DIR_NAME, 'north-vpn-service.exe')
   }
 
-  /** installed = the Program Files copy is byte-identical to the bundled one (updates re-install) */
+  /**
+   * installed = the Program Files copy is byte-identical to the bundled one (updates re-install)
+   * and the service is running; a stopped service also counts as outdated, so ensure()
+   * re-runs the installer, which restarts it.
+   */
   status(): VpnHelperStatus {
     const bundled = this.deps.bundled()
     if (!bundled) return 'unsupported'
     const installed = this.deps.digest(this.installedExe())
     if (!installed) return 'missing'
-    return installed === this.deps.digest(bundled) ? 'installed' : 'outdated'
+    if (installed !== this.deps.digest(bundled)) return 'outdated'
+    const alive = this.deps.pipeAlive ?? (() => existsSync(this.deps.pipe ?? NORTH_VPN_PIPE))
+    return alive() ? 'installed' : 'outdated'
   }
 
   async ensure(): Promise<void> {

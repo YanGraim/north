@@ -701,7 +701,7 @@
       "TIMEOUT": "El servidor VPN no respondió",
       "HOST_UNREACHABLE": "VPN ok, pero el host no respondió",
       "PRIVILEGE_DENIED": "Permiso de administrador denegado",
-      "BINARY_MISSING": "OpenVPN no está instalado",
+      "BINARY_MISSING": "Componente de VPN no encontrado",
       "CONFLICT": "Entra en conflicto con otra VPN activa",
       "UNSUPPORTED_ON_PLATFORM": "No soportado en este sistema",
       "DRIVER_CRASHED": "La VPN no pudo conectarse",
