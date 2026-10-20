@@ -13,6 +13,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /repo/server/node_modules ./node_modules
 COPY --from=build /repo/server/dist ./dist
+COPY --from=build /repo/server/admin ./admin
 COPY --from=build /repo/server/package.json ./
 USER node
 EXPOSE 8080

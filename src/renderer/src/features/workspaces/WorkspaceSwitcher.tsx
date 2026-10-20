@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@renderer/components/ui/dropdown-menu'
+import { usePermissions } from '@renderer/hooks/use-permissions'
 import {
   useCurrentWorkspace,
   useRemoveOrganization,
@@ -31,7 +32,7 @@ import {
   workspacePath
 } from '@renderer/lib/workspace-paths'
 import type { Workspace } from '@shared/types'
-import { ChevronDown, LogOut, Plus, User, Users } from 'lucide-react'
+import { ChevronDown, LogOut, Plus, ShieldCheck, User, Users } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -60,6 +61,7 @@ export function WorkspaceSwitcher(): React.JSX.Element {
   const [adding, setAdding] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const remove = useRemoveOrganization()
+  const can = usePermissions()
 
   const leave = async (): Promise<void> => {
     if (!current || current.kind !== 'organization') return
@@ -132,6 +134,18 @@ export function WorkspaceSwitcher(): React.JSX.Element {
           {inOrganization ? (
             <>
               <DropdownMenuSeparator />
+              {can.isAdmin && current?.serverUrl ? (
+                <DropdownMenuItem
+                  data-testid="workspace-admin-panel"
+                  onSelect={() =>
+                    window.open(`${current.serverUrl}/admin`, '_blank', 'noopener,noreferrer')
+                  }
+                  className="gap-2 text-muted"
+                >
+                  <ShieldCheck className="size-3.5" aria-hidden />
+                  {t('workspaces.adminPanel')}
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem
                 data-testid="workspace-leave"
                 onSelect={() => setLeaving(true)}

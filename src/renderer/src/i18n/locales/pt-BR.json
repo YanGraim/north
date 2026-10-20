@@ -796,7 +796,8 @@
     "leaveBody": "O North esquece esta organização neste computador e encerra a sua sessão. Nada é apagado no servidor; você pode adicioná-la de novo depois.",
     "leaveConfirm": "Sair",
     "leaveCancel": "Cancelar",
-    "noProjectsGranted": "Nenhum projeto liberado para você ainda. Peça acesso a um admin da organização."
+    "noProjectsGranted": "Nenhum projeto liberado para você ainda. Peça acesso a um admin da organização.",
+    "adminPanel": "Abrir painel admin"
   },
   "sessions": {
     "homeTab": "Painel"

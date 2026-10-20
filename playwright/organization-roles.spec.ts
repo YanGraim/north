@@ -114,6 +114,19 @@ test.describe('admin', () => {
   })
 })
 
+test('only admins get the admin panel shortcut', async ({ page }) => {
+  for (const [role, count] of [
+    ['admin', 1],
+    ['viewer', 0]
+  ] as const) {
+    await openDetails(page, role)
+    await page.getByTestId('workspace-switcher').click()
+    await expect(page.getByTestId('workspace-leave')).toBeVisible()
+    await expect(page.getByTestId('workspace-admin-panel')).toHaveCount(count)
+    await page.keyboard.press('Escape')
+  }
+})
+
 test('the personal workspace ignores organization roles', async ({ page }) => {
   await openDetails(page, 'viewer', 'local', LOCAL_CONNECTION)
   await expect(editButton(page)).toBeVisible()

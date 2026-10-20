@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { ZodError } from 'zod'
 import { verifyAccessToken } from './auth/tokens'
@@ -5,6 +6,7 @@ import type { ServerConfig } from './config'
 import type { Db } from './db'
 import { ApiError, unauthorized } from './errors'
 import { registerAdminRoutes } from './routes/admin'
+import { registerAdminPanel } from './routes/admin-panel'
 import { registerAuditRoutes } from './routes/audit'
 import { registerAuthRoutes } from './routes/auth'
 import { registerInventoryRoutes } from './routes/inventory'
@@ -18,6 +20,12 @@ declare module 'fastify' {
 }
 
 export const SERVER_VERSION = '0.1.0'
+
+/**
+ * `server/admin/`: next to `src/` in the repo and to `dist/` in the image, so
+ * the same relative URL works from this file and from the bundle.
+ */
+const ADMIN_DIR = fileURLToPath(new URL('../admin/', import.meta.url))
 
 /** Routes reachable without a bearer token. */
 const PUBLIC_ROUTES = new Set([
@@ -92,5 +100,6 @@ export async function buildApp(deps: { db: Db; config: ServerConfig }): Promise<
   registerSecretRoutes(app, db, config.masterKey)
   registerAuditRoutes(app, db)
   registerAdminRoutes(app, db)
+  registerAdminPanel(app, ADMIN_DIR)
   return app
 }

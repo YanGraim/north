@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 /**
  * Playwright drives the same `e2e-harness/` as Cypress (production AppShell
  * over a mocked `window.north`). Cypress keeps the older specs; new specs go here.
+ * `admin-panel.spec.ts` drives the North Server's own admin page instead.
  */
 export default defineConfig({
   testDir: 'playwright',
@@ -18,10 +19,20 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
-    command: 'vite --config e2e-harness/vite.config.ts',
-    url: 'http://127.0.0.1:5179',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000
-  }
+  webServer: [
+    {
+      command: 'vite --config e2e-harness/vite.config.ts',
+      url: 'http://127.0.0.1:5179',
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000
+    },
+    {
+      // Real North Server on in-memory Postgres, for the admin panel specs.
+      command: 'npx tsx src/dev-pglite.ts',
+      cwd: 'server',
+      url: 'http://127.0.0.1:5181/healthz',
+      reuseExistingServer: false,
+      timeout: 60_000
+    }
+  ]
 })

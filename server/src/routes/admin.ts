@@ -25,6 +25,12 @@ function requireAdmin(req: FastifyRequest): void {
   if (req.user.role !== 'admin') throw forbidden()
 }
 
+/** Audit target for a grant change, named by the person's e-mail. */
+async function userTarget(db: Db, id: string) {
+  const { rows } = await db.query<{ email: string }>('SELECT email FROM users WHERE id = $1', [id])
+  return { type: 'user', id, name: rows[0]?.email ?? null }
+}
+
 /** Users and who can reach each project. Admin only, every change audited. */
 export function registerAdminRoutes(app: FastifyInstance, db: Db): void {
   const v1 = '/api/v1/admin'
@@ -67,17 +73,11 @@ export function registerAdminRoutes(app: FastifyInstance, db: Db): void {
     requireAdmin(req)
     const input = GrantBody.parse(req.body)
     await setGrant(db, input.userId, input.scopeType, input.scopeId, input.role)
-    await recordAudit(
-      db,
-      req.user,
-      'grant.set',
-      { type: 'user', id: input.userId },
-      {
-        scopeType: input.scopeType,
-        scopeId: input.scopeId,
-        role: input.role
-      }
-    )
+    await recordAudit(db, req.user, 'grant.set', await userTarget(db, input.userId), {
+      scopeType: input.scopeType,
+      scopeId: input.scopeId,
+      role: input.role
+    })
     return reply.status(204).send()
   })
 
@@ -85,16 +85,10 @@ export function registerAdminRoutes(app: FastifyInstance, db: Db): void {
     requireAdmin(req)
     const input = GrantKey.parse(req.body)
     if (!(await deleteGrant(db, input.userId, input.scopeId))) throw notFound('Grant')
-    await recordAudit(
-      db,
-      req.user,
-      'grant.delete',
-      { type: 'user', id: input.userId },
-      {
-        scopeType: input.scopeType,
-        scopeId: input.scopeId
-      }
-    )
+    await recordAudit(db, req.user, 'grant.delete', await userTarget(db, input.userId), {
+      scopeType: input.scopeType,
+      scopeId: input.scopeId
+    })
     return reply.status(204).send()
   })
 }

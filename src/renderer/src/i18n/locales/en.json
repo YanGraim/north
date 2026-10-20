@@ -796,7 +796,8 @@
     "leaveBody": "North forgets this organization on this computer and ends your session. Nothing is deleted on the server; you can add it again later.",
     "leaveConfirm": "Leave",
     "leaveCancel": "Cancel",
-    "noProjectsGranted": "No projects shared with you yet. Ask an organization admin for access."
+    "noProjectsGranted": "No projects shared with you yet. Ask an organization admin for access.",
+    "adminPanel": "Open admin panel"
   },
   "sessions": {
     "homeTab": "Panel"
