@@ -10,7 +10,8 @@ import {
   IpsecIkev1ConfigSchema,
   IpsecIkev2ConfigSchema,
   VpnAutoDisconnectSchema,
-  VpnModeSchema
+  VpnModeSchema,
+  WindowsNativeVpnConfigSchema
 } from './vpn'
 import { WorkflowDefinitionSchema } from './workflow'
 
@@ -83,7 +84,8 @@ const ExportClientSchema = CreateClientInputSchema.extend({
 const ExportVpnConfigSchema = z.discriminatedUnion('kind', [
   IpsecIkev1ConfigSchema.extend({ username: z.literal('') }),
   IpsecIkev2ConfigSchema.extend({ username: z.literal('') }),
-  FortinetSslVpnConfigSchema.extend({ username: z.literal('') })
+  FortinetSslVpnConfigSchema.extend({ username: z.literal('') }),
+  WindowsNativeVpnConfigSchema.extend({ username: z.literal('') })
 ])
 
 const ExportVpnSchema = z.object({

@@ -1,4 +1,4 @@
-import type { VpnKind, VpnProfile, VpnSecretKind } from '@shared/types'
+import { type VpnKind, VpnKindSchema, type VpnProfile, type VpnSecretKind } from '@shared/types'
 
 export type SupportResult = { ok: true } | { ok: false; reason: string }
 
@@ -53,7 +53,7 @@ export class VpnDriverRegistry {
   }
 
   support(platform: NodeJS.Platform): Record<VpnKind, SupportResult> {
-    const kinds: VpnKind[] = ['openvpn', 'ipsec-ikev1', 'ipsec-ikev2', 'fortinet-sslvpn']
+    const kinds: VpnKind[] = VpnKindSchema.options
     return Object.fromEntries(
       kinds.map((kind) => [
         kind,

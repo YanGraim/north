@@ -574,7 +574,8 @@
       "openvpn": "OpenVPN",
       "ipsec-ikev1": "FortiGate / IPsec (IKEv1)",
       "ipsec-ikev2": "IKEv2",
-      "fortinet-sslvpn": "FortiGate SSL-VPN"
+      "fortinet-sslvpn": "FortiGate SSL-VPN",
+      "windows-native": "VPN de Windows (PPTP, L2TP, SSTP, IKEv2)"
     },
     "actions": {
       "connect": "Conectar",
@@ -674,7 +675,10 @@
       "unsupported": "Este tipo todavía no puede conectarse en este sistema: {{reason}}",
       "sslvpnHint": "La pestaña \"SSL-VPN\" de FortiClient — gateway, puerto, usuario y contraseña",
       "connectionName": "Nombre de la conexión",
-      "customPort": "Puerto"
+      "customPort": "Puerto",
+      "windowsHint": "El cliente VPN del propio Windows: elige el protocolo como en Configuración → VPN",
+      "serverAddress": "Dirección del servidor",
+      "windowsProtocol": "Tipo de VPN"
     },
     "conflict": {
       "title": "Conflicto con otra VPN",
@@ -749,6 +753,13 @@
       "never": "Nunca usar VPN",
       "envHint": "Las conexiones de este ambiente encienden esta VPN solas al abrirse y la apagan cuando nadie la usa.",
       "clientHint": "Vale para los ambientes del cliente que no tienen VPN propia."
+    },
+    "windowsProtocol": {
+      "automatic": "Automático",
+      "pptp": "PPTP",
+      "l2tp": "L2TP/IPsec con clave precompartida",
+      "sstp": "SSTP",
+      "ikev2": "IKEv2"
     }
   }
 }

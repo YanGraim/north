@@ -75,6 +75,8 @@ export function requiredSecretFields(config: VpnConfig): VpnSecretField[] {
       return config.auth === 'psk' ? ['psk'] : ['password']
     case 'fortinet-sslvpn':
       return ['username', 'password']
+    case 'windows-native':
+      return config.protocol === 'l2tp' ? ['username', 'password', 'psk'] : ['username', 'password']
   }
 }
 
@@ -92,6 +94,8 @@ export function switchVpnKind(config: VpnConfig, kind: GatewayKind): VpnConfig {
       return { kind, gateway, username, xauth: 'saved' }
     case 'ipsec-ikev2':
       return { kind, gateway, username, auth: 'eap' }
+    case 'windows-native':
+      return { kind, gateway, username, protocol: 'automatic', fullTunnel: false }
   }
 }
 

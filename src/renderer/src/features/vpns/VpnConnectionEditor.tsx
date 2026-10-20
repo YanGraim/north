@@ -9,6 +9,7 @@ import {
   SelectValue
 } from '@renderer/components/ui/select'
 import { useImportOvpn, useUpdateVpn } from '@renderer/hooks/use-vpn'
+import { isWindowsPlatform } from '@renderer/lib/platform'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
 import {
   applyConnectionEdit,
@@ -22,8 +23,14 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { OvpnSummary } from './OvpnSummary'
 import { readOvpnFile } from './VpnWizardDialog'
+import { WindowsProtocolSelect } from './WindowsVpnStep'
 
 const GATEWAY_KINDS: GatewayKind[] = ['fortinet-sslvpn', 'ipsec-ikev1', 'ipsec-ikev2']
+/** Windows' own client is only offered where it exists (or when the profile already uses it). */
+const kindsFor = (current: VpnConfig['kind']): GatewayKind[] =>
+  isWindowsPlatform() || current === 'windows-native'
+    ? [...GATEWAY_KINDS, 'windows-native']
+    : GATEWAY_KINDS
 
 /**
  * Edit how the VPN connects (type, gateway, port, user…) in place — no delete-and-recreate.
@@ -70,7 +77,7 @@ export function VpnConnectionEditor({ profile }: { profile: VpnProfile }): React
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {GATEWAY_KINDS.map((kind) => (
+            {kindsFor(profile.config.kind).map((kind) => (
               <SelectItem key={kind} value={kind}>
                 {t(`vpn.kind.${kind}`)}
               </SelectItem>
@@ -156,6 +163,15 @@ export function VpnConnectionEditor({ profile }: { profile: VpnProfile }): React
             </Select>
           </Row>
         </>
+      ) : null}
+      {draft.kind === 'windows-native' ? (
+        <Row id="vpn-edit-win-protocol" label={t('vpn.wizard.windowsProtocol')}>
+          <WindowsProtocolSelect
+            id="vpn-edit-win-protocol"
+            value={draft.protocol}
+            onChange={(protocol) => set({ protocol })}
+          />
+        </Row>
       ) : null}
       <Row id="vpn-edit-username" label={t('vpn.secrets.username')}>
         <Input

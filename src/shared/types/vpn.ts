@@ -1,7 +1,13 @@
 import { z } from 'zod'
 import { IdSchema, IsoDateSchema } from './client'
 
-export const VpnKindSchema = z.enum(['openvpn', 'ipsec-ikev1', 'ipsec-ikev2', 'fortinet-sslvpn'])
+export const VpnKindSchema = z.enum([
+  'openvpn',
+  'ipsec-ikev1',
+  'ipsec-ikev2',
+  'fortinet-sslvpn',
+  'windows-native'
+])
 export type VpnKind = z.infer<typeof VpnKindSchema>
 
 export const VpnSecretKindSchema = z.enum([
@@ -77,14 +83,31 @@ export const FortinetSslVpnConfigSchema = z.object({
     .optional()
 })
 
+export const WindowsVpnProtocolSchema = z.enum(['automatic', 'pptp', 'l2tp', 'sstp', 'ikev2'])
+export type WindowsVpnProtocol = z.infer<typeof WindowsVpnProtocolSchema>
+
+/** Windows' own VPN client (Settings → VPN): a phonebook entry dialed with rasdial. Windows only. */
+export const WindowsNativeVpnConfigSchema = z.object({
+  kind: z.literal('windows-native'),
+  gateway: z.string().min(1),
+  protocol: WindowsVpnProtocolSchema,
+  /** empty after an inventory import (the user is personal): asked before connecting */
+  username: z.string(),
+  /** false = only the routes below (and the server's pushed ones) go through the VPN */
+  fullTunnel: z.boolean().default(false),
+  routes: z.array(z.string()).max(50).optional()
+})
+
 export const VpnConfigSchema = z.discriminatedUnion('kind', [
   OpenVpnConfigSchema,
   IpsecIkev1ConfigSchema,
   IpsecIkev2ConfigSchema,
-  FortinetSslVpnConfigSchema
+  FortinetSslVpnConfigSchema,
+  WindowsNativeVpnConfigSchema
 ])
 export type VpnConfig = z.infer<typeof VpnConfigSchema>
 export type OpenVpnConfig = z.infer<typeof OpenVpnConfigSchema>
+export type WindowsNativeVpnConfig = z.infer<typeof WindowsNativeVpnConfigSchema>
 
 export const VpnProfileSchema = z.object({
   id: IdSchema,

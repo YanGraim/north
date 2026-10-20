@@ -23,16 +23,23 @@ import { vpnErrorFromUnknown } from '@renderer/lib/vpn-ui'
 import { useVpnDialogsStore } from '@renderer/stores/vpn-dialogs-store'
 import { splitHostPort } from '@shared/lib/vpn/host-port'
 import type { VpnConfig, VpnKind, VpnProfile } from '@shared/types'
-import { FileKey, Globe, Network, ShieldCheck } from 'lucide-react'
+import { FileKey, Globe, MonitorCog, Network, ShieldCheck } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { OvpnSummary } from './OvpnSummary'
 import { VpnCredentialsForm } from './VpnCredentialsForm'
+import { WindowsVpnStep } from './WindowsVpnStep'
 
 const NO_CLIENT = '__none'
 
-type Step = 'kind' | 'fortinet-sslvpn' | 'ipsec-ikev1' | 'ipsec-ikev2' | 'credentials'
+type Step =
+  | 'kind'
+  | 'fortinet-sslvpn'
+  | 'ipsec-ikev1'
+  | 'ipsec-ikev2'
+  | 'windows-native'
+  | 'credentials'
 
 /** Read an .ovpn and create the profile — shared by the wizard and the page's drop zone. */
 export async function readOvpnFile(file: File): Promise<{ content: string; name: string }> {
@@ -108,6 +115,16 @@ export function VpnWizardDialog(): React.JSX.Element {
           />
         ) : null}
 
+        {step === 'windows-native' ? (
+          <WindowsVpnStep
+            onBack={() => setStep('kind')}
+            onCreated={(profile) => {
+              setCreated(profile)
+              setStep('credentials')
+            }}
+          />
+        ) : null}
+
         {step === 'credentials' && created ? (
           <div className="space-y-4">
             {created.config.kind === 'openvpn' ? <OvpnSummary config={created.config} /> : null}
@@ -124,7 +141,7 @@ function KindStep({
   onPick
 }: {
   onImported: (profile: VpnProfile) => void
-  onPick: (kind: 'fortinet-sslvpn' | 'ipsec-ikev1' | 'ipsec-ikev2') => void
+  onPick: (kind: 'fortinet-sslvpn' | 'ipsec-ikev1' | 'ipsec-ikev2' | 'windows-native') => void
 }): React.JSX.Element {
   const { t } = useTranslation()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -181,7 +198,19 @@ function KindStep({
       title: t('vpn.kind.ipsec-ikev2'),
       hint: t('vpn.wizard.ikev2Hint'),
       onClick: () => onPick('ipsec-ikev2')
-    }
+    },
+    // Windows' own client: only offered where it exists
+    ...(isWindowsPlatform()
+      ? [
+          {
+            id: 'windows-native',
+            icon: MonitorCog,
+            title: t('vpn.kind.windows-native'),
+            hint: t('vpn.wizard.windowsHint'),
+            onClick: () => onPick('windows-native')
+          }
+        ]
+      : [])
   ]
 
   return (

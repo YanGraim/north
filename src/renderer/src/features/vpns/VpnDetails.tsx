@@ -226,7 +226,9 @@ function Overview({
           .join(', ')
       : profile.config.kind === 'fortinet-sslvpn'
         ? `${profile.config.gateway}:${profile.config.port}`
-        : profile.config.gateway
+        : profile.config.kind === 'windows-native'
+          ? `${profile.config.gateway} · ${t(`vpn.windowsProtocol.${profile.config.protocol}`)}`
+          : profile.config.gateway
   const routes =
     state?.routes ?? (profile.config.kind === 'openvpn' ? profile.config.declaredRoutes : [])
   const fullTunnel =

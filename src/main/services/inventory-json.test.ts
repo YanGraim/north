@@ -44,6 +44,16 @@ function seed(repos: Repositories) {
       declaredRoutes: []
     }
   })
+  repos.vpnProfiles.create({
+    name: 'ECOFITUS',
+    config: {
+      kind: 'windows-native',
+      gateway: '189.28.191.222',
+      protocol: 'pptp',
+      username: 'carlos',
+      fullTunnel: false
+    }
+  })
   repos.vpnProfiles.setClientLink(client.id, poly.id)
   repos.vpnProfiles.setEnvironmentLink(env.id, personal.id)
   const web = repos.connections.create({
@@ -103,10 +113,11 @@ describe('inventory JSON export/import (schemaVersion 3)', () => {
     const { text, data } = roundTrip(source)
 
     expect(data.schemaVersion).toBe(3)
-    expect(data.vpns.map((v) => v.name).sort()).toEqual(['Santinvest', 'VPN POLY'])
+    expect(data.vpns.map((v) => v.name).sort()).toEqual(['ECOFITUS', 'Santinvest', 'VPN POLY'])
     expect(data.vpns.every((v) => v.config.username === '')).toBe(true)
     // the user is personal; OpenVPN (and its .ovpn) is each person's own
     expect(text).not.toContain('juannunes')
+    expect(text).not.toContain('carlos')
     expect(text).not.toContain('"ana"')
     expect(text).not.toContain('Minha OpenVPN')
     expect(text).not.toContain('remote vpn.example.com')
@@ -132,7 +143,7 @@ describe('inventory JSON export/import (schemaVersion 3)', () => {
       connections: 2,
       workflows: 1,
       variables: 1,
-      vpns: 2
+      vpns: 3
     })
 
     const client = target.clients.list()[0]
@@ -173,8 +184,8 @@ describe('inventory JSON export/import (schemaVersion 3)', () => {
     const again = importInventory(target, data)
 
     expect(Object.values(again.created).every((n) => n === 0)).toBe(true)
-    expect(again.skipped).toMatchObject({ workflows: 1, variables: 1, vpns: 2, connections: 2 })
-    expect(target.vpnProfiles.list()).toHaveLength(2)
+    expect(again.skipped).toMatchObject({ workflows: 1, variables: 1, vpns: 3, connections: 2 })
+    expect(target.vpnProfiles.list()).toHaveLength(3)
   })
 
   it('a VPN already set up here keeps its user, and links to it by name', () => {

@@ -258,7 +258,10 @@ export {
   type VpnState,
   VpnStateSchema,
   type VpnStatus,
-  type VpnTrigger
+  type VpnTrigger,
+  type WindowsNativeVpnConfig,
+  type WindowsVpnProtocol,
+  WindowsVpnProtocolSchema
 } from './vpn'
 export {
   type AuthHint,

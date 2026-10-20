@@ -9,7 +9,7 @@ import {
   UpdateVpnProfileInputSchema,
   VpnConnectInputSchema,
   type VpnHelperStatus,
-  type VpnKind,
+  VpnKindSchema,
   VpnLinkTargetSchema,
   type VpnSecretKind,
   type VpnState
@@ -23,6 +23,7 @@ import { OpenfortivpnDriver, type OpenfortivpnDriverDeps } from './drivers/openf
 import { OpenVpnDriver, type OpenVpnDriverDeps } from './drivers/openvpn-driver'
 import { StrongswanDriver, type StrongswanDriverDeps } from './drivers/strongswan-driver'
 import { VpnDriverRegistry } from './drivers/vpn-driver'
+import { WindowsNativeDriver, type WindowsNativeDriverDeps } from './drivers/windows-native-driver'
 import type { PrivilegeBroker } from './privilege-broker'
 import type { TunnelRegistry } from './tunnel-registry'
 import { VpnError } from './vpn-error'
@@ -53,6 +54,8 @@ export type VpnRuntimeDeps = {
   /** Windows FortiGate SSL-VPN: openconnect via north-vpn-service */
   openconnect?: OpenconnectDriverDeps
   openfortivpn?: OpenfortivpnDriverDeps
+  /** Windows' built-in VPN client (PPTP, L2TP, SSTP, IKEv2) via rasdial */
+  windowsNative?: WindowsNativeDriverDeps
 }
 
 export function createVpnRuntime(deps: VpnRuntimeDeps) {
@@ -60,7 +63,7 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
   const drivers = new VpnDriverRegistry()
 
   if (deps.fake) {
-    for (const kind of ['openvpn', 'ipsec-ikev1', 'ipsec-ikev2', 'fortinet-sslvpn'] as VpnKind[]) {
+    for (const kind of VpnKindSchema.options) {
       drivers.register(createFakeVpnDriverFactory(kind, () => ({ connectDelayMs: 800 })))
     }
   } else if (deps.openvpn) {
@@ -110,6 +113,20 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
           ? { ok: false, reason: 'No Windows, o SSL-VPN ainda não é suportado (em breve)' }
           : { ok: true },
       create: () => new OpenfortivpnDriver(forti)
+    })
+  }
+  if (!deps.fake && deps.windowsNative) {
+    const native = deps.windowsNative
+    drivers.register({
+      kind: 'windows-native',
+      isSupported: (platform) =>
+        platform === 'win32'
+          ? { ok: true }
+          : {
+              ok: false,
+              reason: 'A VPN do Windows (PPTP, L2TP, SSTP, IKEv2) só existe no Windows'
+            },
+      create: () => new WindowsNativeDriver(native)
     })
   }
 

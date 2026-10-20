@@ -294,6 +294,31 @@ export function registerVpnHandlers(
             }
           }
         : undefined,
+    // registered everywhere so other OSes get the "Windows only" reason instead of a generic one
+    windowsNative: {
+      run: (cmd, args, stdin) =>
+        new Promise((resolve) => {
+          const root = process.env.SystemRoot ?? 'C:\\Windows'
+          const bin =
+            cmd === 'powershell'
+              ? join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+              : join(root, 'System32', 'rasdial.exe')
+          const child = execFile(
+            bin,
+            args,
+            { timeout: 120_000, windowsHide: true },
+            (error, stdout, stderr) => {
+              const code = error ? (typeof error.code === 'number' ? error.code : 1) : 0
+              resolve({ code, stdout: String(stdout), stderr: String(stderr) })
+            }
+          )
+          child.stdin?.end(stdin ?? '')
+        }),
+      routes: async (localIp) => {
+        await new Promise((r) => setTimeout(r, 1000))
+        return listTunnelRoutes(localIp)
+      }
+    },
     openfortivpn: {
       binary: findForti,
       broker,
