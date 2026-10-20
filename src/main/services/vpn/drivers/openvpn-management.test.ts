@@ -117,3 +117,25 @@ describe('ManagementLineBuffer', () => {
     ])
   })
 })
+
+describe('OpenVPN settings dump', () => {
+  it('keeps only the settings that explain a refusal', async () => {
+    const { createSettingsFilter } = await import('./openvpn-driver')
+    const filter = createSettingsFilter()
+    const out = [
+      'Current Parameter Settings:',
+      "config = '/tmp/x/client.ovpn'",
+      'mode = 0',
+      "ciphername = 'AES-256-CBC'",
+      "cipher_list = 'DEFAULT'",
+      'OpenVPN 2.6.14 aarch64-apple-darwin',
+      'TLS: Initial packet from x'
+    ].map(filter)
+    expect(out.filter(Boolean)).toEqual([
+      "ciphername = 'AES-256-CBC'",
+      "cipher_list = 'DEFAULT'",
+      'OpenVPN 2.6.14 aarch64-apple-darwin',
+      'TLS: Initial packet from x'
+    ])
+  })
+})

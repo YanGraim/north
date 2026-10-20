@@ -54,6 +54,34 @@ function sleep(ms: number): Promise<void> {
 const OPENVPN_LOG_LINE = /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d us=\d+ /
 const MAX_EARLY_RESETS = 3
 
+/** What "verb 4" dumps that actually helps when a server refuses us. */
+const KEPT_SETTINGS = new Set([
+  'remote',
+  'remote_port',
+  'proto',
+  'ciphername',
+  'ncp_ciphers',
+  'authname',
+  'cipher_list',
+  'cipher_list_tls13',
+  'tls_cert_profile'
+])
+
+/** "verb 4" prints ~200 "Current Parameter Settings" lines; keep only the ones above. */
+export function createSettingsFilter(): (line: string) => string | null {
+  let inDump = false
+  return (line) => {
+    if (line.startsWith('Current Parameter Settings:')) {
+      inDump = true
+      return null
+    }
+    if (inDump && /^OpenVPN \d/.test(line)) inDump = false
+    if (!inDump) return line
+    const key = /^(\w+)\s*=/.exec(line)?.[1]
+    return key && KEPT_SETTINGS.has(key) ? line : null
+  }
+}
+
 function buildConfig(ovpn: string, inline: Record<string, string>): string {
   const blocks = SECRET_INLINE_BLOCKS.filter((tag) => inline[tag] !== undefined).map(
     (tag) => `<${tag}>\n${inline[tag]}\n</${tag}>`
@@ -80,6 +108,7 @@ export class OpenVpnDriver implements VpnDriver {
   private run: HelperRun | null = null
   /** from here on openvpn's log arrives over management too */
   private managementLogging = false
+  private readonly settingsFilter = createSettingsFilter()
 
   constructor(private readonly deps: OpenVpnDriverDeps) {}
 
@@ -138,11 +167,13 @@ export class OpenVpnDriver implements VpnDriver {
       this.run = this.deps.helper.startOpenvpn(
         { port, managementPassword: mgmtPassword, ovpn: fullConfig },
         (chunk) => {
+          const settingsFilter = this.settingsFilter
           // once management logs, openvpn's own (timestamped) stdout lines would repeat it
           for (const line of chunk.toString('utf8').split('\n')) {
             if (!line.trim()) continue
             if (this.managementLogging && OPENVPN_LOG_LINE.test(line)) continue
-            log(line.trim())
+            const kept = settingsFilter(line.replace(OPENVPN_LOG_LINE, '').trim())
+            if (kept) log(kept)
           }
         }
       )
