@@ -128,7 +128,12 @@ import type {
   VpnSecretStatus,
   VpnState
 } from '../types/vpn'
-import type { AddOrganizationInput, OrganizationServerInfo, Workspace } from '../types/workspace'
+import type {
+  AddOrganizationInput,
+  OrganizationServerInfo,
+  Workspace,
+  WorkspaceEvent
+} from '../types/workspace'
 import type { WorkspaceAccess } from '../types/workspace-access'
 import { IpcChannels } from './channels'
 
@@ -740,6 +745,8 @@ export interface NorthApi {
     remove: (id: string) => Promise<void>
     /** Role and project grants in the active workspace, to hide what the user cannot do. */
     access: () => Promise<WorkspaceAccess>
+    /** Pushes from an organization's server (inventory/access changed, signed out). */
+    onEvent: (listener: (event: WorkspaceEvent) => void) => () => void
   }
   clients: {
     list: () => Promise<Client[]>

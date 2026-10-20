@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { listGrants } from '../access'
 import type { Db } from '../db'
 import { forbidden, notFound, orNotFound } from '../errors'
+import type { EventHub } from '../events'
 import { recordAudit } from '../store/audit'
 import { deleteGrant, listUserGrants, setGrant } from '../store/grants'
 import { createUser, listUsers, updateUser } from '../store/users'
@@ -32,7 +33,7 @@ async function userTarget(db: Db, id: string) {
 }
 
 /** Users and who can reach each project. Admin only, every change audited. */
-export function registerAdminRoutes(app: FastifyInstance, db: Db): void {
+export function registerAdminRoutes(app: FastifyInstance, db: Db, hub: EventHub): void {
   const v1 = '/api/v1/admin'
 
   app.get(`${v1}/users`, async (req) => {
@@ -59,6 +60,8 @@ export function registerAdminRoutes(app: FastifyInstance, db: Db): void {
     const { id } = z.object({ id: IdSchema }).parse(req.params)
     const input = UserPatch.parse(req.body)
     const user = orNotFound(await updateUser(db, id, input), 'User')
+    if (user.disabled) hub.revoke(id)
+    else hub.toUser(id, { type: 'access.changed' })
     await recordAudit(db, req.user, 'user.update', { type: 'user', id, name: user.email }, input)
     return { ...user, grants: await listGrants(db, id) }
   })
@@ -78,6 +81,7 @@ export function registerAdminRoutes(app: FastifyInstance, db: Db): void {
       scopeId: input.scopeId,
       role: input.role
     })
+    hub.toUser(input.userId, { type: 'access.changed' })
     return reply.status(204).send()
   })
 
@@ -89,6 +93,7 @@ export function registerAdminRoutes(app: FastifyInstance, db: Db): void {
       scopeType: input.scopeType,
       scopeId: input.scopeId
     })
+    hub.toUser(input.userId, { type: 'access.changed' })
     return reply.status(204).send()
   })
 }

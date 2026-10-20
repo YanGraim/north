@@ -21,7 +21,8 @@ import type {
   WorkflowRunEvent,
   WorkflowRunRespondInput,
   Workspace,
-  WorkspaceAccess
+  WorkspaceAccess,
+  WorkspaceEvent
 } from '@shared/types'
 import {
   cloneWorkflowDefinition,
@@ -578,7 +579,8 @@ type WorkspacesMock = {
   /** Harness-only: which workspace the overlay serves. */
   activeKind: () => 'local' | 'organization'
   /** Harness-only: the signed-in user's role in the organization (`?role=`). */
-  orgRole: OrgRole
+  readonly orgRole: OrgRole
+  onEvent: (listener: (event: WorkspaceEvent) => void) => () => void
 }
 
 /** `admin` by default; `viewer`/`editor` are granted on the org dataset; `none` sees nothing. */
@@ -588,9 +590,23 @@ let workspacesMock: WorkspacesMock
 
 function createWorkspacesMock(
   mode: 'none' | 'org' | 'org-signed-out',
-  orgRole: OrgRole
+  initialRole: OrgRole
 ): WorkspacesMock {
   const ts = '2026-10-20T00:00:00.000Z'
+  let orgRole = initialRole
+  // Server pushes (fase 5): tests change the role and emit events by hand.
+  const eventListeners = new Set<(event: WorkspaceEvent) => void>()
+  const w = window as unknown as {
+    __e2eSetOrgRole: (role: OrgRole) => void
+    __e2eEmitWorkspaceEvent: (event: WorkspaceEvent) => void
+  }
+  w.__e2eSetOrgRole = (role) => {
+    orgRole = role
+  }
+  w.__e2eEmitWorkspaceEvent = (event) => {
+    if (event.kind === 'signed-out') signedOut.add(event.workspaceId)
+    for (const listener of eventListeners) listener(event)
+  }
   const rows: Workspace[] = [
     {
       id: LOCAL_WORKSPACE_ID,
@@ -681,8 +697,14 @@ function createWorkspacesMock(
             grants: [{ scopeType: 'group', scopeId: ORG_IDS.group, role: 'editor' }]
           }
     },
+    onEvent: (listener) => {
+      eventListeners.add(listener)
+      return () => eventListeners.delete(listener)
+    },
     activeKind: () => (active === LOCAL_WORKSPACE_ID ? 'local' : 'organization'),
-    orgRole
+    get orgRole() {
+      return orgRole
+    }
   }
 }
 
@@ -777,6 +799,11 @@ export function applyOrganizationOverlay(api: Record<string, Record<string, unkn
   overlay('environments', 'get', (id) => (id === env.id ? env : null))
   overlay('groups', 'list', (envId) => (!envId || envId === env.id ? [group] : []))
   overlay('groups', 'get', (id) => (id === group.id ? group : null))
+  ;(
+    window as unknown as { __e2eRenameOrgConnection: (name: string) => void }
+  ).__e2eRenameOrgConnection = (name) => {
+    connection.name = name
+  }
   overlay('connections', 'list', () => [{ ...connection }])
   overlay('connections', 'get', (id) => (id === connection.id ? { ...connection } : null))
   overlay('connections', 'update', (id, input) => {

@@ -38,6 +38,8 @@ type ActiveSession = {
   portMain: MessagePortMain | null
   historyRecorded: boolean
   everConnected: boolean
+  /** Where the connection came from (organizations only). */
+  source?: ConnectionSource
 }
 
 export type ProtocolManagerEvents = {
@@ -70,6 +72,8 @@ export type ConnectionSource = {
   connection(connectionId: string): Promise<Connection | null>
   resolveSecret(credentialRef: string): Promise<string>
   vpnProfile(connectionId: string): string | null
+  /** Workspace the source belongs to, so its sessions can be rechecked or ended together. */
+  scope?: string
 }
 
 export class ProtocolManager {
@@ -254,7 +258,8 @@ export class ProtocolManager {
       startedAt: Date.now(),
       portMain: null,
       historyRecorded: false,
-      everConnected: false
+      everConnected: false,
+      source: source.scope ? source : undefined
     }
     this.sessions.set(sessionId, placeholder)
     this.emitState(descriptor)
@@ -584,6 +589,41 @@ export class ProtocolManager {
 
     this.updateState(sessionId, 'closed')
     this.finishWithHistory(sessionId, success, null)
+  }
+
+  /**
+   * Organization push (ADR 0018 fase 5): asks the source again for each open
+   * session of that workspace and ends the ones the user can no longer reach.
+   */
+  async revalidate(scope: string): Promise<number> {
+    let ended = 0
+    for (const [sessionId, active] of [...this.sessions]) {
+      if (active.source?.scope !== scope || !active.connectionId) continue
+      const still = await active.source.connection(active.connectionId).catch(() => null)
+      if (!still) {
+        await this.endWith(sessionId, 'Seu acesso a esta conexão foi removido.')
+        ended++
+      }
+    }
+    return ended
+  }
+
+  /** Ends every session opened from a workspace (signed out or revoked). */
+  async closeScope(scope: string, message: string): Promise<void> {
+    const ids = [...this.sessions].filter(([, a]) => a.source?.scope === scope).map(([id]) => id)
+    await Promise.all(ids.map((id) => this.endWith(id, message)))
+  }
+
+  private async endWith(sessionId: string, message: string): Promise<void> {
+    const active = this.sessions.get(sessionId)
+    if (!active) return
+    try {
+      await active.session.dispose()
+    } catch {
+      // ignore dispose errors
+    }
+    this.updateState(sessionId, 'error', message)
+    this.finishWithHistory(sessionId, active.everConnected, message)
   }
 
   respondHostKey(response: HostKeyResponse): void {

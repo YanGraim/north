@@ -15,6 +15,7 @@ export const IpcChannels = {
   WORKSPACES_ADD_ORGANIZATION: 'workspaces:add-organization',
   WORKSPACES_REMOVE: 'workspaces:remove',
   WORKSPACES_ACCESS: 'workspaces:access',
+  WORKSPACES_EVENT: 'workspaces:event',
 
   CLIENTS_LIST: 'clients:list',
   CLIENTS_GET: 'clients:get',

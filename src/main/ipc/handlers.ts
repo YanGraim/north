@@ -1,6 +1,6 @@
 import os from 'node:os'
 import { IpcChannels } from '@shared/ipc'
-import { app, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { initDatabase } from '../database'
 import { maybeSeedDevData } from '../database/seed'
 import { createRepositories, type Repositories } from '../repositories'
@@ -94,9 +94,28 @@ export function registerIpcHandlers(): void {
     return {
       connection: (id) => store.connections.get(id),
       resolveSecret: (ref) => passwords.resolve(ref, 'session'),
-      vpnProfile: () => null
+      vpnProfile: () => null,
+      scope: registry.activeId()
     }
   })
+  // Organization pushes (ADR 0018 fase 5): refresh the renderer, end sessions that lost access.
+  registry.onEvent((event) => {
+    const manager = getProtocolManager()
+    // A deleted connection or a lost grant both end the sessions that depended on it.
+    if (event.kind !== 'signed-out') void manager.revalidate(event.workspaceId)
+    if (event.kind === 'signed-out') {
+      void manager.closeScope(
+        event.workspaceId,
+        event.reason === 'revoked'
+          ? 'Seu acesso a esta organização foi removido.'
+          : 'Sua sessão nesta organização terminou. Entre de novo.'
+      )
+    }
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send(IpcChannels.WORKSPACES_EVENT, event)
+    }
+  })
+  app.on('will-quit', () => registry.dispose())
   registerDatabaseHandlers(repositories, vault)
   registerApiHandlers(repositories, vault)
   registerFsHandlers()

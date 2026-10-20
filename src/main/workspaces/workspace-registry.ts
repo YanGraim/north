@@ -5,6 +5,7 @@ import {
   type Workspace,
   type WorkspaceAccess,
   WorkspaceAccessSchema,
+  type WorkspaceEvent,
   WorkspaceIdSchema
 } from '@shared/types'
 import type { Repositories } from '../repositories'
@@ -17,6 +18,7 @@ import {
   probeServer,
   type TokenStore
 } from './organization-client'
+import { OrganizationEvents } from './organization-events'
 import { ORGANIZATION_UNAVAILABLE, RemoteInventoryStore } from './remote-inventory-store'
 import { localSecretStore, RemoteSecretStore, type SecretStore } from './secret-store'
 
@@ -79,6 +81,8 @@ class RemoteDataSource implements WorkspaceDataSource {
   readonly inventory: InventoryStore
   readonly repositories: Repositories
   readonly secrets: SecretStore
+  /** Push channel, open while signed in (started on first activation). */
+  events: OrganizationEvents | null = null
   constructor(
     readonly client: OrganizationClient,
     shape: Repositories
@@ -124,12 +128,17 @@ export class WorkspaceRegistry {
   private readonly vault: CredentialVault
   private readonly remotes = new Map<string, RemoteDataSource>()
   private active: { workspace: Workspace; source: WorkspaceDataSource }
+  private readonly liveEvents: boolean
+  private listener: ((event: WorkspaceEvent) => void) | null = null
 
   constructor(deps: {
     workspaces: WorkspacesRepository
     local: Repositories
     vault: CredentialVault
+    /** Open each organization's events channel (off in tests that don't need it). */
+    liveEvents?: boolean
   }) {
+    this.liveEvents = deps.liveEvents ?? true
     this.workspaces = deps.workspaces
     this.vault = deps.vault
     this.local = new LocalDataSource(deps.local, deps.vault)
@@ -173,7 +182,42 @@ export class WorkspaceRegistry {
     const source = this.remoteFor(workspace)
     await source.client.request('GET', '/api/v1/me')
     this.active = { workspace, source }
+    if (this.liveEvents) await this.startEvents(workspace.id, source)
     return workspace
+  }
+
+  /** Where main forwards organization pushes (renderer cache, open sessions). */
+  onEvent(listener: ((event: WorkspaceEvent) => void) | null): void {
+    this.listener = listener
+  }
+
+  /** Stops every events channel (app quit). */
+  dispose(): void {
+    for (const source of this.remotes.values()) source.events?.stop()
+  }
+
+  private async startEvents(workspaceId: string, source: RemoteDataSource): Promise<void> {
+    if (source.events) return
+    const emit = (event: WorkspaceEvent) => this.listener?.(event)
+    const signedOut = (reason: 'revoked' | 'expired') => {
+      source.events = null
+      if (this.active.workspace.id === workspaceId) {
+        this.active = {
+          workspace: this.workspaces.get(LOCAL_WORKSPACE_ID) as Workspace,
+          source: this.local
+        }
+      }
+      // Revoked: the refresh token is dead on the server; drop it here too.
+      void source.client.logout()
+      emit({ workspaceId, kind: 'signed-out', reason })
+    }
+    source.events = new OrganizationEvents(source.client, {
+      onInventoryChanged: (entity) => emit({ workspaceId, kind: 'inventory', entity }),
+      onAccessChanged: () => emit({ workspaceId, kind: 'access' }),
+      onRevoked: () => signedOut('revoked'),
+      onSignedOut: () => signedOut('expired')
+    })
+    await source.events.start()
   }
 
   /** Role and project grants in the active workspace; the personal one owns everything. */
@@ -215,7 +259,10 @@ export class WorkspaceRegistry {
     if (!workspace || workspace.kind !== 'organization') {
       throw new Error('Only organizations can be removed')
     }
-    await this.remoteFor(workspace).client.logout()
+    const source = this.remoteFor(workspace)
+    source.events?.stop()
+    source.events = null
+    await source.client.logout()
     if (this.active.workspace.id === id) {
       this.active = {
         workspace: this.workspaces.get(LOCAL_WORKSPACE_ID) as Workspace,

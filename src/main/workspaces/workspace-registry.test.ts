@@ -1,4 +1,4 @@
-import { LOCAL_WORKSPACE_ID } from '@shared/types'
+import { LOCAL_WORKSPACE_ID, type WorkspaceEvent } from '@shared/types'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createTestDatabase } from '../database/test-utils'
 import { createRepositories } from '../repositories'
@@ -24,8 +24,23 @@ function setup() {
   const local = createRepositories(db)
   const workspaces = new WorkspacesRepository(db)
   const vault = new CredentialVault(local.credentials, new FakeEncryptor())
-  const registry = new WorkspaceRegistry({ workspaces, local, vault })
+  const registry = new WorkspaceRegistry({ workspaces, local, vault, liveEvents: false })
   return { db, local, workspaces, vault, registry }
+}
+
+function setupLive() {
+  const db = createTestDatabase()
+  const local = createRepositories(db)
+  const workspaces = new WorkspacesRepository(db)
+  const vault = new CredentialVault(local.credentials, new FakeEncryptor())
+  const registry = new WorkspaceRegistry({ workspaces, local, vault })
+  const events: WorkspaceEvent[] = []
+  registry.onEvent((e) => events.push(e))
+  const until = async (pred: () => boolean, ms = 3000) => {
+    const end = Date.now() + ms
+    while (!pred() && Date.now() < end) await new Promise((r) => setTimeout(r, 10))
+  }
+  return { registry, events, until }
 }
 
 describe('WorkspaceRegistry — local', () => {
@@ -241,5 +256,43 @@ describe('createScopedRepositories', () => {
     expect(Object.keys(createScopedRepositories(registry)).sort()).toEqual(
       Object.keys(local).sort()
     )
+  })
+})
+
+describe('WorkspaceRegistry — live events', () => {
+  it('relays inventory changes from the active organization', async () => {
+    const { registry, events, until } = setupLive()
+    const org = await registry.addOrganization({ serverUrl: server.url, email: 'leo@acme.com' })
+    await server.makeAdmin('leo@acme.com')
+    await registry.activate(org.id)
+    await registry.inventory().clients.create({ name: 'Pushed' })
+    await until(() => events.some((e) => e.kind === 'inventory'))
+    registry.dispose()
+    expect(events).toContainEqual({ workspaceId: org.id, kind: 'inventory', entity: 'client' })
+  })
+
+  it('a revoked person is signed out and moved back to the personal workspace', async () => {
+    const { registry, events, until } = setupLive()
+    const org = await registry.addOrganization({ serverUrl: server.url, email: 'mia@acme.com' })
+    await registry.activate(org.id)
+    await server.db.query(`UPDATE users SET disabled_at = now() WHERE email = 'mia@acme.com'`)
+    const admin = await server.app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/dev/login',
+      payload: { email: 'leo@acme.com' }
+    })
+    const mia = (
+      await server.db.query<{ id: string }>(`SELECT id FROM users WHERE email = 'mia@acme.com'`)
+    ).rows[0]
+    await server.app.inject({
+      method: 'PATCH',
+      url: `/api/v1/admin/users/${mia.id}`,
+      headers: { authorization: `Bearer ${admin.json().accessToken}` },
+      payload: { disabled: true }
+    })
+    await until(() => events.some((e) => e.kind === 'signed-out'))
+    expect(events).toContainEqual({ workspaceId: org.id, kind: 'signed-out', reason: 'revoked' })
+    expect(registry.activeId()).toBe(LOCAL_WORKSPACE_ID)
+    await expect(registry.activate(org.id)).rejects.toBeInstanceOf(OrganizationSignedOutError)
   })
 })

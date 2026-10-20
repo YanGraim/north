@@ -797,7 +797,9 @@
     "leaveConfirm": "Leave",
     "leaveCancel": "Cancel",
     "noProjectsGranted": "No projects shared with you yet. Ask an organization admin for access.",
-    "adminPanel": "Open admin panel"
+    "adminPanel": "Open admin panel",
+    "revoked": "An admin removed your access to this organization. Its sessions were closed.",
+    "expired": "Your session in this organization ended. Sign in again."
   },
   "sessions": {
     "homeTab": "Panel"

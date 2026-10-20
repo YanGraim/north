@@ -92,3 +92,11 @@ Empresas querem uma instância própria que centralize projetos, usuários e per
 - **Telas:** **Pessoas** (adicionar antes do primeiro login, trocar papel, desativar/reativar), **Projetos** (árvore cliente → ambiente → grupo; para cada nó, quem tem acesso, inclusive herdado de cima, dar acesso como editor/visualizador e remover o direto) e **Auditoria** (as últimas 500, com filtro). Textos em pt-BR, en e es (pelo idioma do navegador ou `?lang=`).
 - **Desktop:** para admins, o seletor de workspace ganha **Abrir painel admin**, que abre `<servidor>/admin` no navegador do sistema.
 - **Testes:** `playwright/admin-panel.spec.ts` roda contra um North Server real com Postgres em memória (`server/src/dev-pglite.ts`, segundo `webServer` do Playwright).
+
+## Notas de implementação — Fase 5 (tempo real e revogação)
+
+- **Canal:** WebSocket `GET /api/v1/events` (`@fastify/websocket`). O token vai na primeira mensagem (`{ type: 'auth', token }`), não na URL, para não cair em logs; sem token válido em 5 s fecha com 4401. As mensagens dizem só *o que* mudou, nunca os dados: cada desktop busca de novo pela API, que já filtra pelo acesso.
+- **Eventos:** `inventory.changed { entity }` para todos, a cada escrita bem-sucedida em clientes, ambientes, grupos, conexões ou tags (favoritos são pessoais e não vão); `access.changed` só para a pessoa afetada (concessão dada/removida, papel trocado); `session.revoked` quando ela é desativada, seguido de fechar com 4403.
+- **Uma instância:** o hub fica em memória. Vários servidores atrás de um balanceador precisariam repassar pelo Postgres (`LISTEN/NOTIFY`).
+- **Desktop (main):** `OrganizationEvents` por organização, ligado na primeira ativação e desligado ao sair; reconecta com backoff (1 s → 30 s), renova o token num 4401 e para num 4403. Num `access` ou `inventory`, o `ProtocolManager.revalidate(workspace)` pergunta de novo cada sessão aberta daquela organização e encerra as que o usuário não alcança mais ("Seu acesso a esta conexão foi removido."). Num revogado, encerra todas as sessões da organização, descarta o refresh token e volta o ativo para o Pessoal.
+- **Renderer:** `workspaces:event` → invalida o cache daquele workspace (árvore, permissões); num `signed-out`, aviso e volta para o Meu workspace.

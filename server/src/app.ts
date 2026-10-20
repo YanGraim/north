@@ -5,6 +5,7 @@ import { verifyAccessToken } from './auth/tokens'
 import type { ServerConfig } from './config'
 import type { Db } from './db'
 import { ApiError, unauthorized } from './errors'
+import { EventHub, registerEvents } from './events'
 import { registerAdminRoutes } from './routes/admin'
 import { registerAdminPanel } from './routes/admin-panel'
 import { registerAuditRoutes } from './routes/audit'
@@ -33,6 +34,8 @@ const PUBLIC_ROUTES = new Set([
   '/api/v1/auth/dev/login',
   '/api/v1/auth/refresh',
   '/api/v1/auth/logout',
+  // Authenticates with the first message (see events.ts).
+  '/api/v1/events',
   '/healthz'
 ])
 
@@ -86,6 +89,9 @@ export async function buildApp(deps: { db: Db; config: ServerConfig }): Promise<
     request.user = user
   })
 
+  const hub = new EventHub()
+  await registerEvents(app, db, hub, config.jwtSecret)
+
   app.get('/healthz', async () => ({ ok: true }))
 
   app.get('/api/v1/info', async () => ({
@@ -99,7 +105,7 @@ export async function buildApp(deps: { db: Db; config: ServerConfig }): Promise<
   registerInventoryRoutes(app, db, config.masterKey)
   registerSecretRoutes(app, db, config.masterKey)
   registerAuditRoutes(app, db)
-  registerAdminRoutes(app, db)
+  registerAdminRoutes(app, db, hub)
   registerAdminPanel(app, ADMIN_DIR)
   return app
 }

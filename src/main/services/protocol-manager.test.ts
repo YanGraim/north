@@ -277,6 +277,42 @@ describe('ProtocolManager', () => {
       expect(manager.list()).toEqual([])
     })
 
+    it('closes an organization session whose connection the user lost', async () => {
+      const { manager } = setup()
+      let visible = true
+      const states: Array<{ state: string; errorMessage: string | null }> = []
+      manager.setEvents({ onStateChanged: (d) => states.push(d) } as never)
+      const source = {
+        ...orgSource().source,
+        scope: 'acme',
+        connection: async (id: string) =>
+          visible && id === orgConnection.id ? { ...orgConnection } : null
+      }
+      manager.setConnectionSource(() => source)
+      await manager.open(orgConnection.id, crypto.randomUUID())
+      expect(await manager.revalidate('acme')).toBe(0)
+      expect(manager.list()).toHaveLength(1)
+      visible = false
+      expect(await manager.revalidate('acme')).toBe(1)
+      expect(manager.list()).toEqual([])
+      expect(states).toContainEqual(
+        expect.objectContaining({
+          state: 'error',
+          errorMessage: 'Seu acesso a esta conexão foi removido.'
+        })
+      )
+    })
+
+    it('revoking an organization closes only its sessions', async () => {
+      const { manager, repos } = setup()
+      manager.setConnectionSource(() => ({ ...orgSource().source, scope: 'acme' }))
+      await manager.open(orgConnection.id, crypto.randomUUID())
+      manager.setConnectionSource(null)
+      await manager.open(seedConnection(repos), crypto.randomUUID())
+      await manager.closeScope('acme', 'Sua sessão nesta organização foi encerrada.')
+      expect(manager.list().map((d) => d.title)).toEqual(['ssh-box'])
+    })
+
     it('clearing the source goes back to the local inventory', async () => {
       const { manager, repos } = setup()
       manager.setConnectionSource(() => orgSource().source)

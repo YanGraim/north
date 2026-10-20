@@ -40,3 +40,9 @@ export const AddOrganizationInputSchema = z.object({
 export type AddOrganizationInput = z.infer<typeof AddOrganizationInputSchema>
 
 export type OrganizationServerInfo = { name: string; version: string; authModes: string[] }
+
+/** Push from an organization's North Server, relayed by main (ADR 0018 fase 5). */
+export type WorkspaceEvent =
+  | { workspaceId: string; kind: 'inventory'; entity: string }
+  | { workspaceId: string; kind: 'access' }
+  | { workspaceId: string; kind: 'signed-out'; reason: 'revoked' | 'expired' }

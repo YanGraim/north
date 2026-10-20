@@ -797,7 +797,9 @@
     "leaveConfirm": "Salir",
     "leaveCancel": "Cancelar",
     "noProjectsGranted": "Todavía no tienes proyectos asignados. Pide acceso a un admin de la organización.",
-    "adminPanel": "Abrir panel admin"
+    "adminPanel": "Abrir panel admin",
+    "revoked": "Un admin quitó tu acceso a esta organización. Sus sesiones se cerraron.",
+    "expired": "Tu sesión en esta organización terminó. Inicia sesión de nuevo."
   },
   "sessions": {
     "homeTab": "Panel"

@@ -6,6 +6,7 @@ import {
   WorkspaceContext
 } from '@renderer/hooks/use-workspaces'
 import { formatIpcError } from '@renderer/lib/ipc-error'
+import { queryKeys } from '@renderer/lib/query-keys'
 import { LOCAL_WORKSPACE_ID, workspacePath } from '@renderer/lib/workspace-paths'
 import { useUiStore } from '@renderer/stores/ui-store'
 import type { Workspace } from '@shared/types'
@@ -75,6 +76,20 @@ export function WorkspaceScope(): React.JSX.Element | null {
       cancelled = true
     }
   }, [knownId, setLastWorkspaceId, t])
+
+  // Organization pushes (ADR 0018 fase 5): refetch what changed; leave a revoked organization.
+  useEffect(() => {
+    return window.north.workspaces.onEvent?.((event) => {
+      if (event.kind === 'signed-out') {
+        toast.error(t(event.reason === 'revoked' ? 'workspaces.revoked' : 'workspaces.expired'))
+        void rootClient.invalidateQueries({ queryKey: queryKeys.workspaces.list })
+        if (event.workspaceId === workspaceId) setActivation({ status: 'failed' })
+        return
+      }
+      // Inventory or access: the server already filters, so refetching is enough.
+      void workspaceClients.get(event.workspaceId)?.invalidateQueries()
+    })
+  }, [rootClient, workspaceId, t])
 
   if (!workspaces) return null
 

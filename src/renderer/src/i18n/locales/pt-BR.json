@@ -797,7 +797,9 @@
     "leaveConfirm": "Sair",
     "leaveCancel": "Cancelar",
     "noProjectsGranted": "Nenhum projeto liberado para você ainda. Peça acesso a um admin da organização.",
-    "adminPanel": "Abrir painel admin"
+    "adminPanel": "Abrir painel admin",
+    "revoked": "Um admin removeu o seu acesso a esta organização. As sessões dela foram encerradas.",
+    "expired": "Sua sessão nesta organização terminou. Entre de novo."
   },
   "sessions": {
     "homeTab": "Painel"

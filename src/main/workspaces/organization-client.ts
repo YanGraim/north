@@ -117,6 +117,12 @@ export class OrganizationClient {
     this.accessToken = replacement
   }
 
+  /** A usable access token for the events channel; `fresh` forces a refresh (after a 4401). */
+  async accessTokenForEvents(fresh = false): Promise<string> {
+    if (fresh || !this.accessToken) await this.refresh()
+    return this.accessToken as string
+  }
+
   async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     if (!this.accessToken) await this.refresh()
     let res = await this.raw(method, path, body, this.accessToken)

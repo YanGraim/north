@@ -11,7 +11,13 @@ import type {
   SessionPortMessage,
   TransferProgress
 } from '@shared/protocols'
-import type { AppIdentity, ConnectionHealthStatus, UpdateStatus, VpnState } from '@shared/types'
+import type {
+  AppIdentity,
+  ConnectionHealthStatus,
+  UpdateStatus,
+  VpnState,
+  WorkspaceEvent
+} from '@shared/types'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 function waitForSessionPort(requestId: string, onPort: (port: MessagePort) => void): Promise<void> {
@@ -96,7 +102,14 @@ const api: NorthApi = {
     probe: (serverUrl) => ipcRenderer.invoke(IpcChannels.WORKSPACES_PROBE, serverUrl),
     addOrganization: (input) => ipcRenderer.invoke(IpcChannels.WORKSPACES_ADD_ORGANIZATION, input),
     remove: (id) => ipcRenderer.invoke(IpcChannels.WORKSPACES_REMOVE, id),
-    access: () => ipcRenderer.invoke(IpcChannels.WORKSPACES_ACCESS)
+    access: () => ipcRenderer.invoke(IpcChannels.WORKSPACES_ACCESS),
+    onEvent: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: WorkspaceEvent): void => {
+        listener(payload)
+      }
+      ipcRenderer.on(IpcChannels.WORKSPACES_EVENT, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.WORKSPACES_EVENT, handler)
+    }
   },
 
   clients: {

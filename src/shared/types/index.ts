@@ -340,6 +340,7 @@ export {
   LOCAL_WORKSPACE_ID,
   type OrganizationServerInfo,
   type Workspace,
+  type WorkspaceEvent,
   WorkspaceIdSchema,
   type WorkspaceKind,
   WorkspaceKindSchema,
