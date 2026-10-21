@@ -1,6 +1,7 @@
 import { PGlite } from '@electric-sql/pglite'
 import { buildApp } from './app'
 import { createPgliteDb } from './db'
+import { startFakeOidc } from './dev/fake-oidc'
 import { migrate } from './migrations'
 import { createClient, createEnvironment, createGroup } from './store/inventory'
 import { upsertUserByEmail } from './store/users'
@@ -20,6 +21,29 @@ const prod = await createEnvironment(db, { clientId: acme.id, name: 'Prod' })
 await createGroup(db, { environmentId: prod.id, name: 'Web' })
 await createGroup(db, { environmentId: prod.id, name: 'Db' })
 
-const app = await buildApp({ db, config: { ...TEST_CONFIG, organizationName: 'Acme Test' } })
+// NORTH_FAKE_ENTRA=<port>: also sign in with "Microsoft" through the fake provider.
+const fakeEntraPort = process.env.NORTH_FAKE_ENTRA ? Number(process.env.NORTH_FAKE_ENTRA) : null
+const idp = fakeEntraPort ? await startFakeOidc({ port: fakeEntraPort }) : null
+const app = await buildApp({
+  db,
+  config: {
+    ...TEST_CONFIG,
+    organizationName: 'Acme Test',
+    ...(idp
+      ? {
+          authModes: ['dev', 'entra'],
+          oidc: {
+            issuer: idp.issuer,
+            clientId: idp.clientId,
+            tenantId: idp.tenantId,
+            adminGroups: [],
+            allowNewUsers: true
+          }
+        }
+      : {})
+  }
+})
 await app.listen({ port, host: '127.0.0.1' })
-console.log(`north-server (pglite) on http://127.0.0.1:${port}`)
+console.log(
+  `north-server (pglite) on http://127.0.0.1:${port}${idp ? ` · fake Entra ${idp.issuer}` : ''}`
+)

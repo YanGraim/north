@@ -309,11 +309,94 @@ test.describe('adding an organization', () => {
     await expect(page.getByRole('alert')).toContainText(/não respondeu/)
   })
 
-  test('explains when the server only offers corporate sign-in', async ({ page }) => {
+  test('explains when the server has no sign-in North can use', async ({ page }) => {
     await openAddDialog(page)
-    await page.getByLabel('Endereço do servidor').fill('https://entra.example')
+    await page.getByLabel('Endereço do servidor').fill('https://nologin.example')
     await page.getByRole('button', { name: 'Continuar' }).click()
-    await expect(page.getByRole('alert')).toContainText(/Entra ID/)
+    await expect(page.getByRole('alert')).toContainText(/nenhum login/)
+  })
+
+  test.describe('Microsoft (Entra ID) sign-in', () => {
+    const finish = (page: Page, result: { email: string } | { error: string }) =>
+      page.evaluate(
+        (r) =>
+          (window as unknown as { __e2eFinishEntra: (r: unknown) => void }).__e2eFinishEntra(r),
+        result
+      )
+
+    test('an Entra-only server shows just the Microsoft button', async ({ page }) => {
+      await openAddDialog(page)
+      await page.getByLabel('Endereço do servidor').fill('https://entra.example')
+      await page.getByRole('button', { name: 'Continuar' }).click()
+      const dialog = page.getByRole('dialog')
+      await expect(dialog).toContainText('Entra Org')
+      await expect(page.getByRole('button', { name: 'Entrar com a Microsoft' })).toBeVisible()
+      await expect(page.getByLabel('E-mail')).toHaveCount(0)
+    })
+
+    test('waits for the browser, then opens the organization', async ({ page }) => {
+      await openAddDialog(page)
+      await page.getByLabel('Endereço do servidor').fill('https://entra.example')
+      await page.getByRole('button', { name: 'Continuar' }).click()
+      await page.getByRole('button', { name: 'Entrar com a Microsoft' }).click()
+      await expect(page.getByTestId('entra-waiting')).toContainText('Continue no navegador')
+      expect(
+        await page.evaluate(
+          () => (window as unknown as { __e2eEntraOpened: string[] }).__e2eEntraOpened
+        )
+      ).toEqual(['https://entra.example'])
+      await finish(page, { email: 'ana@acme.example' })
+      await expect(page.getByRole('dialog')).toBeHidden()
+      await expect(page).toHaveURL(/\/w\/entra-org-e2e\/dashboard/)
+      await expect(page.getByTestId('workspace-switcher')).toContainText('Entra Org')
+    })
+
+    test('Cancelar login stops waiting and lets you try again', async ({ page }) => {
+      await openAddDialog(page)
+      await page.getByLabel('Endereço do servidor').fill('https://entra.example')
+      await page.getByRole('button', { name: 'Continuar' }).click()
+      await page.getByRole('button', { name: 'Entrar com a Microsoft' }).click()
+      await page.getByRole('button', { name: 'Cancelar login' }).click()
+      await expect(page.getByRole('alert')).toContainText('Login cancelado')
+      await expect(page.getByRole('button', { name: 'Entrar com a Microsoft' })).toBeEnabled()
+      await expect(page).toHaveURL(/\/w\/local\//)
+    })
+
+    test('shows what Microsoft refused', async ({ page }) => {
+      await openAddDialog(page)
+      await page.getByLabel('Endereço do servidor').fill('https://entra.example')
+      await page.getByRole('button', { name: 'Continuar' }).click()
+      await page.getByRole('button', { name: 'Entrar com a Microsoft' }).click()
+      await finish(page, {
+        error:
+          'Um admin do Entra precisa dar consentimento ao North antes do primeiro login (AADSTS65001).'
+      })
+      await expect(page.getByRole('alert')).toContainText('AADSTS65001')
+    })
+
+    test('closing the dialog while waiting cancels the sign-in', async ({ page }) => {
+      await openAddDialog(page)
+      await page.getByLabel('Endereço do servidor').fill('https://entra.example')
+      await page.getByRole('button', { name: 'Continuar' }).click()
+      await page.getByRole('button', { name: 'Entrar com a Microsoft' }).click()
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('dialog')).toBeHidden()
+      await finish(page, { email: 'late@acme.example' })
+      await expect(page).toHaveURL(/\/w\/local\//)
+    })
+
+    test('a server with both offers Microsoft first and the test e-mail below', async ({
+      page
+    }) => {
+      await openAddDialog(page)
+      await page.getByLabel('Endereço do servidor').fill('https://both.example')
+      await page.getByRole('button', { name: 'Continuar' }).click()
+      await expect(page.getByRole('button', { name: 'Entrar com a Microsoft' })).toBeVisible()
+      await expect(page.getByText('ou, num servidor de teste, entre por e-mail:')).toBeVisible()
+      await page.getByLabel('E-mail').fill('ana@acme.example')
+      await page.getByRole('button', { name: 'Entrar', exact: true }).click()
+      await expect(page).toHaveURL(/\/w\/acme-corp-e2e\/dashboard/)
+    })
   })
 
   test('shows the organization name, then signs in and opens it', async ({ page }) => {
@@ -322,9 +405,9 @@ test.describe('adding an organization', () => {
     await page.getByRole('button', { name: 'Continuar' }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toContainText('Acme Corp')
-    await expect(page.getByRole('button', { name: 'Entrar' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeDisabled()
     await page.getByLabel('E-mail').fill('ana@acme.example')
-    await page.getByRole('button', { name: 'Entrar' }).click()
+    await page.getByRole('button', { name: 'Entrar', exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(page).toHaveURL(/\/w\/acme-corp-e2e\/dashboard/)
     await expect(page.getByTestId('workspace-switcher')).toContainText('Acme Corp')
@@ -336,7 +419,7 @@ test.describe('adding an organization', () => {
     await page.getByLabel('Endereço do servidor').fill('north.acme.example')
     await page.getByRole('button', { name: 'Continuar' }).click()
     await page.getByLabel('E-mail').fill('ana')
-    await expect(page.getByRole('button', { name: 'Entrar' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeDisabled()
   })
 
   test('shows the server error when sign-in is refused', async ({ page }) => {
@@ -344,7 +427,7 @@ test.describe('adding an organization', () => {
     await page.getByLabel('Endereço do servidor').fill('north.acme.example')
     await page.getByRole('button', { name: 'Continuar' }).click()
     await page.getByLabel('E-mail').fill('blocked@acme.example')
-    await page.getByRole('button', { name: 'Entrar' }).click()
+    await page.getByRole('button', { name: 'Entrar', exact: true }).click()
     await expect(page.getByRole('alert')).toContainText(/desativado/)
     await expect(page).toHaveURL(/\/w\/local\//)
   })

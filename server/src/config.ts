@@ -15,7 +15,28 @@ export type ServerConfig = {
   organizationName: string
   /** Wraps the per-secret data keys (ADR 0018 §8). Without it, org secrets are off. */
   masterKey: Buffer | null
+  /** Entra ID (or another OIDC provider) when `entra` is an auth mode (ADR 0018 fase 0). */
+  oidc: OidcConfig | null
 }
+
+export type OidcConfig = {
+  issuer: string
+  clientId: string
+  /** Entra tenant; tokens from another tenant are refused. */
+  tenantId: string | null
+  /** Entra group object ids whose members are admins; empty = roles managed in the panel. */
+  adminGroups: string[]
+  /** Anyone in the tenant may sign in (as a member with no projects) vs only people added by an admin. */
+  allowNewUsers: boolean
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const list = (raw: string | undefined) =>
+  (raw ?? '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)
 
 const EnvSchema = z.object({
   DATABASE_URL: z.string({ error: 'DATABASE_URL is required' }).min(1, 'DATABASE_URL is required'),
@@ -40,6 +61,11 @@ const EnvSchema = z.object({
     )
     .pipe(z.array(AuthModeSchema).min(1)),
   NORTH_ALLOW_DEV_AUTH: z.string().optional(),
+  NORTH_OIDC_TENANT_ID: z.string().optional(),
+  NORTH_OIDC_CLIENT_ID: z.string().optional(),
+  NORTH_OIDC_ISSUER: z.string().url().optional(),
+  NORTH_OIDC_ADMIN_GROUPS: z.string().optional(),
+  NORTH_OIDC_ALLOW_NEW_USERS: z.enum(['0', '1']).default('1'),
   NORTH_ORGANIZATION_NAME: z.string().min(1).default('North'),
   PORT: z.coerce.number().int().nonnegative().default(8080),
   HOST: z.string().default('0.0.0.0'),
@@ -74,6 +100,7 @@ export function loadConfig(
     )
   }
   return {
+    oidc: e.NORTH_AUTH_MODES.includes('entra') ? loadOidc(e) : null,
     databaseUrl: e.DATABASE_URL,
     jwtSecret: e.NORTH_JWT_SECRET,
     authModes: e.NORTH_AUTH_MODES,
@@ -83,5 +110,35 @@ export function loadConfig(
     host: e.HOST,
     organizationName: e.NORTH_ORGANIZATION_NAME,
     masterKey
+  }
+}
+
+function loadOidc(e: z.infer<typeof EnvSchema>): OidcConfig {
+  const tenantId = e.NORTH_OIDC_TENANT_ID?.trim() || null
+  const clientId = e.NORTH_OIDC_CLIENT_ID?.trim()
+  if (!clientId) {
+    throw new Error(
+      'Invalid configuration — Entra sign-in needs NORTH_OIDC_CLIENT_ID (the Application (client) ID)'
+    )
+  }
+  if (tenantId && !UUID.test(tenantId)) {
+    throw new Error(
+      'Invalid configuration — NORTH_OIDC_TENANT_ID must be the Directory (tenant) ID'
+    )
+  }
+  if (!tenantId && !e.NORTH_OIDC_ISSUER) {
+    throw new Error(
+      'Invalid configuration — Entra sign-in needs NORTH_OIDC_TENANT_ID (the Directory (tenant) ID)'
+    )
+  }
+  return {
+    issuer: (e.NORTH_OIDC_ISSUER ?? `https://login.microsoftonline.com/${tenantId}/v2.0`).replace(
+      /\/+$/,
+      ''
+    ),
+    clientId,
+    tenantId,
+    adminGroups: list(e.NORTH_OIDC_ADMIN_GROUPS),
+    allowNewUsers: e.NORTH_OIDC_ALLOW_NEW_USERS === '1'
   }
 }

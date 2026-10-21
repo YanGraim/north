@@ -1,3 +1,5 @@
+import type { OidcInfo } from './oidc-sign-in'
+
 /**
  * HTTP client for one North Server (ADR 0018). Lives only in main: the access
  * token stays in memory, the refresh token goes through a `TokenStore`
@@ -19,7 +21,13 @@ export function memoryTokenStore(initial: string | null = null): TokenStore {
   }
 }
 
-export type ServerInfo = { name: string; version: string; authModes: string[] }
+export type ServerInfo = {
+  name: string
+  version: string
+  authModes: string[]
+  /** Entra sign-in parameters; null when the server only has the dev mode. */
+  oidc: OidcInfo | null
+}
 export type OrganizationUser = { id: string; email: string; name: string; role: string }
 
 /** The session is gone (revoked, user disabled, never signed in): sign in again. */
@@ -72,7 +80,12 @@ export async function probeServer(rawUrl: string): Promise<ServerInfo> {
     throw new Error(`O servidor ${base} não respondeu. Confira o endereço e a sua rede/VPN.`)
   }
   const body = (await readJson(res)) as
-    | { product?: string; name?: string; version?: string; auth?: { modes?: string[] } }
+    | {
+        product?: string
+        name?: string
+        version?: string
+        auth?: { modes?: string[]; oidc?: OidcInfo | null }
+      }
     | undefined
   if (!res.ok || body?.product !== 'north-server') {
     throw new Error(`${base} não é um North Server.`)
@@ -80,7 +93,8 @@ export async function probeServer(rawUrl: string): Promise<ServerInfo> {
   return {
     name: body.name ?? base,
     version: body.version ?? '?',
-    authModes: body.auth?.modes ?? []
+    authModes: body.auth?.modes ?? [],
+    oidc: body.auth?.oidc ?? null
   }
 }
 
@@ -98,6 +112,15 @@ export class OrganizationClient {
   /** Dev-mode sign-in (phase 2). Entra OIDC lands in phase 0 behind the same session. */
   async devLogin(email: string, name?: string): Promise<OrganizationUser> {
     const res = await this.raw('POST', '/api/v1/auth/dev/login', { email, name })
+    const body = (await readJson(res)) as (Pair & { user: OrganizationUser }) | undefined
+    if (!res.ok || !body) throw new Error(errorMessage(body, 'Não foi possível entrar'))
+    this.accept(body)
+    return body.user
+  }
+
+  /** Entra sign-in: hands the server the id_token main got from Microsoft (ADR 0018 fase 0). */
+  async oidcLogin(idToken: string, nonce: string): Promise<OrganizationUser> {
+    const res = await this.raw('POST', '/api/v1/auth/oidc/login', { idToken, nonce })
     const body = (await readJson(res)) as (Pair & { user: OrganizationUser }) | undefined
     if (!res.ok || !body) throw new Error(errorMessage(body, 'Não foi possível entrar'))
     this.accept(body)

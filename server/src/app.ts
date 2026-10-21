@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { ZodError } from 'zod'
+import { OidcVerifier } from './auth/oidc'
 import { verifyAccessToken } from './auth/tokens'
 import type { ServerConfig } from './config'
 import type { Db } from './db'
@@ -32,6 +33,7 @@ const ADMIN_DIR = fileURLToPath(new URL('../admin/', import.meta.url))
 const PUBLIC_ROUTES = new Set([
   '/api/v1/info',
   '/api/v1/auth/dev/login',
+  '/api/v1/auth/oidc/login',
   '/api/v1/auth/refresh',
   '/api/v1/auth/logout',
   // Authenticates with the first message (see events.ts).
@@ -89,6 +91,7 @@ export async function buildApp(deps: { db: Db; config: ServerConfig }): Promise<
     request.user = user
   })
 
+  const oidc = config.oidc ? new OidcVerifier(config.oidc) : null
   const hub = new EventHub()
   await registerEvents(app, db, hub, config.jwtSecret)
 
@@ -98,14 +101,29 @@ export async function buildApp(deps: { db: Db; config: ServerConfig }): Promise<
     product: 'north-server',
     version: SERVER_VERSION,
     name: config.organizationName,
-    auth: { modes: config.authModes }
+    auth: {
+      modes: config.authModes,
+      oidc: oidc ? await oidcInfo(oidc) : null
+    }
   }))
 
-  registerAuthRoutes(app, db, config)
+  registerAuthRoutes(app, db, config, oidc)
   registerInventoryRoutes(app, db, config.masterKey)
   registerSecretRoutes(app, db, config.masterKey)
   registerAuditRoutes(app, db)
   registerAdminRoutes(app, db, hub)
-  registerAdminPanel(app, ADMIN_DIR)
+  registerAdminPanel(app, ADMIN_DIR, oidc ? new URL(oidc.config.issuer).origin : null)
   return app
+}
+
+/** What a client needs to start Entra sign-in; null fields if Microsoft is unreachable now. */
+async function oidcInfo(oidc: OidcVerifier) {
+  const metadata = await oidc.metadata().catch(() => null)
+  return {
+    issuer: oidc.config.issuer,
+    clientId: oidc.config.clientId,
+    scopes: oidc.scopes,
+    authorizationEndpoint: metadata?.authorizationEndpoint ?? null,
+    tokenEndpoint: metadata?.tokenEndpoint ?? null
+  }
 }

@@ -300,3 +300,7 @@ ul.tree .kind {
 .stack > * + * {
   margin-top: 16px;
 }
+
+.login .btn.primary + form {
+  margin-top: 16px;
+}

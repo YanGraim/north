@@ -19,6 +19,8 @@ export function registerWorkspaceHandlers(registry: WorkspaceRegistry): void {
     registry.addOrganization(AddOrganizationInputSchema.parse(input))
   )
 
+  ipcMain.handle(IpcChannels.WORKSPACES_CANCEL_SIGN_IN, () => registry.cancelSignIn())
+
   ipcMain.handle(IpcChannels.WORKSPACES_ACCESS, () => registry.access())
 
   ipcMain.handle(IpcChannels.WORKSPACES_REMOVE, async (_event, id: unknown) => {

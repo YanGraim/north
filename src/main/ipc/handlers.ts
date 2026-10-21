@@ -1,6 +1,6 @@
 import os from 'node:os'
 import { IpcChannels } from '@shared/ipc'
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { initDatabase } from '../database'
 import { maybeSeedDevData } from '../database/seed'
 import { createRepositories, type Repositories } from '../repositories'
@@ -58,7 +58,14 @@ export function registerIpcHandlers(): void {
   const registry = new WorkspaceRegistry({
     workspaces: new WorkspacesRepository(db),
     local: localRepositories,
-    vault
+    vault,
+    // Only the Microsoft sign-in page; the URL comes from the server's discovery document.
+    openBrowser: (url) => {
+      if (!/^https:\/\//.test(url) && !/^http:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url)) {
+        throw new Error('Endereço de login inválido')
+      }
+      return shell.openExternal(url)
+    }
   })
   // Handlers read through the active workspace: the tree via the async inventory, the rest via repos.
   repositories = createScopedRepositories(registry)

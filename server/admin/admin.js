@@ -8,8 +8,13 @@ const STRINGS = {
     signInHint: 'Entre com o seu e-mail de admin desta organização.',
     email: 'E-mail',
     signIn: 'Entrar',
-    devNotice: 'Login de teste por e-mail. O login corporativo (Entra ID) chega em breve.',
-    entraSoon: 'Este servidor usa login corporativo (Entra ID), que chega em breve no painel.',
+    devNotice: 'Login de teste por e-mail — só para servidores de teste.',
+    entraButton: 'Entrar com a Microsoft',
+    entraHint: 'Entre com a sua conta da empresa.',
+    orDev: 'ou, num servidor de teste, entre por e-mail:',
+    noSignIn: 'Este servidor não tem login configurado.',
+    entraRefused: 'A Microsoft recusou o login',
+    entraMismatch: 'O login não confere. Tente de novo.',
     notAdmin: 'Só admins usam este painel. Peça a um admin para mudar o seu papel.',
     signOut: 'Sair',
     people: 'Pessoas',
@@ -73,8 +78,13 @@ const STRINGS = {
     signInHint: 'Sign in with your admin e-mail for this organization.',
     email: 'E-mail',
     signIn: 'Sign in',
-    devNotice: 'Test sign-in by e-mail. Corporate sign-in (Entra ID) is coming soon.',
-    entraSoon: 'This server uses corporate sign-in (Entra ID), coming soon to the panel.',
+    devNotice: 'Test sign-in by e-mail — for test servers only.',
+    entraButton: 'Sign in with Microsoft',
+    entraHint: 'Sign in with your work account.',
+    orDev: 'or, on a test server, sign in by e-mail:',
+    noSignIn: 'This server has no sign-in configured.',
+    entraRefused: 'Microsoft refused the sign-in',
+    entraMismatch: 'The sign-in did not match. Try again.',
     notAdmin: 'Only admins use this panel. Ask an admin to change your role.',
     signOut: 'Sign out',
     people: 'People',
@@ -138,8 +148,13 @@ const STRINGS = {
     signInHint: 'Inicia sesión con tu correo de admin de esta organización.',
     email: 'Correo',
     signIn: 'Entrar',
-    devNotice: 'Inicio de prueba por correo. El inicio corporativo (Entra ID) llega pronto.',
-    entraSoon: 'Este servidor usa inicio corporativo (Entra ID), que llega pronto al panel.',
+    devNotice: 'Inicio de prueba por correo — solo para servidores de prueba.',
+    entraButton: 'Iniciar sesión con Microsoft',
+    entraHint: 'Inicia sesión con tu cuenta de la empresa.',
+    orDev: 'o, en un servidor de prueba, inicia sesión por correo:',
+    noSignIn: 'Este servidor no tiene inicio de sesión configurado.',
+    entraRefused: 'Microsoft rechazó el inicio de sesión',
+    entraMismatch: 'El inicio de sesión no coincide. Inténtalo de nuevo.',
     notAdmin: 'Solo los admins usan este panel. Pide a un admin que cambie tu rol.',
     signOut: 'Salir',
     people: 'Personas',
@@ -201,7 +216,15 @@ const STRINGS = {
 }
 
 const locale = (() => {
-  const wanted = new URLSearchParams(location.search).get('lang') ?? navigator.language ?? 'pt-BR'
+  // Back from Microsoft the address has no ?lang; the pending sign-in remembers it.
+  let pendingLang = null
+  try {
+    pendingLang = JSON.parse(sessionStorage.getItem('north-admin-pkce') ?? 'null')?.lang ?? null
+  } catch {
+    pendingLang = null
+  }
+  const wanted =
+    new URLSearchParams(location.search).get('lang') ?? pendingLang ?? navigator.language ?? 'pt-BR'
   if (wanted.toLowerCase().startsWith('en')) return 'en'
   if (wanted.toLowerCase().startsWith('es')) return 'es'
   return 'pt-BR'
@@ -318,13 +341,106 @@ async function boot() {
     auth: { modes: [] }
   }))
   document.title = `${state.info.name} · ${t('title')}`
+  const params = new URLSearchParams(location.search)
+  if (params.has('code') || params.has('error')) return finishEntra(params)
   if (await refresh()) return showApp()
   showLogin()
+}
+
+// ── Entra (authorization code + PKCE in the browser, ADR 0018 fase 0) ──────
+
+const PKCE_KEY = 'north-admin-pkce'
+const redirectUri = () => `${location.origin}/admin/`
+
+const base64Url = (bytes) =>
+  btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+
+const randomText = () => base64Url(crypto.getRandomValues(new Uint8Array(32)))
+
+async function sha256Url(text) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return base64Url(new Uint8Array(digest))
+}
+
+const refusal = (description) => {
+  const code = String(description ?? '').match(/AADSTS\d+/)?.[0]
+  return code ? `${t('entraRefused')} (${code}).` : `${t('entraRefused')}.`
+}
+
+async function startEntra() {
+  const oidc = state.info.auth.oidc
+  const pending = { verifier: randomText(), state: randomText(), nonce: randomText(), lang: locale }
+  try {
+    sessionStorage.setItem(PKCE_KEY, JSON.stringify(pending))
+  } catch {
+    /* without storage the callback cannot be checked; it fails safely */
+  }
+  const url = new URL(oidc.authorizationEndpoint)
+  url.search = new URLSearchParams({
+    client_id: oidc.clientId,
+    response_type: 'code',
+    redirect_uri: redirectUri(),
+    response_mode: 'query',
+    scope: oidc.scopes.join(' '),
+    state: pending.state,
+    nonce: pending.nonce,
+    code_challenge: await sha256Url(pending.verifier),
+    code_challenge_method: 'S256',
+    prompt: 'select_account'
+  }).toString()
+  location.assign(url.toString())
+}
+
+async function finishEntra(params) {
+  let pending = null
+  try {
+    pending = JSON.parse(sessionStorage.getItem(PKCE_KEY) ?? 'null')
+    sessionStorage.removeItem(PKCE_KEY)
+  } catch {
+    pending = null
+  }
+  // Drop ?code= from the address bar (and history) right away.
+  const clean = new URL(location.href)
+  clean.search = pending?.lang ? `?lang=${pending.lang}` : ''
+  history.replaceState(null, '', clean.toString())
+
+  if (params.get('error')) return showLogin(refusal(params.get('error_description')))
+  if (!pending || params.get('state') !== pending.state) return showLogin(t('entraMismatch'))
+  try {
+    const oidc = state.info.auth.oidc
+    const res = await fetch(oidc.tokenEndpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: oidc.clientId,
+        grant_type: 'authorization_code',
+        code: params.get('code') ?? '',
+        redirect_uri: redirectUri(),
+        code_verifier: pending.verifier,
+        scope: oidc.scopes.join(' ')
+      })
+    })
+    const tokens = await res.json().catch(() => ({}))
+    if (!res.ok || !tokens.id_token) return showLogin(refusal(tokens.error_description))
+    const session = await raw('POST', '/api/v1/auth/oidc/login', {
+      idToken: tokens.id_token,
+      nonce: pending.nonce
+    })
+    accessToken = session.accessToken
+    storage.set(session.refreshToken)
+    await showApp()
+  } catch (e) {
+    showLogin(e.message)
+  }
 }
 
 function showLogin(message) {
   accessToken = null
   const devMode = state.info?.auth?.modes?.includes('dev')
+  const entra = Boolean(state.info?.auth?.oidc?.authorizationEndpoint)
   const error = h('p', { class: 'error', role: 'alert', testid: 'login-error' }, message ?? '')
   const email = h('input', { id: 'email', type: 'email', required: true, autocomplete: 'email' })
   const form = h(
@@ -343,8 +459,21 @@ function showLogin(message) {
         }
       }
     },
+    entra ? h('p', { class: 'hint' }, t('orDev')) : null,
     h('div', { class: 'field' }, h('label', { for: 'email' }, t('email')), email),
     h('button', { class: 'btn primary', type: 'submit' }, t('signIn'))
+  )
+  const microsoft = h(
+    'button',
+    {
+      class: 'btn primary',
+      type: 'button',
+      onclick: () =>
+        startEntra().catch((e) => {
+          error.textContent = e.message
+        })
+    },
+    t('entraButton')
   )
   mount(
     h(
@@ -354,14 +483,16 @@ function showLogin(message) {
         'div',
         { class: 'panel login' },
         h('h1', {}, state.info?.name ?? 'North Server'),
-        h('p', { class: 'hint' }, t(devMode ? 'signInHint' : 'entraSoon')),
+        h('p', { class: 'hint' }, t(entra ? 'entraHint' : devMode ? 'signInHint' : 'noSignIn')),
+        entra ? microsoft : null,
         devMode ? form : null,
         devMode ? h('p', { class: 'hint' }, t('devNotice')) : null,
         error
       )
     )
   )
-  if (devMode) email.focus()
+  if (entra) microsoft.focus()
+  else if (devMode) email.focus()
 }
 
 async function signOut() {

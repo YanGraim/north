@@ -630,6 +630,19 @@ function createWorkspacesMock(
   const signedOut = new Set(mode === 'org-signed-out' ? ['acme'] : [])
   let active = LOCAL_WORKSPACE_ID
   const activations: string[] = []
+  let entraWait: { resolve: (email: string) => void; reject: (error: Error) => void } | null = null
+  const entraOpened: string[] = []
+  const hooks = window as unknown as {
+    __e2eEntraOpened: string[]
+    /** Plays Microsoft: sign in as `email`, or refuse with an Entra error. */
+    __e2eFinishEntra: (result: { email: string } | { error: string }) => void
+  }
+  hooks.__e2eEntraOpened = entraOpened
+  hooks.__e2eFinishEntra = (result) => {
+    if ('email' in result) entraWait?.resolve(result.email)
+    else entraWait?.reject(new Error(result.error))
+    entraWait = null
+  }
   ;(window as unknown as { __e2eWorkspaceActivations: string[] }).__e2eWorkspaceActivations =
     activations
 
@@ -653,17 +666,41 @@ function createWorkspacesMock(
       if (url.includes('down')) {
         throw new Error(`O servidor ${url} não respondeu. Confira o endereço e a sua rede/VPN.`)
       }
+      if (url.includes('nologin'))
+        return { name: 'Odd', version: '0.1.0', authModes: ['ldap'], entra: false }
       if (url.includes('entra'))
-        return { name: 'Entra Org', version: '0.1.0', authModes: ['entra'] }
-      return { name: 'Acme Corp', version: '0.1.0', authModes: ['dev'] }
+        return { name: 'Entra Org', version: '0.1.0', authModes: ['entra'], entra: true }
+      if (url.includes('both'))
+        return { name: 'Acme Corp', version: '0.1.0', authModes: ['dev', 'entra'], entra: true }
+      return { name: 'Acme Corp', version: '0.1.0', authModes: ['dev'], entra: false }
+    },
+    cancelSignIn: async () => {
+      entraWait?.reject(new Error('Login cancelado.'))
+      entraWait = null
     },
     addOrganization: async ({ serverUrl, email }) => {
       const url = normalize(serverUrl)
-      if (url.includes('entra')) {
-        throw new Error(
-          'Este servidor usa login corporativo (Entra ID), que chega em breve no North.'
-        )
+      if (!email) {
+        // Main would open the system browser; the test plays Microsoft via __e2eFinishEntra.
+        entraOpened.push(url)
+        const signedIn = await new Promise<string>((resolve, reject) => {
+          entraWait = { resolve, reject }
+        })
+        const existing = rows.find((w) => w.serverUrl === url)
+        if (existing) return existing
+        const row: Workspace = {
+          id: 'entra-org-e2e',
+          name: 'Entra Org',
+          kind: 'organization',
+          serverUrl: url,
+          userEmail: signedIn,
+          createdAt: ts
+        }
+        rows.push(row)
+        return row
       }
+      if (url.includes('entra'))
+        throw new Error('Este servidor só aceita login pela Microsoft (Entra ID).')
       if (email.startsWith('blocked@')) throw new Error('Usuário desativado nesta organização')
       const existing = rows.find((w) => w.serverUrl === url)
       if (existing) return existing

@@ -2,6 +2,7 @@ import {
   type AddOrganizationInput,
   FULL_ACCESS,
   LOCAL_WORKSPACE_ID,
+  type OrganizationServerInfo,
   type Workspace,
   type WorkspaceAccess,
   WorkspaceAccessSchema,
@@ -12,6 +13,7 @@ import type { Repositories } from '../repositories'
 import type { WorkspacesRepository } from '../repositories/workspaces-repository'
 import type { CredentialVault } from '../vault'
 import { type InventoryStore, localInventoryStore } from './inventory-store'
+import { signInWithBrowser } from './oidc-sign-in'
 import {
   normalizeServerUrl,
   OrganizationClient,
@@ -130,6 +132,8 @@ export class WorkspaceRegistry {
   private active: { workspace: Workspace; source: WorkspaceDataSource }
   private readonly liveEvents: boolean
   private listener: ((event: WorkspaceEvent) => void) | null = null
+  private readonly openBrowser: (url: string) => Promise<void> | void
+  private signIn: AbortController | null = null
 
   constructor(deps: {
     workspaces: WorkspacesRepository
@@ -137,7 +141,14 @@ export class WorkspaceRegistry {
     vault: CredentialVault
     /** Open each organization's events channel (off in tests that don't need it). */
     liveEvents?: boolean
+    /** Opens the Microsoft sign-in page in the system browser (shell.openExternal). */
+    openBrowser?: (url: string) => Promise<void> | void
   }) {
+    this.openBrowser =
+      deps.openBrowser ??
+      (() => {
+        throw new Error('Login pela Microsoft indisponível aqui.')
+      })
     this.liveEvents = deps.liveEvents ?? true
     this.workspaces = deps.workspaces
     this.vault = deps.vault
@@ -227,25 +238,53 @@ export class WorkspaceRegistry {
     return WorkspaceAccessSchema.parse(await source.client.request('GET', '/api/v1/me/access'))
   }
 
-  async probe(serverUrl: string) {
-    return probeServer(serverUrl)
+  async probe(serverUrl: string): Promise<OrganizationServerInfo> {
+    const { oidc, ...info } = await probeServer(serverUrl)
+    return { ...info, entra: info.authModes.includes('entra') && oidc !== null }
+  }
+
+  /** Stops waiting for the browser (the person closed it or pressed Cancel). */
+  cancelSignIn(): void {
+    this.signIn?.abort()
+    this.signIn = null
   }
 
   /** Signs in to a North Server and remembers it; signing in again reuses the workspace. */
   async addOrganization(input: AddOrganizationInput): Promise<Workspace> {
     const serverUrl = normalizeServerUrl(input.serverUrl)
     const info = await probeServer(serverUrl)
-    if (!info.authModes.includes('dev')) {
-      throw new Error(
-        'Este servidor usa login corporativo (Entra ID), que chega em breve no North.'
-      )
+    const email = input.email
+    let entra: { idToken: string; nonce: string } | null = null
+    if (email) {
+      if (!info.authModes.includes('dev')) {
+        throw new Error('Este servidor só aceita login pela Microsoft (Entra ID).')
+      }
+    } else {
+      if (!info.authModes.includes('entra') || !info.oidc) {
+        throw new Error('Este servidor não tem login pela Microsoft configurado.')
+      }
+      this.signIn?.abort()
+      const controller = new AbortController()
+      this.signIn = controller
+      try {
+        // Browser first: nothing is saved until Microsoft says who this is.
+        entra = await signInWithBrowser(info.oidc, {
+          openBrowser: this.openBrowser,
+          signal: controller.signal
+        })
+      } finally {
+        if (this.signIn === controller) this.signIn = null
+      }
     }
     const existing = this.workspaces.findByServerUrl(serverUrl)
     const workspace =
       existing ??
-      this.workspaces.createOrganization({ name: info.name, serverUrl, userEmail: input.email })
+      this.workspaces.createOrganization({ name: info.name, serverUrl, userEmail: email ?? null })
     try {
-      const user = await this.remoteFor(workspace).client.devLogin(input.email, input.name)
+      const client = this.remoteFor(workspace).client
+      const user = entra
+        ? await client.oidcLogin(entra.idToken, entra.nonce)
+        : await client.devLogin(email as string, input.name)
       this.workspaces.setUserEmail(workspace.id, user.email)
     } catch (error) {
       if (!existing) this.forget(workspace.id)

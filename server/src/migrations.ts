@@ -186,6 +186,14 @@ export const migrations: Migration[] = [
       );
       CREATE INDEX idx_project_grants_scope ON project_grants(scope_id);
     `
+  },
+  {
+    version: 4,
+    name: '004-external-identity',
+    sql: `
+      -- Entra object id (ADR 0018 fase 0): stable per person, unlike the e-mail.
+      ALTER TABLE users ADD COLUMN external_id TEXT UNIQUE;
+    `
   }
 ]
 

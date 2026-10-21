@@ -14,7 +14,8 @@ export const TEST_CONFIG: ServerConfig = {
   port: 0,
   host: '127.0.0.1',
   organizationName: 'Acme Test',
-  masterKey: Buffer.alloc(32, 42)
+  masterKey: Buffer.alloc(32, 42),
+  oidc: null
 }
 
 let template: Promise<PGlite> | null = null

@@ -33,6 +33,15 @@ export default defineConfig({
       url: 'http://127.0.0.1:5181/healthz',
       reuseExistingServer: false,
       timeout: 60_000
+    },
+    {
+      // Same, with "Sign in with Microsoft" through a fake Entra on :5184.
+      command: 'npx tsx src/dev-pglite.ts',
+      cwd: 'server',
+      env: { PORT: '5183', NORTH_FAKE_ENTRA: '5184' },
+      url: 'http://127.0.0.1:5183/healthz',
+      reuseExistingServer: false,
+      timeout: 60_000
     }
   ]
 })

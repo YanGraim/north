@@ -3,7 +3,9 @@ import { loadConfig } from './config'
 
 const base = {
   DATABASE_URL: 'postgres://north:north@localhost:5432/north',
-  NORTH_JWT_SECRET: 'x'.repeat(32)
+  NORTH_JWT_SECRET: 'x'.repeat(32),
+  NORTH_OIDC_TENANT_ID: '0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0',
+  NORTH_OIDC_CLIENT_ID: 'c1d2e3f4-0000-1111-2222-333344445555'
 }
 
 describe('loadConfig', () => {
@@ -72,5 +74,49 @@ describe('loadConfig', () => {
     expect(
       loadConfig({ ...prod, NORTH_MASTER_KEY: Buffer.alloc(32).toString('base64') }).masterKey
     ).not.toBeNull()
+  })
+
+  describe('Entra sign-in', () => {
+    it('derives the Microsoft issuer from the tenant id', () => {
+      expect(loadConfig(base).oidc).toEqual({
+        issuer: 'https://login.microsoftonline.com/0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0/v2.0',
+        clientId: 'c1d2e3f4-0000-1111-2222-333344445555',
+        tenantId: '0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0',
+        adminGroups: [],
+        allowNewUsers: true
+      })
+    })
+
+    it('needs the client id and the tenant id', () => {
+      expect(() => loadConfig({ ...base, NORTH_OIDC_CLIENT_ID: '' })).toThrow(
+        /NORTH_OIDC_CLIENT_ID/
+      )
+      expect(() => loadConfig({ ...base, NORTH_OIDC_TENANT_ID: undefined })).toThrow(
+        /NORTH_OIDC_TENANT_ID/
+      )
+      expect(() => loadConfig({ ...base, NORTH_OIDC_TENANT_ID: 'acme.onmicrosoft.com' })).toThrow(
+        /Directory \(tenant\) ID/
+      )
+    })
+
+    it('is off when only the dev mode is on', () => {
+      expect(loadConfig({ ...base, NORTH_AUTH_MODES: 'dev' }).oidc).toBeNull()
+    })
+
+    it('reads admin groups, the invite-only switch and a custom issuer', () => {
+      const oidc = loadConfig({
+        ...base,
+        NORTH_OIDC_TENANT_ID: undefined,
+        NORTH_OIDC_ISSUER: 'http://127.0.0.1:9999/t/v2.0/',
+        NORTH_OIDC_ADMIN_GROUPS: ' g1 , g2 ',
+        NORTH_OIDC_ALLOW_NEW_USERS: '0'
+      }).oidc
+      expect(oidc).toMatchObject({
+        issuer: 'http://127.0.0.1:9999/t/v2.0',
+        tenantId: null,
+        adminGroups: ['g1', 'g2'],
+        allowNewUsers: false
+      })
+    })
   })
 })

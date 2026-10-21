@@ -31,15 +31,22 @@ export const WorkspaceSchema = z
 
 export type Workspace = z.infer<typeof WorkspaceSchema>
 
+/** With an e-mail: dev sign-in. Without: Entra in the system browser (ADR 0018 fase 0). */
 export const AddOrganizationInputSchema = z.object({
   serverUrl: z.string().min(1).max(500),
-  email: z.string().email(),
+  email: z.string().email().optional(),
   name: z.string().max(200).optional()
 })
 
 export type AddOrganizationInput = z.infer<typeof AddOrganizationInputSchema>
 
-export type OrganizationServerInfo = { name: string; version: string; authModes: string[] }
+export type OrganizationServerInfo = {
+  name: string
+  version: string
+  authModes: string[]
+  /** Only what the UI needs: whether Entra sign-in is offered. */
+  entra: boolean
+}
 
 /** Push from an organization's North Server, relayed by main (ADR 0018 fase 5). */
 export type WorkspaceEvent =

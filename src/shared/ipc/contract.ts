@@ -160,6 +160,7 @@ export interface IpcInvokeMap {
 
   [IpcChannels.WORKSPACES_LIST]: { args: []; result: Workspace[] }
   [IpcChannels.WORKSPACES_ACTIVATE]: { args: [id: string]; result: Workspace }
+  [IpcChannels.WORKSPACES_CANCEL_SIGN_IN]: { args: []; result: void }
   [IpcChannels.WORKSPACES_PROBE]: { args: [serverUrl: string]; result: OrganizationServerInfo }
   [IpcChannels.WORKSPACES_ADD_ORGANIZATION]: {
     args: [input: AddOrganizationInput]
@@ -741,6 +742,8 @@ export interface NorthApi {
     probe: (serverUrl: string) => Promise<OrganizationServerInfo>
     /** Signs in (tokens stay in main) and saves the organization; signing in again reuses it. */
     addOrganization: (input: AddOrganizationInput) => Promise<Workspace>
+    /** Stops waiting for the Microsoft sign-in in the browser. */
+    cancelSignIn: () => Promise<void>
     /** Signs out and forgets an organization (never the personal workspace). */
     remove: (id: string) => Promise<void>
     /** Role and project grants in the active workspace, to hide what the user cannot do. */
