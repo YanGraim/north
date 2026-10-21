@@ -130,6 +130,8 @@ export class OpenVpnDriver implements VpnDriver {
   private run: HelperRun | null = null
   /** from here on openvpn's log arrives over management too */
   private managementLogging = false
+  /** the helper streams openvpn's stdout; otherwise management is the only log source */
+  private stdoutFeed = false
   private readonly settingsFilter = createSettingsFilter()
 
   constructor(private readonly deps: OpenVpnDriverDeps) {}
@@ -163,6 +165,7 @@ export class OpenVpnDriver implements VpnDriver {
     }
 
     this.profileId = profile.id
+    this.socket = null
     mkdirSync(this.deps.tmpDir, { recursive: true, mode: 0o700 })
     const token = randomBytes(8).toString('hex')
     const configPath = join(this.deps.tmpDir, `${profile.id}-${token}.ovpn`)
@@ -186,6 +189,7 @@ export class OpenVpnDriver implements VpnDriver {
     let exited: Promise<{ code: number | null; error?: VpnError }>
     if (this.deps.helper && !refusal) {
       await this.deps.helper.ensure({ openvpn: true })
+      this.stdoutFeed = true
       this.run = this.deps.helper.startOpenvpn(
         { port, managementPassword: mgmtPassword, ovpn: fullConfig },
         (chunk) => {
@@ -217,7 +221,9 @@ export class OpenVpnDriver implements VpnDriver {
         '--auth-retry',
         'none'
       ]
+      this.stdoutFeed = false
       exited = this.deps.broker.launch(binary, args).exited
+      log('[north] OpenVPN iniciado; aguardando a interface de controle')
     }
     this.exited = exited.then((result) => {
       this.hasExited = true
@@ -238,7 +244,15 @@ export class OpenVpnDriver implements VpnDriver {
     let timer: NodeJS.Timeout | undefined
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(
-        () => reject(new VpnError('TIMEOUT', 'O servidor VPN não respondeu a tempo')),
+        () =>
+          reject(
+            new VpnError(
+              'TIMEOUT',
+              this.socket
+                ? 'O servidor VPN não respondeu a tempo'
+                : 'O OpenVPN não abriu a interface de controle a tempo'
+            )
+          ),
         handshakeMs
       )
     })
@@ -287,6 +301,7 @@ export class OpenVpnDriver implements VpnDriver {
   ): Promise<VpnTunnelInfo> {
     const socket = await this.connectManagement(port)
     this.socket = socket
+    if (!this.stdoutFeed) log('[north] interface de controle conectada')
     const send = (line: string) => {
       if (!socket.destroyed) socket.write(`${line}\n`)
     }
@@ -310,7 +325,8 @@ export class OpenVpnDriver implements VpnDriver {
               break
             case 'hold':
               send('state on')
-              send('log on')
+              // without a stdout feed, replay what openvpn logged before we attached
+              send(this.stdoutFeed ? 'log on' : 'log on all')
               this.managementLogging = true
               send('pid')
               send('hold release')
