@@ -61,9 +61,9 @@ test.describe('viewer', () => {
     await expect(newClientButton(page)).toHaveCount(0)
   })
 
-  test('right-clicking a project offers nothing to change', async ({ page }) => {
+  test('right-clicking a project offers nothing to change, only copying out', async ({ page }) => {
     await openDetails(page, 'viewer')
-    expect(await treeMenu(page, 'Acme Cloud')).toEqual([])
+    expect(await treeMenu(page, 'Acme Cloud')).toEqual(['Copiar para workspace…'])
   })
 
   test('the connection menu keeps favorite and copy, not edit', async ({ page }) => {
@@ -86,7 +86,7 @@ test.describe('editor of a group', () => {
   test('adds connections to the group, but not clients or environments', async ({ page }) => {
     await openDetails(page, 'editor')
     await expect(newClientButton(page)).toHaveCount(0)
-    expect(await treeMenu(page, 'Acme Cloud')).toEqual([])
+    expect(await treeMenu(page, 'Acme Cloud')).toEqual(['Copiar para workspace…'])
     await page.getByRole('link', { name: 'Acme Cloud', exact: true }).first().click()
     await page.getByRole('link', { name: 'Produção', exact: true }).first().click()
     expect(await treeMenu(page, 'Kubernetes')).toEqual(

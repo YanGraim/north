@@ -5,6 +5,7 @@ import { DatabaseConnectionFormDialog } from '@renderer/features/inventory/Datab
 import { EnvironmentFormDialog } from '@renderer/features/inventory/EnvironmentFormDialog'
 import { GroupFormDialog } from '@renderer/features/inventory/GroupFormDialog'
 import { TagFormDialog } from '@renderer/features/inventory/TagFormDialog'
+import { CopyToWorkspaceDialog } from '@renderer/features/workspaces/CopyToWorkspaceDialog'
 
 export function InventoryDialogs(): React.JSX.Element {
   return (
@@ -16,6 +17,7 @@ export function InventoryDialogs(): React.JSX.Element {
       <ConnectionFormDialog />
       <AccessFormDialog />
       <DatabaseConnectionFormDialog />
+      <CopyToWorkspaceDialog />
     </>
   )
 }

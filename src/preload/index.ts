@@ -102,6 +102,9 @@ const api: NorthApi = {
     probe: (serverUrl) => ipcRenderer.invoke(IpcChannels.WORKSPACES_PROBE, serverUrl),
     addOrganization: (input) => ipcRenderer.invoke(IpcChannels.WORKSPACES_ADD_ORGANIZATION, input),
     cancelSignIn: () => ipcRenderer.invoke(IpcChannels.WORKSPACES_CANCEL_SIGN_IN),
+    copyTargets: (workspaceId) =>
+      ipcRenderer.invoke(IpcChannels.WORKSPACES_COPY_TARGETS, workspaceId),
+    copy: (input) => ipcRenderer.invoke(IpcChannels.WORKSPACES_COPY, input),
     remove: (id) => ipcRenderer.invoke(IpcChannels.WORKSPACES_REMOVE, id),
     access: () => ipcRenderer.invoke(IpcChannels.WORKSPACES_ACCESS),
     onEvent: (listener) => {

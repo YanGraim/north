@@ -23,7 +23,7 @@ import { Separator } from '@renderer/components/ui/separator'
 import { Switch } from '@renderer/components/ui/switch'
 import { useAppVersion } from '@renderer/hooks/use-app-version'
 import { useLocalProfile } from '@renderer/hooks/use-local-profile'
-import { useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
+import { useCurrentWorkspace, useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
 import {
   downloadCsvTemplate,
   exportInventory,
@@ -106,6 +106,8 @@ export function SettingsPage(): React.JSX.Element {
     'export' | 'import' | 'importCsv' | 'template' | 'check' | 'install' | null
   >(null)
   const [csvSecretsOpen, setCsvSecretsOpen] = useState(false)
+  // JSON backup is a personal-workspace tool; an organization takes CSV (servers only).
+  const inOrganization = useCurrentWorkspace()?.kind === 'organization'
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
   const updatesDisabled = updatesLikelyDisabledInDev()
   const [launchAtLogin, setLaunchAtLogin] = useState<boolean | null>(null)
@@ -410,31 +412,40 @@ export function SettingsPage(): React.JSX.Element {
             title={t('settings.inventory.title')}
             description={t('settings.inventory.description')}
           >
+            {inOrganization ? (
+              <p className="mb-2 text-xs text-muted" data-testid="org-csv-hint">
+                {t('settings.inventory.organizationHint')}
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={busy !== null}
-                onClick={() => void onImport()}
-              >
-                <Upload className="size-3.5" />
-                {busy === 'import'
-                  ? t('settings.inventory.importing')
-                  : t('settings.inventory.import')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={busy !== null}
-                onClick={() => void onExport()}
-              >
-                <Download className="size-3.5" />
-                {busy === 'export'
-                  ? t('settings.inventory.exporting')
-                  : t('settings.inventory.export')}
-              </Button>
+              {inOrganization ? null : (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={busy !== null}
+                    onClick={() => void onImport()}
+                  >
+                    <Upload className="size-3.5" />
+                    {busy === 'import'
+                      ? t('settings.inventory.importing')
+                      : t('settings.inventory.import')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={busy !== null}
+                    onClick={() => void onExport()}
+                  >
+                    <Download className="size-3.5" />
+                    {busy === 'export'
+                      ? t('settings.inventory.exporting')
+                      : t('settings.inventory.export')}
+                  </Button>
+                </>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -465,7 +476,11 @@ export function SettingsPage(): React.JSX.Element {
               <AlertDialogHeader>
                 <AlertDialogTitle>{t('settings.inventory.csvSecretsTitle')}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  {t('settings.inventory.csvSecretsDescription')}
+                  {t(
+                    inOrganization
+                      ? 'settings.inventory.csvSecretsDescriptionOrganization'
+                      : 'settings.inventory.csvSecretsDescription'
+                  )}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">

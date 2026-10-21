@@ -10,11 +10,12 @@ import { BrowserWindow, dialog, ipcMain } from 'electron'
 import type { Repositories } from '../repositories'
 import { importInventoryCsv } from '../services/inventory-csv-import'
 import { buildInventoryExport, importInventory } from '../services/inventory-json'
-import type { CredentialVault } from '../vault'
+import type { WorkspaceDataSource } from '../workspaces/workspace-registry'
 
 export function registerInventoryHandlers(
   repositories: Repositories,
-  vault: CredentialVault
+  /** Where a CSV import lands: the active workspace (personal or organization). */
+  activeSource: () => WorkspaceDataSource
 ): void {
   ipcMain.handle(IpcChannels.INVENTORY_EXPORT, async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
@@ -105,7 +106,16 @@ export function registerInventoryHandlers(
       }
 
       const raw = await readFile(result.filePaths[0], 'utf8')
-      const report = importInventoryCsv(repositories, raw, { allowSecrets }, vault)
+      const source = activeSource()
+      const report = await importInventoryCsv(
+        {
+          inventory: source.inventory,
+          secrets: source.secrets,
+          accesses: source.kind === 'local' ? source.repositories.accesses : null
+        },
+        raw,
+        { allowSecrets }
+      )
       return { canceled: false, report }
     }
   )

@@ -337,6 +337,12 @@ export {
 export {
   type AddOrganizationInput,
   AddOrganizationInputSchema,
+  type CopyItemKind,
+  CopyItemKindSchema,
+  type CopyTargetTree,
+  type CopyToWorkspaceInput,
+  CopyToWorkspaceInputSchema,
+  type CopyToWorkspaceReport,
   LOCAL_WORKSPACE_ID,
   type OrganizationServerInfo,
   type Workspace,

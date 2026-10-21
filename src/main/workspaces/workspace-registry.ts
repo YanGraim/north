@@ -1,5 +1,8 @@
 import {
   type AddOrganizationInput,
+  type CopyTargetTree,
+  type CopyToWorkspaceInput,
+  type CopyToWorkspaceReport,
   FULL_ACCESS,
   LOCAL_WORKSPACE_ID,
   type OrganizationServerInfo,
@@ -23,6 +26,7 @@ import {
 import { OrganizationEvents } from './organization-events'
 import { ORGANIZATION_UNAVAILABLE, RemoteInventoryStore } from './remote-inventory-store'
 import { localSecretStore, RemoteSecretStore, type SecretStore } from './secret-store'
+import { type CopySide, copyTargets, copyToWorkspace } from './workspace-copy'
 
 /**
  * Where a workspace's data lives (ADR 0018 §10). The inventory tree goes
@@ -241,6 +245,37 @@ export class WorkspaceRegistry {
   async probe(serverUrl: string): Promise<OrganizationServerInfo> {
     const { oidc, ...info } = await probeServer(serverUrl)
     return { ...info, entra: info.authModes.includes('entra') && oidc !== null }
+  }
+
+  /** Where a copy can land in another workspace (ADR 0018 §4). */
+  async copyTargets(workspaceId: string): Promise<CopyTargetTree> {
+    return copyTargets((await this.copySide(workspaceId)).inventory)
+  }
+
+  /** "Copiar para workspace…": from the active workspace into another one. */
+  async copyToWorkspace(input: CopyToWorkspaceInput): Promise<CopyToWorkspaceReport> {
+    if (input.targetWorkspaceId === this.active.workspace.id) {
+      throw new Error('Escolha outro workspace para a cópia')
+    }
+    const source = await this.copySide(this.active.workspace.id)
+    const target = await this.copySide(input.targetWorkspaceId)
+    return copyToWorkspace(source, target, input)
+  }
+
+  private async copySide(id: string): Promise<CopySide> {
+    const workspace = this.workspaces.get(WorkspaceIdSchema.parse(id))
+    if (!workspace) throw new Error(`Workspace ${id} not found`)
+    if (workspace.kind === 'local') {
+      return {
+        inventory: this.local.inventory,
+        secrets: this.local.secrets,
+        repositories: this.local.repositories
+      }
+    }
+    const source = this.remoteFor(workspace)
+    // Signed out of that organization → the usual "entre de novo" error, before copying anything.
+    await source.client.request('GET', '/api/v1/me')
+    return { inventory: source.inventory, secrets: source.secrets, repositories: null }
   }
 
   /** Stops waiting for the browser (the person closed it or pressed Cancel). */

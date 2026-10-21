@@ -130,6 +130,9 @@ import type {
 } from '../types/vpn'
 import type {
   AddOrganizationInput,
+  CopyTargetTree,
+  CopyToWorkspaceInput,
+  CopyToWorkspaceReport,
   OrganizationServerInfo,
   Workspace,
   WorkspaceEvent
@@ -161,6 +164,11 @@ export interface IpcInvokeMap {
   [IpcChannels.WORKSPACES_LIST]: { args: []; result: Workspace[] }
   [IpcChannels.WORKSPACES_ACTIVATE]: { args: [id: string]; result: Workspace }
   [IpcChannels.WORKSPACES_CANCEL_SIGN_IN]: { args: []; result: void }
+  [IpcChannels.WORKSPACES_COPY_TARGETS]: { args: [workspaceId: string]; result: CopyTargetTree }
+  [IpcChannels.WORKSPACES_COPY]: {
+    args: [input: CopyToWorkspaceInput]
+    result: CopyToWorkspaceReport
+  }
   [IpcChannels.WORKSPACES_PROBE]: { args: [serverUrl: string]; result: OrganizationServerInfo }
   [IpcChannels.WORKSPACES_ADD_ORGANIZATION]: {
     args: [input: AddOrganizationInput]
@@ -744,6 +752,10 @@ export interface NorthApi {
     addOrganization: (input: AddOrganizationInput) => Promise<Workspace>
     /** Stops waiting for the Microsoft sign-in in the browser. */
     cancelSignIn: () => Promise<void>
+    /** Clients/environments/groups of another workspace, to pick where a copy lands. */
+    copyTargets: (workspaceId: string) => Promise<CopyTargetTree>
+    /** "Copiar para workspace…": a new, unlinked copy (passwords only when asked). */
+    copy: (input: CopyToWorkspaceInput) => Promise<CopyToWorkspaceReport>
     /** Signs out and forgets an organization (never the personal workspace). */
     remove: (id: string) => Promise<void>
     /** Role and project grants in the active workspace, to hide what the user cannot do. */

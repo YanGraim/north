@@ -5,6 +5,9 @@ import type {
   Client,
   Connection,
   ConnectionSecret,
+  CopyTargetTree,
+  CopyToWorkspaceInput,
+  CopyToWorkspaceReport,
   CopyWorkflowInput,
   CreateGroupVariableInput,
   CreateWorkflowInput,
@@ -576,6 +579,8 @@ type WorkspacesMock = {
   addOrganization: (input: AddOrganizationInput) => Promise<Workspace>
   remove: (id: string) => Promise<void>
   access: () => Promise<WorkspaceAccess>
+  copyTargets: (workspaceId: string) => Promise<CopyTargetTree>
+  copy: (input: CopyToWorkspaceInput) => Promise<CopyToWorkspaceReport>
   /** Harness-only: which workspace the overlay serves. */
   activeKind: () => 'local' | 'organization'
   /** Harness-only: the signed-in user's role in the organization (`?role=`). */
@@ -632,6 +637,8 @@ function createWorkspacesMock(
   const activations: string[] = []
   let entraWait: { resolve: (email: string) => void; reject: (error: Error) => void } | null = null
   const entraOpened: string[] = []
+  const copies: CopyToWorkspaceInput[] = []
+  ;(window as unknown as { __e2eCopies: CopyToWorkspaceInput[] }).__e2eCopies = copies
   const hooks = window as unknown as {
     __e2eEntraOpened: string[]
     /** Plays Microsoft: sign in as `email`, or refuse with an Entra error. */
@@ -673,6 +680,38 @@ function createWorkspacesMock(
       if (url.includes('both'))
         return { name: 'Acme Corp', version: '0.1.0', authModes: ['dev', 'entra'], entra: true }
       return { name: 'Acme Corp', version: '0.1.0', authModes: ['dev'], entra: false }
+    },
+    // "Copiar para workspace…": calls land on window.__e2eCopies; `?copy=fail` refuses.
+    copyTargets: async (workspaceId) =>
+      workspaceId === 'acme'
+        ? {
+            clients: [{ id: ORG_IDS.client, name: 'Acme Cloud' }],
+            environments: [{ id: ORG_IDS.env, name: 'Produção', clientId: ORG_IDS.client }],
+            groups: [{ id: ORG_IDS.group, name: 'Kubernetes', environmentId: ORG_IDS.env }]
+          }
+        : { clients: [], environments: [], groups: [] },
+    copy: async (input) => {
+      copies.push(input)
+      if (new URLSearchParams(location.search).get('copy') === 'fail') {
+        throw new Error('Only admins can do this')
+      }
+      const one = (kind: string) => (input.kind === kind ? 1 : 0)
+      return {
+        created: {
+          clients: one('client'),
+          environments: one('environment'),
+          groups: one('group'),
+          connections: 2
+        },
+        passwordsCopied: input.includePasswords ? 1 : 0,
+        warnings:
+          input.kind === 'connection'
+            ? []
+            : [
+                '1 acesso(s) de banco/login ficaram de fora: a organização ainda não guarda acessos'
+              ],
+        root: { kind: input.kind, id: 'e9000000-0000-4000-8000-000000000009' }
+      }
     },
     cancelSignIn: async () => {
       entraWait?.reject(new Error('Login cancelado.'))

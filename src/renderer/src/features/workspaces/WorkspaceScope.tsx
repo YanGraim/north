@@ -33,6 +33,11 @@ function clientFor(workspaceId: string): QueryClient {
   return client
 }
 
+/** Drops another workspace's cached reads (after copying into it), so it refetches on open. */
+export function invalidateWorkspaceCache(workspaceId: string): void {
+  void workspaceClients.get(workspaceId)?.invalidateQueries()
+}
+
 /** Every workspace cache opened so far (tests / global refreshes). */
 export function workspaceQueryClients(): QueryClient[] {
   return [...workspaceClients.values()]

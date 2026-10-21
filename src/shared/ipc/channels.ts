@@ -14,6 +14,8 @@ export const IpcChannels = {
   WORKSPACES_PROBE: 'workspaces:probe',
   WORKSPACES_ADD_ORGANIZATION: 'workspaces:add-organization',
   WORKSPACES_CANCEL_SIGN_IN: 'workspaces:cancel-sign-in',
+  WORKSPACES_COPY_TARGETS: 'workspaces:copy-targets',
+  WORKSPACES_COPY: 'workspaces:copy',
   WORKSPACES_REMOVE: 'workspaces:remove',
   WORKSPACES_ACCESS: 'workspaces:access',
   WORKSPACES_EVENT: 'workspaces:event',

@@ -53,3 +53,33 @@ export type WorkspaceEvent =
   | { workspaceId: string; kind: 'inventory'; entity: string }
   | { workspaceId: string; kind: 'access' }
   | { workspaceId: string; kind: 'signed-out'; reason: 'revoked' | 'expired' }
+
+/** "Copiar para workspace…" (ADR 0018 §4): a new, unlinked copy in another workspace. */
+export const CopyItemKindSchema = z.enum(['client', 'environment', 'group', 'connection'])
+export type CopyItemKind = z.infer<typeof CopyItemKindSchema>
+
+export const CopyToWorkspaceInputSchema = z.object({
+  kind: CopyItemKindSchema,
+  id: z.string().uuid(),
+  targetWorkspaceId: WorkspaceIdSchema,
+  /** Client for an environment, environment for a group, group for a connection; null for a client. */
+  targetParentId: z.string().uuid().nullable(),
+  includePasswords: z.boolean()
+})
+export type CopyToWorkspaceInput = z.infer<typeof CopyToWorkspaceInputSchema>
+
+export type CopyToWorkspaceReport = {
+  created: { clients: number; environments: number; groups: number; connections: number }
+  passwordsCopied: number
+  /** What was left out and why (accesses, a password you may not read, a jump host…). */
+  warnings: string[]
+  /** The new top item, to open it in the target workspace. */
+  root: { kind: CopyItemKind; id: string }
+}
+
+/** Where a copy can land in the target workspace (names only). */
+export type CopyTargetTree = {
+  clients: { id: string; name: string }[]
+  environments: { id: string; name: string; clientId: string }[]
+  groups: { id: string; name: string; environmentId: string }[]
+}

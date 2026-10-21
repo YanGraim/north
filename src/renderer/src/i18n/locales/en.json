@@ -82,6 +82,8 @@
       "importing": "Importing…",
       "exporting": "Exporting…",
       "csvSecretsTitle": "Does this CSV contain passwords?",
+      "organizationHint": "In this organization, CSV brings servers only (database and login accesses stay in My workspace for now). Everything goes to the server and the team sees it right away. JSON backup is for My workspace only.",
+      "csvSecretsDescriptionOrganization": "If the CSV has the senha column filled in, the passwords go encrypted to the organization's North Server, and anyone with access to the project can use them. Without confirming, they are ignored.",
       "csvSecretsDescription": "If the password column is filled, credentials will be stored in the system vault. Confirm only if you trust the file.",
       "csvSecretsConfirm": "Yes, import with passwords",
       "csvSecretsWithout": "Import without passwords"
@@ -803,7 +805,45 @@
     "noProjectsGranted": "No projects shared with you yet. Ask an organization admin for access.",
     "adminPanel": "Open admin panel",
     "revoked": "An admin removed your access to this organization. Its sessions were closed.",
-    "expired": "Your session in this organization ended. Sign in again."
+    "expired": "Your session in this organization ended. Sign in again.",
+    "copy": {
+      "menu": "Copy to workspace…",
+      "title": "Copy “{{name}}”",
+      "description": "Creates a new copy in another workspace. The two stay independent: changing one doesn't change the other.",
+      "target": "To which workspace",
+      "pickWorkspace": "Pick the workspace",
+      "pickParent": "Pick the destination",
+      "parent": {
+        "environment": "Inside which client",
+        "group": "Inside which environment",
+        "connection": "Inside which group"
+      },
+      "empty": {
+        "environment": "That workspace has no clients yet. Copy the whole client or create one there first.",
+        "group": "That workspace has no environments yet. Copy the whole client or create one there first.",
+        "connection": "That workspace has no groups yet. Copy the whole client or create one there first."
+      },
+      "includePasswords": "Copy passwords",
+      "passwordsToOrganization": "Passwords go encrypted to the organization's server, and anyone with access to the project can use them.",
+      "passwordsToLocal": "Passwords stay in this computer's vault.",
+      "passwordsFromOrganization": "Each password read is recorded in the organization's audit. Without permission to view a password, the connection comes without it.",
+      "submit": "Copy",
+      "failed": "Could not copy.",
+      "done": "Done — copied to {{workspace}}.",
+      "open": "Open in {{workspace}}",
+      "close": "Close",
+      "noOther": "You only have My workspace. Add an organization to copy into it.",
+      "clients_one": "{{count}} client",
+      "clients_other": "{{count}} clients",
+      "environments_one": "{{count}} environment",
+      "environments_other": "{{count}} environments",
+      "groups_one": "{{count}} group",
+      "groups_other": "{{count}} groups",
+      "connections_one": "{{count}} connection",
+      "connections_other": "{{count}} connections",
+      "passwords_one": "{{count}} password",
+      "passwords_other": "{{count}} passwords"
+    }
   },
   "sessions": {
     "homeTab": "Panel"

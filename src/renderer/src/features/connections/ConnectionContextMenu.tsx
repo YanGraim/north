@@ -12,12 +12,15 @@ import {
   useToggleFavoriteConnection
 } from '@renderer/hooks/use-connections'
 import { useCanEditConnection } from '@renderer/hooks/use-permissions'
+import { useWorkspaces } from '@renderer/hooks/use-workspaces'
 import { copyToClipboard } from '@renderer/lib/clipboard'
 import { toastError } from '@renderer/lib/toast'
+import { useCopyToWorkspaceStore } from '@renderer/stores/copy-to-workspace-store'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import { openConnectionSession, sessionKindForProtocol } from '@renderer/stores/sessions-store'
 import type { Connection } from '@shared/types'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type ConnectionContextMenuProps = {
   connection: Connection
@@ -35,6 +38,9 @@ export function ConnectionContextMenu({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const canEdit = useCanEditConnection(connection)
+  const { t } = useTranslation()
+  const openCopy = useCopyToWorkspaceStore((s) => s.open)
+  const canCopy = (useWorkspaces().data?.length ?? 0) > 1
 
   async function handleConnect(): Promise<void> {
     setConnecting(true)
@@ -91,6 +97,15 @@ export function ConnectionContextMenu({
           <ContextMenuItem onSelect={() => toggleFavorite.mutate(connection.id)}>
             {connection.isFavorite ? 'Remover dos favoritos' : 'Favoritar'}
           </ContextMenuItem>
+          {canCopy ? (
+            <ContextMenuItem
+              onSelect={() =>
+                openCopy({ kind: 'connection', id: connection.id, name: connection.name })
+              }
+            >
+              {t('workspaces.copy.menu')}
+            </ContextMenuItem>
+          ) : null}
           {canEdit ? (
             <>
               <ContextMenuSeparator />

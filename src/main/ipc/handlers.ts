@@ -128,7 +128,7 @@ export function registerIpcHandlers(): void {
   registerFsHandlers()
   registerSerialHandlers()
   registerStatsHandlers(repositories, inventory)
-  registerInventoryHandlers(repositories, vault)
+  registerInventoryHandlers(repositories, () => registry.activeSource())
   registerUpdateHandlers()
   registerWorkflowHandlers(repositories, vault)
   registerAgentWorkspaceHandlers(repositories)

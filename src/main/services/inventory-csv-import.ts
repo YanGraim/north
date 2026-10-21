@@ -8,8 +8,23 @@ import {
   REQUIRED_CSV_HEADERS
 } from '@shared/types'
 import type { Repositories } from '../repositories'
-import type { CredentialVault } from '../vault'
+import type { InventoryStore } from '../workspaces/inventory-store'
+import type { SecretStore } from '../workspaces/secret-store'
 import { parseCsv } from './csv-parse'
+
+/**
+ * Where the rows land: the active workspace's tree and passwords (SQLite +
+ * vault, or a North Server). Accesses only exist in the personal workspace
+ * for now (ADR 0018), so an organization passes `accesses: null`.
+ */
+export type CsvImportTarget = {
+  inventory: InventoryStore
+  secrets: SecretStore | null
+  accesses: Repositories['accesses'] | null
+}
+
+export const ACCESSES_UNAVAILABLE =
+  'acessos (banco/login) ainda não existem numa organização — importe-os no Meu workspace'
 
 export type ImportCsvOptions = {
   /** When true, non-empty `senha` cells are written to the vault. */
@@ -18,19 +33,19 @@ export type ImportCsvOptions = {
 
 const emptyReport = emptyImportReport
 
-function ensureTags(
-  repositories: Repositories,
+async function ensureTags(
+  inventory: InventoryStore,
   tagIdByName: Map<string, string>,
   names: string[],
   report: ImportReport
-): string[] {
+): Promise<string[]> {
   const ids: string[] = []
   for (const name of names) {
     const key = name.toLowerCase()
     let id = tagIdByName.get(key)
     if (!id) {
       try {
-        const created = repositories.tags.create({ name, color: null })
+        const created = await inventory.tags.create({ name, color: null })
         id = created.id
         tagIdByName.set(key, id)
         report.created.tags += 1
@@ -44,17 +59,17 @@ function ensureTags(
   return ids
 }
 
-function resolveHierarchy(
-  repositories: Repositories,
+async function resolveHierarchy(
+  inventory: InventoryStore,
   report: ImportReport,
   row: InventoryCsvRow,
   lineLabel: string
-): { groupId: string } | null {
-  const existingClients = repositories.clients.list()
+): Promise<{ groupId: string } | null> {
+  const existingClients = await inventory.clients.list()
   let client = existingClients.find((c) => c.name.toLowerCase() === row.cliente.toLowerCase())
   if (!client) {
     try {
-      client = repositories.clients.create({
+      client = await inventory.clients.create({
         name: row.cliente,
         notes: null,
         color: null
@@ -70,11 +85,11 @@ function resolveHierarchy(
     // Count skip only once per distinct name is hard in CSV; we don't increment skip for reuse.
   }
 
-  const existingEnvs = repositories.environments.list(client.id)
+  const existingEnvs = await inventory.environments.list(client.id)
   let environment = existingEnvs.find((e) => e.name.toLowerCase() === row.ambiente.toLowerCase())
   if (!environment) {
     try {
-      environment = repositories.environments.create({
+      environment = await inventory.environments.create({
         clientId: client.id,
         name: row.ambiente,
         notes: null,
@@ -91,11 +106,11 @@ function resolveHierarchy(
     }
   }
 
-  const existingGroups = repositories.groups.list(environment.id)
+  const existingGroups = await inventory.groups.list(environment.id)
   let group = existingGroups.find((g) => g.name.toLowerCase() === row.grupo.toLowerCase())
   if (!group) {
     try {
-      group = repositories.groups.create({
+      group = await inventory.groups.create({
         environmentId: environment.id,
         name: row.grupo,
         notes: null,
@@ -113,13 +128,13 @@ function resolveHierarchy(
   return { groupId: group.id }
 }
 
-function storeSecret(
-  vault: CredentialVault | null,
+async function storeSecret(
+  secrets: SecretStore | null,
   allowSecrets: boolean,
   senha: string | undefined,
   lineLabel: string,
   report: ImportReport
-): string | null {
+): Promise<string | null> {
   if (!senha) return null
   if (!allowSecrets) {
     report.errors.push(
@@ -127,12 +142,12 @@ function storeSecret(
     )
     return null
   }
-  if (!vault) {
+  if (!secrets || !(await secrets.isAvailable())) {
     report.errors.push(`${lineLabel}: vault indisponível para gravar senha`)
     return null
   }
   try {
-    return vault.setSecret(senha)
+    return await secrets.set(senha)
   } catch (error) {
     report.errors.push(
       `${lineLabel}: falha ao gravar senha: ${error instanceof Error ? error.message : 'erro'}`
@@ -145,12 +160,12 @@ function storeSecret(
  * Import inventory rows from a UTF-8 CSV string.
  * Line numbers in errors are 1-based data rows (header = line 1).
  */
-export function importInventoryCsv(
-  repositories: Repositories,
+export async function importInventoryCsv(
+  target: CsvImportTarget,
   content: string,
-  options: ImportCsvOptions,
-  vault: CredentialVault | null = null
-): ImportReport {
+  options: ImportCsvOptions
+): Promise<ImportReport> {
+  const { inventory, secrets, accesses } = target
   const report = emptyReport()
 
   let parsed: ReturnType<typeof parseCsv>
@@ -169,37 +184,50 @@ export function importInventoryCsv(
   }
 
   const tagIdByName = new Map<string, string>()
-  for (const tag of repositories.tags.list()) {
+  for (const tag of await inventory.tags.list()) {
     tagIdByName.set(tag.name.toLowerCase(), tag.id)
   }
 
-  parsed.records.forEach((record, index) => {
+  // Rows run in order: a later row may reuse the client/tag an earlier one created.
+  for (const [index, record] of parsed.records.entries()) {
     const lineNumber = index + 2 // header is line 1
     const lineLabel = `Linha ${lineNumber}`
 
     const validated = parseInventoryCsvRow(record)
     if (!validated.success) {
       report.errors.push(`${lineLabel}: ${validated.error}`)
-      return
+      continue
     }
 
     const row = validated.data
-    const hierarchy = resolveHierarchy(repositories, report, row, lineLabel)
-    if (!hierarchy) return
+    if (row.tipo !== 'servidor' && !accesses) {
+      report.errors.push(`${lineLabel}: ${ACCESSES_UNAVAILABLE}`)
+      continue
+    }
+    const hierarchy = await resolveHierarchy(inventory, report, row, lineLabel)
+    if (!hierarchy) continue
 
     const tagNames = parseTagNames(row.tags)
-    const tagIds = ensureTags(repositories, tagIdByName, tagNames, report)
-    const credentialRef = storeSecret(vault, options.allowSecrets, row.senha, lineLabel, report)
+    const tagIds = await ensureTags(inventory, tagIdByName, tagNames, report)
+    const credentialRef = await storeSecret(
+      secrets,
+      options.allowSecrets,
+      row.senha,
+      lineLabel,
+      report
+    )
 
     try {
       if (row.tipo === 'servidor') {
-        const existing = repositories.connections.list({ groupId: hierarchy.groupId })
+        const existing = await inventory.connections.list({ groupId: hierarchy.groupId })
         if (existing.some((c) => c.name.toLowerCase() === row.nome.toLowerCase())) {
           report.skipped.connections += 1
-          return
+          // The password was stored for nothing; don't leave it behind.
+          if (credentialRef) await secrets?.delete(credentialRef)
+          continue
         }
 
-        const created = repositories.connections.create({
+        const created = await inventory.connections.create({
           groupId: hierarchy.groupId,
           name: row.nome,
           description: null,
@@ -225,20 +253,22 @@ export function importInventoryCsv(
         })
 
         if (tagIds.length > 0) {
-          repositories.tags.setForConnection({ connectionId: created.id, tagIds })
+          await inventory.tags.setForConnection({ connectionId: created.id, tagIds })
         }
         report.created.connections += 1
-        return
+        continue
       }
 
-      const existingAccesses = repositories.accesses.list({ groupId: hierarchy.groupId })
+      const store = accesses as Repositories['accesses']
+      const existingAccesses = store.list({ groupId: hierarchy.groupId })
       if (existingAccesses.some((a) => a.name.toLowerCase() === row.nome.toLowerCase())) {
         report.skipped.accesses += 1
-        return
+        if (credentialRef) await secrets?.delete(credentialRef)
+        continue
       }
 
       if (row.tipo === 'banco') {
-        const created = repositories.accesses.create({
+        const created = store.create({
           groupId: hierarchy.groupId,
           type: 'database',
           name: row.nome,
@@ -258,14 +288,14 @@ export function importInventoryCsv(
           ssl: null
         })
         if (tagIds.length > 0) {
-          repositories.tags.setForAccess({ accessId: created.id, tagIds })
+          await inventory.tags.setForAccess({ accessId: created.id, tagIds })
         }
         report.created.accesses += 1
-        return
+        continue
       }
 
       // login
-      const created = repositories.accesses.create({
+      const created = store.create({
         groupId: hierarchy.groupId,
         type: 'login',
         name: row.nome,
@@ -285,7 +315,7 @@ export function importInventoryCsv(
         ssl: null
       })
       if (tagIds.length > 0) {
-        repositories.tags.setForAccess({ accessId: created.id, tagIds })
+        await inventory.tags.setForAccess({ accessId: created.id, tagIds })
       }
       report.created.accesses += 1
     } catch (error) {
@@ -293,7 +323,7 @@ export function importInventoryCsv(
         `${lineLabel}: ${error instanceof Error ? error.message : 'erro ao criar registro'}`
       )
     }
-  })
+  }
 
   return report
 }

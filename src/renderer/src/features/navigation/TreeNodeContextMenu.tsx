@@ -12,9 +12,12 @@ import { useDeleteEnvironment } from '@renderer/hooks/use-environments'
 import { useDeleteGroup } from '@renderer/hooks/use-groups'
 import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
 import { usePermissions } from '@renderer/hooks/use-permissions'
+import { useWorkspaces } from '@renderer/hooks/use-workspaces'
+import { useCopyToWorkspaceStore } from '@renderer/stores/copy-to-workspace-store'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
 import type { Client, Environment, Group } from '@shared/types'
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type TreeNodeContextMenuProps =
   | { kind: 'client'; client: Client; children: React.ReactNode }
@@ -35,6 +38,10 @@ export function TreeNodeContextMenu(props: TreeNodeContextMenuProps): React.JSX.
   const deleteEnvironment = useDeleteEnvironment()
   const deleteGroup = useDeleteGroup()
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const { t } = useTranslation()
+  const openCopy = useCopyToWorkspaceStore((s) => s.open)
+  // Copying out only reads, so viewers may do it too (passwords follow the reveal rule).
+  const canCopy = (useWorkspaces().data?.length ?? 0) > 1
   const can = usePermissions()
   const canEdit = can.edit(
     props.kind === 'client'
@@ -84,8 +91,28 @@ export function TreeNodeContextMenu(props: TreeNodeContextMenuProps): React.JSX.
 
   const confirming = deleteClient.isPending || deleteEnvironment.isPending || deleteGroup.isPending
 
-  // Every item creates, edits or deletes; read-only projects get no menu at all.
-  if (!canEdit) return <>{props.children}</>
+  const subject =
+    props.kind === 'client'
+      ? { kind: 'client' as const, id: props.client.id, name: props.client.name }
+      : props.kind === 'environment'
+        ? { kind: 'environment' as const, id: props.environment.id, name: props.environment.name }
+        : { kind: 'group' as const, id: props.group.id, name: props.group.name }
+  const copyItem = canCopy ? (
+    <ContextMenuItem onSelect={() => openCopy(subject)}>
+      {t('workspaces.copy.menu')}
+    </ContextMenuItem>
+  ) : null
+
+  // Read-only projects only get "Copiar para workspace…" (when there is somewhere to copy to).
+  if (!canEdit) {
+    if (!copyItem) return <>{props.children}</>
+    return (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{props.children}</ContextMenuTrigger>
+        <ContextMenuContent>{copyItem}</ContextMenuContent>
+      </ContextMenu>
+    )
+  }
 
   return (
     <>
@@ -187,6 +214,7 @@ export function TreeNodeContextMenu(props: TreeNodeContextMenuProps): React.JSX.
           >
             Editar
           </ContextMenuItem>
+          {copyItem}
           <ContextMenuItem variant="destructive" onSelect={() => setConfirmOpen(true)}>
             Excluir
           </ContextMenuItem>

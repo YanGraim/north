@@ -1,5 +1,9 @@
 import { IpcChannels } from '@shared/ipc'
-import { AddOrganizationInputSchema, WorkspaceIdSchema } from '@shared/types'
+import {
+  AddOrganizationInputSchema,
+  CopyToWorkspaceInputSchema,
+  WorkspaceIdSchema
+} from '@shared/types'
 import { ipcMain } from 'electron'
 import { z } from 'zod'
 import type { WorkspaceRegistry } from '../workspaces/workspace-registry'
@@ -20,6 +24,14 @@ export function registerWorkspaceHandlers(registry: WorkspaceRegistry): void {
   )
 
   ipcMain.handle(IpcChannels.WORKSPACES_CANCEL_SIGN_IN, () => registry.cancelSignIn())
+
+  ipcMain.handle(IpcChannels.WORKSPACES_COPY_TARGETS, (_event, workspaceId: unknown) =>
+    registry.copyTargets(z.string().min(1).max(100).parse(workspaceId))
+  )
+
+  ipcMain.handle(IpcChannels.WORKSPACES_COPY, (_event, input: unknown) =>
+    registry.copyToWorkspace(CopyToWorkspaceInputSchema.parse(input))
+  )
 
   ipcMain.handle(IpcChannels.WORKSPACES_ACCESS, () => registry.access())
 

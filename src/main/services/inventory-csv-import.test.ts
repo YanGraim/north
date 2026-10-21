@@ -1,8 +1,28 @@
 import { CSV_TEMPLATE_CONTENT, parseInventoryCsvRow } from '@shared/types'
 import { describe, expect, it } from 'vitest'
 import { createTestRepositories } from '../database/test-utils'
+import type { Repositories } from '../repositories'
 import { CredentialVault, FakeEncryptor } from '../vault'
-import { importInventoryCsv } from './inventory-csv-import'
+import { localInventoryStore } from '../workspaces/inventory-store'
+import { localSecretStore } from '../workspaces/secret-store'
+import { importInventoryCsv as importInto } from './inventory-csv-import'
+
+/** The personal workspace as an import target. */
+const importInventoryCsv = (
+  repos: Repositories,
+  content: string,
+  options: { allowSecrets: boolean },
+  vault: CredentialVault | null = null
+) =>
+  importInto(
+    {
+      inventory: localInventoryStore(repos),
+      secrets: vault ? localSecretStore(vault) : null,
+      accesses: repos.accesses
+    },
+    content,
+    options
+  )
 
 describe('parseInventoryCsvRow', () => {
   it('accepts a valid servidor row', () => {
@@ -83,9 +103,9 @@ describe('parseInventoryCsvRow', () => {
 })
 
 describe('importInventoryCsv', () => {
-  it('creates hierarchy, connection, database and login accesses from the template', () => {
+  it('creates hierarchy, connection, database and login accesses from the template', async () => {
     const { repos } = createTestRepositories()
-    const report = importInventoryCsv(repos, CSV_TEMPLATE_CONTENT, { allowSecrets: false })
+    const report = await importInventoryCsv(repos, CSV_TEMPLATE_CONTENT, { allowSecrets: false })
 
     expect(report.errors).toEqual([])
     expect(report.created.clients).toBe(1)
@@ -98,7 +118,7 @@ describe('importInventoryCsv', () => {
     expect(repos.accesses.list({ type: 'login' })).toHaveLength(1)
   })
 
-  it('merges by name case-insensitive and skips duplicates', () => {
+  it('merges by name case-insensitive and skips duplicates', async () => {
     const { repos } = createTestRepositories()
     const csv = [
       'tipo,cliente,ambiente,grupo,nome,protocolo,engine,host,porta,database,url,usuario,senha,notas,tags',
@@ -107,18 +127,18 @@ describe('importInventoryCsv', () => {
       ''
     ].join('\n')
 
-    const first = importInventoryCsv(repos, csv, { allowSecrets: false })
+    const first = await importInventoryCsv(repos, csv, { allowSecrets: false })
     expect(first.created.connections).toBe(1)
     expect(first.skipped.connections).toBe(1)
 
-    const second = importInventoryCsv(repos, csv, { allowSecrets: false })
+    const second = await importInventoryCsv(repos, csv, { allowSecrets: false })
     expect(second.created.connections).toBe(0)
     expect(second.skipped.connections).toBe(2)
     expect(repos.clients.list()).toHaveLength(1)
     expect(repos.connections.list()).toHaveLength(1)
   })
 
-  it('stores passwords in the vault when allowSecrets is true', () => {
+  it('stores passwords in the vault when allowSecrets is true', async () => {
     const { repos } = createTestRepositories()
     const vault = new CredentialVault(repos.credentials, new FakeEncryptor())
     const csv = [
@@ -127,7 +147,7 @@ describe('importInventoryCsv', () => {
       ''
     ].join('\n')
 
-    const report = importInventoryCsv(repos, csv, { allowSecrets: true }, vault)
+    const report = await importInventoryCsv(repos, csv, { allowSecrets: true }, vault)
     expect(report.errors).toEqual([])
     expect(report.created.connections).toBe(1)
 
@@ -136,7 +156,7 @@ describe('importInventoryCsv', () => {
     expect(vault.resolveSecret(conn.credentialRef!)).toBe('s3cret')
   })
 
-  it('reports line-numbered errors and skips password without allowSecrets', () => {
+  it('reports line-numbered errors and skips password without allowSecrets', async () => {
     const { repos } = createTestRepositories()
     const csv = [
       'tipo,cliente,ambiente,grupo,nome,protocolo,engine,host,porta,database,url,usuario,senha,notas,tags',
@@ -145,7 +165,7 @@ describe('importInventoryCsv', () => {
       ''
     ].join('\n')
 
-    const report = importInventoryCsv(repos, csv, { allowSecrets: false })
+    const report = await importInventoryCsv(repos, csv, { allowSecrets: false })
     expect(report.errors.some((e) => e.startsWith('Linha 2:') && /porta/i.test(e))).toBe(true)
     expect(report.errors.some((e) => e.startsWith('Linha 3:') && /senha/i.test(e))).toBe(true)
     expect(report.created.connections).toBe(1)
