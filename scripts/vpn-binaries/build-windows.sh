@@ -59,6 +59,9 @@ else
   echo "$VPNC_SHA  $OUT/openconnect/vpnc-script-win.js" | sha256sum -c -
 fi
 
+# openconnect's 10 s script limit: North's wrapper runs vpnc-script-win.js detached on connect
+cp resources/vpn/windows-service/north-vpnc-script.js "$OUT/openconnect/"
+
 curl -fsSL "https://www.wintun.net/builds/wintun-$WINTUN.zip" -o "$tmp/wintun.zip"
 echo "$WINTUN_SHA  $tmp/wintun.zip" | sha256sum -c - >/dev/null
 unzip -q "$tmp/wintun.zip" -d "$tmp"

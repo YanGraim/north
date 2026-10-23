@@ -104,7 +104,7 @@ func FortiArgs(r *Request, dir string) []string {
 		"--passwd-on-stdin",
 		"--user=" + r.User,
 		"--servercert=sha256:" + r.Cert,
-		"--script=" + filepath.Join(dir, "openconnect", "vpnc-script-win.js"),
+		"--script=" + filepath.Join(dir, "openconnect", "north-vpnc-script.js"),
 		"--interface=North",
 	}
 	if r.Realm != "" {
