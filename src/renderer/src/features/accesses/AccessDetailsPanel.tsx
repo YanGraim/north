@@ -80,6 +80,7 @@ export function AccessDetailsPanel(): React.JSX.Element {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [revealed, setRevealed] = useState<{ accessId: string; secret: string } | null>(null)
   const [connecting, setConnecting] = useState(false)
+  const [openingUrl, setOpeningUrl] = useState(false)
 
   useEffect(() => {
     if (!revealed) return
@@ -342,13 +343,24 @@ export function AccessDetailsPanel(): React.JSX.Element {
                 variant="outline"
                 size="sm"
                 className="h-8 min-w-0 flex-1"
-                onClick={() => {
+                disabled={openingUrl}
+                onClick={async () => {
+                  // the portal may only answer inside the client's VPN
+                  setOpeningUrl(true)
+                  try {
+                    await window.north.vpn.prepareAccess(access.id)
+                  } catch (error) {
+                    toastError(error, 'Não foi possível conectar a VPN deste acesso.')
+                    return
+                  } finally {
+                    setOpeningUrl(false)
+                  }
                   window.open(access.url as string, '_blank', 'noreferrer')
                   toastSuccess('Abrindo no browser…')
                 }}
               >
                 <ExternalLink className="size-3.5" />
-                Abrir URL
+                {openingUrl ? 'Conectando VPN…' : 'Abrir URL'}
               </Button>
             ) : null}
           </div>

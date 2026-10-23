@@ -339,7 +339,12 @@ export function registerVpnHandlers(
     .then(() => cleanupOpenvpnOrphans({ tunnels, broker, tmpDir }))
     .catch((error) => console.error('[vpn] orphan cleanup failed', error))
 
-  const handlers = createVpnHandlers(runtime, process.platform, component)
+  const manager = runtime.manager
+  // sessions opened from now on bring their VPN up first
+  const gate = new VpnGate({ repos, manager })
+  const handlers = createVpnHandlers(runtime, process.platform, component, (id) =>
+    gate.profileForAccess(id)
+  )
   const profileChanges = new Set<string>([
     IpcChannels.VPN_CREATE,
     IpcChannels.VPN_UPDATE,
@@ -356,9 +361,6 @@ export function registerVpnHandlers(
 
   if (component) void offerHelperInstall(component, repos, join(vpnDir, 'helper-declined'))
 
-  const manager = runtime.manager
-  // sessions opened from now on bring their VPN up first
-  const gate = new VpnGate({ repos, manager })
   getProtocolManager().setVpnGate(gate)
   // a server behind a VPN that is off isn't "down" — don't alert or poll it
   monitor?.setVpnReady((connectionId) => {

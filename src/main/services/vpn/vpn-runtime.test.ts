@@ -78,6 +78,32 @@ describe('VPN IPC handlers', () => {
     })
   }, 10_000)
 
+  it('prepare-access brings up the VPN the access resolves to and keeps it on', async () => {
+    const PORTAL = crypto.randomUUID()
+    const { repos } = createTestRepositories()
+    const vault = new CredentialVault(repos.credentials, new FakeEncryptor())
+    const runtime = createVpnRuntime({
+      repos,
+      vault,
+      platform: 'darwin',
+      emit: () => {},
+      fake: true
+    })
+    const handlers = createVpnHandlers(runtime, 'darwin', undefined, (id) =>
+      id === PORTAL ? profileId : null
+    )
+    const { profile } = await handlers[IpcChannels.VPN_IMPORT_OVPN]({ content: ovpn, name: 'Poly' })
+    const profileId = profile.id
+    await handlers[IpcChannels.VPN_SET_SECRET]({ profileId, kind: 'password', secret: 'pw' })
+    await handlers[IpcChannels.VPN_SET_SECRET]({ profileId, kind: 'key-passphrase', secret: 'kp' })
+    expect(await handlers[IpcChannels.VPN_PREPARE_ACCESS](crypto.randomUUID())).toBeNull()
+    expect(await handlers[IpcChannels.VPN_PREPARE_ACCESS](PORTAL)).toMatchObject({
+      profileId,
+      status: 'connected'
+    })
+    expect(runtime.manager.getState(profileId).status).toBe('connected')
+  })
+
   it('rejects malformed payloads', async () => {
     const { handlers } = setup()
     expect(() => handlers[IpcChannels.VPN_GET]('not-a-uuid')).toThrow()

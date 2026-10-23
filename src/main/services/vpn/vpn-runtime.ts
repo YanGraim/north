@@ -163,7 +163,9 @@ function rethrow(error: unknown): never {
 export function createVpnHandlers(
   runtime: VpnRuntime,
   platform: NodeJS.Platform,
-  helper?: Pick<VpnHelper, 'status' | 'install' | 'uninstall'>
+  helper?: Pick<VpnHelper, 'status' | 'install' | 'uninstall'>,
+  /** VPN an Access resolves to (see VpnGate.profileForAccess) */
+  accessProfile: (accessId: string) => string | null = () => null
 ) {
   const helperStatus = (): VpnHelperStatus => helper?.status() ?? 'unsupported'
   const { profiles, manager, drivers } = runtime
@@ -229,6 +231,16 @@ export function createVpnHandlers(
       if (profileId && !profiles.get(profileId)) throw new Error('VPN não encontrada')
       if (target === 'client') runtime.links.setClientLink(id, profileId)
       else runtime.links.setEnvironmentLink(id, profileId)
+    },
+    // the browser opens outside North, so this is a manual lease: it stays up until "Desligar"
+    [IpcChannels.VPN_PREPARE_ACCESS]: async (id: unknown) => {
+      const profileId = accessProfile(IdSchema.parse(id))
+      if (!profileId) return null
+      try {
+        return await manager.connect(profileId)
+      } catch (error) {
+        rethrow(error)
+      }
     },
     [IpcChannels.VPN_HELPER_STATUS]: () => helperStatus(),
     [IpcChannels.VPN_HELPER_INSTALL]: async () => {

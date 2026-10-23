@@ -409,6 +409,7 @@ const api: NorthApi = {
     helperStatus: () => ipcRenderer.invoke(IpcChannels.VPN_HELPER_STATUS),
     installHelper: () => ipcRenderer.invoke(IpcChannels.VPN_HELPER_INSTALL),
     uninstallHelper: () => ipcRenderer.invoke(IpcChannels.VPN_HELPER_UNINSTALL),
+    prepareAccess: (accessId) => ipcRenderer.invoke(IpcChannels.VPN_PREPARE_ACCESS, accessId),
     onStateChanged: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, state: VpnState): void => {
         listener(state)

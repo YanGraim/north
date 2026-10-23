@@ -30,7 +30,8 @@ describe('vpn IPC surface', () => {
     ['VPN_LINK_SET', 'setLink'],
     ['VPN_HELPER_STATUS', 'helperStatus'],
     ['VPN_HELPER_INSTALL', 'installHelper'],
-    ['VPN_HELPER_UNINSTALL', 'uninstallHelper']
+    ['VPN_HELPER_UNINSTALL', 'uninstallHelper'],
+    ['VPN_PREPARE_ACCESS', 'prepareAccess']
   ] as const
 
   it('preload invokes and main handles every vpn channel', () => {

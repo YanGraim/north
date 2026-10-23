@@ -41,3 +41,5 @@ El mensaje dice qué pasó y ofrece la acción correcta: **Actualizar contraseñ
 ## Encender la VPN automáticamente
 
 En **Editar ambiente** (o **Editar cliente**), elige su **VPN**. Desde entonces, abrir una sesión SSH, RDP, de base de datos o API de ese ambiente enciende primero la VPN, espera a que el servidor responda y solo entonces abre la sesión; varias sesiones comparten el mismo túnel, que se apaga solo cuando se cierra la última (si la VPN tiene apagado automático). Vale la VPN del ambiente; sin ella, la del cliente. En cada conexión o acceso, el campo **VPN** ofrece **Heredar** (por defecto), **Nunca usar VPN** u otra VPN. Si la VPN falla, la sesión muestra el error con su nombre. El monitor de conexiones no marca como caído un servidor mientras su VPN está apagada.
+
+**Abrir URL** en un acceso de login (portal web) también enciende la VPN heredada antes de abrir el navegador. Como North no sabe cuándo terminaste de usar el sitio, esa VPN queda encendida hasta que hagas clic en **Apagar**.

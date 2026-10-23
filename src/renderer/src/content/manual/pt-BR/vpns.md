@@ -41,3 +41,5 @@ A mensagem diz o que aconteceu e oferece a ação certa: **Atualizar senha** qua
 ## Ligar a VPN sozinha
 
 Em **Editar ambiente** (ou **Editar cliente**), escolha a **VPN** dele. A partir daí, abrir uma conexão SSH, RDP, banco ou API desse ambiente liga a VPN antes, espera o servidor responder e só então abre a sessão; várias sessões dividem o mesmo túnel, que desliga sozinho quando a última fecha (se a VPN estiver em desligamento automático). O ambiente usa a própria VPN; sem ela, vale a do cliente. Em cada conexão ou acesso, o campo **VPN** permite **Herdar** (padrão), **Nunca usar VPN** ou escolher outra. Se a VPN falhar, a sessão mostra o erro com o nome dela. O monitor de conexões não marca como fora do ar um servidor cuja VPN está desligada.
+
+**Abrir URL** de um acesso de login (portal web) também liga a VPN herdada antes de abrir o navegador. Como o North não sabe quando você terminou de usar o site, essa VPN fica ligada até você clicar em **Desligar**.

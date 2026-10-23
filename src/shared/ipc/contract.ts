@@ -701,6 +701,7 @@ export interface IpcInvokeMap {
   [IpcChannels.VPN_HELPER_STATUS]: { args: []; result: VpnHelperStatus }
   [IpcChannels.VPN_HELPER_INSTALL]: { args: []; result: VpnHelperStatus }
   [IpcChannels.VPN_HELPER_UNINSTALL]: { args: []; result: VpnHelperStatus }
+  [IpcChannels.VPN_PREPARE_ACCESS]: { args: [accessId: string]; result: VpnState | null }
 }
 
 export type InvokeChannel = keyof IpcInvokeMap
@@ -982,6 +983,8 @@ export interface NorthApi {
     /** VPN a Client/Environment brings up for its sessions (null = none). */
     getLink: (input: VpnLinkTarget) => Promise<string | null>
     setLink: (input: SetVpnLinkInput) => Promise<void>
+    /** Brings up the VPN an Access resolves to (own, Environment, Client) before opening its URL. */
+    prepareAccess: (accessId: string) => Promise<VpnState | null>
     /** Passwordless-connect helper: installed once with one admin prompt (macOS/Linux). */
     helperStatus: () => Promise<VpnHelperStatus>
     installHelper: () => Promise<VpnHelperStatus>

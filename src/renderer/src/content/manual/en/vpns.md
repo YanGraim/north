@@ -41,3 +41,5 @@ The message says what happened and offers the right action: **Update password** 
 ## Turn the VPN on automatically
 
 In **Edit environment** (or **Edit client**), pick its **VPN**. From then on, opening an SSH, RDP, database or API session in that environment turns the VPN on first, waits for the server to answer and only then opens the session; several sessions share one tunnel, which turns off by itself when the last one closes (if the VPN auto-disconnects). The environment's own VPN wins; without one, the client's applies. On each connection or access, the **VPN** field offers **Inherit** (default), **Never use a VPN** or another VPN. If the VPN fails, the session shows the error with its name. The connection monitor doesn't flag a server as down while its VPN is off.
+
+**Open URL** on a login access (web portal) also turns on the inherited VPN before opening the browser. Since North can't tell when you're done with the site, that VPN stays on until you click **Turn off**.

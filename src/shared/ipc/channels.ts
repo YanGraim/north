@@ -214,6 +214,7 @@ export const IpcChannels = {
   VPN_PLATFORM_SUPPORT: 'vpn:platform-support',
   VPN_LINK_GET: 'vpn:link-get',
   VPN_LINK_SET: 'vpn:link-set',
+  VPN_PREPARE_ACCESS: 'vpn:prepare-access',
   VPN_HELPER_STATUS: 'vpn:helper-status',
   VPN_HELPER_INSTALL: 'vpn:helper-install',
   VPN_HELPER_UNINSTALL: 'vpn:helper-uninstall',
