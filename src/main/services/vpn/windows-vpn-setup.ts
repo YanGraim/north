@@ -2,16 +2,19 @@ import type { VpnHelperStatus } from '@shared/types'
 import { VpnError } from './vpn-error'
 import type { WindowsVpnComponent } from './windows-vpn-component'
 import type { WindowsVpnService } from './windows-vpn-service'
+import type { WslIpsec } from './wsl-ipsec'
 
 /**
  * What the VPNs page calls "the VPN component" on Windows: the OpenVPN package (OpenVPN
  * tunnels) plus north-vpn-service (FortiGate SSL-VPN). Both go in with ONE UAC prompt.
+ * North's WSL distro (IPsec) is imported on the first IPsec connect and removed with them.
  */
 export class WindowsVpnSetup {
   constructor(
     private readonly openvpn: WindowsVpnComponent,
     private readonly service: WindowsVpnService,
-    private readonly elevate: (command: string) => Promise<void>
+    private readonly elevate: (command: string) => Promise<void>,
+    private readonly wsl?: Pick<WslIpsec, 'remove'>
   ) {}
 
   status(): VpnHelperStatus {
@@ -45,9 +48,12 @@ export class WindowsVpnSetup {
   async uninstall(): Promise<void> {
     const openvpn = this.openvpn.uninstallCommand()
     const commands = [this.service.uninstallCommand(), openvpn].filter((c): c is string => !!c)
-    if (commands.length === 0) return
-    // "&": remove whatever can be removed even if one part fails
-    await this.elevate(commands.join(' & '))
-    if (openvpn) this.openvpn.uninstalled()
+    if (commands.length > 0) {
+      // "&": remove whatever can be removed even if one part fails
+      await this.elevate(commands.join(' & '))
+      if (openvpn) this.openvpn.uninstalled()
+    }
+    // the distro is per-user: no UAC needed
+    await this.wsl?.remove()
   }
 }

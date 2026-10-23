@@ -20,6 +20,9 @@ function deps(over: Partial<WslIpsecDeps> = {}) {
       read: () => imported,
       write: (v) => {
         imported = v
+      },
+      clear: () => {
+        imported = null
       }
     },
     wsl: async (args) => {
@@ -190,5 +193,19 @@ describe('StrongswanDriver on Windows (tunnel hook)', () => {
     })
     await expect(driver.connect(ctx())).rejects.toThrow('route refused')
     expect(h.stopped()).toBe(true)
+  })
+
+  it('remove() unregisters the distro once it was imported, and skips WSL otherwise', async () => {
+    const { d, calls } = deps()
+    const wsl = new WslIpsec(d)
+    await wsl.remove()
+    expect(calls).toEqual([])
+    await wsl.ensure()
+    await wsl.remove()
+    expect(calls.at(-1)).toEqual(['--unregister', WSL_DISTRO])
+    expect(d.imported.read()).toBeNull()
+    calls.length = 0
+    await wsl.remove()
+    expect(calls).toEqual([])
   })
 })

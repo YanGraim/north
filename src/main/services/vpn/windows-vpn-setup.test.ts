@@ -40,8 +40,15 @@ function setup() {
     elevate,
     pipeAlive: () => running
   })
+  const wslRemoved: string[] = []
+  const wsl = {
+    remove: async () => {
+      wslRemoved.push('NorthVpn')
+    }
+  }
   return {
-    s: new WindowsVpnSetup(openvpn, service, elevate),
+    s: new WindowsVpnSetup(openvpn, service, elevate, wsl),
+    wslRemoved,
     commands,
     files,
     stop: () => {
@@ -84,10 +91,11 @@ describe('WindowsVpnSetup', () => {
     expect(s.status()).toBe('installed')
   })
 
-  it('remove: the service, and OpenVPN only because North installed it', async () => {
-    const { s, commands } = setup()
+  it('remove: the service, OpenVPN only because North installed it, and the WSL distro', async () => {
+    const { s, commands, wslRemoved } = setup()
     await s.install()
     await s.uninstall()
+    expect(wslRemoved).toEqual(['NorthVpn'])
     expect(commands[1]).toBe(
       `"${SVC}" uninstall & msiexec /x "C:\\North\\vpn-bin\\OpenVPN.msi" /qn /norestart`
     )

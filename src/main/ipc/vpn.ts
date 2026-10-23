@@ -169,55 +169,60 @@ export function registerVpnHandlers(
           }
         })
       : undefined
+  // North's WSL distro for Windows IPsec: imported on the first IPsec connect only
+  const wslTarball = () => {
+    const tar = join(bundledDir, 'north-wsl.tar.gz')
+    return existsSync(tar) ? tar : null
+  }
+  const importedFile = join(vpnDir, 'wsl-imported')
+  const wsl =
+    process.platform === 'win32'
+      ? new WslIpsec({
+          tarball: wslTarball,
+          digest,
+          installDir: join(vpnDir, 'wsl'),
+          mkdir: (dir) => mkdirSync(dir, { recursive: true }),
+          imported: {
+            read: () => {
+              try {
+                return readFileSync(importedFile, 'utf8').trim()
+              } catch {
+                return null
+              }
+            },
+            write: (value) => writeFileSync(importedFile, value),
+            clear: () => rmSync(importedFile, { force: true })
+          },
+          wsl: (args) =>
+            new Promise((resolve) => {
+              // WSL_UTF8: wsl.exe's own messages are UTF-16 otherwise
+              execFile(
+                'wsl.exe',
+                args,
+                { timeout: 120_000, windowsHide: true, env: { ...process.env, WSL_UTF8: '1' } },
+                (error, stdout, stderr) => {
+                  const code = error ? (typeof error.code === 'number' ? error.code : 1) : 0
+                  resolve({ code, stdout: `${stdout}${stderr}` })
+                }
+              )
+            }),
+          hostIps: () =>
+            Object.values(networkInterfaces())
+              .flat()
+              .filter((a) => a?.family === 'IPv4')
+              .map((a) => a?.address ?? '')
+        })
+      : undefined
   const windows =
     windowsOpenvpn && windowsService
-      ? new WindowsVpnSetup(windowsOpenvpn, windowsService, elevate)
+      ? new WindowsVpnSetup(windowsOpenvpn, windowsService, elevate, wsl)
       : undefined
   const component = helper ?? windows
 
   // Windows IPsec: North's WSL distro runs strongSwan; north-vpn-service routes to it
-  function windowsIpsec(setup: WindowsVpnSetup, service: WindowsVpnService) {
-    const tarball = () => {
-      const tar = join(bundledDir, 'north-wsl.tar.gz')
-      return existsSync(tar) ? tar : null
-    }
-    const importedFile = join(vpnDir, 'wsl-imported')
-    const wsl = new WslIpsec({
-      tarball,
-      digest,
-      installDir: join(vpnDir, 'wsl'),
-      mkdir: (dir) => mkdirSync(dir, { recursive: true }),
-      imported: {
-        read: () => {
-          try {
-            return readFileSync(importedFile, 'utf8').trim()
-          } catch {
-            return null
-          }
-        },
-        write: (value) => writeFileSync(importedFile, value)
-      },
-      wsl: (args) =>
-        new Promise((resolve) => {
-          // WSL_UTF8: wsl.exe's own messages are UTF-16 otherwise
-          execFile(
-            'wsl.exe',
-            args,
-            { timeout: 120_000, windowsHide: true, env: { ...process.env, WSL_UTF8: '1' } },
-            (error, stdout, stderr) => {
-              const code = error ? (typeof error.code === 'number' ? error.code : 1) : 0
-              resolve({ code, stdout: `${stdout}${stderr}` })
-            }
-          )
-        }),
-      hostIps: () =>
-        Object.values(networkInterfaces())
-          .flat()
-          .filter((a) => a?.family === 'IPv4')
-          .map((a) => a?.address ?? '')
-    })
+  function windowsIpsec(setup: WindowsVpnSetup, service: WindowsVpnService, wsl: WslIpsec) {
     return {
-      binary: tarball,
+      binary: wslTarball,
       helper: {
         ensure: async () => {
           await setup.ensure() // the service holds the Windows routes
@@ -278,8 +283,8 @@ export function registerVpnHandlers(
     },
     strongswan: helper
       ? { binary: findCharon, helper }
-      : windows && windowsService
-        ? windowsIpsec(windows, windowsService)
+      : windows && windowsService && wsl
+        ? windowsIpsec(windows, windowsService, wsl)
         : undefined,
     openconnect:
       windows && windowsService

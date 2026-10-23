@@ -24,7 +24,7 @@ export type WslIpsecDeps = {
   installDir: string
   /** creates installDir (and its parents): wsl --import won't, and fails with PATH_NOT_FOUND */
   mkdir: (dir: string) => void
-  imported: { read: () => string | null; write: (digest: string) => void }
+  imported: { read: () => string | null; write: (digest: string) => void; clear: () => void }
   /** runs wsl.exe with these args (no shell) */
   wsl: WslRun
   /** spawns wsl.exe streaming stdout+stderr, stdin = input */
@@ -89,6 +89,19 @@ export class WslIpsec {
       )
     }
     if (digest) this.deps.imported.write(digest)
+  }
+
+  /** "Remover componente de VPN": drops the distro (and its disk). No-op if never imported. */
+  async remove(): Promise<void> {
+    if (!this.deps.imported.read()) return
+    const result = await this.deps.wsl(['--unregister', WSL_DISTRO])
+    if (result.code !== 0) {
+      throw new VpnError(
+        'DRIVER_CRASHED',
+        `Não foi possível remover o WSL do North (${result.stdout.trim() || `código ${result.code}`}). Remova com "wsl --unregister ${WSL_DISTRO}".`
+      )
+    }
+    this.deps.imported.clear()
   }
 
   /** Same contract as VpnHelper.startIpsec: key=value lines on stdin, log out, stop() ends it. */
