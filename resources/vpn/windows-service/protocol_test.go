@@ -23,7 +23,7 @@ func TestParseRequestAcceptsForti(t *testing.T) {
 		t.Fatal(err)
 	}
 	args := strings.Join(FortiArgs(r, `C:\svc`), " ")
-	for _, want := range []string{"--protocol=fortinet", "--servercert=sha256:" + pin, "--user=ana", "--usergroup=staff", "https://vpn.example.com:4433/"} {
+	for _, want := range []string{"--protocol=fortinet", "--servercert=sha256:" + pin, "--user=ana", "--usergroup=staff", "--no-dtls", "https://vpn.example.com:4433/"} {
 		if !strings.Contains(args, want) {
 			t.Errorf("missing %q in %s", want, args)
 		}

@@ -106,6 +106,9 @@ func FortiArgs(r *Request, dir string) []string {
 		"--servercert=sha256:" + r.Cert,
 		"--script=" + filepath.Join(dir, "openconnect", "north-vpnc-script.js"),
 		"--interface=North",
+		// FortiOS DTLS heartbeats look like a dead peer to openconnect, and most FortiGates
+		// refuse the reconnect that follows; TLS only, like openfortivpn on macOS/Linux
+		"--no-dtls",
 	}
 	if r.Realm != "" {
 		args = append(args, "--usergroup="+r.Realm)
