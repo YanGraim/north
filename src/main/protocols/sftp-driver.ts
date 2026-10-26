@@ -11,6 +11,7 @@ import type {
   SessionState
 } from '@shared/protocols'
 import { Client, type SFTPWrapper, type Stats } from 'ssh2'
+import { formatMode } from '../services/file-transfer/local-fs'
 import { attachKeyboardInteractivePassword, buildSshConnectConfig } from './ssh-auth'
 
 function toEntryType(stats: Stats): RemoteEntryType {
@@ -25,6 +26,16 @@ function normalizeMtime(mtime: number | undefined | null): string | null {
   return new Date(mtime * 1000).toISOString()
 }
 
+/** Owner/group names from the `ls -l`-style longname; uids are the fallback. */
+export function parseLongnameOwner(longname: string | undefined): {
+  owner: string
+  group: string
+} | null {
+  const parts = longname?.trim().split(/\s+/) ?? []
+  if (parts.length < 4) return null
+  return { owner: parts[2], group: parts[3] }
+}
+
 class SftpProtocolSession implements ProtocolSession {
   readonly id: string
   readonly kind = 'file-transfer' as const
@@ -33,6 +44,7 @@ class SftpProtocolSession implements ProtocolSession {
   private port: SessionDataPort | null = null
   private readonly client: Client
   private sftp: SFTPWrapper | null = null
+  private reopening: Promise<void> = Promise.resolve()
   private disposed = false
 
   readonly fileTransfer: FileTransferCapability
@@ -41,13 +53,21 @@ class SftpProtocolSession implements ProtocolSession {
     this.id = id
     this.client = client
     this.fileTransfer = {
+      home: () =>
+        this.reopening.then(
+          () =>
+            new Promise((resolve, reject) => {
+              this.requireSftp().realpath('.', (err, path) => (err ? reject(err) : resolve(path)))
+            })
+        ),
       list: (path) => this.list(path),
       mkdir: (path) => this.mkdir(path),
       rename: (from, to) => this.rename(from, to),
       remove: (path) => this.remove(path),
-      download: (remotePath, localPath, onProgress) =>
-        this.download(remotePath, localPath, onProgress),
-      upload: (localPath, remotePath, onProgress) => this.upload(localPath, remotePath, onProgress)
+      download: (remotePath, localPath, onProgress, signal) =>
+        this.download(remotePath, localPath, onProgress, signal),
+      upload: (localPath, remotePath, onProgress, signal) =>
+        this.upload(localPath, remotePath, onProgress, signal)
     }
   }
 
@@ -63,8 +83,42 @@ class SftpProtocolSession implements ProtocolSession {
   attachSftp(sftp: SFTPWrapper): void {
     this.sftp = sftp
     sftp.on('close', () => {
-      void this.dispose()
+      // A channel we swapped out on purpose (cancelled transfer) is not a dropped session.
+      if (this.sftp === sftp) void this.dispose()
     })
+  }
+
+  /**
+   * fastGet/fastPut have no abort hook, so cancelling closes the SFTP channel
+   * under them and opens a fresh one on the same SSH connection.
+   */
+  private resetChannel(): void {
+    const old = this.sftp
+    this.sftp = null
+    this.reopening = new Promise<void>((resolve) => {
+      try {
+        old?.end()
+      } catch {
+        // ignore
+      }
+      this.client.sftp((err, sftp) => {
+        if (err) void this.dispose()
+        else this.attachSftp(sftp)
+        resolve()
+      })
+    })
+  }
+
+  private withAbort<T>(
+    signal: AbortSignal | undefined,
+    run: (sftp: SFTPWrapper) => Promise<T>
+  ): Promise<T> {
+    const sftp = this.requireSftp()
+    if (!signal) return run(sftp)
+    if (signal.aborted) return Promise.reject(new Error('Transferência cancelada'))
+    const onAbort = (): void => this.resetChannel()
+    signal.addEventListener('abort', onAbort, { once: true })
+    return run(sftp).finally(() => signal.removeEventListener('abort', onAbort))
   }
 
   attachPort(port: SessionDataPort): void {
@@ -104,7 +158,8 @@ class SftpProtocolSession implements ProtocolSession {
     return this.sftp
   }
 
-  private list(path: string): Promise<RemoteEntry[]> {
+  private async list(path: string): Promise<RemoteEntry[]> {
+    await this.reopening
     const sftp = this.requireSftp()
     return new Promise((resolve, reject) => {
       sftp.readdir(path, (err, entries) => {
@@ -112,19 +167,26 @@ class SftpProtocolSession implements ProtocolSession {
           reject(new Error(`Falha ao listar diretório: ${err.message}`))
           return
         }
-        const mapped = entries.map<RemoteEntry>((entry) => ({
-          name: entry.filename,
-          path: posix.join(path, entry.filename),
-          type: toEntryType(entry.attrs),
-          size: entry.attrs.size ?? 0,
-          modifiedAt: normalizeMtime(entry.attrs.mtime)
-        }))
+        const mapped = entries.map<RemoteEntry>((entry) => {
+          const names = parseLongnameOwner(entry.longname)
+          return {
+            name: entry.filename,
+            path: posix.join(path, entry.filename),
+            type: toEntryType(entry.attrs),
+            size: entry.attrs.size ?? 0,
+            modifiedAt: normalizeMtime(entry.attrs.mtime),
+            permissions: typeof entry.attrs.mode === 'number' ? formatMode(entry.attrs.mode) : null,
+            owner: names?.owner ?? (entry.attrs.uid != null ? String(entry.attrs.uid) : null),
+            group: names?.group ?? (entry.attrs.gid != null ? String(entry.attrs.gid) : null)
+          }
+        })
         resolve(mapped)
       })
     })
   }
 
-  private mkdir(path: string): Promise<void> {
+  private async mkdir(path: string): Promise<void> {
+    await this.reopening
     const sftp = this.requireSftp()
     return new Promise((resolve, reject) => {
       sftp.mkdir(path, (err) => {
@@ -134,7 +196,8 @@ class SftpProtocolSession implements ProtocolSession {
     })
   }
 
-  private rename(from: string, to: string): Promise<void> {
+  private async rename(from: string, to: string): Promise<void> {
+    await this.reopening
     const sftp = this.requireSftp()
     return new Promise((resolve, reject) => {
       sftp.rename(from, to, (err) => {
@@ -145,6 +208,7 @@ class SftpProtocolSession implements ProtocolSession {
   }
 
   private async remove(path: string): Promise<void> {
+    await this.reopening
     const sftp = this.requireSftp()
     const stats = await new Promise<Stats>((resolve, reject) => {
       sftp.stat(path, (err, s) => {
@@ -171,50 +235,60 @@ class SftpProtocolSession implements ProtocolSession {
     })
   }
 
-  private download(
+  private async download(
     remotePath: string,
     localPath: string,
-    onProgress?: (bytesTransferred: number, totalBytes: number | null) => void
+    onProgress?: (bytesTransferred: number, totalBytes: number | null) => void,
+    signal?: AbortSignal
   ): Promise<void> {
-    const sftp = this.requireSftp()
-    return new Promise((resolve, reject) => {
-      sftp.fastGet(
-        remotePath,
-        localPath,
-        {
-          step: (total, _nb, fsize) => {
-            onProgress?.(total, fsize && fsize > 0 ? fsize : null)
-          }
-        },
-        (err) => {
-          if (err) reject(new Error(`Falha no download: ${err.message}`))
-          else resolve()
-        }
-      )
-    })
+    await this.reopening
+    return this.withAbort(
+      signal,
+      (sftp) =>
+        new Promise((resolve, reject) => {
+          sftp.fastGet(
+            remotePath,
+            localPath,
+            {
+              step: (total, _nb, fsize) => {
+                onProgress?.(total, fsize && fsize > 0 ? fsize : null)
+              }
+            },
+            (err) => {
+              if (err) reject(new Error(`Falha no download: ${err.message}`))
+              else resolve()
+            }
+          )
+        })
+    )
   }
 
-  private upload(
+  private async upload(
     localPath: string,
     remotePath: string,
-    onProgress?: (bytesTransferred: number, totalBytes: number | null) => void
+    onProgress?: (bytesTransferred: number, totalBytes: number | null) => void,
+    signal?: AbortSignal
   ): Promise<void> {
-    const sftp = this.requireSftp()
-    return new Promise((resolve, reject) => {
-      sftp.fastPut(
-        localPath,
-        remotePath,
-        {
-          step: (total, _nb, fsize) => {
-            onProgress?.(total, fsize && fsize > 0 ? fsize : null)
-          }
-        },
-        (err) => {
-          if (err) reject(new Error(`Falha no upload: ${err.message}`))
-          else resolve()
-        }
-      )
-    })
+    await this.reopening
+    return this.withAbort(
+      signal,
+      (sftp) =>
+        new Promise((resolve, reject) => {
+          sftp.fastPut(
+            localPath,
+            remotePath,
+            {
+              step: (total, _nb, fsize) => {
+                onProgress?.(total, fsize && fsize > 0 ? fsize : null)
+              }
+            },
+            (err) => {
+              if (err) reject(new Error(`Falha no upload: ${err.message}`))
+              else resolve()
+            }
+          )
+        })
+    )
   }
 
   private post(message: SessionPortMessage): void {

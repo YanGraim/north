@@ -104,8 +104,17 @@ export const IpcChannels = {
   FS_DELETE: 'fs:delete',
   FS_DOWNLOAD: 'fs:download',
   FS_UPLOAD: 'fs:upload',
+  FS_CANCEL: 'fs:cancel',
+  FS_HOME: 'fs:home',
   /** Main → renderer (event): transfer progress. */
   FS_PROGRESS: 'fs:progress',
+
+  LOCAL_FS_INFO: 'local-fs:info',
+  LOCAL_FS_LIST: 'local-fs:list',
+  LOCAL_FS_MKDIR: 'local-fs:mkdir',
+  LOCAL_FS_RENAME: 'local-fs:rename',
+  LOCAL_FS_DELETE: 'local-fs:delete',
+  LOCAL_FS_OPEN: 'local-fs:open',
 
   SERIAL_LIST_PORTS: 'serial:list-ports',
 

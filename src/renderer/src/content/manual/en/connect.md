@@ -27,6 +27,18 @@ In a terminal session tab:
 - The right-click menu has **Paste saved password** when the connection has a stored password or sudo password — it pastes the vault-stored secret directly into the terminal (handy for `sudo su` and similar), without ever going through the OS clipboard.
 - Pasting an image (⌘V/Ctrl+V with an image on the clipboard, e.g. a screenshot) saves it to a temp file and pastes the path as text — the same way iTerm2/Terminal.app do it. Handy for sending an image to agent CLIs (Claude Code and similar) running in the terminal.
 
+## Files (SFTP/FTP)
+
+SFTP and FTP connections open in a two-pane file browser, WinSCP style: **your computer on the left** and **the server on the right**. On an SSH connection, right-click and choose **Open files (SFTP)** to browse the same server with the same user and password.
+
+- Drag files or folders from one pane to the other to copy them. Folders are copied with everything inside. You can also drag from Finder/Explorer straight onto the server pane.
+- Shortcuts in the active pane: **F5** copies the selection to the other side, **F2** renames, **F7** creates a folder, **Del** deletes, **Enter** opens, **Backspace** goes up a folder. **⌘/Ctrl+click** and **Shift+click** select several items.
+- Double-clicking a local file opens it in the system's default app; a remote file is downloaded to the folder open on the left.
+- Columns show size, date, permissions (`rwxr-xr-x`) and owner; click a header to sort. Type a path in the bar to jump straight there. On Windows, the selector next to it switches drives.
+- The queue at the bottom shows each transfer with its progress and a cancel button. Cancelling stops the file in flight right away and removes the partial copy.
+- If an item already exists at the destination, North asks first: **Overwrite**, **Skip existing** or **Cancel**. The choice also applies to the files inside folders.
+- Deleting in the local pane moves items to the system trash. The server has no trash (SFTP/FTP don't have one), so the confirmation says it is permanent and that folders go with everything inside.
+
 ## Local terminal
 
 **Local terminal**, at the top of the sidebar (Overview) or via the Command Palette (**⌘/Ctrl+K**), opens a shell on your own machine — no host, no credential, no saved Connection. It runs in the main process, just like other terminal sessions; closing the tab ends the shell process.

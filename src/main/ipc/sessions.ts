@@ -67,8 +67,12 @@ export function registerSessionHandlers(repositories: Repositories, vault: Crede
 
   ipcMain.handle(
     IpcChannels.SESSIONS_OPEN,
-    async (event, connectionId: string, requestId: string) => {
-      const { descriptor, port } = await protocolManager!.open(connectionId, requestId)
+    async (event, connectionId: string, requestId: string, as?: unknown) => {
+      const { descriptor, port } = await protocolManager!.open(
+        connectionId,
+        requestId,
+        as === 'sftp' ? 'sftp' : undefined
+      )
       event.sender.postMessage(IpcChannels.SESSIONS_PORT, { requestId, sessionId: descriptor.id }, [
         port
       ])

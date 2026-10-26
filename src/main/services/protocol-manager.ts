@@ -217,14 +217,20 @@ export class ProtocolManager {
 
   async open(
     connectionId: string,
-    _requestId: string
+    _requestId: string,
+    as?: 'sftp'
   ): Promise<{ descriptor: SessionDescriptor; port: MessagePortMain }> {
     // Captured once so a workspace switch mid-handshake can't mix sources.
     const source = this.sourceForOpen()
-    const connection = await source.connection(connectionId)
-    if (!connection) {
+    const stored = await source.connection(connectionId)
+    if (!stored) {
       throw new Error('Conexão não encontrada')
     }
+    // SFTP rides the same SSH host/port/credentials, so an SSH connection can open its files.
+    if (as === 'sftp' && stored.protocol !== 'ssh' && stored.protocol !== 'sftp') {
+      throw new Error('Só conexões SSH podem abrir arquivos via SFTP')
+    }
+    const connection = as === 'sftp' ? { ...stored, protocol: 'sftp' as const } : stored
 
     const driver = this.drivers.get(connection.protocol)
     if (!driver) {

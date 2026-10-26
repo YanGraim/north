@@ -55,6 +55,8 @@ export type OpenSessionOptions = {
   environmentName?: string | null
   environmentColor?: string | null
   clientName?: string | null
+  /** Open an SSH connection as its SFTP file browser. */
+  as?: 'sftp'
 }
 
 type SessionsState = {
@@ -499,9 +501,13 @@ export async function openConnectionSession(
 
   try {
     let port: MessagePort | null = null
-    const session = await window.north.sessions.open(connectionId, (received) => {
-      port = received
-    })
+    const session = await window.north.sessions.open(
+      connectionId,
+      (received) => {
+        port = received
+      },
+      options?.as
+    )
     if (!port) {
       throw new Error('Session MessagePort missing')
     }

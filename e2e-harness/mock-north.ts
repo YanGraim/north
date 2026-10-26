@@ -1336,7 +1336,28 @@ export function installMockNorth(opts?: {
         progressListeners.add(listener)
         return () => progressListeners.delete(listener)
       },
-      getPathForFile: (file: File) => `/tmp/e2e/${file.name}`
+      getPathForFile: (file: File) => `/tmp/e2e/${file.name}`,
+      home: async () => '/',
+      cancel: async () => undefined
+    },
+    localFs: {
+      info: async () => ({ home: '/home/e2e', roots: ['/'], separator: '/' as const }),
+      list: async (input: { path: string }) =>
+        input.path === '/home/e2e'
+          ? [
+              {
+                name: 'local.txt',
+                path: '/home/e2e/local.txt',
+                type: 'file' as const,
+                size: 3,
+                modifiedAt: null
+              }
+            ]
+          : [],
+      mkdir: async () => undefined,
+      rename: async () => undefined,
+      delete: async () => undefined,
+      open: async () => undefined
     },
     workflows: workflowsApi,
     api: apiClientApi

@@ -1,386 +1,272 @@
-import { Button } from '@renderer/components/ui/button'
-import { ScrollArea } from '@renderer/components/ui/scroll-area'
-import { toastError, toastSuccess } from '@renderer/lib/toast'
-import { cn } from '@renderer/lib/utils'
-import type { RemoteEntry, TransferProgress } from '@shared/protocols'
 import {
-  ArrowUp,
-  Download,
-  File,
-  Folder,
-  FolderPlus,
-  Loader2,
-  Pencil,
-  RefreshCw,
-  Trash2,
-  Upload
-} from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from 'sonner'
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup
+} from '@renderer/components/ui/resizable'
+import { toastError } from '@renderer/lib/toast'
+import { useUiStore } from '@renderer/stores/ui-store'
+import type { RemoteEntry, TransferConflict, TransferProgress } from '@shared/protocols'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ConflictDialog } from './file-browser/ConflictDialog'
+import {
+  type FileDragPayload,
+  FilePane,
+  type PaneSide,
+  type PaneSource,
+  paneQueryKey
+} from './file-browser/FilePane'
+import { joinPath } from './file-browser/paths'
+import { TransferQueue } from './file-browser/TransferQueue'
 
 type FileBrowserViewProps = {
   sessionId: string
   visible: boolean
 }
 
-function joinRemote(base: string, name: string): string {
-  if (base === '/' || base === '') return `/${name}`
-  return `${base.replace(/\/$/, '')}/${name}`
+function baseName(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).pop() ?? path
 }
 
-function parentPath(path: string): string {
-  if (path === '/' || path === '') return '/'
-  const trimmed = path.replace(/\/$/, '')
-  const idx = trimmed.lastIndexOf('/')
-  if (idx <= 0) return '/'
-  return trimmed.slice(0, idx)
-}
-
-function formatSize(size: number): string {
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`
-  return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`
-}
-
+/** WinSCP-style commander: local disk on the left, the server on the right. */
 export function FileBrowserView({ sessionId, visible }: FileBrowserViewProps): React.JSX.Element {
-  const [cwd, setCwd] = useState('/')
-  const [entries, setEntries] = useState<RemoteEntry[]>([])
-  const [loading, setLoading] = useState(false)
-  const [selected, setSelected] = useState<string | null>(null)
-  const [dragOver, setDragOver] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const progressToasts = useRef(new Map<string, string | number>())
+  const queryClient = useQueryClient()
+  const savedLocalPath = useUiStore((s) => s.fileBrowserLocalPath)
+  const setSavedLocalPath = useUiStore((s) => s.setFileBrowserLocalPath)
+  const [activeSide, setActiveSide] = useState<PaneSide>('remote')
+  const [localPath, setLocalPath] = useState('')
+  const [remotePath, setRemotePath] = useState('')
+  const [transfers, setTransfers] = useState<TransferProgress[]>([])
+  const [conflictNames, setConflictNames] = useState<string[] | null>(null)
+  const conflictResolver = useRef<((choice: TransferConflict | null) => void) | null>(null)
 
-  const crumbs = useMemo(() => {
-    if (cwd === '/') return [{ label: '/', path: '/' }]
-    const parts = cwd.split('/').filter(Boolean)
-    const items = [{ label: '/', path: '/' }]
-    let acc = ''
-    for (const part of parts) {
-      acc += `/${part}`
-      items.push({ label: part, path: acc })
-    }
-    return items
-  }, [cwd])
+  /**
+   * Checks the names against what the destination pane already lists and asks
+   * once if any collide. Resolves null when the user cancels the copy.
+   */
+  function resolveConflicts(
+    target: PaneSide,
+    targetPath: string,
+    names: string[]
+  ): Promise<TransferConflict | null> {
+    const listed = queryClient.getQueryData<RemoteEntry[]>(
+      paneQueryKey(target, sessionId, targetPath)
+    )
+    const existing = new Set((listed ?? []).map((e) => e.name))
+    const clashes = names.filter((name) => existing.has(name))
+    if (clashes.length === 0) return Promise.resolve('overwrite')
+    return new Promise((resolve) => {
+      conflictResolver.current = resolve
+      setConflictNames(clashes)
+    })
+  }
 
-  const refresh = useCallback(async (): Promise<void> => {
-    setLoading(true)
-    try {
-      const list = await window.north.fs.list({ sessionId, path: cwd })
-      setEntries(
-        [...list].sort((a, b) => {
-          if (a.type === 'dir' && b.type !== 'dir') return -1
-          if (a.type !== 'dir' && b.type === 'dir') return 1
-          return a.name.localeCompare(b.name)
-        })
-      )
-    } catch (error) {
-      toastError(error, 'Falha ao listar diretório')
-    } finally {
-      setLoading(false)
-    }
-  }, [cwd, sessionId])
+  const localInfo = useQuery({
+    queryKey: ['file-browser', 'local-info'],
+    queryFn: () => window.north.localFs.info(),
+    staleTime: Number.POSITIVE_INFINITY
+  })
+  const remoteHome = useQuery({
+    queryKey: ['file-browser', 'remote-home', sessionId],
+    queryFn: () => window.north.fs.home(sessionId),
+    enabled: visible,
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false
+  })
 
   useEffect(() => {
-    if (!visible) return
-    void refresh()
-  }, [visible, refresh])
+    if (localPath || !localInfo.data) return
+    setLocalPath(savedLocalPath ?? localInfo.data.home)
+  }, [localInfo.data, localPath, savedLocalPath])
 
   useEffect(() => {
-    return window.north.fs.onProgress((progress: TransferProgress) => {
+    if (remotePath) return
+    if (remoteHome.data) setRemotePath(remoteHome.data)
+    else if (remoteHome.isError) setRemotePath('/')
+  }, [remoteHome.data, remoteHome.isError, remotePath])
+
+  function changeLocalPath(path: string): void {
+    setLocalPath(path)
+    setSavedLocalPath(path)
+  }
+
+  useEffect(() => {
+    return window.north.fs.onProgress((progress) => {
       if (progress.sessionId !== sessionId) return
-      const existing = progressToasts.current.get(progress.transferId)
-      const label = progress.direction === 'download' ? 'Download' : 'Upload'
-      const remote = progress.remotePath.split('/').pop() ?? progress.remotePath
-
+      setTransfers((current) => {
+        const idx = current.findIndex((t) => t.transferId === progress.transferId)
+        if (idx === -1) return [...current, progress]
+        const next = [...current]
+        // The final "done" event carries no byte counts; keep the last ones.
+        next[idx] = progress.done
+          ? {
+              ...current[idx],
+              ...progress,
+              bytesTransferred: current[idx].bytesTransferred,
+              totalBytes: current[idx].totalBytes
+            }
+          : progress
+        return next
+      })
       if (progress.done) {
-        if (existing != null) toast.dismiss(existing)
-        progressToasts.current.delete(progress.transferId)
-        if (progress.error) {
-          toastError(new Error(progress.error))
-        } else {
-          toastSuccess(`${label} concluído: ${remote}`)
-          void refresh()
-        }
-        return
-      }
-
-      const pct =
-        progress.totalBytes && progress.totalBytes > 0
-          ? Math.min(100, Math.round((progress.bytesTransferred / progress.totalBytes) * 100))
-          : null
-      const message = pct != null ? `${label} ${remote} — ${pct}%` : `${label} ${remote}…`
-      if (existing != null) {
-        toast.loading(message, { id: existing })
-      } else {
-        const id = toast.loading(message, { duration: Number.POSITIVE_INFINITY })
-        progressToasts.current.set(progress.transferId, id)
+        const side: PaneSide = progress.direction === 'download' ? 'local' : 'remote'
+        void queryClient.invalidateQueries({ queryKey: paneQueryKey(side, sessionId) })
+        if (progress.error) toastError(new Error(progress.error))
       }
     })
-  }, [sessionId, refresh])
+  }, [sessionId, queryClient])
 
-  async function handleUploadFiles(files: FileList | File[]): Promise<void> {
-    const list = Array.from(files)
-    for (const file of list) {
-      const path = window.north.fs.getPathForFile(file)
-      if (!path) {
-        toastError(new Error(`Não foi possível obter o caminho de “${file.name}”`))
-        continue
+  async function download(entries: RemoteEntry[]): Promise<void> {
+    const sep = localInfo.data?.separator ?? '/'
+    const conflict = await resolveConflicts(
+      'local',
+      localPath,
+      entries.map((e) => e.name)
+    )
+    if (!conflict) return
+    for (const entry of entries) {
+      try {
+        await window.north.fs.download({
+          sessionId,
+          remotePath: entry.path,
+          localPath: joinPath(localPath, entry.name, sep),
+          isDir: entry.type === 'dir',
+          conflict
+        })
+      } catch (error) {
+        toastError(error, `Falha ao baixar ${entry.name}`)
       }
+    }
+  }
+
+  async function upload(localPaths: string[]): Promise<void> {
+    const conflict = await resolveConflicts('remote', remotePath, localPaths.map(baseName))
+    if (!conflict) return
+    for (const path of localPaths) {
       try {
         await window.north.fs.upload({
           sessionId,
           localPath: path,
-          remotePath: joinRemote(cwd, file.name)
+          remotePath: joinPath(remotePath, baseName(path), '/'),
+          conflict
         })
       } catch (error) {
-        toastError(error, 'Falha no upload')
+        toastError(error, `Falha ao enviar ${baseName(path)}`)
       }
     }
   }
 
-  async function handleDownload(entry: RemoteEntry): Promise<void> {
-    try {
-      await window.north.fs.download({ sessionId, remotePath: entry.path })
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Download cancelado') return
-      toastError(error, 'Falha no download')
+  function handleDrop(target: PaneSide, payload: FileDragPayload | null, osPaths: string[]): void {
+    if (payload) {
+      if (payload.sessionId !== sessionId) return
+      if (target === 'local') void download(payload.entries)
+      else void upload(payload.entries.map((e) => e.path))
+      return
     }
+    // Files dragged in from Finder/Explorer: only meaningful on the server side.
+    if (target === 'remote' && osPaths.length > 0) void upload(osPaths)
   }
 
-  async function handleMkdir(): Promise<void> {
-    const name = window.prompt('Nome da pasta')
-    if (!name?.trim()) return
-    try {
-      await window.north.fs.mkdir({ sessionId, path: joinRemote(cwd, name.trim()) })
-      await refresh()
-    } catch (error) {
-      toastError(error, 'Falha ao criar pasta')
+  const localSource = useMemo<PaneSource | null>(() => {
+    if (!localInfo.data) return null
+    return {
+      side: 'local',
+      sessionId,
+      sep: localInfo.data.separator,
+      home: localInfo.data.home,
+      roots: localInfo.data.roots,
+      list: (path) => window.north.localFs.list({ path }),
+      mkdir: (path) => window.north.localFs.mkdir({ path }),
+      rename: (from, to) => window.north.localFs.rename({ from, to }),
+      remove: (path) => window.north.localFs.delete({ path }),
+      openFile: (entry) => {
+        window.north.localFs
+          .open({ path: entry.path })
+          .catch((error) => toastError(error, 'Não foi possível abrir o arquivo'))
+      }
     }
-  }
+  }, [localInfo.data, sessionId])
 
-  async function handleRename(entry: RemoteEntry): Promise<void> {
-    const name = window.prompt('Novo nome', entry.name)
-    if (!name?.trim() || name.trim() === entry.name) return
-    try {
-      await window.north.fs.rename({
-        sessionId,
-        from: entry.path,
-        to: joinRemote(cwd, name.trim())
-      })
-      await refresh()
-    } catch (error) {
-      toastError(error, 'Falha ao renomear')
-    }
-  }
-
-  async function handleDelete(entry: RemoteEntry): Promise<void> {
-    if (!window.confirm(`Excluir “${entry.name}”?`)) return
-    try {
-      await window.north.fs.delete({ sessionId, path: entry.path })
-      setSelected(null)
-      await refresh()
-    } catch (error) {
-      toastError(error, 'Falha ao excluir')
-    }
+  const remoteSource: PaneSource = {
+    side: 'remote',
+    sessionId,
+    sep: '/',
+    home: remoteHome.data ?? '/',
+    roots: ['/'],
+    list: (path) => window.north.fs.list({ sessionId, path }),
+    mkdir: (path) => window.north.fs.mkdir({ sessionId, path }),
+    rename: (from, to) => window.north.fs.rename({ sessionId, from, to }),
+    remove: (path) => window.north.fs.delete({ sessionId, path }),
+    // Double-click on a remote file brings it to the local folder, like WinSCP's default copy.
+    openFile: (entry) => void download([entry])
   }
 
   return (
     <section
-      className={cn('flex h-full min-h-0 flex-col bg-background')}
+      className="flex h-full min-h-0 flex-col bg-background"
       style={{ display: visible ? 'flex' : 'none' }}
       aria-label="Navegador de arquivos"
       data-testid="file-browser"
-      onDragOver={(e) => {
-        e.preventDefault()
-        setDragOver(true)
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault()
-        setDragOver(false)
-        if (e.dataTransfer.files.length > 0) {
-          void handleUploadFiles(e.dataTransfer.files)
-        }
-      }}
     >
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          aria-label="Pasta superior"
-          disabled={cwd === '/'}
-          onClick={() => setCwd(parentPath(cwd))}
-        >
-          <ArrowUp className="size-3.5" />
-        </Button>
-        <nav
-          className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-xs"
-          aria-label="Caminho"
-        >
-          {crumbs.map((crumb, index) => (
-            <button
-              key={crumb.path}
-              type="button"
-              className="shrink-0 text-muted hover:text-foreground"
-              onClick={() => setCwd(crumb.path)}
-            >
-              {index > 1 ? <span className="mr-1 text-muted">/</span> : null}
-              {crumb.label}
-            </button>
-          ))}
-        </nav>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          aria-label="Atualizar"
-          onClick={() => void refresh()}
-        >
-          {loading ? (
-            <Loader2 className="size-3.5 animate-spin" />
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
+        <ResizablePanel defaultSize="50%" minSize="20%">
+          {localSource && localPath ? (
+            <FilePane
+              source={localSource}
+              path={localPath}
+              onPathChange={changeLocalPath}
+              visible={visible}
+              active={activeSide === 'local'}
+              onActivate={() => setActiveSide('local')}
+              onCopy={(entries) => void upload(entries.map((e) => e.path))}
+              onDrop={(payload, osPaths) => handleDrop('local', payload, osPaths)}
+              copyLabel="Enviar para o servidor"
+            />
           ) : (
-            <RefreshCw className="size-3.5" />
+            <PaneLoading />
           )}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          aria-label="Nova pasta"
-          onClick={() => void handleMkdir()}
-        >
-          <FolderPlus className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          aria-label="Enviar arquivo"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload className="size-3.5" />
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          multiple
-          onChange={(e) => {
-            if (e.target.files) void handleUploadFiles(e.target.files)
-            e.target.value = ''
-          }}
-        />
-      </div>
-
-      <ScrollArea className="min-h-0 flex-1">
-        <div
-          className={cn(
-            'min-h-full',
-            dragOver && 'bg-accent/10 outline outline-1 outline-dashed outline-accent'
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize="50%" minSize="20%">
+          {remotePath ? (
+            <FilePane
+              source={remoteSource}
+              path={remotePath}
+              onPathChange={setRemotePath}
+              visible={visible}
+              active={activeSide === 'remote'}
+              onActivate={() => setActiveSide('remote')}
+              onCopy={(entries) => void download(entries)}
+              onDrop={(payload, osPaths) => handleDrop('remote', payload, osPaths)}
+              copyLabel="Baixar para a pasta local"
+            />
+          ) : (
+            <PaneLoading />
           )}
-        >
-          <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 bg-surface text-[11px] uppercase tracking-wider text-muted">
-              <tr>
-                <th className="px-3 py-2 font-medium">Nome</th>
-                <th className="w-24 px-3 py-2 font-medium">Tamanho</th>
-                <th className="w-40 px-3 py-2 font-medium">Modificado</th>
-                <th className="w-28 px-3 py-2 font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry) => {
-                const Icon = entry.type === 'dir' ? Folder : File
-                return (
-                  <tr
-                    key={entry.path}
-                    data-testid={`file-browser-entry-${entry.name}`}
-                    className={cn(
-                      'border-t border-border/60 hover:bg-surface-elevated/50',
-                      selected === entry.path && 'bg-surface-elevated'
-                    )}
-                    onClick={() => setSelected(entry.path)}
-                    onDoubleClick={() => {
-                      if (entry.type === 'dir') setCwd(entry.path)
-                      else void handleDownload(entry)
-                    }}
-                  >
-                    <td className="px-3 py-1.5">
-                      <div className="flex items-center gap-2">
-                        <Icon className="size-3.5 shrink-0 text-muted" />
-                        <span className="truncate">{entry.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-1.5 font-mono text-xs text-muted">
-                      {entry.type === 'dir' ? '—' : formatSize(entry.size)}
-                    </td>
-                    <td className="px-3 py-1.5 font-mono text-xs text-muted">
-                      {entry.modifiedAt ? new Date(entry.modifiedAt).toLocaleString('pt-BR') : '—'}
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <div className="flex items-center gap-0.5">
-                        {entry.type !== 'dir' ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-7"
-                            aria-label={`Baixar ${entry.name}`}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              void handleDownload(entry)
-                            }}
-                          >
-                            <Download className="size-3.5" />
-                          </Button>
-                        ) : null}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-7"
-                          aria-label={`Renomear ${entry.name}`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            void handleRename(entry)
-                          }}
-                        >
-                          <Pencil className="size-3.5" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 text-red-400"
-                          aria-label={`Excluir ${entry.name}`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            void handleDelete(entry)
-                          }}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          {!loading && entries.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted" data-testid="file-browser-empty">
-              Pasta vazia — arraste arquivos para enviar
-            </p>
-          ) : null}
-        </div>
-      </ScrollArea>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+      <ConflictDialog
+        names={conflictNames}
+        onResolve={(choice) => {
+          conflictResolver.current?.(choice)
+          conflictResolver.current = null
+          setConflictNames(null)
+        }}
+      />
+      <TransferQueue
+        transfers={transfers}
+        onCancel={(transferId) => void window.north.fs.cancel({ transferId })}
+        onClearFinished={() => setTransfers((current) => current.filter((t) => !t.done))}
+      />
     </section>
+  )
+}
+
+function PaneLoading(): React.JSX.Element {
+  return (
+    <div className="flex h-full items-center justify-center text-muted">
+      <Loader2 className="size-4 animate-spin" />
+    </div>
   )
 }

@@ -27,6 +27,18 @@ Na aba de sessão terminal:
 - O menu de contexto (botão direito) tem **Colar senha salva** quando a conexão tem senha ou senha de sudo salva — cola a senha guardada no vault direto no terminal (útil para `sudo su` e afins), sem passar pelo clipboard do sistema.
 - Colar uma imagem (⌘V/Ctrl+V com uma imagem copiada, por exemplo um screenshot) salva ela num arquivo temporário e cola o caminho como texto — do jeito que iTerm2/Terminal.app fazem. Útil pra mandar uma imagem pra CLIs de agente (Claude Code e similares) rodando no terminal.
 
+## Arquivos (SFTP/FTP)
+
+Conexões SFTP e FTP abrem num navegador de arquivos com dois painéis, no estilo do WinSCP: **seu computador à esquerda** e **o servidor à direita**. Numa conexão SSH, clique com o botão direito e escolha **Abrir arquivos (SFTP)** para abrir os arquivos do mesmo servidor, com o mesmo usuário e senha.
+
+- Arraste arquivos ou pastas de um painel para o outro para copiar. Pastas são copiadas com todo o conteúdo. Também dá para arrastar do Finder/Explorer direto para o painel do servidor.
+- Atalhos no painel ativo: **F5** copia a seleção para o outro lado, **F2** renomeia, **F7** cria pasta, **Del** exclui, **Enter** abre, **Backspace** sobe uma pasta. **⌘/Ctrl+clique** e **Shift+clique** selecionam vários.
+- Clique duplo num arquivo local abre no app padrão do sistema; num arquivo remoto, baixa para a pasta aberta à esquerda.
+- As colunas mostram tamanho, data, permissões (`rwxr-xr-x`) e dono; clique no cabeçalho para ordenar. Digite um caminho na barra para ir direto. No Windows, o seletor ao lado troca de unidade.
+- A fila embaixo mostra cada transferência com progresso e um botão para cancelar. Cancelar interrompe na hora o arquivo em andamento e apaga a cópia parcial.
+- Se algum item já existe no destino, o North pergunta antes: **Sobrescrever**, **Pular existentes** ou **Cancelar**. A escolha vale também para os arquivos dentro das pastas.
+- Excluir no painel local manda para a lixeira do sistema. No servidor não existe lixeira (SFTP/FTP não têm), então a confirmação avisa que é permanente e que pastas vão com todo o conteúdo.
+
 ## Terminal local
 
 **Terminal local**, no topo da sidebar (Visão geral) ou pela Command Palette (**⌘/Ctrl+K**), abre o shell da própria máquina — sem host, sem credencial, sem Connection cadastrada. Roda no processo main, igual às demais sessões de terminal; fechar a aba encerra o processo do shell.

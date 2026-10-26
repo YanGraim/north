@@ -27,6 +27,18 @@ En una pestaña de sesión terminal:
 - El menú contextual (clic derecho) tiene **Pegar contraseña guardada** cuando la conexión tiene una contraseña o contraseña de sudo guardada — pega el secreto guardado en el vault directo en la terminal (útil para `sudo su` y similares), sin pasar nunca por el portapapeles del sistema.
 - Pegar una imagen (⌘V/Ctrl+V con una imagen copiada, por ejemplo un screenshot) la guarda en un archivo temporal y pega la ruta como texto — igual que hacen iTerm2/Terminal.app. Útil para mandar una imagen a CLIs de agente (Claude Code y similares) corriendo en la terminal.
 
+## Archivos (SFTP/FTP)
+
+Las conexiones SFTP y FTP se abren en un explorador de archivos de dos paneles, al estilo de WinSCP: **tu computadora a la izquierda** y **el servidor a la derecha**. En una conexión SSH, haz clic derecho y elige **Abrir archivos (SFTP)** para ver los archivos del mismo servidor, con el mismo usuario y contraseña.
+
+- Arrastra archivos o carpetas de un panel al otro para copiarlos. Las carpetas se copian con todo su contenido. También puedes arrastrar desde Finder/Explorador directo al panel del servidor.
+- Atajos en el panel activo: **F5** copia la selección al otro lado, **F2** renombra, **F7** crea una carpeta, **Supr** elimina, **Enter** abre, **Retroceso** sube una carpeta. **⌘/Ctrl+clic** y **Shift+clic** seleccionan varios.
+- Doble clic en un archivo local lo abre con la app predeterminada del sistema; en un archivo remoto, lo descarga a la carpeta abierta a la izquierda.
+- Las columnas muestran tamaño, fecha, permisos (`rwxr-xr-x`) y dueño; haz clic en el encabezado para ordenar. Escribe una ruta en la barra para ir directo. En Windows, el selector de al lado cambia de unidad.
+- La cola de abajo muestra cada transferencia con su progreso y un botón para cancelar. Cancelar detiene al instante el archivo en curso y borra la copia parcial.
+- Si algún elemento ya existe en el destino, North pregunta antes: **Sobrescribir**, **Omitir existentes** o **Cancelar**. La elección vale también para los archivos dentro de las carpetas.
+- Eliminar en el panel local envía a la papelera del sistema. El servidor no tiene papelera (SFTP/FTP no la tienen), así que la confirmación avisa que es permanente y que las carpetas se borran con todo su contenido.
+
 ## Terminal local
 
 **Terminal local**, arriba en la barra lateral (Visión general) o por la Command Palette (**⌘/Ctrl+K**), abre el shell de tu propia máquina — sin host, sin credencial, sin Connection guardada. Corre en el proceso main, igual que las demás sesiones de terminal; cerrar la pestaña termina el proceso del shell.

@@ -16,7 +16,7 @@ import { registerConnectionHandlers } from './connections'
 import { registerDatabaseHandlers } from './db'
 import { registerEnvironmentUpdateHandlers } from './environment-updates'
 import { registerEnvironmentHandlers } from './environments'
-import { registerFsHandlers } from './fs'
+import { registerFsHandlers, registerLocalFsHandlers } from './fs'
 import { registerGroupHandlers } from './groups'
 import { registerHistoryHandlers } from './history'
 import { registerInventoryHandlers } from './inventory'
@@ -126,6 +126,7 @@ export function registerIpcHandlers(): void {
   registerDatabaseHandlers(repositories, vault)
   registerApiHandlers(repositories, vault)
   registerFsHandlers()
+  registerLocalFsHandlers()
   registerSerialHandlers()
   registerStatsHandlers(repositories, inventory)
   registerInventoryHandlers(repositories, () => registry.activeSource())

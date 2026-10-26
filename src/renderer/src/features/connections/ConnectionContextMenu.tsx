@@ -42,15 +42,17 @@ export function ConnectionContextMenu({
   const openCopy = useCopyToWorkspaceStore((s) => s.open)
   const canCopy = (useWorkspaces().data?.length ?? 0) > 1
 
-  async function handleConnect(): Promise<void> {
+  async function handleConnect(as?: 'sftp'): Promise<void> {
     setConnecting(true)
     try {
+      const protocol = as ?? connection.protocol
       await openConnectionSession(connection.id, {
-        title: connection.name,
-        protocol: connection.protocol,
-        sessionKind: sessionKindForProtocol(connection.protocol),
+        title: as ? `${connection.name} (arquivos)` : connection.name,
+        protocol,
+        sessionKind: sessionKindForProtocol(protocol),
         username: connection.username,
-        host: connection.host
+        host: connection.host,
+        as
       })
     } catch (error) {
       toastError(error, 'Não foi possível conectar. Verifique a senha salva e tente novamente.')
@@ -70,6 +72,11 @@ export function ConnectionContextMenu({
           >
             {connecting ? 'Conectando…' : 'Conectar'}
           </ContextMenuItem>
+          {connection.protocol === 'ssh' ? (
+            <ContextMenuItem disabled={connecting} onSelect={() => void handleConnect('sftp')}>
+              Abrir arquivos (SFTP)
+            </ContextMenuItem>
+          ) : null}
           {canEdit ? (
             <>
               <ContextMenuItem

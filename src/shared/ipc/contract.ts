@@ -19,6 +19,7 @@ import type {
   DbRollbackInput,
   DbSetAutoCommitInput,
   DbTxStateInput,
+  FsCancelInput,
   FsDownloadInput,
   FsListInput,
   FsPathInput,
@@ -26,6 +27,9 @@ import type {
   FsUploadInput,
   HostKeyPrompt,
   HostKeyResponse,
+  LocalFsInfo,
+  LocalFsPathInput,
+  LocalFsRenameInput,
   RemoteEntry,
   SessionDescriptor,
   SessionPortMessage,
@@ -310,7 +314,8 @@ export interface IpcInvokeMap {
   }
 
   [IpcChannels.SESSIONS_OPEN]: {
-    args: [connectionId: string, requestId: string]
+    /** `as: 'sftp'` opens an SSH connection's file browser instead of its terminal. */
+    args: [connectionId: string, requestId: string, as?: 'sftp']
     result: SessionDescriptor
   }
   [IpcChannels.SESSIONS_OPEN_ACCESS]: {
@@ -365,6 +370,39 @@ export interface IpcInvokeMap {
   [IpcChannels.FS_UPLOAD]: {
     args: [input: FsUploadInput]
     result: TransferHandle
+  }
+  [IpcChannels.FS_HOME]: {
+    args: [sessionId: string]
+    result: string
+  }
+  [IpcChannels.FS_CANCEL]: {
+    args: [input: FsCancelInput]
+    result: undefined
+  }
+
+  [IpcChannels.LOCAL_FS_INFO]: {
+    args: []
+    result: LocalFsInfo
+  }
+  [IpcChannels.LOCAL_FS_LIST]: {
+    args: [input: LocalFsPathInput]
+    result: RemoteEntry[]
+  }
+  [IpcChannels.LOCAL_FS_MKDIR]: {
+    args: [input: LocalFsPathInput]
+    result: undefined
+  }
+  [IpcChannels.LOCAL_FS_RENAME]: {
+    args: [input: LocalFsRenameInput]
+    result: undefined
+  }
+  [IpcChannels.LOCAL_FS_DELETE]: {
+    args: [input: LocalFsPathInput]
+    result: undefined
+  }
+  [IpcChannels.LOCAL_FS_OPEN]: {
+    args: [input: LocalFsPathInput]
+    result: undefined
   }
 
   [IpcChannels.SERIAL_LIST_PORTS]: {
@@ -837,7 +875,11 @@ export interface NorthApi {
      * Opens a session. The MessagePort MUST be received via `onPort` (argument to a
      * renderer callback) — returning MessagePort through contextBridge yields a dead port.
      */
-    open: (connectionId: string, onPort: (port: MessagePort) => void) => Promise<SessionDescriptor>
+    open: (
+      connectionId: string,
+      onPort: (port: MessagePort) => void,
+      as?: 'sftp'
+    ) => Promise<SessionDescriptor>
     openAccess: (accessId: string) => Promise<SessionDescriptor>
     /** Opens a local shell (no host, no credentials) — same MessagePort caveat as `open`. */
     openLocal: (onPort: (port: MessagePort) => void) => Promise<SessionDescriptor>
@@ -868,8 +910,18 @@ export interface NorthApi {
     delete: (input: FsPathInput) => Promise<void>
     download: (input: FsDownloadInput) => Promise<TransferHandle>
     upload: (input: FsUploadInput) => Promise<TransferHandle>
+    cancel: (input: FsCancelInput) => Promise<void>
+    home: (sessionId: string) => Promise<string>
     onProgress: (listener: (progress: TransferProgress) => void) => () => void
     getPathForFile: (file: File) => string
+  }
+  localFs: {
+    info: () => Promise<LocalFsInfo>
+    list: (input: LocalFsPathInput) => Promise<RemoteEntry[]>
+    mkdir: (input: LocalFsPathInput) => Promise<void>
+    rename: (input: LocalFsRenameInput) => Promise<void>
+    delete: (input: LocalFsPathInput) => Promise<void>
+    open: (input: LocalFsPathInput) => Promise<void>
   }
   serial: {
     listPorts: () => Promise<SerialPortInfo[]>

@@ -50,6 +50,9 @@ interface UiState {
   lastSeenWhatsNewVersion: string | null
   /** Workspace that legacy (unscoped) routes and app launch land on — ADR 0018. */
   lastWorkspaceId: string | null
+  /** Left (local) pane of the file browser reopens where it was last left. */
+  fileBrowserLocalPath: string | null
+  setFileBrowserLocalPath: (path: string) => void
   setLastWorkspaceId: (id: string) => void
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
@@ -107,6 +110,8 @@ export const useUiStore = create<UiState>()(
       monoFontFamily: 'ibm-plex-mono',
       lastSeenWhatsNewVersion: null,
       lastWorkspaceId: null,
+      fileBrowserLocalPath: null,
+      setFileBrowserLocalPath: (path) => set({ fileBrowserLocalPath: path }),
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       isTreeNodeExpanded: (id) => Boolean(get().expandedTreeNodes[id]),
@@ -164,7 +169,8 @@ export const useUiStore = create<UiState>()(
         monoFontSize: state.monoFontSize,
         monoFontFamily: state.monoFontFamily,
         lastSeenWhatsNewVersion: state.lastSeenWhatsNewVersion,
-        lastWorkspaceId: state.lastWorkspaceId
+        lastWorkspaceId: state.lastWorkspaceId,
+        fileBrowserLocalPath: state.fileBrowserLocalPath
       })
     }
   )

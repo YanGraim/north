@@ -1,5 +1,6 @@
 import { IpcChannels, type NorthApi } from '@shared/ipc'
 import type {
+  FsCancelInput,
   FsDownloadInput,
   FsListInput,
   FsPathInput,
@@ -7,6 +8,8 @@ import type {
   FsUploadInput,
   HostKeyPrompt,
   HostKeyResponse,
+  LocalFsPathInput,
+  LocalFsRenameInput,
   SessionDescriptor,
   SessionPortMessage,
   TransferProgress
@@ -47,7 +50,8 @@ function waitForSessionPort(requestId: string, onPort: (port: MessagePort) => vo
 
 function openSession(
   connectionId: string,
-  onPort: (port: MessagePort) => void
+  onPort: (port: MessagePort) => void,
+  as?: 'sftp'
 ): Promise<SessionDescriptor> {
   const requestId = crypto.randomUUID()
   const portPromise = waitForSessionPort(requestId, onPort)
@@ -56,7 +60,8 @@ function openSession(
     ipcRenderer.invoke(
       IpcChannels.SESSIONS_OPEN,
       connectionId,
-      requestId
+      requestId,
+      as
     ) as Promise<SessionDescriptor>,
     portPromise
   ]).then(([session]) => session)
@@ -243,6 +248,8 @@ const api: NorthApi = {
     delete: (input: FsPathInput) => ipcRenderer.invoke(IpcChannels.FS_DELETE, input),
     download: (input: FsDownloadInput) => ipcRenderer.invoke(IpcChannels.FS_DOWNLOAD, input),
     upload: (input: FsUploadInput) => ipcRenderer.invoke(IpcChannels.FS_UPLOAD, input),
+    cancel: (input: FsCancelInput) => ipcRenderer.invoke(IpcChannels.FS_CANCEL, input),
+    home: (sessionId: string) => ipcRenderer.invoke(IpcChannels.FS_HOME, sessionId),
     onProgress: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, progress: TransferProgress): void => {
         listener(progress)
@@ -251,6 +258,15 @@ const api: NorthApi = {
       return () => ipcRenderer.removeListener(IpcChannels.FS_PROGRESS, handler)
     },
     getPathForFile: (file: File) => webUtils.getPathForFile(file)
+  },
+
+  localFs: {
+    info: () => ipcRenderer.invoke(IpcChannels.LOCAL_FS_INFO),
+    list: (input: LocalFsPathInput) => ipcRenderer.invoke(IpcChannels.LOCAL_FS_LIST, input),
+    mkdir: (input: LocalFsPathInput) => ipcRenderer.invoke(IpcChannels.LOCAL_FS_MKDIR, input),
+    rename: (input: LocalFsRenameInput) => ipcRenderer.invoke(IpcChannels.LOCAL_FS_RENAME, input),
+    delete: (input: LocalFsPathInput) => ipcRenderer.invoke(IpcChannels.LOCAL_FS_DELETE, input),
+    open: (input: LocalFsPathInput) => ipcRenderer.invoke(IpcChannels.LOCAL_FS_OPEN, input)
   },
 
   serial: {

@@ -11,7 +11,7 @@ import type {
   SessionPortMessage,
   SessionState
 } from '@shared/protocols'
-import { Client, type FileInfo, FileType } from 'basic-ftp'
+import { type AccessOptions, Client, type FileInfo, FileType } from 'basic-ftp'
 
 function toEntryType(info: FileInfo): RemoteEntryType {
   switch (info.type) {
@@ -31,30 +31,48 @@ function toIsoDate(value: Date | undefined): string | null {
   return value.toISOString()
 }
 
+/** basic-ftp's per-class bitmask (read=4, write=2, execute=1) → `rwxr-xr-x`. */
+export function formatFtpPermissions(info: FileInfo): string | null {
+  const perms = info.permissions
+  if (!perms) return null
+  const triplet = (bits: number): string =>
+    `${bits & 4 ? 'r' : '-'}${bits & 2 ? 'w' : '-'}${bits & 1 ? 'x' : '-'}`
+  return `${triplet(perms.user)}${triplet(perms.group)}${triplet(perms.world)}`
+}
+
 class FtpProtocolSession implements ProtocolSession {
   readonly id: string
   readonly kind = 'file-transfer' as const
   readonly protocol = 'ftp'
   private _state: SessionState = 'connecting'
   private port: SessionDataPort | null = null
-  private readonly client: Client
+  private client: Client
+  private readonly accessOptions: AccessOptions
+  /** Reconnect in flight after a cancelled transfer; the next command waits for it. */
+  private reconnecting: Promise<void> | null = null
   private disposed = false
   private busy: Promise<unknown> = Promise.resolve()
 
   readonly fileTransfer: FileTransferCapability
 
-  constructor(id: string, client: Client) {
+  constructor(id: string, client: Client, accessOptions: AccessOptions) {
     this.id = id
     this.client = client
+    this.accessOptions = accessOptions
     this.fileTransfer = {
+      home: () => this.serialize(() => this.client.pwd()),
       list: (path) => this.serialize(() => this.list(path)),
       mkdir: (path) => this.serialize(() => this.mkdir(path)),
       rename: (from, to) => this.serialize(() => this.rename(from, to)),
       remove: (path) => this.serialize(() => this.remove(path)),
-      download: (remotePath, localPath, onProgress) =>
-        this.serialize(() => this.download(remotePath, localPath, onProgress)),
-      upload: (localPath, remotePath, onProgress) =>
-        this.serialize(() => this.upload(localPath, remotePath, onProgress))
+      download: (remotePath, localPath, onProgress, signal) =>
+        this.serialize(() =>
+          this.withAbort(signal, () => this.download(remotePath, localPath, onProgress))
+        ),
+      upload: (localPath, remotePath, onProgress, signal) =>
+        this.serialize(() =>
+          this.withAbort(signal, () => this.upload(localPath, remotePath, onProgress))
+        )
     }
   }
 
@@ -92,6 +110,40 @@ class FtpProtocolSession implements ProtocolSession {
   }
 
   /**
+   * FTP has no reliable mid-transfer abort in basic-ftp, so cancelling closes
+   * the control connection (which kills the data transfer) and logs in again
+   * before the next queued command runs.
+   */
+  private async withAbort(
+    signal: AbortSignal | undefined,
+    run: () => Promise<void>
+  ): Promise<void> {
+    if (!signal) return run()
+    if (signal.aborted) throw new Error('Transferência cancelada')
+    const onAbort = (): void => {
+      const old = this.client
+      this.client = new Client()
+      this.reconnecting = this.client.access(this.accessOptions).then(
+        () => undefined,
+        (error: unknown) => {
+          this.setState('error', `Falha ao reconectar após cancelar: ${errorMessage(error)}`)
+        }
+      )
+      old.close()
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+    try {
+      await run()
+    } finally {
+      signal.removeEventListener('abort', onAbort)
+      if (this.reconnecting) {
+        await this.reconnecting
+        this.reconnecting = null
+      }
+    }
+  }
+
+  /**
    * basic-ftp's Client shares a single control connection so commands must be serialised.
    */
   private serialize<T>(task: () => Promise<T>): Promise<T> {
@@ -109,7 +161,10 @@ class FtpProtocolSession implements ProtocolSession {
         path: posix.join(path, info.name),
         type: toEntryType(info),
         size: info.size,
-        modifiedAt: toIsoDate(info.modifiedAt) ?? (info.rawModifiedAt || null)
+        modifiedAt: toIsoDate(info.modifiedAt) ?? (info.rawModifiedAt || null),
+        permissions: formatFtpPermissions(info),
+        owner: info.user || null,
+        group: info.group || null
       }))
     } catch (error) {
       throw new Error(`Falha ao listar diretório: ${errorMessage(error)}`)
@@ -252,17 +307,18 @@ export class FtpDriver implements ProtocolDriver {
     }
 
     const user = connection.username?.trim() || 'anonymous'
+    const accessOptions: AccessOptions = {
+      host,
+      port: connection.port,
+      user,
+      password: password ?? 'guest',
+      secure: false
+    }
     const client = new Client()
-    const session = new FtpProtocolSession(sessionId, client)
+    const session = new FtpProtocolSession(sessionId, client, accessOptions)
 
     try {
-      await client.access({
-        host,
-        port: connection.port,
-        user,
-        password: password ?? 'guest',
-        secure: false
-      })
+      await client.access(accessOptions)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha ao conectar ao servidor FTP'
       session.setState('error', message)
