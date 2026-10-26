@@ -47,3 +47,7 @@ resources/vpn/bin/
 # Playwright
 test-results/
 playwright-report/
+
+# Local deploy material (server IDs, image bundles) — never commit
+server/deploy/
+Claude outputs/
