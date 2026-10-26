@@ -1449,6 +1449,7 @@ function installDatabaseMock(workflowsApi: ReturnType<typeof createWorkflowsApi>
     username: null,
     credentialRef: null,
     url: 'https://api.example.test',
+    apiEnvironmentEnabled: true,
     links: [],
     icon: null,
     color: null,

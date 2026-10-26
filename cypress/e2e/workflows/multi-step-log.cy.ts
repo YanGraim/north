@@ -8,7 +8,7 @@ describe('workflows multi-step and run log', () => {
     cy.get('[data-testid="workflow-section-new"]').click()
     cy.get('[data-testid="workflow-hub-dialog"]').should('be.visible')
     cy.get('[data-testid="workflow-hub-mode-flow"]').click()
-    cy.get('[data-testid="workflow-hub-flow-canvas"]').should('be.visible')
+    cy.get('[data-testid="workflow-hub-flow-canvas"]').scrollIntoView().should('be.visible')
     cy.get('[data-testid="workflow-hub-new-name"]').clear().type('Deploy WMS')
 
     cy.get('[data-testid="workflow-hub-step-list"]').find('li').should('have.length', 1)

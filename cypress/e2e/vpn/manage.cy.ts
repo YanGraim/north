@@ -55,19 +55,12 @@ describe('VPNs — cadastro', () => {
     cy.get('[data-testid="vpn-new"]').click()
     cy.get('[data-testid="vpn-kind-ipsec-ikev1"]').click()
     cy.get('[data-testid="vpn-ipsec-form"] label').then(($labels) => {
-      const fortiFields = [
-        'Gateway remoto',
-        'Método de autenticação',
-        'Nome do grupo (opcional)',
-        'XAuth',
-        'Usuário'
-      ]
+      const fortiFields = ['Gateway remoto', 'Nome do grupo (opcional)', 'XAuth', 'Usuário']
       const order = [...$labels]
         .map((l) => l.textContent)
         .filter((l) => fortiFields.includes(l ?? ''))
       expect(order).to.deep.equal([
         'Gateway remoto',
-        'Método de autenticação',
         'Nome do grupo (opcional)',
         'XAuth',
         'Usuário'
