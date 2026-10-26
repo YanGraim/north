@@ -243,7 +243,9 @@
       "cancel": "Cancelar",
       "save": "Guardar",
       "create": "Crear",
-      "passwordOrganizationHint": "Se guarda cifrada en el servidor de la organización. North la busca solo al conectar, y cada acceso queda registrado."
+      "passwordOrganizationHint": "Se guarda cifrada en el servidor de la organización. North la busca solo al conectar, y cada acceso queda registrado.",
+      "agentForward": "Reenviar agente SSH (ssh -A)",
+      "agentForwardHint": "Permite que comandos en el servidor, como git pull, usen las claves de tu ssh-agent sin copiarlas allí. Actívalo solo en servidores de confianza: quien tenga root allí puede usar el agente mientras la sesión esté abierta."
     },
     "badge": "Servidor"
   },

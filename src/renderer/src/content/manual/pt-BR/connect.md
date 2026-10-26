@@ -16,6 +16,16 @@ No botão **Conectar**, o menu split também lista workflows do grupo. Você pod
 
 Na primeira conexão SSH, o North pede confirmação da chave do host. Aceite só se o fingerprint bater com o esperado.
 
+## Agente SSH (git no servidor)
+
+Para rodar `git pull`/`git push` dentro de um servidor usando a chave do **seu** computador (sem copiá-la para lá), ligue **Encaminhar agente SSH (ssh -A)** na conexão. É o mesmo que `ssh -A` no terminal e vem desligado por padrão.
+
+1. Carregue a chave no agente local: `ssh-add ~/.ssh/id_ed25519`. No Windows, o serviço **OpenSSH Authentication Agent** precisa estar habilitado.
+2. Ligue a opção na conexão e conecte.
+3. No servidor, teste com `ssh -T git@seu-gitlab` (ou o comando que o seu GitLab indicar).
+
+Ligue só em servidores confiáveis: quem tiver root no servidor pode usar o agente enquanto a sessão estiver aberta. Se o agente não estiver rodando ou o servidor bloquear o encaminhamento, a sessão abre normalmente, só sem o agente.
+
 ## Terminal
 
 Na aba de sessão terminal:

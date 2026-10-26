@@ -194,6 +194,14 @@ export const migrations: Migration[] = [
       -- Entra object id (ADR 0018 fase 0): stable per person, unlike the e-mail.
       ALTER TABLE users ADD COLUMN external_id TEXT UNIQUE;
     `
+  },
+  {
+    version: 5,
+    name: '005-connection-agent-forward',
+    sql: `
+      -- ssh-agent forwarding (ssh -A) per connection, off by default like OpenSSH.
+      ALTER TABLE connections ADD COLUMN agent_forward BOOLEAN NOT NULL DEFAULT false;
+    `
   }
 ]
 

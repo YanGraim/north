@@ -6,4 +6,8 @@
 - **More detail:** permissions and owner columns, sortable columns, an editable path bar and F2/F7/Del shortcuts
 - **No surprises:** asks before overwriting files that already exist at the destination, and cancelling stops the file in flight right away
 
+## Git on the server with your key
+
+- **Forward SSH agent (ssh -A):** new option on SSH connections. Commands like `git pull` on the server use the key in your `ssh-agent`, without copying it there. Works on macOS, Linux and Windows (OpenSSH Authentication Agent service)
+
 See the [Connect](connect) chapter in the manual.

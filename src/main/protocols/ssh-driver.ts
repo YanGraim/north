@@ -8,7 +8,7 @@ import {
   type SessionState,
   type TerminalCapability
 } from '@shared/protocols'
-import { Client, type ClientChannel } from 'ssh2'
+import { Client, type ClientChannel, type ShellOptions } from 'ssh2'
 import { SessionPortOutlet } from './session-port-outlet'
 import { attachKeyboardInteractivePassword, buildSshConnectConfig } from './ssh-auth'
 import { formatSshClientError } from './ssh-utils'
@@ -137,7 +137,22 @@ export class SshDriver implements ProtocolDriver {
       let settled = false
       client
         .on('ready', () => {
-          client.shell({ term: 'xterm-256color', cols: 80, rows: 24 }, (err, stream) => {
+          const pty = { term: 'xterm-256color', cols: 80, rows: 24 }
+          const openShell = (forwardAgent: boolean): void => {
+            // Per-channel request (not ConnectConfig.agentForward) so a server that
+            // refuses forwarding still gets a shell — same as `ssh -A`, which just warns.
+            // ssh2 honors `agentForward` per channel; @types/ssh2 just doesn't declare it.
+            const shellOpts = { agentForward: forwardAgent } as ShellOptions
+            client.shell(pty, shellOpts, (err, stream) => {
+              if (settled) return
+              if (err && forwardAgent && /agent forwarding/i.test(err.message)) {
+                openShell(false)
+                return
+              }
+              onShell(err, stream)
+            })
+          }
+          const onShell = (err: Error | undefined, stream: ClientChannel): void => {
             if (settled) return
             if (err) {
               settled = true
@@ -150,7 +165,8 @@ export class SshDriver implements ProtocolDriver {
             session.setState('connected')
             settled = true
             resolveConnect()
-          })
+          }
+          openShell(opts.connection.agentForward && connectConfig.agent !== undefined)
         })
         .on('error', (err) => {
           if (settled) return

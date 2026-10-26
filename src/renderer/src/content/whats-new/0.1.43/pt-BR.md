@@ -6,4 +6,8 @@
 - **Mais detalhes:** colunas de permissões e dono, ordenação por coluna, barra de caminho editável e atalhos F2/F7/Del
 - **Sem surpresas:** pergunta antes de sobrescrever arquivos que já existem no destino, e cancelar interrompe na hora o arquivo em andamento
 
+## Git no servidor com a sua chave
+
+- **Encaminhar agente SSH (ssh -A):** nova opção na conexão SSH. Comandos como `git pull` no servidor usam a chave do seu `ssh-agent`, sem copiá-la para lá. Funciona no mac, no Linux e no Windows (serviço OpenSSH Authentication Agent)
+
 Veja o capítulo [Conectar](connect) no manual.

@@ -16,6 +16,16 @@ En el botón **Conectar**, el menú split también lista workflows del grupo. Pu
 
 En la primera conexión SSH, North pide confirmar la clave del host. Acepta solo si el fingerprint coincide con lo esperado.
 
+## Agente SSH (git en el servidor)
+
+Para ejecutar `git pull`/`git push` en un servidor con la clave de **tu** computadora (sin copiarla allí), activa **Reenviar agente SSH (ssh -A)** en la conexión. Funciona como `ssh -A` en una terminal y viene desactivado por defecto.
+
+1. Carga la clave en tu agente local: `ssh-add ~/.ssh/id_ed25519`. En Windows, el servicio **OpenSSH Authentication Agent** debe estar habilitado.
+2. Activa la opción en la conexión y conéctate.
+3. En el servidor, prueba con `ssh -T git@tu-gitlab` (o el comando que indique tu GitLab).
+
+Actívalo solo en servidores de confianza: quien tenga root en el servidor puede usar el agente mientras la sesión esté abierta. Si el agente no está en ejecución o el servidor bloquea el reenvío, la sesión se abre igual, solo que sin el agente.
+
 ## Terminal
 
 En una pestaña de sesión terminal:

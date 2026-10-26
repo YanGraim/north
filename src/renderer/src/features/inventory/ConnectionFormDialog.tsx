@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@renderer/components/ui/select'
+import { Switch } from '@renderer/components/ui/switch'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { VpnModeSelect } from '@renderer/features/vpns/VpnLinkSelect'
 import { useCreateClient } from '@renderer/hooks/use-clients'
@@ -72,6 +73,7 @@ const FormSchema = z.object({
   username: z.string().nullable().optional(),
   authMethod: AuthMethodSchema,
   privateKeyPath: z.string().nullable().optional(),
+  agentForward: z.boolean(),
   password: z.string().optional(),
   clientId: z.string().uuid('Selecione o cliente'),
   environmentId: z.string().uuid('Selecione o ambiente'),
@@ -135,6 +137,7 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
       username: null,
       authMethod: 'password',
       privateKeyPath: null,
+      agentForward: false,
       password: '',
       clientId: '',
       environmentId: '',
@@ -194,6 +197,7 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
         username: existing.username,
         authMethod: existing.authMethod,
         privateKeyPath: existing.privateKeyPath,
+        agentForward: existing.agentForward,
         password: '',
         clientId: org.client?.id ?? '',
         environmentId: org.environment?.id ?? '',
@@ -223,6 +227,7 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
       username: null,
       authMethod: 'password',
       privateKeyPath: null,
+      agentForward: false,
       password: '',
       clientId: createClientId || org?.client?.id || '',
       environmentId: createEnvironmentId || org?.environment?.id || '',
@@ -300,6 +305,7 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
       authMethod: values.authMethod,
       credentialRef,
       privateKeyPath: values.privateKeyPath ?? null,
+      agentForward: values.agentForward,
       owner: values.owner ?? null,
       icon: values.icon ?? null,
       color: values.color ?? null,
@@ -662,6 +668,28 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
                             />
                           </FormControl>
                           <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ) : null}
+
+                  {watchedProtocol === 'ssh' ? (
+                    <FormField
+                      control={form.control}
+                      name="agentForward"
+                      render={({ field }) => (
+                        <FormItem className="sm:col-span-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <FormLabel>{t('connection.form.agentForward')}</FormLabel>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                aria-label={t('connection.form.agentForward')}
+                              />
+                            </FormControl>
+                          </div>
+                          <FormDescription>{t('connection.form.agentForwardHint')}</FormDescription>
                         </FormItem>
                       )}
                     />

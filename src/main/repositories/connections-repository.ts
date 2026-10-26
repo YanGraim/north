@@ -22,6 +22,7 @@ type ConnectionRow = {
   auth_method: Connection['authMethod']
   credential_ref: string | null
   private_key_path: string | null
+  agent_forward: number
   jump_host_id: string | null
   default_command: string | null
   notes: string | null
@@ -45,7 +46,7 @@ type ConnectionRow = {
 
 const CONNECTION_COLUMNS = `
   id, group_id, name, description, protocol, host, port, username, auth_method,
-  credential_ref, private_key_path, jump_host_id, default_command, notes, os, icon,
+  credential_ref, private_key_path, agent_forward, jump_host_id, default_command, notes, os, icon,
   color, owner, links, vpn_required, vpn_mode, vpn_profile_id, checklist, related_files, is_favorite,
   access_count, total_connected_ms, last_connected_at, created_at, updated_at
 `
@@ -63,6 +64,7 @@ function mapConnection(row: ConnectionRow): Connection {
     authMethod: row.auth_method,
     credentialRef: row.credential_ref,
     privateKeyPath: row.private_key_path,
+    agentForward: intToBool(row.agent_forward),
     jumpHostId: row.jump_host_id,
     defaultCommand: row.default_command,
     notes: row.notes,
@@ -98,6 +100,7 @@ function toInsertParams(connection: Connection): Record<string, unknown> {
     auth_method: connection.authMethod,
     credential_ref: connection.credentialRef,
     private_key_path: connection.privateKeyPath,
+    agent_forward: boolToInt(connection.agentForward),
     jump_host_id: connection.jumpHostId,
     default_command: connection.defaultCommand,
     notes: connection.notes,
@@ -143,12 +146,12 @@ export class ConnectionsRepository {
     this.insertStmt = db.prepare(`
       INSERT INTO connections (
         id, group_id, name, description, protocol, host, port, username, auth_method,
-        credential_ref, private_key_path, jump_host_id, default_command, notes, os, icon,
+        credential_ref, private_key_path, agent_forward, jump_host_id, default_command, notes, os, icon,
         color, owner, links, vpn_required, vpn_mode, vpn_profile_id, checklist, related_files, is_favorite,
         access_count, total_connected_ms, last_connected_at, created_at, updated_at
       ) VALUES (
         @id, @group_id, @name, @description, @protocol, @host, @port, @username, @auth_method,
-        @credential_ref, @private_key_path, @jump_host_id, @default_command, @notes, @os, @icon,
+        @credential_ref, @private_key_path, @agent_forward, @jump_host_id, @default_command, @notes, @os, @icon,
         @color, @owner, @links, @vpn_required, @vpn_mode, @vpn_profile_id, @checklist, @related_files, @is_favorite,
         @access_count, @total_connected_ms, @last_connected_at, @created_at, @updated_at
       )
@@ -165,6 +168,7 @@ export class ConnectionsRepository {
         auth_method = @auth_method,
         credential_ref = @credential_ref,
         private_key_path = @private_key_path,
+        agent_forward = @agent_forward,
         jump_host_id = @jump_host_id,
         default_command = @default_command,
         notes = @notes,
@@ -261,6 +265,7 @@ export class ConnectionsRepository {
       authMethod: input.authMethod,
       credentialRef: input.credentialRef ?? null,
       privateKeyPath: input.privateKeyPath ?? null,
+      agentForward: input.agentForward ?? false,
       jumpHostId: input.jumpHostId ?? null,
       defaultCommand: input.defaultCommand ?? null,
       notes: input.notes ?? null,
@@ -304,6 +309,7 @@ export class ConnectionsRepository {
         input.credentialRef === undefined ? existing.credentialRef : input.credentialRef,
       privateKeyPath:
         input.privateKeyPath === undefined ? existing.privateKeyPath : input.privateKeyPath,
+      agentForward: input.agentForward ?? existing.agentForward,
       jumpHostId: input.jumpHostId === undefined ? existing.jumpHostId : input.jumpHostId,
       defaultCommand:
         input.defaultCommand === undefined ? existing.defaultCommand : input.defaultCommand,

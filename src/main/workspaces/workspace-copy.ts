@@ -108,6 +108,7 @@ export async function copyToWorkspace(
       credentialRef,
       // A key file path only means something on this computer.
       privateKeyPath: connection.privateKeyPath,
+      agentForward: connection.agentForward,
       jumpHostId: null,
       defaultCommand: connection.defaultCommand,
       notes: connection.notes,

@@ -6,4 +6,8 @@
 - **Más detalle:** columnas de permisos y dueño, orden por columna, barra de ruta editable y atajos F2/F7/Supr
 - **Sin sorpresas:** pregunta antes de sobrescribir archivos que ya existen en el destino, y cancelar detiene al instante el archivo en curso
 
+## Git en el servidor con tu clave
+
+- **Reenviar agente SSH (ssh -A):** nueva opción en las conexiones SSH. Comandos como `git pull` en el servidor usan la clave de tu `ssh-agent`, sin copiarla allí. Funciona en macOS, Linux y Windows (servicio OpenSSH Authentication Agent)
+
 Consulta el capítulo [Conectar](connect) del manual.

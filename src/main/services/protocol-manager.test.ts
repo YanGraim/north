@@ -197,6 +197,7 @@ describe('ProtocolManager', () => {
       authMethod: 'password',
       credentialRef: '7e57c0de-0000-4000-8000-0000000000aa',
       privateKeyPath: null,
+      agentForward: false,
       jumpHostId: null,
       defaultCommand: null,
       notes: null,

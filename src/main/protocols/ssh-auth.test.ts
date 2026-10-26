@@ -2,7 +2,12 @@ import type { ConnectOptions } from '@shared/protocols'
 import type { Connection } from '@shared/types'
 import type { Client, Prompt } from 'ssh2'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { attachKeyboardInteractivePassword, buildSshConnectConfig } from './ssh-auth'
+import {
+  attachKeyboardInteractivePassword,
+  buildSshConnectConfig,
+  resolveLocalSshAgent,
+  WINDOWS_OPENSSH_AGENT_PIPE
+} from './ssh-auth'
 
 function baseConnection(overrides: Partial<Connection> = {}): Connection {
   return {
@@ -17,6 +22,7 @@ function baseConnection(overrides: Partial<Connection> = {}): Connection {
     authMethod: 'password',
     credentialRef: null,
     privateKeyPath: null,
+    agentForward: false,
     jumpHostId: null,
     defaultCommand: null,
     notes: null,
@@ -106,5 +112,51 @@ describe('buildSshConnectConfig', () => {
     const prompts = [{ prompt: 'Password: ', echo: false }] as Prompt[]
     handlers.get('keyboard-interactive')?.('', '', '', prompts, finish)
     expect(finish).toHaveBeenCalledWith(['s3cret'])
+  })
+})
+
+describe('resolveLocalSshAgent', () => {
+  it('prefers SSH_AUTH_SOCK on any platform', () => {
+    expect(resolveLocalSshAgent({ SSH_AUTH_SOCK: '/tmp/agent.sock' }, 'win32', () => true)).toBe(
+      '/tmp/agent.sock'
+    )
+  })
+
+  it("falls back to Windows' OpenSSH agent pipe when it exists", () => {
+    expect(resolveLocalSshAgent({}, 'win32', () => true)).toBe(WINDOWS_OPENSSH_AGENT_PIPE)
+    expect(resolveLocalSshAgent({}, 'win32', () => false)).toBeNull()
+  })
+
+  it('returns null on mac/linux without SSH_AUTH_SOCK', () => {
+    expect(resolveLocalSshAgent({}, 'darwin', () => true)).toBeNull()
+  })
+})
+
+describe('buildSshConnectConfig agent forwarding', () => {
+  it('points at the local agent when forwarding is on, even with key auth', async () => {
+    vi.stubEnv('SSH_AUTH_SOCK', '/tmp/agent.sock')
+    const config = await buildSshConnectConfig(
+      baseOpts({ connection: baseConnection({ authMethod: 'none', agentForward: true }) })
+    )
+    expect(config.agent).toBe('/tmp/agent.sock')
+    vi.unstubAllEnvs()
+  })
+
+  it('still connects without an agent, like ssh -A', async () => {
+    vi.stubEnv('SSH_AUTH_SOCK', '')
+    const config = await buildSshConnectConfig(
+      baseOpts({ connection: baseConnection({ authMethod: 'none', agentForward: true }) })
+    )
+    expect(config.agent).toBeUndefined()
+    vi.unstubAllEnvs()
+  })
+
+  it('leaves the agent alone when forwarding is off', async () => {
+    vi.stubEnv('SSH_AUTH_SOCK', '/tmp/agent.sock')
+    const config = await buildSshConnectConfig(
+      baseOpts({ connection: baseConnection({ authMethod: 'none' }) })
+    )
+    expect(config.agent).toBeUndefined()
+    vi.unstubAllEnvs()
   })
 })

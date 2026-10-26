@@ -16,6 +16,16 @@ On the **Connect** button, the split menu also lists group workflows. You can op
 
 On the first SSH connection, North asks you to confirm the host key. Accept only if the fingerprint matches what you expect.
 
+## SSH agent (git on the server)
+
+To run `git pull`/`git push` on a server with the key from **your** computer (without copying it there), turn on **Forward SSH agent (ssh -A)** on the connection. It works like `ssh -A` in a terminal and is off by default.
+
+1. Load the key into your local agent: `ssh-add ~/.ssh/id_ed25519`. On Windows, the **OpenSSH Authentication Agent** service must be enabled.
+2. Turn the option on for the connection and connect.
+3. On the server, test with `ssh -T git@your-gitlab` (or the command your GitLab tells you).
+
+Only turn it on for trusted servers: anyone with root on the server can use the agent while the session is open. If the agent isn't running or the server blocks forwarding, the session still opens, just without the agent.
+
 ## Terminal
 
 In a terminal session tab:

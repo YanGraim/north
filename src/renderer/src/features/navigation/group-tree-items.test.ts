@@ -16,6 +16,7 @@ function connection(
     authMethod: 'password',
     credentialRef: null,
     privateKeyPath: null,
+    agentForward: false,
     jumpHostId: null,
     defaultCommand: null,
     description: null,

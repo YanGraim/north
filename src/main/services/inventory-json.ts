@@ -63,6 +63,7 @@ export function buildInventoryExport(repositories: Repositories): InventoryExpor
             username: connection.username,
             authMethod: connection.authMethod,
             privateKeyPath: connection.privateKeyPath,
+            agentForward: connection.agentForward,
             jumpHostId: null,
             defaultCommand: connection.defaultCommand,
             notes: connection.notes,

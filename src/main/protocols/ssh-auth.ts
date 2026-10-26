@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
@@ -24,11 +25,35 @@ export function attachKeyboardInteractivePassword(client: Client, password: stri
   )
 }
 
+const AGENT_UNAVAILABLE_MESSAGE =
+  process.platform === 'win32'
+    ? 'SSH agent indisponível. Habilite o serviço "OpenSSH Authentication Agent" e rode ssh-add.'
+    : 'SSH agent indisponível (SSH_AUTH_SOCK não definido). Rode ssh-add num terminal.'
+
 function expandHome(filePath: string): string {
   if (filePath.startsWith('~/')) {
     return resolve(homedir(), filePath.slice(2))
   }
   return filePath
+}
+
+/** Windows' built-in OpenSSH Authentication Agent listens here (no SSH_AUTH_SOCK is set). */
+export const WINDOWS_OPENSSH_AGENT_PIPE = '\\\\.\\pipe\\openssh-ssh-agent'
+
+/**
+ * Where the local ssh-agent lives, the way OpenSSH finds it: SSH_AUTH_SOCK
+ * first, then (Windows) the OpenSSH agent's named pipe.
+ */
+export function resolveLocalSshAgent(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+  exists: (path: string) => boolean = existsSync
+): string | null {
+  if (env.SSH_AUTH_SOCK) return env.SSH_AUTH_SOCK
+  if (platform === 'win32' && exists(WINDOWS_OPENSSH_AGENT_PIPE)) {
+    return WINDOWS_OPENSSH_AGENT_PIPE
+  }
+  return null
 }
 
 export async function buildSshConnectConfig(opts: ConnectOptions): Promise<ConnectConfig> {
@@ -77,9 +102,9 @@ export async function buildSshConnectConfig(opts: ConnectOptions): Promise<Conne
       break
     }
     case 'agent': {
-      const agent = process.env.SSH_AUTH_SOCK
+      const agent = resolveLocalSshAgent()
       if (!agent) {
-        throw new Error('SSH agent indisponível (SSH_AUTH_SOCK não definido)')
+        throw new Error(AGENT_UNAVAILABLE_MESSAGE)
       }
       connectConfig.agent = agent
       break
@@ -88,6 +113,12 @@ export async function buildSshConnectConfig(opts: ConnectOptions): Promise<Conne
       break
     default:
       throw new Error(`Método de autenticação não suportado: ${connection.authMethod}`)
+  }
+
+  if (connection.agentForward && !connectConfig.agent) {
+    // Like `ssh -A` with no agent running: connect anyway, just without forwarding.
+    const agent = resolveLocalSshAgent()
+    if (agent) connectConfig.agent = agent
   }
 
   return connectConfig

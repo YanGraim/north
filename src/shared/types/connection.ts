@@ -48,6 +48,8 @@ export const ConnectionSchema = z.object({
   authMethod: AuthMethodSchema,
   credentialRef: z.string().nullable(),
   privateKeyPath: z.string().nullable(),
+  /** Like `ssh -A`: forward the local ssh-agent so commands on the host (e.g. git) can use it. */
+  agentForward: z.boolean(),
   jumpHostId: IdSchema.nullable(),
   defaultCommand: z.string().nullable(),
   notes: z.string().nullable(),
@@ -83,6 +85,7 @@ export const CreateConnectionInputSchema = z.object({
   authMethod: AuthMethodSchema,
   credentialRef: z.string().nullable().optional(),
   privateKeyPath: z.string().nullable().optional(),
+  agentForward: z.boolean().optional(),
   jumpHostId: IdSchema.nullable().optional(),
   defaultCommand: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
