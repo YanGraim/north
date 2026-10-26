@@ -186,7 +186,12 @@ export class OpenfortivpnDriver implements VpnDriver {
               `Nada respondeu em ${config.gateway}:${config.port}. Confira a porta (o FortiClient mostra em "Porta personalizada") e sua conexão com a internet.`
             )
           }
-          throw new VpnError('TIMEOUT', 'O FortiGate não respondeu a tempo')
+          throw new VpnError(
+            'TIMEOUT',
+            localIp
+              ? 'O FortiGate aceitou o login e entregou o IP, mas o túnel não terminou de subir neste computador'
+              : 'O FortiGate não respondeu a tempo'
+          )
         }
         await sleep(this.deps.pollMs ?? 250)
       }
