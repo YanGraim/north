@@ -24,7 +24,7 @@ To run `git pull`/`git push` on a server with the key from **your** computer (wi
 2. Turn the option on for the connection and connect.
 3. On the server, test with `ssh -T git@your-gitlab` (or the command your GitLab tells you).
 
-Only turn it on for trusted servers: anyone with root on the server can use the agent while the session is open. If the agent isn't running or the server blocks forwarding, the session still opens, just without the agent.
+Only turn it on for trusted servers: anyone with root on the server can use the agent while the session is open. If the agent isn't running or the server blocks forwarding, the session still opens, just without the agent, and North prints a yellow notice in the terminal saying why.
 
 ## Terminal
 

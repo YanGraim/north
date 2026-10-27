@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   attachKeyboardInteractivePassword,
   buildSshConnectConfig,
+  canConnectToAgent,
   resolveLocalSshAgent,
   WINDOWS_OPENSSH_AGENT_PIPE
 } from './ssh-auth'
@@ -116,19 +117,36 @@ describe('buildSshConnectConfig', () => {
 })
 
 describe('resolveLocalSshAgent', () => {
-  it('prefers SSH_AUTH_SOCK on any platform', () => {
-    expect(resolveLocalSshAgent({ SSH_AUTH_SOCK: '/tmp/agent.sock' }, 'win32', () => true)).toBe(
-      '/tmp/agent.sock'
+  it('prefers SSH_AUTH_SOCK on any platform', async () => {
+    await expect(
+      resolveLocalSshAgent({ SSH_AUTH_SOCK: '/tmp/agent.sock' }, 'win32', async () => true)
+    ).resolves.toBe('/tmp/agent.sock')
+  })
+
+  it("falls back to Windows' OpenSSH agent pipe when it exists", async () => {
+    await expect(resolveLocalSshAgent({}, 'win32', async () => true)).resolves.toBe(
+      WINDOWS_OPENSSH_AGENT_PIPE
     )
+    await expect(resolveLocalSshAgent({}, 'win32', async () => false)).resolves.toBeNull()
   })
 
-  it("falls back to Windows' OpenSSH agent pipe when it exists", () => {
-    expect(resolveLocalSshAgent({}, 'win32', () => true)).toBe(WINDOWS_OPENSSH_AGENT_PIPE)
-    expect(resolveLocalSshAgent({}, 'win32', () => false)).toBeNull()
+  it('returns null on mac/linux without SSH_AUTH_SOCK', async () => {
+    await expect(resolveLocalSshAgent({}, 'darwin', async () => true)).resolves.toBeNull()
   })
+})
 
-  it('returns null on mac/linux without SSH_AUTH_SOCK', () => {
-    expect(resolveLocalSshAgent({}, 'darwin', () => true)).toBeNull()
+describe('canConnectToAgent', () => {
+  it('is true for a listening socket and false for a missing one', async () => {
+    const { createServer } = await import('node:net')
+    const { mkdtempSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const { join } = await import('node:path')
+    const sock = join(mkdtempSync(join(tmpdir(), 'agent-')), 'a.sock')
+    const server = createServer((c) => c.end())
+    await new Promise<void>((r) => server.listen(sock, r))
+    await expect(canConnectToAgent(sock)).resolves.toBe(true)
+    await new Promise<void>((r) => server.close(() => r()))
+    await expect(canConnectToAgent(sock)).resolves.toBe(false)
   })
 })
 

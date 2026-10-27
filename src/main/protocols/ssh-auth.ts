@@ -1,5 +1,5 @@
-import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
+import { createConnection } from 'node:net'
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import type { ConnectOptions } from '@shared/protocols'
@@ -41,16 +41,34 @@ function expandHome(filePath: string): string {
 export const WINDOWS_OPENSSH_AGENT_PIPE = '\\\\.\\pipe\\openssh-ssh-agent'
 
 /**
+ * Whether something answers on a socket/named pipe. `fs.existsSync` is not a
+ * reliable test for Windows named pipes, so actually connect (and hang up).
+ */
+export function canConnectToAgent(path: string, timeoutMs = 1500): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = createConnection(path)
+    const done = (ok: boolean): void => {
+      clearTimeout(timer)
+      socket.destroy()
+      resolve(ok)
+    }
+    const timer = setTimeout(() => done(false), timeoutMs)
+    socket.once('connect', () => done(true))
+    socket.once('error', () => done(false))
+  })
+}
+
+/**
  * Where the local ssh-agent lives, the way OpenSSH finds it: SSH_AUTH_SOCK
  * first, then (Windows) the OpenSSH agent's named pipe.
  */
-export function resolveLocalSshAgent(
+export async function resolveLocalSshAgent(
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
-  exists: (path: string) => boolean = existsSync
-): string | null {
+  reachable: (path: string) => Promise<boolean> = canConnectToAgent
+): Promise<string | null> {
   if (env.SSH_AUTH_SOCK) return env.SSH_AUTH_SOCK
-  if (platform === 'win32' && exists(WINDOWS_OPENSSH_AGENT_PIPE)) {
+  if (platform === 'win32' && (await reachable(WINDOWS_OPENSSH_AGENT_PIPE))) {
     return WINDOWS_OPENSSH_AGENT_PIPE
   }
   return null
@@ -102,7 +120,7 @@ export async function buildSshConnectConfig(opts: ConnectOptions): Promise<Conne
       break
     }
     case 'agent': {
-      const agent = resolveLocalSshAgent()
+      const agent = await resolveLocalSshAgent()
       if (!agent) {
         throw new Error(AGENT_UNAVAILABLE_MESSAGE)
       }
@@ -117,7 +135,7 @@ export async function buildSshConnectConfig(opts: ConnectOptions): Promise<Conne
 
   if (connection.agentForward && !connectConfig.agent) {
     // Like `ssh -A` with no agent running: connect anyway, just without forwarding.
-    const agent = resolveLocalSshAgent()
+    const agent = await resolveLocalSshAgent()
     if (agent) connectConfig.agent = agent
   }
 

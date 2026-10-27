@@ -88,6 +88,14 @@ class SshProtocolSession implements ProtocolSession {
     })
   }
 
+  /** A yellow line in the terminal, like the warnings `ssh -A` prints. */
+  notice(text: string): void {
+    this.post({
+      type: 'data',
+      data: new TextEncoder().encode(`\x1b[33m[North] ${text}\x1b[0m\r\n`)
+    })
+  }
+
   async dispose(): Promise<void> {
     if (this.disposed) return
     this.disposed = true
@@ -119,6 +127,13 @@ class SshProtocolSession implements ProtocolSession {
   }
 }
 
+const AGENT_MISSING_NOTICE =
+  process.platform === 'win32'
+    ? 'Encaminhamento do agente SSH desligado: nenhum agente encontrado. Habilite o serviço "OpenSSH Authentication Agent" e rode ssh-add.'
+    : 'Encaminhamento do agente SSH desligado: nenhum agente encontrado (SSH_AUTH_SOCK). Rode ssh-add.'
+const AGENT_REFUSED_NOTICE =
+  'O servidor recusou o encaminhamento do agente SSH (veja AllowAgentForwarding no sshd_config).'
+
 export class SshDriver implements ProtocolDriver {
   readonly id = 'ssh'
   readonly protocols = ['ssh']
@@ -137,6 +152,7 @@ export class SshDriver implements ProtocolDriver {
       let settled = false
       client
         .on('ready', () => {
+          let agentNotice: string | null = null
           const pty = { term: 'xterm-256color', cols: 80, rows: 24 }
           const openShell = (forwardAgent: boolean): void => {
             // Per-channel request (not ConnectConfig.agentForward) so a server that
@@ -146,6 +162,7 @@ export class SshDriver implements ProtocolDriver {
             client.shell(pty, shellOpts, (err, stream) => {
               if (settled) return
               if (err && forwardAgent && /agent forwarding/i.test(err.message)) {
+                agentNotice = AGENT_REFUSED_NOTICE
                 openShell(false)
                 return
               }
@@ -162,11 +179,14 @@ export class SshDriver implements ProtocolDriver {
               return
             }
             session.attachStream(stream)
+            if (agentNotice) session.notice(agentNotice)
             session.setState('connected')
             settled = true
             resolveConnect()
           }
-          openShell(opts.connection.agentForward && connectConfig.agent !== undefined)
+          const wantsForward = opts.connection.agentForward
+          if (wantsForward && connectConfig.agent === undefined) agentNotice = AGENT_MISSING_NOTICE
+          openShell(wantsForward && connectConfig.agent !== undefined)
         })
         .on('error', (err) => {
           if (settled) return

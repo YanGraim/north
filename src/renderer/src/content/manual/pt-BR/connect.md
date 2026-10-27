@@ -24,7 +24,7 @@ Para rodar `git pull`/`git push` dentro de um servidor usando a chave do **seu**
 2. Ligue a opção na conexão e conecte.
 3. No servidor, teste com `ssh -T git@seu-gitlab` (ou o comando que o seu GitLab indicar).
 
-Ligue só em servidores confiáveis: quem tiver root no servidor pode usar o agente enquanto a sessão estiver aberta. Se o agente não estiver rodando ou o servidor bloquear o encaminhamento, a sessão abre normalmente, só sem o agente.
+Ligue só em servidores confiáveis: quem tiver root no servidor pode usar o agente enquanto a sessão estiver aberta. Se o agente não estiver rodando ou o servidor bloquear o encaminhamento, a sessão abre normalmente, só sem o agente, e o North mostra um aviso amarelo no terminal dizendo o motivo.
 
 ## Terminal
 

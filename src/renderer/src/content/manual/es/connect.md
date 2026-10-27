@@ -24,7 +24,7 @@ Para ejecutar `git pull`/`git push` en un servidor con la clave de **tu** comput
 2. Activa la opción en la conexión y conéctate.
 3. En el servidor, prueba con `ssh -T git@tu-gitlab` (o el comando que indique tu GitLab).
 
-Actívalo solo en servidores de confianza: quien tenga root en el servidor puede usar el agente mientras la sesión esté abierta. Si el agente no está en ejecución o el servidor bloquea el reenvío, la sesión se abre igual, solo que sin el agente.
+Actívalo solo en servidores de confianza: quien tenga root en el servidor puede usar el agente mientras la sesión esté abierta. Si el agente no está en ejecución o el servidor bloquea el reenvío, la sesión se abre igual, solo que sin el agente, y North muestra un aviso amarillo en la terminal con el motivo.
 
 ## Terminal
 
