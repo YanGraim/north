@@ -35,6 +35,13 @@ With a JSON body, the **Format** button (above the editor) re-indents pasted or 
 
 The JSON body accepts `//` and `/* */` comments (JSONC) — handy for leaving yourself a note about a field. North strips comments automatically before sending (the target API receives real, valid JSON); the **Format** button strips them too, since formatted JSON can't preserve comments.
 
+To send files (an `.xlsx` spreadsheet, PDF, image…), there are two body types, same as in Postman:
+
+- **form-data**: each row has a **Text | File** picker. With **File**, click **Select files** (you can pick several for the same field) and mix them with regular text fields. Each file goes with its original name and a Content-Type inferred from the extension.
+- **binary**: the whole file is the request body, with no field name — handy for direct uploads (e.g. an S3 pre-signed URL). The Content-Type is inferred from the extension unless you set one in the headers.
+
+North stores only the file's **path** and reads it when sending; if the file is moved or deleted, sending fails with a file-not-found error. Imported Postman collections carry those paths, which may not exist on your machine — just pick the file again.
+
 Search in Collections filters by name, method, URL, and folder/collection names. History filters by method, URL, and status. Closing a tab with unsaved edits asks to save, discard, or stay.
 
 ## Request notes

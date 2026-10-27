@@ -567,6 +567,10 @@ export interface IpcInvokeMap {
     args: [input: ApiSendInput]
     result: ApiSendResult
   }
+  [IpcChannels.API_PICK_FILES]: {
+    args: [options: { multiple: boolean }]
+    result: string[]
+  }
   [IpcChannels.API_CANCEL]: {
     args: [input: ApiCancelInput]
     result: undefined
@@ -984,6 +988,8 @@ export interface NorthApi {
   api: {
     send: (input: ApiSendInput) => Promise<ApiSendResult>
     cancel: (input: ApiCancelInput) => Promise<void>
+    /** Native file picker for request bodies; returns local paths (empty if cancelled). */
+    pickFiles: (options: { multiple: boolean }) => Promise<string[]>
     historyList: (input: ApiHistoryListInput) => Promise<ApiRequestHistoryEntry[]>
     collectionList: (filter?: ApiCollectionListFilter) => Promise<ApiCollection[]>
     collectionCreate: (input: CreateApiCollectionInput) => Promise<ApiCollection>

@@ -169,6 +169,7 @@ export const IpcChannels = {
 
   API_SEND: 'api:send',
   API_CANCEL: 'api:cancel',
+  API_PICK_FILES: 'api:pick-files',
   API_HISTORY_LIST: 'api:history-list',
   API_COLLECTION_LIST: 'api:collection-list',
   API_COLLECTION_CREATE: 'api:collection-create',

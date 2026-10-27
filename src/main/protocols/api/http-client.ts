@@ -1,5 +1,6 @@
 import { API_MAX_RESPONSE_BYTES, type ApiSendResult } from '@shared/protocols'
 import type { ApiHttpMethod } from '@shared/types'
+import type { ApiRequestBody } from './build-request'
 import { apiErrorMessage, classifyApiError } from './errors'
 
 type FetchWithDispatcher = (
@@ -79,7 +80,7 @@ export async function executeHttpRequest(opts: {
   url: string
   method: ApiHttpMethod
   headers: Record<string, string>
-  body: string | URLSearchParams | FormData | null
+  body: ApiRequestBody
   timeoutMs: number
   followRedirects: boolean
   verifyTls: boolean

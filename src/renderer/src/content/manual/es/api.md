@@ -35,6 +35,13 @@ Con body de tipo JSON, el botón **Formatear** (arriba del editor) reindenta el 
 
 El body JSON acepta comentarios `//` y `/* */` (JSONC) — útil para dejarte una nota sobre un campo. North quita los comentarios automáticamente antes de enviar (la API de destino recibe JSON válido de verdad); el botón **Formatear** también los quita, ya que el JSON formateado no puede conservar comentarios.
 
+Para enviar archivos (una hoja `.xlsx`, PDF, imagen…), hay dos tipos de body, igual que en Postman:
+
+- **form-data**: cada fila tiene un selector **Texto | Archivo**. En **Archivo**, haz clic en **Seleccionar archivos** (puedes elegir varios en el mismo campo) y combínalos con campos de texto normales. Cada archivo va con su nombre original y un Content-Type deducido de la extensión.
+- **binary**: el archivo entero es el cuerpo de la request, sin nombre de campo — útil para subidas directas (p. ej. una URL prefirmada de S3). El Content-Type se deduce de la extensión, salvo que definas uno en los headers.
+
+North guarda solo la **ruta** del archivo y lo lee al enviar; si el archivo se mueve o se borra, el envío falla con un error de archivo no encontrado. Las collections de Postman importadas traen esas rutas, que pueden no existir en tu máquina — vuelve a seleccionar el archivo.
+
 La búsqueda en Collections filtra por nombre, método, URL y carpetas/collections. El Historial filtra por método, URL y estado. Cerrar una pestaña con cambios sin guardar pide guardar, descartar o quedarse.
 
 ## Notas de la request

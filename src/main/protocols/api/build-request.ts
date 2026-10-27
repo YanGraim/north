@@ -1,16 +1,26 @@
+import { readFileSync } from 'node:fs'
+import { basename } from 'node:path'
 import { interpolate, interpolateDeep } from '@shared/lib/interpolate'
 import { stripJsonComments } from '@shared/lib/jsonc'
 import type { ApiConfig, ApiKeyValue } from '@shared/types'
 import type { ApiHttpMethod, ApiRequestDefinition } from '@shared/types/api'
+import { contentTypeForPath } from './content-type'
+
+export type ApiRequestBody = string | URLSearchParams | FormData | Uint8Array<ArrayBuffer> | null
+
+/** Reads a local file picked for a binary body or a multipart file field. */
+export type ReadBodyFile = (path: string) => Uint8Array<ArrayBuffer>
+
+const readLocalFile: ReadBodyFile = (path) => new Uint8Array(readFileSync(path))
 
 export type BuiltApiRequest = {
   url: string
   method: ApiHttpMethod
   headers: Record<string, string>
-  body: string | URLSearchParams | FormData | null
+  body: ApiRequestBody
 }
 
-function enabledPairs(items: ApiKeyValue[]): ApiKeyValue[] {
+function enabledPairs<T extends ApiKeyValue>(items: T[]): T[] {
   return items.filter((item) => item.enabled && item.key.trim().length > 0)
 }
 
@@ -66,9 +76,18 @@ function mergeHeaders(layers: ApiKeyValue[][]): Record<string, string> {
 
 function encodeBody(
   body: ApiRequestDefinition['body'],
-  headers: Record<string, string>
-): string | URLSearchParams | FormData | null {
+  headers: Record<string, string>,
+  readFile: ReadBodyFile
+): ApiRequestBody {
   if (body.type === 'none') return null
+  if (body.type === 'binary') {
+    if (!body.src) return null
+    const bytes = readBodyFile(readFile, body.src)
+    if (!hasHeader(headers, 'content-type')) {
+      headers['Content-Type'] = contentTypeForPath(body.src)
+    }
+    return bytes
+  }
   if (body.type === 'json') {
     if (!hasHeader(headers, 'content-type')) {
       headers['Content-Type'] = 'application/json'
@@ -95,9 +114,25 @@ function encodeBody(
   }
   const form = new FormData()
   for (const field of enabledPairs(body.fields)) {
-    form.append(field.key, field.value)
+    if (field.type !== 'file') {
+      form.append(field.key, field.value)
+      continue
+    }
+    for (const src of field.src ?? []) {
+      const bytes = readBodyFile(readFile, src)
+      const type = field.contentType?.trim() || contentTypeForPath(src)
+      form.append(field.key, new Blob([bytes], { type }), basename(src))
+    }
   }
   return form
+}
+
+function readBodyFile(readFile: ReadBodyFile, path: string): Uint8Array<ArrayBuffer> {
+  try {
+    return readFile(path)
+  } catch {
+    throw new Error(`Arquivo não encontrado: ${path}`)
+  }
 }
 
 function hasHeader(headers: Record<string, string>, name: string): boolean {
@@ -112,6 +147,7 @@ export function buildApiRequest(opts: {
   method: ApiHttpMethod
   url: string
   variables: Record<string, string>
+  readFile?: ReadBodyFile
 }): BuiltApiRequest {
   const interpolatedUrl = interpolate(opts.url, opts.variables)
   const interpolatedBase = interpolate(opts.baseUrl, opts.variables)
@@ -135,7 +171,7 @@ export function buildApiRequest(opts: {
   const applied = applyAuth(headers, url, auth)
   headers = applied.headers
 
-  const body = encodeBody(definition.body, headers)
+  const body = encodeBody(definition.body, headers, opts.readFile ?? readLocalFile)
 
   return {
     url: applied.url.toString(),

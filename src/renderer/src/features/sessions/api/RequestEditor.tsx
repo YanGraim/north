@@ -20,9 +20,10 @@ import type {
   ApiPreset,
   ApiRequestDefinition
 } from '@shared/types'
-import { WandSparkles } from 'lucide-react'
+import { Paperclip, WandSparkles, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FormDataEditor, fileName } from './FormDataEditor'
 import { JsonEditor } from './JsonEditor'
 import { KeyValueEditor } from './KeyValueEditor'
 import { PresetMenu } from './PresetMenu'
@@ -239,6 +240,8 @@ function BodyEditor({
                   fields: body.type === 'form-urlencoded' ? body.fields : []
                 }
               })
+            else if (value === 'binary')
+              onChange({ body: { type: 'binary', src: body.type === 'binary' ? body.src : null } })
             else
               onChange({
                 body: { type: 'multipart', fields: body.type === 'multipart' ? body.fields : [] }
@@ -253,7 +256,8 @@ function BodyEditor({
             <SelectItem value="json">JSON</SelectItem>
             <SelectItem value="text">{t('api.studio.bodyText')}</SelectItem>
             <SelectItem value="form-urlencoded">x-www-form-urlencoded</SelectItem>
-            <SelectItem value="multipart">multipart</SelectItem>
+            <SelectItem value="multipart">form-data</SelectItem>
+            <SelectItem value="binary">binary</SelectItem>
           </SelectContent>
         </Select>
         {body.type === 'json' ? (
@@ -284,7 +288,50 @@ function BodyEditor({
           className="min-h-32 flex-1 rounded-md border border-border bg-transparent p-2 font-mono text-xs"
         />
       ) : null}
-      {body.type === 'form-urlencoded' || body.type === 'multipart' ? (
+      {body.type === 'multipart' ? (
+        <FormDataEditor
+          items={body.fields}
+          variables={variables}
+          variableValues={variableValues}
+          onChange={(fields) => onChange({ body: { type: 'multipart', fields } })}
+        />
+      ) : null}
+      {body.type === 'binary' ? (
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1.5 px-2 text-xs"
+            onClick={async () => {
+              const [src] = await window.north.api.pickFiles({ multiple: false })
+              if (src) onChange({ body: { type: 'binary', src } })
+            }}
+          >
+            <Paperclip className="size-3.5" />
+            {t('api.studio.selectFile')}
+          </Button>
+          {body.src ? (
+            <span
+              title={body.src}
+              className="inline-flex min-w-0 items-center gap-1 font-mono text-xs"
+            >
+              <span className="truncate">{fileName(body.src)}</span>
+              <button
+                type="button"
+                className="text-muted hover:text-foreground"
+                aria-label={t('api.studio.removeFile')}
+                onClick={() => onChange({ body: { type: 'binary', src: null } })}
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ) : (
+            <span className="text-xs text-muted">{t('api.studio.noFileSelected')}</span>
+          )}
+        </div>
+      ) : null}
+      {body.type === 'form-urlencoded' ? (
         <KeyValueEditor
           items={body.fields}
           variables={variables}

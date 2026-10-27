@@ -13,6 +13,18 @@ export const ApiHttpMethodSchema = z.enum([
 ])
 export type ApiHttpMethod = z.infer<typeof ApiHttpMethodSchema>
 
+/**
+ * A multipart field. Like Postman's form-data, a row is either text or file(s);
+ * file rows keep only local paths (`src`) — main reads the bytes at send time.
+ * The extra props are optional so plain key/value rows stay valid.
+ */
+export const ApiFormFieldSchema = ApiKeyValueSchema.extend({
+  type: z.enum(['text', 'file']).optional(),
+  src: z.array(z.string()).optional(),
+  contentType: z.string().optional()
+})
+export type ApiFormField = z.infer<typeof ApiFormFieldSchema>
+
 export const ApiBodySchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('none') }),
   z.object({ type: z.literal('json'), text: z.string() }),
@@ -23,8 +35,10 @@ export const ApiBodySchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('multipart'),
-    fields: z.array(ApiKeyValueSchema)
-  })
+    fields: z.array(ApiFormFieldSchema)
+  }),
+  // The whole body is one local file, sent as-is (Postman's "binary").
+  z.object({ type: z.literal('binary'), src: z.string().nullable() })
 ])
 export type ApiBody = z.infer<typeof ApiBodySchema>
 

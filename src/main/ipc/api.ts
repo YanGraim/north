@@ -80,6 +80,20 @@ export function registerApiHandlers(repos: Repositories, vault: CredentialVault)
     abortApiSend(input.requestId)
   })
 
+  ipcMain.handle(IpcChannels.API_PICK_FILES, async (event, raw: unknown) => {
+    const multiple = (raw as { multiple?: unknown } | null)?.multiple === true
+    const options: Electron.OpenDialogOptions = {
+      properties: multiple
+        ? ['openFile', 'multiSelections', 'showHiddenFiles']
+        : ['openFile', 'showHiddenFiles']
+    }
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const result = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options)
+    return result.canceled ? [] : result.filePaths
+  })
+
   ipcMain.handle(IpcChannels.API_HISTORY_LIST, (_event, raw: unknown) => {
     const input = ApiHistoryListInputSchema.parse(raw)
     return repos.apiRequestHistory.listByAccess(input.accessId, input.limit ?? 50)

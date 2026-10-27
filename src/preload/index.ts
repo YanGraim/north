@@ -360,6 +360,7 @@ const api: NorthApi = {
   api: {
     send: (input) => ipcRenderer.invoke(IpcChannels.API_SEND, input),
     cancel: (input) => ipcRenderer.invoke(IpcChannels.API_CANCEL, input),
+    pickFiles: (options) => ipcRenderer.invoke(IpcChannels.API_PICK_FILES, options),
     historyList: (input) => ipcRenderer.invoke(IpcChannels.API_HISTORY_LIST, input),
     collectionList: (filter) => ipcRenderer.invoke(IpcChannels.API_COLLECTION_LIST, filter),
     collectionCreate: (input) => ipcRenderer.invoke(IpcChannels.API_COLLECTION_CREATE, input),

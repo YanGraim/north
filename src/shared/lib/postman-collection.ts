@@ -2,6 +2,7 @@ import {
   type ApiAuth,
   type ApiBody,
   type ApiFolder,
+  type ApiFormField,
   type ApiHttpMethod,
   ApiHttpMethodSchema,
   type ApiKeyValue,
@@ -31,7 +32,8 @@ type PostmanRequest = {
     mode?: string
     raw?: string
     urlencoded?: Array<{ key?: string; value?: string; disabled?: boolean }>
-    formdata?: Array<{ key?: string; value?: string; disabled?: boolean }>
+    formdata?: PostmanFormDataEntry[]
+    file?: { src?: string | null }
   }
   auth?: {
     type?: string
@@ -39,6 +41,15 @@ type PostmanRequest = {
     basic?: Array<{ key?: string; value?: string }>
     apikey?: Array<{ key?: string; value?: string }>
   }
+}
+
+type PostmanFormDataEntry = {
+  key?: string
+  value?: string
+  disabled?: boolean
+  type?: string
+  src?: string | string[] | null
+  contentType?: string
 }
 
 export type ParsedPostmanCollection = {
@@ -84,6 +95,30 @@ function toKeyValues(
     }))
 }
 
+function toFormFields(entries: PostmanFormDataEntry[] | undefined): ApiFormField[] {
+  if (!entries) return []
+  return entries
+    .filter((entry) => asString(entry.key).trim().length > 0)
+    .map((entry) => {
+      const base = {
+        key: asString(entry.key),
+        value: asString(entry.value),
+        enabled: entry.disabled !== true
+      }
+      const contentType = asString(entry.contentType)
+      const extra = contentType ? { contentType } : {}
+      if (entry.type !== 'file') return { ...base, ...extra }
+      const src = Array.isArray(entry.src) ? entry.src : entry.src ? [entry.src] : []
+      return {
+        ...base,
+        ...extra,
+        value: '',
+        type: 'file' as const,
+        src: src.filter((path) => typeof path === 'string' && path.length > 0)
+      }
+    })
+}
+
 function parseUrl(url: PostmanRequest['url']): string {
   if (typeof url === 'string') return url
   return asString(url?.raw)
@@ -101,7 +136,10 @@ function parseBody(body: PostmanRequest['body'] | undefined): ApiBody {
     return { type: 'form-urlencoded', fields: toKeyValues(body.urlencoded) }
   }
   if (body.mode === 'formdata') {
-    return { type: 'multipart', fields: toKeyValues(body.formdata) }
+    return { type: 'multipart', fields: toFormFields(body.formdata) }
+  }
+  if (body.mode === 'file') {
+    return { type: 'binary', src: asString(body.file?.src) || null }
   }
   const raw = asString(body.raw)
   const trimmed = raw.trim()
@@ -224,12 +262,26 @@ function bodyToPostman(body: ApiBody): PostmanRequest['body'] | undefined {
   if (body.type === 'multipart') {
     return {
       mode: 'formdata',
-      formdata: body.fields.map((field) => ({
-        key: field.key,
-        value: field.value,
-        disabled: !field.enabled
-      }))
+      formdata: body.fields.map((field) => {
+        const entry: PostmanFormDataEntry = {
+          key: field.key,
+          disabled: !field.enabled
+        }
+        if (field.type === 'file') {
+          const src = field.src ?? []
+          entry.type = 'file'
+          entry.src = src.length === 1 ? src[0] : src
+        } else {
+          entry.type = 'text'
+          entry.value = field.value
+        }
+        if (field.contentType) entry.contentType = field.contentType
+        return entry
+      })
     }
+  }
+  if (body.type === 'binary') {
+    return { mode: 'file', file: { src: body.src } }
   }
   return { mode: 'raw', raw: body.text }
 }

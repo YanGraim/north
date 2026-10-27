@@ -50,6 +50,8 @@ export {
   ApiCollectionSchema,
   type ApiFolder,
   ApiFolderSchema,
+  type ApiFormField,
+  ApiFormFieldSchema,
   type ApiHttpMethod,
   ApiHttpMethodSchema,
   type ApiPreset,
