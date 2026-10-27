@@ -23,18 +23,13 @@ describe('ftp file-browser', () => {
   })
 
   it('creates, renames and deletes entries with the keyboard', () => {
-    cy.window().then((win) => {
-      cy.stub(win, 'prompt').callsFake((_message?: string, defaultValue?: string) => {
-        if (defaultValue) return 'renamed.txt'
-        return 'nova-pasta'
-      })
-    })
-
     cy.get(remote).find('[aria-label="Nova pasta (F7)"]').click()
+    cy.get('[data-testid="file-name-dialog"] input').type('nova-pasta{enter}')
     cy.get(remote).find('[data-testid="file-browser-entry-nova-pasta"]').should('be.visible')
 
     cy.get(remote).find('[data-testid="file-browser-entry-hello.txt"]').click()
     cy.get(remote).trigger('keydown', { key: 'F2' })
+    cy.get('[data-testid="file-name-dialog"] input').clear().type('renamed.txt{enter}')
     cy.get(remote).find('[data-testid="file-browser-entry-renamed.txt"]').should('be.visible')
     cy.get(remote).find('[data-testid="file-browser-entry-hello.txt"]').should('not.exist')
 
@@ -66,10 +61,8 @@ describe('ftp file-browser', () => {
   })
 
   it('shows empty state when a folder has no entries', () => {
-    cy.window().then((win) => {
-      cy.stub(win, 'prompt').returns('vazia')
-    })
     cy.get(remote).find('[aria-label="Nova pasta (F7)"]').click()
+    cy.get('[data-testid="file-name-dialog"] input').type('vazia{enter}')
     cy.get(remote).find('[data-testid="file-browser-entry-vazia"]').dblclick()
     cy.get(remote)
       .find('[data-testid="file-browser-empty"]')

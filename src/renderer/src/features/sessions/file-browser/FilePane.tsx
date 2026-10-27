@@ -26,6 +26,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { NameDialog, type NameRequest } from './NameDialog'
 import { formatSize, isRootPath, joinPath, type PathStyle, parentPath } from './paths'
 
 export type PaneSide = 'local' | 'remote'
@@ -100,6 +101,7 @@ export function FilePane({
   const [dragOver, setDragOver] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<RemoteEntry[] | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [nameRequest, setNameRequest] = useState<NameRequest | null>(null)
   const rootRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -172,26 +174,39 @@ export function FilePane({
     setAnchor(entry.path)
   }
 
-  async function mkdir(): Promise<void> {
-    const name = window.prompt('Nome da pasta')
-    if (!name?.trim()) return
-    try {
-      await source.mkdir(joinPath(path, name.trim(), source.sep))
-      refresh()
-    } catch (error) {
-      toastError(error, 'Falha ao criar pasta')
-    }
+  function mkdir(): void {
+    setNameRequest({
+      title: 'Nova pasta',
+      confirmLabel: 'Criar',
+      initial: '',
+      onSubmit: async (name) => {
+        try {
+          await source.mkdir(joinPath(path, name, source.sep))
+          refresh()
+        } catch (error) {
+          toastError(error, 'Falha ao criar pasta')
+          throw error
+        }
+      }
+    })
   }
 
-  async function rename(entry: RemoteEntry): Promise<void> {
-    const name = window.prompt('Novo nome', entry.name)
-    if (!name?.trim() || name.trim() === entry.name) return
-    try {
-      await source.rename(entry.path, joinPath(path, name.trim(), source.sep))
-      refresh()
-    } catch (error) {
-      toastError(error, 'Falha ao renomear')
-    }
+  function rename(entry: RemoteEntry): void {
+    setNameRequest({
+      title: `Renomear “${entry.name}”`,
+      confirmLabel: 'Renomear',
+      initial: entry.name,
+      onSubmit: async (name) => {
+        if (name === entry.name) return
+        try {
+          await source.rename(entry.path, joinPath(path, name, source.sep))
+          refresh()
+        } catch (error) {
+          toastError(error, 'Falha ao renomear')
+          throw error
+        }
+      }
+    })
   }
 
   function remove(targets: RemoteEntry[]): void {
@@ -236,10 +251,10 @@ export function FilePane({
       if (selectedEntries.length > 0) onCopy(selectedEntries)
     } else if (event.key === 'F2' && first) {
       event.preventDefault()
-      void rename(first)
+      rename(first)
     } else if (event.key === 'F7') {
       event.preventDefault()
-      void mkdir()
+      mkdir()
     } else if (event.key === 'Delete' || (event.key === 'Backspace' && event.metaKey)) {
       event.preventDefault()
       remove(selectedEntries)
@@ -353,7 +368,7 @@ export function FilePane({
           size="icon"
           className="size-7"
           aria-label="Nova pasta (F7)"
-          onClick={() => void mkdir()}
+          onClick={() => mkdir()}
         >
           <FolderPlus className="size-3.5" />
         </Button>
@@ -535,11 +550,11 @@ export function FilePane({
           <ContextMenuSeparator />
           <ContextMenuItem
             disabled={selectedEntries.length !== 1}
-            onSelect={() => selectedEntries[0] && void rename(selectedEntries[0])}
+            onSelect={() => selectedEntries[0] && rename(selectedEntries[0])}
           >
             Renomear <span className="ml-auto pl-4 font-mono text-[10px] text-muted">F2</span>
           </ContextMenuItem>
-          <ContextMenuItem onSelect={() => void mkdir()}>
+          <ContextMenuItem onSelect={() => mkdir()}>
             Nova pasta <span className="ml-auto pl-4 font-mono text-[10px] text-muted">F7</span>
           </ContextMenuItem>
           <ContextMenuItem onSelect={refresh}>Atualizar</ContextMenuItem>
@@ -559,6 +574,13 @@ export function FilePane({
         {entries.length}
         {totalFiles !== entries.length ? ` (${totalFiles} arquivos)` : ''}
       </div>
+      <NameDialog
+        request={nameRequest}
+        onClose={() => {
+          setNameRequest(null)
+          rootRef.current?.focus()
+        }}
+      />
       <ConfirmDeleteDialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {
