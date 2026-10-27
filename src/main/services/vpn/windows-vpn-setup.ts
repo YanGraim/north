@@ -14,7 +14,9 @@ export class WindowsVpnSetup {
     private readonly openvpn: WindowsVpnComponent,
     private readonly service: WindowsVpnService,
     private readonly elevate: (command: string) => Promise<void>,
-    private readonly wsl?: Pick<WslIpsec, 'remove'>
+    private readonly wsl?: Pick<WslIpsec, 'remove'>,
+    /** how long ensure() waits for the service to start after installing it */
+    private readonly settleMs = 10_000
   ) {}
 
   status(): VpnHelperStatus {
@@ -27,9 +29,24 @@ export class WindowsVpnSetup {
   async ensure(): Promise<void> {
     if (this.status() === 'installed') return
     await this.install()
-    if (this.status() !== 'installed') {
-      throw new VpnError('DRIVER_CRASHED', 'Não foi possível instalar o componente de VPN do North')
+    // the service opens its pipe a moment after the installer returns
+    const deadline = Date.now() + this.settleMs
+    while (this.status() !== 'installed' && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 500))
     }
+    if (this.status() === 'installed') return
+    const missing = [
+      this.openvpn.status() === 'installed' || this.openvpn.status() === 'unsupported'
+        ? null
+        : 'OpenVPN',
+      this.service.status() === 'installed' || this.service.status() === 'unsupported'
+        ? null
+        : 'serviço North VPN'
+    ].filter(Boolean)
+    throw new VpnError(
+      'DRIVER_CRASHED',
+      `Não foi possível instalar o componente de VPN do North (faltou: ${missing.join(', ')})`
+    )
   }
 
   async install(): Promise<void> {

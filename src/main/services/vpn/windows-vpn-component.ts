@@ -31,8 +31,10 @@ export function buildWindowsInstall(msi: string, user: string): string {
   // an older MSI may name features differently: fall back to its defaults rather than fail
   const install = `msiexec /i "${msi}" /qn /norestart ADDLOCAL=${FEATURES}`
   const fallback = `msiexec /i "${msi}" /qn /norestart`
-  // "already a member" is not an error worth failing the install for
-  return `(${install} || ${fallback}) && (net localgroup "OpenVPN Administrators" "${user}" /add >nul 2>&1 & exit /b 0)`
+  // "already a member" is not an error worth failing the install for. "ver" resets the
+  // error level; "exit /b 0" would end the whole elevated script (sudo-prompt runs it as a
+  // batch file) and skip whatever comes after, i.e. north-vpn-service's install
+  return `(${install} || ${fallback}) && (net localgroup "OpenVPN Administrators" "${user}" /add >nul 2>&1 || ver >nul)`
 }
 
 export function buildWindowsUninstall(msi: string): string {

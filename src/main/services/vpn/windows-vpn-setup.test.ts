@@ -47,7 +47,7 @@ function setup() {
     }
   }
   return {
-    s: new WindowsVpnSetup(openvpn, service, elevate, wsl),
+    s: new WindowsVpnSetup(openvpn, service, elevate, wsl, 0),
     wslRemoved,
     commands,
     files,
@@ -58,6 +58,13 @@ function setup() {
 }
 
 describe('WindowsVpnSetup', () => {
+  it('never ends the elevated batch before the service install runs', async () => {
+    const { s, commands } = setup()
+    await s.ensure()
+    // sudo-prompt runs the command as a .bat: "exit /b" there skips everything after it
+    expect(commands[0]).not.toMatch(/exit \/b/i)
+  })
+
   it('installs OpenVPN and the North service with a single UAC prompt', async () => {
     const { s, commands } = setup()
     expect(s.status()).toBe('missing')
