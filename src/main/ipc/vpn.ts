@@ -39,7 +39,7 @@ import { OpenvpnServiceBroker } from '../services/vpn/windows-openvpn-service'
 import { WindowsVpnComponent } from '../services/vpn/windows-vpn-component'
 import { WindowsVpnService } from '../services/vpn/windows-vpn-service'
 import { WindowsVpnSetup } from '../services/vpn/windows-vpn-setup'
-import { WslIpsec } from '../services/vpn/wsl-ipsec'
+import { WSL_DISTRO_MISSING, WslIpsec } from '../services/vpn/wsl-ipsec'
 import type { TrayVpn } from '../tray-menu'
 import type { CredentialVault } from '../vault'
 import { getProtocolManager } from './sessions'
@@ -223,6 +223,7 @@ export function registerVpnHandlers(
   function windowsIpsec(setup: WindowsVpnSetup, service: WindowsVpnService, wsl: WslIpsec) {
     return {
       binary: wslTarball,
+      missingMessage: WSL_DISTRO_MISSING,
       helper: {
         ensure: async () => {
           await setup.ensure() // the service holds the Windows routes

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { StrongswanDriver } from './drivers/strongswan-driver'
 import type { VpnError } from './vpn-error'
 import type { HelperRun } from './vpn-helper'
-import { WSL_DISTRO, WslIpsec, type WslIpsecDeps } from './wsl-ipsec'
+import { WSL_DISTRO, WSL_DISTRO_MISSING, WslIpsec, type WslIpsecDeps } from './wsl-ipsec'
 
 function deps(over: Partial<WslIpsecDeps> = {}) {
   const calls: string[][] = []
@@ -61,6 +61,16 @@ describe('WslIpsec', () => {
         '2'
       ]
     ])
+  })
+
+  it('no tarball → names the WSL distro and the dev build, not host charon-cmd', async () => {
+    const { d } = deps({ tarball: () => null })
+    const error = (await new WslIpsec(d).ensure().catch((e) => e)) as VpnError
+    expect(error.code).toBe('BINARY_MISSING')
+    expect(error.message).toBe(WSL_DISTRO_MISSING)
+    expect(error.message).toContain('north-wsl.tar.gz')
+    expect(error.message).toContain('build-wsl.sh')
+    expect(error.message).not.toContain('build.sh resources/vpn/bin')
   })
 
   it('no WSL → tells how to enable it or use FortiClient', async () => {
@@ -157,6 +167,23 @@ describe('StrongswanDriver on Windows (tunnel hook)', () => {
       }
     }
   }
+
+  it('missing distro uses the Windows hint, not the macOS strongSwan script', async () => {
+    const driver = new StrongswanDriver({
+      binary: () => null,
+      missingMessage: WSL_DISTRO_MISSING,
+      helper: {
+        ensure: async () => {},
+        startIpsec: () => {
+          throw new Error('should not start')
+        }
+      }
+    })
+    const error = (await driver.connect(ctx()).catch((e) => e)) as VpnError
+    expect(error.code).toBe('BINARY_MISSING')
+    expect(error.message).toContain('build-wsl.sh')
+    expect(error.message).not.toContain('build.sh resources/vpn/bin')
+  })
 
   it('adds the Windows routes once up and removes them on disconnect', async () => {
     const h = upHelper()

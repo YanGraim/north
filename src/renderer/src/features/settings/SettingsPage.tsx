@@ -41,10 +41,10 @@ import {
   type LocaleCode,
   MONO_FONT_FAMILY_STACKS,
   type MonoFontFamily,
-  type ThemePreference,
   useUiStore
 } from '@renderer/stores/ui-store'
 import { useWhatsNewStore } from '@renderer/stores/whats-new-store'
+import { isThemePreference } from '@shared/lib/theme'
 import type { UpdateStatus } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -259,14 +259,20 @@ export function SettingsPage(): React.JSX.Element {
             description={t('settings.appearance.description')}
           >
             <Row label={t('settings.appearance.theme')}>
-              <Select value={theme} onValueChange={(value) => setTheme(value as ThemePreference)}>
-                <SelectTrigger className="w-40">
+              <Select
+                value={theme}
+                onValueChange={(value) => {
+                  if (isThemePreference(value)) setTheme(value)
+                }}
+              >
+                <SelectTrigger className="w-44">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="dark">{t('settings.appearance.dark')}</SelectItem>
                   <SelectItem value="light">{t('settings.appearance.light')}</SelectItem>
                   <SelectItem value="system">{t('settings.appearance.system')}</SelectItem>
+                  <SelectItem value="automatic">{t('settings.appearance.automatic')}</SelectItem>
                 </SelectContent>
               </Select>
             </Row>

@@ -33,11 +33,12 @@
     },
     "appearance": {
       "title": "Appearance",
-      "description": "Interface theme. Dark is the default.",
+      "description": "Interface theme. Dark is the default. Automatic stays light from 08:00 to 17:00 on this computer.",
       "theme": "Theme",
       "dark": "Dark",
       "light": "Light",
-      "system": "System"
+      "system": "System",
+      "automatic": "Automatic"
     },
     "language": {
       "title": "Language",

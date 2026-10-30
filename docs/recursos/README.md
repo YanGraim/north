@@ -1,6 +1,6 @@
 # Recursos
 
-- **Última atualização:** 2026-10-29
+- **Última atualização:** 2026-10-30
 
 Índice dos recursos promovidos a partir de [ideias](../ideias.md). Cada recurso tem um diretório `rec-xxx-<nome>/` com:
 
@@ -26,3 +26,4 @@ Fluxo e templates: skill `ciclo-vida-recursos`. Pausar, despromover ou abandonar
 
 | ID | Recurso | Status | Ideia | Esforço | Branch | Início | Conclusão | ADR |
 | --- | --- | --- | --- | :---: | --- | --- | --- | --- |
+| REC-001 | [Modo de aparência Automático](./rec-001-modo-aparencia-automatico/especificacao.md) | 🧪 Em testes | IDEIA-001 | ⚡ Low | `feature/harness-ia-dev` | 2026-10-30 | — | — |

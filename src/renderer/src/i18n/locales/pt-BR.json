@@ -33,11 +33,12 @@
     },
     "appearance": {
       "title": "Aparência",
-      "description": "Tema da interface. Dark é o padrão.",
+      "description": "Tema da interface. Dark é o padrão. Automático fica claro das 08:00 às 17:00 neste computador.",
       "theme": "Tema",
       "dark": "Escuro",
       "light": "Claro",
-      "system": "Sistema"
+      "system": "Sistema",
+      "automatic": "Automático"
     },
     "language": {
       "title": "Idioma",

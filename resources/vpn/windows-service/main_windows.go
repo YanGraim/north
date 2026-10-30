@@ -13,13 +13,13 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"time"
 
 	"github.com/Microsoft/go-winio"
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 )
@@ -102,11 +102,14 @@ func install(sid string) error {
 	if err := uninstallService(); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(dst); err != nil {
+	// RemoveAll fails with "Access is denied" while the previous service image is still mapped.
+	// Renaming that exe frees the path; Windows allows renaming a running image.
+	if err := prepareInstallDir(dst); err != nil {
 		return err
 	}
-	if err := copyTree(filepath.Join(filepath.Dir(src), "openconnect"), filepath.Join(dst, "openconnect")); err != nil {
-		return fmt.Errorf("copy engines: %w", err)
+	// SSL-VPN ships openconnect/ next to the exe. IPsec only needs this service for routes.
+	if err := copyBundledEngines(src, dst); err != nil {
+		return err
 	}
 	exe := filepath.Join(dst, "north-vpn-service.exe")
 	if err := copyFile(src, exe); err != nil {
@@ -144,7 +147,10 @@ func uninstallService() error {
 	defer m.Disconnect()
 	s, err := m.OpenService(serviceName)
 	if err != nil {
-		return nil // not installed
+		if errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST) {
+			return nil
+		}
+		return err
 	}
 	defer s.Close()
 	s.Control(svc.Stop)
@@ -156,35 +162,4 @@ func uninstallService() error {
 		time.Sleep(200 * time.Millisecond)
 	}
 	return s.Delete()
-}
-
-func copyTree(src, dst string) error {
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, _ := filepath.Rel(src, path)
-		target := filepath.Join(dst, rel)
-		if info.IsDir() {
-			return os.MkdirAll(target, 0o755)
-		}
-		return copyFile(path, target)
-	})
-}
-
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
 }

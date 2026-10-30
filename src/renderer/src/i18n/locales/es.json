@@ -33,11 +33,12 @@
     },
     "appearance": {
       "title": "Apariencia",
-      "description": "Tema de la interfaz. Oscuro es el predeterminado.",
+      "description": "Tema de la interfaz. Oscuro es el predeterminado. Automático queda claro de 08:00 a 17:00 en este equipo.",
       "theme": "Tema",
       "dark": "Oscuro",
       "light": "Claro",
-      "system": "Sistema"
+      "system": "Sistema",
+      "automatic": "Automático"
     },
     "language": {
       "title": "Idioma",

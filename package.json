@@ -24,7 +24,7 @@
     "test:pw:ui": "env -u ELECTRON_RUN_AS_NODE playwright test --ui",
     "e2e:harness": "vite --config e2e-harness/vite.config.ts",
     "start": "env -u ELECTRON_RUN_AS_NODE electron-vite preview",
-    "dev": "env -u ELECTRON_RUN_AS_NODE electron-vite dev",
+    "dev": "node scripts/electron-vite.mjs dev",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "prepare": "husky",

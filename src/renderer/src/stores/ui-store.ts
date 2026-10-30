@@ -1,4 +1,9 @@
-import type { ResolvedTheme, ThemePreference } from '@shared/lib/theme'
+import {
+  isThemePreference,
+  type ResolvedTheme,
+  resolveAutomaticTheme,
+  type ThemePreference
+} from '@shared/lib/theme'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -34,6 +39,8 @@ interface UiState {
   sidebarAgentsExpanded: boolean
   listSort: ListSort
   theme: ThemePreference
+  /** Bumped when automatic mode crosses 08:00 or 17:00. Not persisted. */
+  automaticThemeTick: number
   locale: LocaleCode
   /** Local display name — empty falls back to OS username at render time. */
   displayName: string
@@ -66,6 +73,7 @@ interface UiState {
   setSidebarAgentsExpanded: (expanded: boolean) => void
   setListSort: (sort: ListSort) => void
   setTheme: (theme: ThemePreference) => void
+  bumpAutomaticTheme: () => void
   setLocale: (locale: LocaleCode) => void
   setDisplayName: (name: string) => void
   setProfileEmail: (email: string) => void
@@ -76,7 +84,7 @@ interface UiState {
   setLastSeenWhatsNewVersion: (version: string) => void
 }
 
-export function resolveTheme(preference: ThemePreference): ResolvedTheme {
+export function resolveTheme(preference: ThemePreference, now: Date = new Date()): ResolvedTheme {
   if (preference === 'system') {
     if (
       typeof window !== 'undefined' &&
@@ -86,6 +94,7 @@ export function resolveTheme(preference: ThemePreference): ResolvedTheme {
     }
     return 'dark'
   }
+  if (preference === 'automatic') return resolveAutomaticTheme(now)
   return preference
 }
 
@@ -101,6 +110,7 @@ export const useUiStore = create<UiState>()(
       sidebarAgentsExpanded: true,
       listSort: 'name',
       theme: 'dark',
+      automaticThemeTick: 0,
       locale: 'pt-BR',
       displayName: '',
       profileEmail: '',
@@ -135,7 +145,12 @@ export const useUiStore = create<UiState>()(
       setSidebarApisExpanded: (expanded) => set({ sidebarApisExpanded: expanded }),
       setSidebarAgentsExpanded: (expanded) => set({ sidebarAgentsExpanded: expanded }),
       setListSort: (sort) => set({ listSort: sort }),
-      setTheme: (theme) => set({ theme }),
+      setTheme: (theme) => {
+        if (!isThemePreference(theme)) return
+        set({ theme })
+      },
+      bumpAutomaticTheme: () =>
+        set((state) => ({ automaticThemeTick: state.automaticThemeTick + 1 })),
       setLocale: (locale) => set({ locale }),
       setDisplayName: (name) => set({ displayName: name }),
       setProfileEmail: (email) => set({ profileEmail: email }),
@@ -151,6 +166,16 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'north-ui',
+      merge: (persistedState, currentState) => {
+        if (!persistedState || typeof persistedState !== 'object') return currentState
+        const persisted = persistedState as Partial<UiState>
+        return {
+          ...currentState,
+          ...persisted,
+          theme: isThemePreference(persisted.theme) ? persisted.theme : 'dark',
+          automaticThemeTick: 0
+        }
+      },
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         expandedTreeNodes: state.expandedTreeNodes,

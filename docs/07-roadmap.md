@@ -25,7 +25,7 @@ Faixa prática para o produto ser usável e distribuível de verdade (ver [ADR 0
 | **Settings** | Rota `/settings` — Aparência, Idioma, Geral, Inventário, Atualizações, Sobre | — |
 | **Access** | Entidade `Access` (database/login/other), vault reveal com ownership, lista unificada | [ADR 0012](./adr/0012-accesses-tema-i18n.md) |
 | **Estúdio SQL** | Sessão `database` a partir de Access: modal DataGrip, editor Beekeeper, engines SQL v1 | [ADR 0015](./adr/0015-estudio-sql.md) |
-| **Tema / i18n** | Dark/light/system + locales pt-BR/en/es | [ADR 0012](./adr/0012-accesses-tema-i18n.md) |
+| **Tema / i18n** | Dark/light/system/automatic (08:00–17:00) + locales pt-BR/en/es | [ADR 0012](./adr/0012-accesses-tema-i18n.md), [REC-001](./recursos/rec-001-modo-aparencia-automatico/especificacao.md) |
 | **Workflows** | Ações repetíveis por grupo: variáveis, engine linear, aba run, secrets bag, Vitest + Cypress | [ADR 0014](./adr/0014-workflows.md) |
 | **QA** | Checklist manual por protocolo + fluxos de produto + smoke CI local | [09-qa.md](./09-qa.md) |
 | **Distribuição** | Validar electron-builder, GitHub Releases, updater empacotado, signing/notarize opt-in | [10-distribuicao.md](./10-distribuicao.md) |

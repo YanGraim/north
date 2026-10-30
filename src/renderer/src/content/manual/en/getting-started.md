@@ -15,6 +15,10 @@ Suggested flow to build your inventory:
 
 When the inventory is empty, the connections screen also points to this tutorial.
 
+## Appearance
+
+In **Settings → Appearance**, choose Dark, Light, System, or Automatic. Automatic keeps the interface light from 08:00 to 17:00 on this computer's clock and dark the rest of the day, while the app is open. System follows the Windows, macOS, or Linux theme.
+
 ## Open at startup
 
 In **Settings → Startup**, turn on **Open North when the computer starts** to have North open by itself when you sign in to Windows, macOS or Linux. It's off by default. To turn it off, uncheck it (or use Windows' Startup apps / macOS Login Items).

@@ -2,7 +2,7 @@
 
 ## Princípios
 
-1. **Dark default** — o tema escuro é o padrão; light e `system` são suportados via `ui-store.theme` e classes `html.dark` / `html.light`.
+1. **Dark default** — o tema escuro é o padrão; `light`, `system` e `automatic` (claro das 08:00 às 17:00 no relógio local) via `ui-store.theme` e classes `html.dark` / `html.light`. Ver [REC-001](./recursos/rec-001-modo-aparencia-automatico/especificacao.md).
 2. **Densidade útil** — informação acessível sem clutter; painéis com uma função cada.
 3. **Tipografia técnica** — IBM Plex Sans (UI) + IBM Plex Mono (hosts, versões, código).
 4. **Sem cards no hero do produto** — superfícies por hierarquia (background → surface → elevated), não caixas genéricas.

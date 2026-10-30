@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { statSync } from 'node:fs'
 import { connect, type Socket } from 'node:net'
 import { win32 } from 'node:path'
 import type { VpnHelperStatus } from '@shared/types'
@@ -12,7 +13,40 @@ import type { HelperRun } from './vpn-helper'
  * open, streams the engine's log and ends with "NORTH-EXIT <code>". Closing it stops the tunnel.
  */
 export const NORTH_VPN_PIPE = '\\\\.\\pipe\\north-vpn'
+export const WINDOWS_SERVICE_NAME = 'NorthVpn'
 export const SERVICE_DIR_NAME = 'North VPN Service'
+
+/**
+ * existsSync is false for a Windows named pipe that is listening. statSync sees it.
+ * Anything other than "not there" counts as up, so a busy pipe is not treated as missing.
+ */
+export function namedPipeAlive(path: string, stat: (path: string) => void = statSync): boolean {
+  try {
+    stat(path)
+    return true
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    return code !== 'ENOENT' && code !== 'ENOTDIR' && code !== 'ENXIO'
+  }
+}
+
+/** `sc query` output. The state word stays RUNNING even on localized Windows. */
+export function serviceQueryIsRunning(output: string): boolean {
+  return /\bRUNNING\b/i.test(output)
+}
+
+function windowsServiceRunning(name: string): boolean {
+  try {
+    const output = execFileSync('sc.exe', ['query', name], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 5000
+    })
+    return serviceQueryIsRunning(output)
+  } catch {
+    return false
+  }
+}
 
 export type FortiServiceRequest = {
   host: string
@@ -66,7 +100,11 @@ export class WindowsVpnService {
     const installed = this.deps.digest(this.installedExe())
     if (!installed) return 'missing'
     if (installed !== this.deps.digest(bundled)) return 'outdated'
-    const alive = this.deps.pipeAlive ?? (() => existsSync(this.deps.pipe ?? NORTH_VPN_PIPE))
+    const alive =
+      this.deps.pipeAlive ??
+      (() =>
+        namedPipeAlive(this.deps.pipe ?? NORTH_VPN_PIPE) ||
+        windowsServiceRunning(WINDOWS_SERVICE_NAME))
     return alive() ? 'installed' : 'outdated'
   }
 
