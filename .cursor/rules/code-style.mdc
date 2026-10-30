@@ -3,6 +3,8 @@ description: TypeScript strict, naming, DRY/SOLID e padrões de código do North
 alwaysApply: true
 ---
 
+<!-- GERADO por scripts/harness/sync.mjs a partir de .agents/rules/code-style.md. Não edite: altere a fonte e rode `npm run harness:sync`. -->
+
 # Estilo de código
 
 ## TypeScript

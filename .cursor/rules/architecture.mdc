@@ -3,6 +3,8 @@ description: Fronteiras main/preload/renderer/shared e regras de dependência do
 alwaysApply: true
 ---
 
+<!-- GERADO por scripts/harness/sync.mjs a partir de .agents/rules/architecture.md. Não edite: altere a fonte e rode `npm run harness:sync`. -->
+
 # Arquitetura North
 
 ## Processos

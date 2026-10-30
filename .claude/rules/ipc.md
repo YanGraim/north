@@ -1,0 +1,43 @@
+---
+paths:
+  - "src/shared/ipc/**"
+  - "src/main/**"
+  - "src/preload/**"
+---
+
+<!-- GERADO por scripts/harness/sync.mjs a partir de .agents/rules/ipc.md. Não edite: altere a fonte e rode `npm run harness:sync`. -->
+
+# IPC tipado
+
+## Fluxo obrigatório para canal novo
+
+1. Adicionar constante em `src/shared/ipc/channels.ts`
+2. Tipar args/result em `IpcInvokeMap` (`contract.ts`)
+3. Expor método em `NorthApi`
+4. Registrar `ipcMain.handle` em `src/main/ipc`
+5. Implementar em `src/preload` com `ipcRenderer.invoke`
+6. Consumir no renderer via hook + TanStack Query (se for leitura)
+
+## Exemplo
+
+```ts
+// channels.ts
+APP_GET_VERSION: 'app:get-version'
+
+// contract.ts
+[IpcChannels.APP_GET_VERSION]: { args: []; result: string }
+
+// preload
+getVersion: () => ipcRenderer.invoke(IpcChannels.APP_GET_VERSION)
+
+// main
+ipcMain.handle(IpcChannels.APP_GET_VERSION, () => app.getVersion())
+```
+
+## Regras
+
+- Nomes de canal: `domínio:ação` em kebab-case.
+- Validar/normalizar payload no **main** antes de persistir ou abrir sessão.
+- Bytes contínuos de sessão vão em `MessagePort`, não em `invoke` genérico.
+- Não vazar segredos no resultado IPC (só refs de credencial).
+- Preferir `invoke` (request/response) a `send` para APIs de dados.

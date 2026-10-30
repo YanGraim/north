@@ -75,6 +75,8 @@ docs/          Visão, arquitetura, stack, dados, design, segurança, roadmap, Q
 - [QA](./docs/09-qa.md) — checklist manual por protocolo
 - [Validação prática](./docs/11-validacao-pratica.md) — roteiro preenchível em ambientes reais
 - [Distribuição](./docs/10-distribuicao.md) — electron-builder, GitHub Releases, updater, signing
+- [Ideias](./docs/ideias.md), [Recursos](./docs/recursos/README.md) e [Correções](./docs/correcoes.md) — ciclo de vida das demandas
+- [Harness de agentes](./.agents/README.md) — regras e skills para Cursor, Claude Code e Antigravity (`AGENTS.md`)
 
 ## IPC
 

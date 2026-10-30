@@ -9,6 +9,8 @@
   "license": "MIT",
   "scripts": {
     "format": "biome format --write .",
+    "harness:sync": "node scripts/harness/sync.mjs",
+    "harness:check": "node scripts/harness/sync.mjs --check",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
