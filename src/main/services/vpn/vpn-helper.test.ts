@@ -521,6 +521,19 @@ describe.runIf(process.platform !== 'win32')('north-vpn-helper script', () => {
   })
 })
 
+describe('WSL IPsec data path', () => {
+  it('prefers kernel-libipsec and SNATs Windows traffic to the TUN address', () => {
+    const script = readFileSync(HELPER, 'utf8')
+    expect(script).toContain('install_virtual_ip_on = ipsec0')
+    expect(script).toContain('load = 2')
+    expect(script).toContain('-o ipsec+ ! -s "$vip" -j SNAT --to-source "$vip"')
+    expect(script).toContain('-I FORWARD 1 -j NORTH_VPN_FWD')
+    expect(script).toContain('-o ipsec+ -j ACCEPT')
+    expect(script).toContain('CHECKSUM --checksum-fill')
+    expect(script).not.toContain('route show table 220')
+  })
+})
+
 describe('OpenVPN helper whitelist', () => {
   it('the helper script and North agree on every directive and block', () => {
     const script = readFileSync(HELPER, 'utf8')

@@ -25,7 +25,7 @@ import { copyToClipboard } from '@renderer/lib/clipboard'
 import { formatRelativeDate } from '@renderer/lib/connection-ui'
 import { queryKeys } from '@renderer/lib/query-keys'
 import { cn } from '@renderer/lib/utils'
-import { vpnErrorAction } from '@renderer/lib/vpn-ui'
+import { vpnErrorAction, vpnErrorShowsDetail } from '@renderer/lib/vpn-ui'
 import { useVpnDialogsStore } from '@renderer/stores/vpn-dialogs-store'
 import type { VpnProfile, VpnState } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
@@ -147,13 +147,10 @@ export function VpnErrorNotice({
       data-testid="vpn-error"
     >
       <p className="text-foreground">{t(`vpn.errors.${error.code}`)}</p>
-      {[
-        'CONNECTION_REJECTED',
-        'CERT_UNTRUSTED',
-        'DRIVER_CRASHED',
-        'BINARY_MISSING',
-        'GATEWAY_UNREACHABLE'
-      ].includes(error.code) ? (
+      {error.code === 'BINARY_MISSING' ? (
+        <p className="mt-1 text-xs text-muted">{t('vpn.errors.BINARY_MISSINGHint')}</p>
+      ) : null}
+      {vpnErrorShowsDetail(error.code) ? (
         <p className="mt-1 text-xs text-muted">{error.message}</p>
       ) : null}
       {error.code === 'CERT_UNTRUSTED' && error.certDigest ? (

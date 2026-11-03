@@ -1,40 +1,16 @@
-import { posix } from 'node:path'
 import type {
   ConnectOptions,
   FileTransferCapability,
   ProtocolDriver,
   ProtocolSession,
   RemoteEntry,
-  RemoteEntryType,
   SessionDataPort,
   SessionPortMessage,
   SessionState
 } from '@shared/protocols'
 import { Client, type SFTPWrapper, type Stats } from 'ssh2'
-import { formatMode } from '../services/file-transfer/local-fs'
+import { mapSftpDirectoryEntries } from './sftp-entries'
 import { attachKeyboardInteractivePassword, buildSshConnectConfig } from './ssh-auth'
-
-function toEntryType(stats: Stats): RemoteEntryType {
-  if (stats.isDirectory()) return 'dir'
-  if (stats.isSymbolicLink()) return 'link'
-  if (stats.isFile()) return 'file'
-  return 'other'
-}
-
-function normalizeMtime(mtime: number | undefined | null): string | null {
-  if (typeof mtime !== 'number' || !Number.isFinite(mtime) || mtime <= 0) return null
-  return new Date(mtime * 1000).toISOString()
-}
-
-/** Owner/group names from the `ls -l`-style longname; uids are the fallback. */
-export function parseLongnameOwner(longname: string | undefined): {
-  owner: string
-  group: string
-} | null {
-  const parts = longname?.trim().split(/\s+/) ?? []
-  if (parts.length < 4) return null
-  return { owner: parts[2], group: parts[3] }
-}
 
 class SftpProtocolSession implements ProtocolSession {
   readonly id: string
@@ -167,20 +143,7 @@ class SftpProtocolSession implements ProtocolSession {
           reject(new Error(`Falha ao listar diretório: ${err.message}`))
           return
         }
-        const mapped = entries.map<RemoteEntry>((entry) => {
-          const names = parseLongnameOwner(entry.longname)
-          return {
-            name: entry.filename,
-            path: posix.join(path, entry.filename),
-            type: toEntryType(entry.attrs),
-            size: entry.attrs.size ?? 0,
-            modifiedAt: normalizeMtime(entry.attrs.mtime),
-            permissions: typeof entry.attrs.mode === 'number' ? formatMode(entry.attrs.mode) : null,
-            owner: names?.owner ?? (entry.attrs.uid != null ? String(entry.attrs.uid) : null),
-            group: names?.group ?? (entry.attrs.gid != null ? String(entry.attrs.gid) : null)
-          }
-        })
-        resolve(mapped)
+        resolve(mapSftpDirectoryEntries(path, entries))
       })
     })
   }

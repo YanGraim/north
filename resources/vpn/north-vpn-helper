@@ -108,9 +108,12 @@ case "${1:-}" in
     # split-tunnel networks FortiGate pushes, like FortiClient, instead of taking all traffic.
     plugins='charon-cmd pkcs11 aes des sha1 sha2 md5 hmac random nonce x509 revocation constraints pubkey pkcs1 pkcs8 sshkey pem openssl gmp curve25519 kdf curl kernel-pfkey kernel-pfroute kernel-netlink socket-default eap-identity eap-md5 eap-gtc eap-mschapv2 eap-peap xauth-generic osx-attr resolve unity'
     # Windows (North's WSL distro, marked by /etc/north-wsl): Windows' traffic for the VPN's
-    # networks — routed here by north-vpn-service — is forwarded into the tunnel. The tunnel
-    # only carries the virtual IP (its policy is VIP === networks), so that traffic is SNATed
-    # to it (wsl_nat below). kernel-libipsec is the fallback when the WSL kernel has no XFRM.
+    # networks — routed here by north-vpn-service — is forwarded into the tunnel. The CHILD_SA
+    # only carries the virtual IP (VIP === networks), so that traffic is SNATed to the address
+    # on the TUN (wsl_nat below). kernel-netlink and kernel-libipsec both provide kernel-ipsec;
+    # at the same priority netlink wins and installs the SA in WSL's XFRM, which does not
+    # forward this traffic (xfrmi returns EOPNOTSUPP). Priority 2 makes libipsec the IPsec
+    # backend: ESP in userspace, routes into ipsec0. kernel-netlink stays for addresses/routes.
     wsl=''
     if [ -f /etc/north-wsl ]; then
       wsl=1
@@ -123,24 +126,44 @@ case "${1:-}" in
         iptables -t nat -I POSTROUTING -j NORTH_VPN
       # rule of North <= 0.1.36, never matched
       iptables -t nat -D POSTROUTING -o ipsec+ -j MASQUERADE 2>/dev/null
+      # WSL distros share one netfilter. Docker sets FORWARD DROP, which discards
+      # Windows packets before they reach the TUN even when the NAT rule exists.
+      iptables -N NORTH_VPN_FWD 2>/dev/null
+      iptables -F NORTH_VPN_FWD
+      iptables -C FORWARD -j NORTH_VPN_FWD 2>/dev/null ||
+        iptables -I FORWARD 1 -j NORTH_VPN_FWD
+      iptables -A NORTH_VPN_FWD -o ipsec+ -j ACCEPT
+      iptables -A NORTH_VPN_FWD -i ipsec+ -j ACCEPT
+      # Hyper-V leaves the UDP checksum empty and the FortiGate drops ESP. IKE is small
+      # enough to pass; data is not. Fill the checksum before the packet hits the NIC.
+      iptables -t mangle -C POSTROUTING -p udp --dport 4500 -j CHECKSUM --checksum-fill 2>/dev/null ||
+        iptables -t mangle -I POSTROUTING 1 -p udp --dport 4500 -j CHECKSUM --checksum-fill
+      echo "[north] WSL: encaminhamento para ipsec0 liberado"
     fi
     nat=''
-    # one SNAT per network strongSwan routed (table 220), to the virtual IP it used as src;
-    # rebuilt whenever that changes (rekey, new address)
+    # SNAT everything forwarded out the TUN to the virtual IP installed on it. Rebuilt when
+    # that address appears or changes (rekey). Parsing table 220 for "src" missed the VIP:
+    # busybox ip often omits it, so Windows packets kept their LAN source and the policy
+    # dropped them.
     wsl_nat() {
-      now=$(ip -4 route show table 220 2>/dev/null |
-        awk '{for (i = 2; i < NF; i++) if ($i == "src") print $1, $(i + 1)}' | sort)
-      [ "$now" = "$nat" ] && return
+      vip=$(ip -4 addr show dev ipsec0 2>/dev/null | awk '/inet / { sub(/\/.*/, "", $2); print $2; exit }')
+      [ "$vip" = "$nat" ] && return
       iptables -t nat -F NORTH_VPN
-      printf '%s\n' "$now" | while read -r net vip; do
-        [ -n "$net" ] && iptables -t nat -A NORTH_VPN -d "$net" ! -s "$vip" -j SNAT --to-source "$vip"
-      done
-      [ -n "$now" ] && echo "[north] WSL: $(printf '%s\n' "$now" | wc -l) rede(s) da VPN com NAT para $(printf '%s\n' "$now" | awk 'NR == 1 {print $2}')"
-      nat=$now
+      if [ -n "$vip" ]; then
+        iptables -t nat -A NORTH_VPN -o ipsec+ ! -s "$vip" -j SNAT --to-source "$vip"
+        echo "[north] WSL: NAT para $vip na interface ipsec0"
+      fi
+      nat=$vip
     }
-    printf '%s\n' 'charon-cmd {' "  load = $plugins" '  cisco_unity = yes' '  port = 500' '  port_nat_t = 4500' \
-      '  filelog {' '    stderr {' '      default = 1' '      flush_line = yes' '    }' '  }' '}' \
-      >"$tmp/strongswan.conf"
+    {
+      printf '%s\n' 'charon-cmd {' "  load = $plugins" '  cisco_unity = yes' '  port = 500' '  port_nat_t = 4500'
+      if [ -n "$wsl" ]; then
+        # VIP must sit on the TUN so wsl_nat can see it and forwarded packets match the SA.
+        printf '%s\n' '  install_virtual_ip = yes' '  install_virtual_ip_on = ipsec0' \
+          '  plugins {' '    kernel-libipsec {' '      load = 2' '    }' '  }'
+      fi
+      printf '%s\n' '  filelog {' '    stderr {' '      default = 1' '      flush_line = yes' '    }' '  }' '}'
+    } >"$tmp/strongswan.conf"
     set -- --host "$host" --remote-identity %any --profile ikev1-xauth-psk-am \
       --xauth-username "$user" --ike-proposal "$ike" --esp-proposal "$esp"
     # charon-cmd needs a local identity; FortiClient's "Local ID" when set, else the user
@@ -160,6 +183,10 @@ case "${1:-}" in
       iptables -t nat -D POSTROUTING -j NORTH_VPN 2>/dev/null
       iptables -t nat -F NORTH_VPN 2>/dev/null
       iptables -t nat -X NORTH_VPN 2>/dev/null
+      iptables -D FORWARD -j NORTH_VPN_FWD 2>/dev/null
+      iptables -F NORTH_VPN_FWD 2>/dev/null
+      iptables -X NORTH_VPN_FWD 2>/dev/null
+      iptables -t mangle -D POSTROUTING -p udp --dport 4500 -j CHECKSUM --checksum-fill 2>/dev/null
     fi
     wait "$pid"
     ;;

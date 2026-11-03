@@ -1,4 +1,3 @@
-import { resolveTheme, useUiStore } from '@renderer/stores/ui-store'
 import type { ITheme } from '@xterm/xterm'
 
 const DARK_THEME: ITheme = {
@@ -58,9 +57,4 @@ export function getXtermTheme(resolved: 'dark' | 'light', accentColor?: string |
   const base = resolved === 'light' ? LIGHT_THEME : DARK_THEME
   if (!accentColor) return base
   return { ...base, cursor: accentColor }
-}
-
-export function useResolvedTheme(): 'dark' | 'light' {
-  const theme = useUiStore((s) => s.theme)
-  return resolveTheme(theme)
 }

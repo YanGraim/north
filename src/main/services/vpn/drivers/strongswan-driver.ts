@@ -13,9 +13,16 @@ export type StrongswanDriverDeps = {
    * VM); returns how to undo it. A failure tears the tunnel down.
    */
   tunnel?: { up(info: VpnTunnelInfo, log: (line: string) => void): Promise<() => void> }
+  /** Shown when `binary()` is null. Windows looks for the WSL distro, not host charon-cmd. */
+  missingMessage?: string
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+const HOST_CHARON_MISSING = [
+  'strongSwan não veio nesta instalação do North. Reinstale o North',
+  '(em desenvolvimento: scripts/vpn-binaries/build.sh resources/vpn/bin).'
+].join(' ')
 
 /** FortiClient's phase-2 defaults (AES128/AES256 · SHA1, PFS DH 5), then common variants. */
 export const ESP_CANDIDATES = [
@@ -60,7 +67,7 @@ export class StrongswanDriver implements VpnDriver {
     if (!this.deps.binary()) {
       throw new VpnError(
         'BINARY_MISSING',
-        'strongSwan não veio nesta instalação do North. Reinstale o North (em desenvolvimento: scripts/vpn-binaries/build.sh resources/vpn/bin).'
+        this.deps.missingMessage ?? HOST_CHARON_MISSING
       )
     }
     const psk = secrets.get('psk')

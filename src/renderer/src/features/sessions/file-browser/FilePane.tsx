@@ -17,15 +17,20 @@ import {
   ArrowUp,
   CornerLeftUp,
   File,
+  FilePlus,
   Folder,
+  FolderInput,
   FolderPlus,
   HardDrive,
   Home,
   Link2,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  ScrollText
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { isStaleDirectoryListError } from '../terminal-cwd-list'
 import { NameDialog, type NameRequest } from './NameDialog'
 import { formatSize, isRootPath, joinPath, type PathStyle, parentPath } from './paths'
 
@@ -80,6 +85,20 @@ type FilePaneProps = {
   /** Something was dropped on this pane (from the other pane or the OS). */
   onDrop: (payload: FileDragPayload | null, osPaths: string[]) => void
   copyLabel: string
+  /**
+   * Saved SSH connection only. Omitted on the local pane, FTP, and sessions
+   * that are not a saved SSH connection. The view owns confirmations and toasts.
+   */
+  sshActions?: {
+    onSetStartupDirectory: (listedPath: string) => void
+    onAddToMonitoring: (entry: RemoteEntry) => void
+    onFollowLive: (entry: RemoteEntry) => void
+  }
+  /**
+   * Terminal cwd mirror. The listed path stays put: navigation, transfer, and
+   * mutation do nothing. Omitted on the two-pane browser.
+   */
+  mirror?: boolean
 }
 
 export function FilePane({
@@ -91,8 +110,11 @@ export function FilePane({
   onActivate,
   onCopy,
   onDrop,
-  copyLabel
+  copyLabel,
+  sshActions,
+  mirror = false
 }: FilePaneProps): React.JSX.Element {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [anchor, setAnchor] = useState<string | null>(null)
@@ -103,6 +125,12 @@ export function FilePane({
   const [deleting, setDeleting] = useState(false)
   const [nameRequest, setNameRequest] = useState<NameRequest | null>(null)
   const rootRef = useRef<HTMLElement>(null)
+  const paneActions = mirror ? undefined : sshActions
+
+  function changePath(next: string): void {
+    if (mirror) return
+    onPathChange(next)
+  }
 
   useEffect(() => {
     setPathDraft(path)
@@ -118,8 +146,9 @@ export function FilePane({
   })
 
   useEffect(() => {
-    if (query.error) toastError(query.error, 'Falha ao listar diretório')
-  }, [query.error])
+    if (mirror || !query.error || isStaleDirectoryListError(query.error)) return
+    toastError(query.error, 'Falha ao listar diretório')
+  }, [mirror, query.error])
 
   const entries = useMemo(
     () =>
@@ -129,6 +158,8 @@ export function FilePane({
     [query.data, sort]
   )
   const selectedEntries = entries.filter((e) => selected.has(e.path))
+  const singleFile =
+    selectedEntries.length === 1 && selectedEntries[0].type === 'file' ? selectedEntries[0] : null
   const showOwner = source.side === 'remote' || source.sep === '/'
 
   function refresh(): void {
@@ -136,16 +167,17 @@ export function FilePane({
   }
 
   function open(entry: RemoteEntry): void {
+    if (mirror) return
     if (entry.type === 'dir' || entry.type === 'link') {
       // A link may point to a file; listing it fails harmlessly and we stay put.
       if (entry.type === 'link' && source.side === 'remote') {
         source
           .list(entry.path)
-          .then(() => onPathChange(entry.path))
+          .then(() => changePath(entry.path))
           .catch(() => source.openFile(entry))
         return
       }
-      onPathChange(entry.path)
+      changePath(entry.path)
       return
     }
     source.openFile(entry)
@@ -246,6 +278,13 @@ export function FilePane({
   function handleKeyDown(event: React.KeyboardEvent): void {
     if ((event.target as HTMLElement).tagName === 'INPUT') return
     const first = selectedEntries[0]
+    if (mirror) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault()
+        moveSelection(event.key === 'ArrowDown' ? 1 : -1)
+      }
+      return
+    }
     if (event.key === 'F5') {
       event.preventDefault()
       if (selectedEntries.length > 0) onCopy(selectedEntries)
@@ -263,30 +302,33 @@ export function FilePane({
       open(first)
     } else if (event.key === 'Backspace') {
       event.preventDefault()
-      onPathChange(parentPath(path, source.sep))
+      changePath(parentPath(path, source.sep))
     } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
       event.preventDefault()
       setSelected(new Set(entries.map((e) => e.path)))
     } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
-      const idx = first ? entries.findIndex((e) => e.path === (anchor ?? first.path)) : -1
-      const next =
-        entries[
-          Math.max(0, Math.min(entries.length - 1, idx + (event.key === 'ArrowDown' ? 1 : -1)))
-        ]
-      if (next) {
-        setSelected(new Set([next.path]))
-        setAnchor(next.path)
-        rootRef.current
-          ?.querySelector(`[data-path="${CSS.escape(next.path)}"]`)
-          ?.scrollIntoView({ block: 'nearest' })
-      }
+      moveSelection(event.key === 'ArrowDown' ? 1 : -1)
     }
+  }
+
+  function moveSelection(delta: 1 | -1): void {
+    const first = selectedEntries[0]
+    const idx = first ? entries.findIndex((e) => e.path === (anchor ?? first.path)) : -1
+    const next = entries[Math.max(0, Math.min(entries.length - 1, idx + delta))]
+    if (!next) return
+    setSelected(new Set([next.path]))
+    setAnchor(next.path)
+    rootRef.current
+      ?.querySelector(`[data-path="${CSS.escape(next.path)}"]`)
+      ?.scrollIntoView({ block: 'nearest' })
   }
 
   const totalFiles = entries.filter((e) => e.type !== 'dir').length
   const totalBytes = entries.reduce((sum, e) => sum + (e.type === 'dir' ? 0 : e.size), 0)
   const selBytes = selectedEntries.reduce((sum, e) => sum + (e.type === 'dir' ? 0 : e.size), 0)
+
+  const mirrorFailed = mirror && query.isError && !isStaleDirectoryListError(query.error)
 
   const columns: { key: SortKey; label: string; className: string }[] = [
     { key: 'name', label: 'Nome', className: '' },
@@ -316,7 +358,8 @@ export function FilePane({
             className="h-7 rounded border border-border bg-surface px-1 font-mono text-xs"
             aria-label="Unidade"
             value={source.roots.find((r) => path.toUpperCase().startsWith(r.toUpperCase())) ?? ''}
-            onChange={(e) => onPathChange(e.target.value)}
+            disabled={mirror}
+            onChange={(e) => changePath(e.target.value)}
           >
             {source.roots.map((root) => (
               <option key={root} value={root}>
@@ -333,8 +376,8 @@ export function FilePane({
           size="icon"
           className="size-7"
           aria-label="Pasta superior"
-          disabled={isRootPath(path, source.sep)}
-          onClick={() => onPathChange(parentPath(path, source.sep))}
+          disabled={mirror || isRootPath(path, source.sep)}
+          onClick={() => changePath(parentPath(path, source.sep))}
         >
           <CornerLeftUp className="size-3.5" />
         </Button>
@@ -344,7 +387,8 @@ export function FilePane({
           size="icon"
           className="size-7"
           aria-label="Pasta inicial"
-          onClick={() => onPathChange(source.home)}
+          disabled={mirror}
+          onClick={() => changePath(source.home)}
         >
           <Home className="size-3.5" />
         </Button>
@@ -362,23 +406,43 @@ export function FilePane({
             <RefreshCw className="size-3.5" />
           )}
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          aria-label="Nova pasta (F7)"
-          onClick={() => mkdir()}
-        >
-          <FolderPlus className="size-3.5" />
-        </Button>
+        {mirror ? null : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            aria-label="Nova pasta (F7)"
+            onClick={() => mkdir()}
+          >
+            <FolderPlus className="size-3.5" />
+          </Button>
+        )}
+        {paneActions ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            aria-label={t('connection.terminalSelection.setDirectory')}
+            disabled={!query.isSuccess}
+            onClick={() => paneActions.onSetStartupDirectory(path)}
+          >
+            <FolderInput className="size-3.5" />
+          </Button>
+        ) : null}
         <input
           className="h-7 min-w-0 flex-1 rounded border border-border bg-surface px-2 font-mono text-xs"
           aria-label="Caminho"
+          readOnly={mirror}
           value={pathDraft}
-          onChange={(e) => setPathDraft(e.target.value)}
+          onChange={(e) => {
+            if (mirror) return
+            setPathDraft(e.target.value)
+          }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && pathDraft.trim()) onPathChange(pathDraft.trim())
+            if (mirror) return
+            if (e.key === 'Enter' && pathDraft.trim()) changePath(pathDraft.trim())
             if (e.key === 'Escape') setPathDraft(path)
           }}
           onBlur={() => setPathDraft(path)}
@@ -395,6 +459,7 @@ export function FilePane({
                 dragOver && 'bg-accent/10 outline outline-1 outline-dashed outline-accent'
               )}
               onDragOver={(e) => {
+                if (mirror) return
                 const fromOtherPane = e.dataTransfer.types.includes(FILE_DRAG_MIME)
                 const fromOs = e.dataTransfer.types.includes('Files')
                 if (!fromOtherPane && !fromOs) return
@@ -403,6 +468,7 @@ export function FilePane({
               }}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => {
+                if (mirror) return
                 e.preventDefault()
                 setDragOver(false)
                 const raw = e.dataTransfer.getData(FILE_DRAG_MIME)
@@ -445,10 +511,10 @@ export function FilePane({
                   </tr>
                 </thead>
                 <tbody>
-                  {!isRootPath(path, source.sep) ? (
+                  {!mirrorFailed && !mirror && !isRootPath(path, source.sep) ? (
                     <tr
                       className="cursor-default hover:bg-surface-elevated/50"
-                      onDoubleClick={() => onPathChange(parentPath(path, source.sep))}
+                      onDoubleClick={() => changePath(parentPath(path, source.sep))}
                     >
                       <td className="px-2 py-1" colSpan={columns.length}>
                         <div className="flex items-center gap-2 text-muted">
@@ -458,75 +524,88 @@ export function FilePane({
                       </td>
                     </tr>
                   ) : null}
-                  {entries.map((entry) => {
-                    const Icon =
-                      entry.type === 'dir' ? Folder : entry.type === 'link' ? Link2 : File
-                    const isSelected = selected.has(entry.path)
-                    const hidden = entry.name.startsWith('.')
-                    return (
-                      <tr
-                        key={entry.path}
-                        data-path={entry.path}
-                        data-testid={`file-browser-entry-${entry.name}`}
-                        draggable
-                        onDragStart={(e) => {
-                          const dragged = isSelected ? selectedEntries : [entry]
-                          if (!isSelected) setSelected(new Set([entry.path]))
-                          const payload: FileDragPayload = {
-                            from: source.side,
-                            sessionId: source.sessionId,
-                            entries: dragged
-                          }
-                          e.dataTransfer.setData(FILE_DRAG_MIME, JSON.stringify(payload))
-                          e.dataTransfer.effectAllowed = 'copy'
-                        }}
-                        className={cn(
-                          'cursor-default border-t border-border/40',
-                          isSelected ? 'bg-accent/20' : 'hover:bg-surface-elevated/50',
-                          hidden && 'text-muted'
-                        )}
-                        onClick={(e) => select(entry, e)}
-                        onContextMenu={(e) => {
-                          if (!isSelected) select(entry, e)
-                        }}
-                        onDoubleClick={() => open(entry)}
-                      >
-                        <td className="px-2 py-1">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <Icon
-                              className={cn(
-                                'size-3.5 shrink-0',
-                                entry.type === 'dir' ? 'text-accent' : 'text-muted'
-                              )}
-                            />
-                            <span className="truncate">{entry.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-2 py-1 text-right font-mono text-muted">
-                          {entry.type === 'dir' ? '' : formatSize(entry.size)}
-                        </td>
-                        <td className="truncate px-2 py-1 font-mono text-muted">
-                          {entry.modifiedAt
-                            ? new Date(entry.modifiedAt).toLocaleString(undefined, {
-                                dateStyle: 'short',
-                                timeStyle: 'short'
-                              })
-                            : ''}
-                        </td>
-                        <td className="px-2 py-1 font-mono text-muted">
-                          {entry.permissions ?? ''}
-                        </td>
-                        {showOwner ? (
-                          <td className="truncate px-2 py-1 font-mono text-muted">
-                            {entry.owner ?? ''}
+                  {!mirrorFailed &&
+                    entries.map((entry) => {
+                      const Icon =
+                        entry.type === 'dir' ? Folder : entry.type === 'link' ? Link2 : File
+                      const isSelected = selected.has(entry.path)
+                      const hidden = entry.name.startsWith('.')
+                      return (
+                        <tr
+                          key={entry.path}
+                          data-path={entry.path}
+                          data-testid={`file-browser-entry-${entry.name}`}
+                          draggable={!mirror}
+                          onDragStart={(e) => {
+                            if (mirror) {
+                              e.preventDefault()
+                              return
+                            }
+                            const dragged = isSelected ? selectedEntries : [entry]
+                            if (!isSelected) setSelected(new Set([entry.path]))
+                            const payload: FileDragPayload = {
+                              from: source.side,
+                              sessionId: source.sessionId,
+                              entries: dragged
+                            }
+                            e.dataTransfer.setData(FILE_DRAG_MIME, JSON.stringify(payload))
+                            e.dataTransfer.effectAllowed = 'copy'
+                          }}
+                          className={cn(
+                            'cursor-default border-t border-border/40',
+                            isSelected ? 'bg-accent/20' : 'hover:bg-surface-elevated/50',
+                            hidden && 'text-muted'
+                          )}
+                          onClick={(e) => select(entry, e)}
+                          onContextMenu={(e) => {
+                            if (!isSelected) select(entry, e)
+                          }}
+                          onDoubleClick={() => open(entry)}
+                        >
+                          <td className="px-2 py-1">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <Icon
+                                className={cn(
+                                  'size-3.5 shrink-0',
+                                  entry.type === 'dir' ? 'text-accent' : 'text-muted'
+                                )}
+                              />
+                              <span className="truncate">{entry.name}</span>
+                            </div>
                           </td>
-                        ) : null}
-                      </tr>
-                    )
-                  })}
+                          <td className="px-2 py-1 text-right font-mono text-muted">
+                            {entry.type === 'dir' ? '' : formatSize(entry.size)}
+                          </td>
+                          <td className="truncate px-2 py-1 font-mono text-muted">
+                            {entry.modifiedAt
+                              ? new Date(entry.modifiedAt).toLocaleString(undefined, {
+                                  dateStyle: 'short',
+                                  timeStyle: 'short'
+                                })
+                              : ''}
+                          </td>
+                          <td className="px-2 py-1 font-mono text-muted">
+                            {entry.permissions ?? ''}
+                          </td>
+                          {showOwner ? (
+                            <td className="truncate px-2 py-1 font-mono text-muted">
+                              {entry.owner ?? ''}
+                            </td>
+                          ) : null}
+                        </tr>
+                      )
+                    })}
                 </tbody>
               </table>
-              {!query.isFetching && entries.length === 0 ? (
+              {mirrorFailed ? (
+                <p
+                  className="p-6 text-center text-xs text-muted"
+                  data-testid="terminal-cwd-list-error"
+                  role="alert"
+                >
+                  {t('connection.terminalCwd.listFailed')}
+                </p>
+              ) : !query.isFetching && entries.length === 0 && !mirror ? (
                 <p className="p-6 text-center text-xs text-muted" data-testid="file-browser-empty">
                   Pasta vazia — arraste arquivos para cá
                 </p>
@@ -535,37 +614,67 @@ export function FilePane({
           </ScrollArea>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem
-            disabled={selectedEntries.length === 0}
-            onSelect={() => onCopy(selectedEntries)}
-          >
-            {copyLabel} <span className="ml-auto pl-4 font-mono text-[10px] text-muted">F5</span>
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={selectedEntries.length !== 1}
-            onSelect={() => selectedEntries[0] && open(selectedEntries[0])}
-          >
-            Abrir
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            disabled={selectedEntries.length !== 1}
-            onSelect={() => selectedEntries[0] && rename(selectedEntries[0])}
-          >
-            Renomear <span className="ml-auto pl-4 font-mono text-[10px] text-muted">F2</span>
-          </ContextMenuItem>
-          <ContextMenuItem onSelect={() => mkdir()}>
-            Nova pasta <span className="ml-auto pl-4 font-mono text-[10px] text-muted">F7</span>
-          </ContextMenuItem>
-          <ContextMenuItem onSelect={refresh}>Atualizar</ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            variant="destructive"
-            disabled={selectedEntries.length === 0}
-            onSelect={() => remove(selectedEntries)}
-          >
-            Excluir <span className="ml-auto pl-4 font-mono text-[10px] text-muted">Del</span>
-          </ContextMenuItem>
+          {mirror ? (
+            <ContextMenuItem onSelect={refresh}>Atualizar</ContextMenuItem>
+          ) : (
+            <>
+              <ContextMenuItem
+                disabled={selectedEntries.length === 0}
+                onSelect={() => onCopy(selectedEntries)}
+              >
+                {copyLabel}{' '}
+                <span className="ml-auto pl-4 font-mono text-[10px] text-muted">F5</span>
+              </ContextMenuItem>
+              <ContextMenuItem
+                disabled={selectedEntries.length !== 1}
+                onSelect={() => selectedEntries[0] && open(selectedEntries[0])}
+              >
+                Abrir
+              </ContextMenuItem>
+              {paneActions ? (
+                <>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    disabled={singleFile === null}
+                    onSelect={() => {
+                      if (singleFile) paneActions.onAddToMonitoring(singleFile)
+                    }}
+                  >
+                    <FilePlus className="size-3.5" aria-hidden />
+                    {t('connection.fileBrowser.addToMonitoring')}
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    disabled={singleFile === null}
+                    onSelect={() => {
+                      if (singleFile) paneActions.onFollowLive(singleFile)
+                    }}
+                  >
+                    <ScrollText className="size-3.5" aria-hidden />
+                    {t('connection.fileBrowser.monitorLive')}
+                  </ContextMenuItem>
+                </>
+              ) : null}
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                disabled={selectedEntries.length !== 1}
+                onSelect={() => selectedEntries[0] && rename(selectedEntries[0])}
+              >
+                Renomear <span className="ml-auto pl-4 font-mono text-[10px] text-muted">F2</span>
+              </ContextMenuItem>
+              <ContextMenuItem onSelect={() => mkdir()}>
+                Nova pasta <span className="ml-auto pl-4 font-mono text-[10px] text-muted">F7</span>
+              </ContextMenuItem>
+              <ContextMenuItem onSelect={refresh}>Atualizar</ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem
+                variant="destructive"
+                disabled={selectedEntries.length === 0}
+                onSelect={() => remove(selectedEntries)}
+              >
+                Excluir <span className="ml-auto pl-4 font-mono text-[10px] text-muted">Del</span>
+              </ContextMenuItem>
+            </>
+          )}
         </ContextMenuContent>
       </ContextMenu>
 

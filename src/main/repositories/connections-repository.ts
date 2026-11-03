@@ -1,3 +1,4 @@
+import { coerceStoredLogFiles } from '@shared/lib/log-file'
 import type {
   ChecklistItem,
   Connection,
@@ -25,6 +26,8 @@ type ConnectionRow = {
   agent_forward: number
   jump_host_id: string | null
   default_command: string | null
+  startup_directory: string | null
+  log_files: string | null
   notes: string | null
   os: string | null
   icon: string | null
@@ -46,7 +49,7 @@ type ConnectionRow = {
 
 const CONNECTION_COLUMNS = `
   id, group_id, name, description, protocol, host, port, username, auth_method,
-  credential_ref, private_key_path, agent_forward, jump_host_id, default_command, notes, os, icon,
+  credential_ref, private_key_path, agent_forward, jump_host_id, default_command, startup_directory, log_files, notes, os, icon,
   color, owner, links, vpn_required, vpn_mode, vpn_profile_id, checklist, related_files, is_favorite,
   access_count, total_connected_ms, last_connected_at, created_at, updated_at
 `
@@ -67,6 +70,8 @@ function mapConnection(row: ConnectionRow): Connection {
     agentForward: intToBool(row.agent_forward),
     jumpHostId: row.jump_host_id,
     defaultCommand: row.default_command,
+    startupDirectory: row.startup_directory,
+    logFiles: coerceStoredLogFiles(parseJsonArray(row.log_files)),
     notes: row.notes,
     os: row.os,
     icon: row.icon,
@@ -103,6 +108,8 @@ function toInsertParams(connection: Connection): Record<string, unknown> {
     agent_forward: boolToInt(connection.agentForward),
     jump_host_id: connection.jumpHostId,
     default_command: connection.defaultCommand,
+    startup_directory: connection.startupDirectory,
+    log_files: toJson(connection.logFiles),
     notes: connection.notes,
     os: connection.os,
     icon: connection.icon,
@@ -146,12 +153,12 @@ export class ConnectionsRepository {
     this.insertStmt = db.prepare(`
       INSERT INTO connections (
         id, group_id, name, description, protocol, host, port, username, auth_method,
-        credential_ref, private_key_path, agent_forward, jump_host_id, default_command, notes, os, icon,
+        credential_ref, private_key_path, agent_forward, jump_host_id, default_command, startup_directory, log_files, notes, os, icon,
         color, owner, links, vpn_required, vpn_mode, vpn_profile_id, checklist, related_files, is_favorite,
         access_count, total_connected_ms, last_connected_at, created_at, updated_at
       ) VALUES (
         @id, @group_id, @name, @description, @protocol, @host, @port, @username, @auth_method,
-        @credential_ref, @private_key_path, @agent_forward, @jump_host_id, @default_command, @notes, @os, @icon,
+        @credential_ref, @private_key_path, @agent_forward, @jump_host_id, @default_command, @startup_directory, @log_files, @notes, @os, @icon,
         @color, @owner, @links, @vpn_required, @vpn_mode, @vpn_profile_id, @checklist, @related_files, @is_favorite,
         @access_count, @total_connected_ms, @last_connected_at, @created_at, @updated_at
       )
@@ -171,6 +178,8 @@ export class ConnectionsRepository {
         agent_forward = @agent_forward,
         jump_host_id = @jump_host_id,
         default_command = @default_command,
+        startup_directory = @startup_directory,
+        log_files = @log_files,
         notes = @notes,
         os = @os,
         icon = @icon,
@@ -268,6 +277,8 @@ export class ConnectionsRepository {
       agentForward: input.agentForward ?? false,
       jumpHostId: input.jumpHostId ?? null,
       defaultCommand: input.defaultCommand ?? null,
+      startupDirectory: input.protocol === 'ssh' ? (input.startupDirectory ?? null) : null,
+      logFiles: input.protocol === 'ssh' ? (input.logFiles ?? []) : [],
       notes: input.notes ?? null,
       os: input.os ?? null,
       icon: input.icon ?? null,
@@ -295,12 +306,13 @@ export class ConnectionsRepository {
     if (!existing) {
       return null
     }
+    const protocol = input.protocol ?? existing.protocol
     const updated: Connection = {
       ...existing,
       groupId: input.groupId ?? existing.groupId,
       name: input.name ?? existing.name,
       description: input.description === undefined ? existing.description : input.description,
-      protocol: input.protocol ?? existing.protocol,
+      protocol,
       host: input.host ?? existing.host,
       port: input.port ?? existing.port,
       username: input.username === undefined ? existing.username : input.username,
@@ -313,6 +325,18 @@ export class ConnectionsRepository {
       jumpHostId: input.jumpHostId === undefined ? existing.jumpHostId : input.jumpHostId,
       defaultCommand:
         input.defaultCommand === undefined ? existing.defaultCommand : input.defaultCommand,
+      startupDirectory:
+        protocol === 'ssh'
+          ? input.startupDirectory === undefined
+            ? existing.startupDirectory
+            : input.startupDirectory
+          : null,
+      logFiles:
+        protocol === 'ssh'
+          ? input.logFiles === undefined
+            ? existing.logFiles
+            : input.logFiles
+          : [],
       notes: input.notes === undefined ? existing.notes : input.notes,
       os: input.os === undefined ? existing.os : input.os,
       icon: input.icon === undefined ? existing.icon : input.icon,

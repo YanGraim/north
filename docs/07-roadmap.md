@@ -25,8 +25,10 @@ Faixa prática para o produto ser usável e distribuível de verdade (ver [ADR 0
 | **Settings** | Rota `/settings` — Aparência, Idioma, Geral, Inventário, Atualizações, Sobre | — |
 | **Access** | Entidade `Access` (database/login/other), vault reveal com ownership, lista unificada | [ADR 0012](./adr/0012-accesses-tema-i18n.md) |
 | **Estúdio SQL** | Sessão `database` a partir de Access: modal DataGrip, editor Beekeeper, engines SQL v1 | [ADR 0015](./adr/0015-estudio-sql.md) |
-| **Tema / i18n** | Dark/light/system + locales pt-BR/en/es | [ADR 0012](./adr/0012-accesses-tema-i18n.md) |
+| **Tema / i18n** | Dark/light/system/automatic (08:00–17:00) + locales pt-BR/en/es | [ADR 0012](./adr/0012-accesses-tema-i18n.md), [REC-001](./recursos/rec-001-modo-aparencia-automatico/especificacao.md) |
 | **Workflows** | Ações repetíveis por grupo: variáveis, engine linear, aba run, secrets bag, Vitest + Cypress | [ADR 0014](./adr/0014-workflows.md) |
+| **Log ao vivo (SSH)** | Arquivos de log por conexão, quadro destacável com `tail -F` | [ADR 0019](./adr/0019-acompanhamento-log-ssh.md), [REC-004](./recursos/rec-004-acompanhamento-log-ssh/especificacao.md) |
+| **Pasta do terminal (SSH)** | Painel com os arquivos da pasta corrente, via OSC 7 e SFTP curto no client da sessão | [ADR 0020](./adr/0020-listagem-cwd-terminal-ssh.md), [REC-010](./recursos/rec-010-arquivos-do-diretorio-atual/especificacao.md) |
 | **QA** | Checklist manual por protocolo + fluxos de produto + smoke CI local | [09-qa.md](./09-qa.md) |
 | **Distribuição** | Validar electron-builder, GitHub Releases, updater empacotado, signing/notarize opt-in | [10-distribuicao.md](./10-distribuicao.md) |
 
@@ -53,7 +55,7 @@ Dashboard, favoritos/recentes/histórico com estatísticas, notas Markdown; depo
 - **Plugins** — drivers e ações de terceiros via registry (UI sem protocolo hardcoded)
 - **Cloud sync** (opt-in) — metadados criptografados; credenciais continuam locais
 - **Workflows avançados** — dry-run UI, multi-target, scheduler, conditions/loops, templates/export
-- **Multi-janela** e workspaces salvos
+- **Multi-janela** e workspaces salvos — o quadro de log do [ADR 0019](./adr/0019-acompanhamento-log-ssh.md) é uma janela auxiliar presa ao app; várias janelas de workspace continuam neste item
 - **Audit log** exportável para compliance
 - **Fallback opcional** para cliente externo só quando o protocolo in-app ainda não existir
 

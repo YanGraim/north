@@ -39,6 +39,21 @@ import { createVpnMock } from './mock-vpn'
 type RunListener = (payload: { runId: string; event: WorkflowRunEvent }) => void
 type ProgressListener = (progress: TransferProgress) => void
 
+function logFollowsMock() {
+  return {
+    list: async () => [],
+    start: async () => ({ ok: false as const, code: 'NOT_FOUND' as const }),
+    replay: async () => ({ seq: 0, data: [] as number[] }),
+    stop: async () => undefined,
+    retry: async () => null,
+    popOut: async () => null,
+    dock: async () => null,
+    onChanged: () => () => undefined,
+    onData: () => () => undefined,
+    onReset: () => () => undefined
+  }
+}
+
 /** Workflows harness (non-UUID ids — only used by WorkflowSection UI). */
 const CLIENT_ID = 'client-1'
 const CLIENT_B_ID = 'client-2'
@@ -419,6 +434,8 @@ function createFtpInventory() {
     agentForward: false,
     jumpHostId: null,
     defaultCommand: null,
+    startupDirectory: null,
+    logFiles: [],
     notes: null,
     os: null,
     icon: null,
@@ -840,6 +857,8 @@ export function applyOrganizationOverlay(api: Record<string, Record<string, unkn
     agentForward: false,
     jumpHostId: null,
     defaultCommand: null,
+    startupDirectory: null,
+    logFiles: [],
     notes: null,
     os: null,
     icon: null,
@@ -1014,6 +1033,8 @@ export function installMockNorth(opts?: {
       agentForward: false,
       jumpHostId: null,
       defaultCommand: null,
+      startupDirectory: null,
+      logFiles: [],
       notes: null,
       os: null,
       icon: null,
@@ -1144,7 +1165,8 @@ export function installMockNorth(opts?: {
         }
       },
       workflows: workflowsApi,
-      api: apiClientApi
+      api: apiClientApi,
+      logFollows: logFollowsMock()
     }
     ;(window as unknown as { north: typeof api }).north = api
     return
@@ -1275,6 +1297,7 @@ export function installMockNorth(opts?: {
       write: () => undefined,
       resize: () => undefined,
       ready: () => undefined,
+      listDirectory: async () => ({ ok: false as const, reason: 'unavailable' as const }),
       onStdout: () => () => undefined,
       onStateChanged: () => () => undefined,
       onHostKeyPrompt: () => () => undefined
@@ -1363,7 +1386,8 @@ export function installMockNorth(opts?: {
       open: async () => undefined
     },
     workflows: workflowsApi,
-    api: apiClientApi
+    api: apiClientApi,
+    logFollows: logFollowsMock()
   }
 
   ;(window as unknown as { north: typeof api }).north = api
@@ -1485,6 +1509,8 @@ function installDatabaseMock(workflowsApi: ReturnType<typeof createWorkflowsApi>
     agentForward: false,
     jumpHostId: null,
     defaultCommand: null,
+    startupDirectory: null,
+    logFiles: [],
     notes: null,
     os: null,
     icon: null,
@@ -1655,6 +1681,7 @@ function installDatabaseMock(workflowsApi: ReturnType<typeof createWorkflowsApi>
       write: () => undefined,
       resize: () => undefined,
       ready: () => undefined,
+      listDirectory: async () => ({ ok: false as const, reason: 'unavailable' as const }),
       onStdout: () => () => undefined,
       onStateChanged: () => () => undefined,
       onHostKeyPrompt: () => () => undefined
@@ -1716,7 +1743,8 @@ function installDatabaseMock(workflowsApi: ReturnType<typeof createWorkflowsApi>
     },
     workflows: workflowsApi,
     api: createApiClientStub(),
-    vpn: createVpnMock()
+    vpn: createVpnMock(),
+    logFollows: logFollowsMock()
   }
 
   ;(window as unknown as { north: typeof api }).north = api

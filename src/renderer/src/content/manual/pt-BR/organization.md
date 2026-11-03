@@ -18,6 +18,8 @@ Na **sidebar**, expanda cliente → ambiente → grupo para ver cada conexão e 
 
 Pense em conexões como “como entro no host” e acessos como “o que uso para autenticar em serviços”.
 
+No cadastro de cliente, ambiente, conexão, acesso e tag, dá para digitar um hexadecimal, abrir o seletor de cor do sistema ou reutilizar até 10 cores personalizadas guardadas neste computador.
+
 ## Workflows
 
 O **grupo** é o dono dos workflows e das variáveis de projeto. A execução aponta para uma conexão (alvo); credenciais nunca ficam no workflow — só na bolsa de secrets da conexão.

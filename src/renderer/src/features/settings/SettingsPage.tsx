@@ -30,6 +30,11 @@ import {
   importInventory,
   importInventoryCsv
 } from '@renderer/lib/inventory-actions'
+import {
+  MONO_FONT_FAMILIES,
+  type MonoFontFamily,
+  resolveMonoFontStack
+} from '@renderer/lib/mono-font'
 import { SHORTCUTS, shortcutDisplayLabel } from '@renderer/lib/shortcuts'
 import { toastError } from '@renderer/lib/toast'
 import {
@@ -37,14 +42,9 @@ import {
   installAndRestart,
   updatesLikelyDisabledInDev
 } from '@renderer/lib/update-actions'
-import {
-  type LocaleCode,
-  MONO_FONT_FAMILY_STACKS,
-  type MonoFontFamily,
-  type ThemePreference,
-  useUiStore
-} from '@renderer/stores/ui-store'
+import { type LocaleCode, useUiStore } from '@renderer/stores/ui-store'
 import { useWhatsNewStore } from '@renderer/stores/whats-new-store'
+import { isThemePreference } from '@shared/lib/theme'
 import type { UpdateStatus } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -81,7 +81,16 @@ const MONO_FONT_FAMILY_LABEL_KEYS: Record<MonoFontFamily, string> = {
   'jetbrains-mono': 'settings.editor.fontFamilyJetbrainsMono',
   'ui-monospace': 'settings.editor.fontFamilyUiMonospace',
   'menlo-consolas': 'settings.editor.fontFamilyMenloConsolas',
-  courier: 'settings.editor.fontFamilyCourier'
+  courier: 'settings.editor.fontFamilyCourier',
+  'ubuntu-mono': 'settings.editor.fontFamilyUbuntuMono',
+  'fira-code': 'settings.editor.fontFamilyFiraCode',
+  'source-code-pro': 'settings.editor.fontFamilySourceCodePro',
+  cascadia: 'settings.editor.fontFamilyCascadia',
+  hack: 'settings.editor.fontFamilyHack',
+  inconsolata: 'settings.editor.fontFamilyInconsolata',
+  'roboto-mono': 'settings.editor.fontFamilyRobotoMono',
+  'space-mono': 'settings.editor.fontFamilySpaceMono',
+  'noto-sans-mono': 'settings.editor.fontFamilyNotoSansMono'
 }
 
 export function SettingsPage(): React.JSX.Element {
@@ -101,6 +110,8 @@ export function SettingsPage(): React.JSX.Element {
   const setMonoFontSize = useUiStore((s) => s.setMonoFontSize)
   const monoFontFamily = useUiStore((s) => s.monoFontFamily)
   const setMonoFontFamily = useUiStore((s) => s.setMonoFontFamily)
+  const monoLigatures = useUiStore((s) => s.monoLigatures)
+  const setMonoLigatures = useUiStore((s) => s.setMonoLigatures)
   const openWhatsNew = useWhatsNewStore((s) => s.openWhatsNew)
   const [busy, setBusy] = useState<
     'export' | 'import' | 'importCsv' | 'template' | 'check' | 'install' | null
@@ -259,14 +270,20 @@ export function SettingsPage(): React.JSX.Element {
             description={t('settings.appearance.description')}
           >
             <Row label={t('settings.appearance.theme')}>
-              <Select value={theme} onValueChange={(value) => setTheme(value as ThemePreference)}>
-                <SelectTrigger className="w-40">
+              <Select
+                value={theme}
+                onValueChange={(value) => {
+                  if (isThemePreference(value)) setTheme(value)
+                }}
+              >
+                <SelectTrigger className="w-44">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="dark">{t('settings.appearance.dark')}</SelectItem>
                   <SelectItem value="light">{t('settings.appearance.light')}</SelectItem>
                   <SelectItem value="system">{t('settings.appearance.system')}</SelectItem>
+                  <SelectItem value="automatic">{t('settings.appearance.automatic')}</SelectItem>
                 </SelectContent>
               </Select>
             </Row>
@@ -341,9 +358,9 @@ export function SettingsPage(): React.JSX.Element {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(MONO_FONT_FAMILY_LABEL_KEYS).map(([family, labelKey]) => (
+                  {MONO_FONT_FAMILIES.map((family) => (
                     <SelectItem key={family} value={family}>
-                      {t(labelKey)}
+                      {t(MONO_FONT_FAMILY_LABEL_KEYS[family])}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -366,10 +383,17 @@ export function SettingsPage(): React.JSX.Element {
                 </SelectContent>
               </Select>
             </Row>
+            <Row label={t('settings.editor.ligatures')}>
+              <Switch
+                checked={monoLigatures}
+                onCheckedChange={setMonoLigatures}
+                aria-label={t('settings.editor.ligatures')}
+              />
+            </Row>
             <p
               className="mt-3 rounded-md border border-border bg-surface px-3 py-2 text-foreground"
               style={{
-                fontFamily: MONO_FONT_FAMILY_STACKS[monoFontFamily],
+                fontFamily: resolveMonoFontStack(monoFontFamily, monoLigatures),
                 fontSize: `${monoFontSize}px`
               }}
             >

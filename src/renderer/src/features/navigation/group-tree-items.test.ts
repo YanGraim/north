@@ -19,6 +19,8 @@ function connection(
     agentForward: false,
     jumpHostId: null,
     defaultCommand: null,
+    startupDirectory: null,
+    logFiles: [],
     description: null,
     notes: null,
     os: null,

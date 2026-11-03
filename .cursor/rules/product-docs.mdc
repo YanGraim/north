@@ -3,6 +3,8 @@ description: Checklist de manual in-app e patch de novidades em toda feature vis
 alwaysApply: true
 ---
 
+<!-- GERADO por scripts/harness/sync.mjs a partir de .agents/rules/product-docs.md. Não edite: altere a fonte e rode `npm run harness:sync`. -->
+
 # Docs de produto (manual + novidades)
 
 Ao fechar uma **feature ou mudança visível na UI**, verificar os dois destinos abaixo. ADR e `docs/` de engenharia **não** substituem o manual do usuário.

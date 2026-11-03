@@ -1,6 +1,20 @@
 import { z } from 'zod'
+import { normalizeLogFileList } from '../lib/log-file'
+import { normalizeStartupDirectory } from '../lib/startup-directory'
 import { IdSchema, IsoDateSchema } from './client'
 import { VpnModeSchema } from './vpn'
+
+const StartupDirectorySchema = z
+  .string()
+  .nullable()
+  .transform((value, ctx): string | null => {
+    const normalized = normalizeStartupDirectory(value)
+    if (!normalized.ok) {
+      ctx.addIssue({ code: 'custom', message: 'Invalid startup directory' })
+      return z.NEVER
+    }
+    return normalized.value
+  })
 
 export const ConnectionProtocolSchema = z.enum([
   'ssh',
@@ -36,6 +50,24 @@ export const ChecklistItemSchema = z.object({
 
 export type ChecklistItem = z.infer<typeof ChecklistItemSchema>
 
+const LogFileDraftSchema = z.object({
+  id: z.string().uuid(),
+  path: z.string(),
+  label: z.string().nullable().optional()
+})
+
+const LogFilesParsedSchema = z
+  .array(LogFileDraftSchema)
+  .max(8)
+  .transform((items, ctx) => {
+    const normalized = normalizeLogFileList(items)
+    if (!normalized.ok) {
+      ctx.addIssue({ code: 'custom', message: 'Invalid log files' })
+      return z.NEVER
+    }
+    return normalized.value
+  })
+
 export const ConnectionSchema = z.object({
   id: IdSchema,
   groupId: IdSchema,
@@ -52,6 +84,10 @@ export const ConnectionSchema = z.object({
   agentForward: z.boolean(),
   jumpHostId: IdSchema.nullable(),
   defaultCommand: z.string().nullable(),
+  /** Remote directory the SSH shell and its SFTP browser open in. Blank means the login directory. */
+  startupDirectory: StartupDirectorySchema.default(null),
+  /** Remote log files an SSH connection can follow. Empty means no live tail. */
+  logFiles: LogFilesParsedSchema.default([]),
   notes: z.string().nullable(),
   os: z.string().nullable(),
   icon: z.string().nullable(),
@@ -88,6 +124,8 @@ export const CreateConnectionInputSchema = z.object({
   agentForward: z.boolean().optional(),
   jumpHostId: IdSchema.nullable().optional(),
   defaultCommand: z.string().nullable().optional(),
+  startupDirectory: StartupDirectorySchema.optional(),
+  logFiles: LogFilesParsedSchema.optional(),
   notes: z.string().nullable().optional(),
   os: z.string().nullable().optional(),
   icon: z.string().nullable().optional(),

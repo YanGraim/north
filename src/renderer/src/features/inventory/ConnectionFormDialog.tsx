@@ -44,9 +44,12 @@ import { useOrgLookup } from '@renderer/hooks/use-org-lookup'
 import { useConnectionTags, useSetConnectionTags } from '@renderer/hooks/use-tags'
 import { useDeleteSecret, useHasSecret, useVaultAvailable } from '@renderer/hooks/use-vault'
 import { useCurrentWorkspace } from '@renderer/hooks/use-workspaces'
+import i18n from '@renderer/i18n'
 import { defaultPortForProtocol } from '@renderer/lib/protocol-defaults'
 import { queryKeys } from '@renderer/lib/query-keys'
 import { useInventoryDialogsStore } from '@renderer/stores/inventory-dialogs-store'
+import { normalizeLogFileList } from '@shared/lib/log-file'
+import { normalizeStartupDirectory } from '@shared/lib/startup-directory'
 import {
   AuthMethodSchema,
   ConnectionProtocolSchema,
@@ -54,9 +57,10 @@ import {
   SERIAL_BAUD_RATES
 } from '@shared/types'
 import { useQuery } from '@tanstack/react-query'
+import { Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { UseFormReturn } from 'react-hook-form'
-import { useForm } from 'react-hook-form'
+import { useFieldArray, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
@@ -64,29 +68,62 @@ const CREATE_CLIENT = '__create_client__'
 const CREATE_ENVIRONMENT = '__create_environment__'
 const CREATE_GROUP = '__create_group__'
 
-const FormSchema = z.object({
-  name: z.string().min(1, 'Informe o nome'),
-  description: z.string().nullable().optional(),
-  protocol: ConnectionProtocolSchema,
-  host: z.string().min(1, 'Informe o host'),
-  port: z.number().int().positive('Porta inválida'),
-  username: z.string().nullable().optional(),
-  authMethod: AuthMethodSchema,
-  privateKeyPath: z.string().nullable().optional(),
-  agentForward: z.boolean(),
-  password: z.string().optional(),
-  clientId: z.string().uuid('Selecione o cliente'),
-  environmentId: z.string().uuid('Selecione o ambiente'),
-  groupId: z.string().uuid('Selecione o grupo'),
-  owner: z.string().nullable().optional(),
-  icon: z.string().nullable().optional(),
-  color: z.string().nullable().optional(),
-  vpnRequired: z.boolean(),
-  vpnMode: z.enum(['inherit', 'none', 'profile']),
-  vpnProfileId: z.string().uuid().nullable(),
-  notes: z.string().nullable().optional(),
-  tagIds: z.array(z.string().uuid())
-})
+const FormSchema = z
+  .object({
+    name: z.string().min(1, 'Informe o nome'),
+    description: z.string().nullable().optional(),
+    protocol: ConnectionProtocolSchema,
+    host: z.string().min(1, 'Informe o host'),
+    port: z.number().int().positive('Porta inválida'),
+    username: z.string().nullable().optional(),
+    authMethod: AuthMethodSchema,
+    privateKeyPath: z.string().nullable().optional(),
+    agentForward: z.boolean(),
+    startupDirectory: z.string(),
+    logFiles: z.array(
+      z.object({
+        id: z.string(),
+        path: z.string(),
+        label: z.string()
+      })
+    ),
+    password: z.string().optional(),
+    clientId: z.string().uuid('Selecione o cliente'),
+    environmentId: z.string().uuid('Selecione o ambiente'),
+    groupId: z.string().uuid('Selecione o grupo'),
+    owner: z.string().nullable().optional(),
+    icon: z.string().nullable().optional(),
+    color: z.string().nullable().optional(),
+    vpnRequired: z.boolean(),
+    vpnMode: z.enum(['inherit', 'none', 'profile']),
+    vpnProfileId: z.string().uuid().nullable(),
+    notes: z.string().nullable().optional(),
+    tagIds: z.array(z.string().uuid())
+  })
+  .superRefine((values, ctx) => {
+    if (values.protocol !== 'ssh') return
+    if (!normalizeStartupDirectory(values.startupDirectory).ok) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['startupDirectory'],
+        message: i18n.t('connection.form.startupDirectoryInvalid')
+      })
+    }
+    const logs = normalizeLogFileList(values.logFiles)
+    if (logs.ok) return
+    const field = logs.reason === 'invalid-label' ? 'label' : 'path'
+    const message =
+      logs.reason === 'duplicate'
+        ? i18n.t('connection.form.logFileDuplicate')
+        : logs.reason === 'invalid-label'
+          ? i18n.t('connection.form.logFileLabelInvalid')
+          : i18n.t('connection.form.logFileInvalid')
+    ctx.addIssue({
+      code: 'custom',
+      path: ['logFiles', logs.index, field],
+      message
+    })
+  })
 
 type FormValues = z.infer<typeof FormSchema>
 
@@ -138,6 +175,8 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
       authMethod: 'password',
       privateKeyPath: null,
       agentForward: false,
+      startupDirectory: '',
+      logFiles: [],
       password: '',
       clientId: '',
       environmentId: '',
@@ -158,6 +197,11 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
 
   const watchedClientId = form.watch('clientId')
   const watchedEnvironmentId = form.watch('environmentId')
+  const logFileFields = useFieldArray({
+    control: form.control,
+    name: 'logFiles',
+    keyName: 'fieldKey'
+  })
   const watchedProtocol = form.watch('protocol')
   const watchedAuthMethod = form.watch('authMethod')
 
@@ -198,6 +242,12 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
         authMethod: existing.authMethod,
         privateKeyPath: existing.privateKeyPath,
         agentForward: existing.agentForward,
+        startupDirectory: existing.startupDirectory ?? '',
+        logFiles: existing.logFiles.map((file) => ({
+          id: file.id,
+          path: file.path,
+          label: file.label ?? ''
+        })),
         password: '',
         clientId: org.client?.id ?? '',
         environmentId: org.environment?.id ?? '',
@@ -228,6 +278,8 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
       authMethod: 'password',
       privateKeyPath: null,
       agentForward: false,
+      startupDirectory: '',
+      logFiles: [],
       password: '',
       clientId: createClientId || org?.client?.id || '',
       environmentId: createEnvironmentId || org?.environment?.id || '',
@@ -294,6 +346,8 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
         ? await persistSecret(values.password, existing?.credentialRef ?? null)
         : await persistSecret(values.password, null)
 
+    const startup = normalizeStartupDirectory(values.startupDirectory)
+    const logs = normalizeLogFileList(values.logFiles)
     const payload: CreateConnectionInput = {
       groupId: values.groupId,
       name: values.name,
@@ -306,6 +360,8 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
       credentialRef,
       privateKeyPath: values.privateKeyPath ?? null,
       agentForward: values.agentForward,
+      startupDirectory: values.protocol === 'ssh' && startup.ok ? startup.value : null,
+      logFiles: values.protocol === 'ssh' && logs.ok ? logs.value : [],
       owner: values.owner ?? null,
       icon: values.icon ?? null,
       color: values.color ?? null,
@@ -674,25 +730,120 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
                   ) : null}
 
                   {watchedProtocol === 'ssh' ? (
-                    <FormField
-                      control={form.control}
-                      name="agentForward"
-                      render={({ field }) => (
-                        <FormItem className="sm:col-span-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <FormLabel>{t('connection.form.agentForward')}</FormLabel>
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="agentForward"
+                        render={({ field }) => (
+                          <FormItem className="sm:col-span-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <FormLabel>{t('connection.form.agentForward')}</FormLabel>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  aria-label={t('connection.form.agentForward')}
+                                />
+                              </FormControl>
+                            </div>
+                            <FormDescription>
+                              {t('connection.form.agentForwardHint')}
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="startupDirectory"
+                        render={({ field }) => (
+                          <FormItem className="sm:col-span-2">
+                            <FormLabel>{t('connection.form.startupDirectory')}</FormLabel>
                             <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                aria-label={t('connection.form.agentForward')}
+                              <Input
+                                className="font-mono"
+                                placeholder={t('connection.form.startupDirectoryPlaceholder')}
+                                value={field.value}
+                                onChange={(event) => field.onChange(event.target.value)}
                               />
                             </FormControl>
+                            <FormDescription>
+                              {t('connection.form.startupDirectoryHint')}
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="space-y-2 sm:col-span-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <Label>{t('connection.form.logFiles')}</Label>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={logFileFields.fields.length >= 8}
+                            onClick={() =>
+                              logFileFields.append({
+                                id: crypto.randomUUID(),
+                                path: '',
+                                label: ''
+                              })
+                            }
+                          >
+                            <Plus className="size-3.5" />
+                            {t('connection.form.logFilesAdd')}
+                          </Button>
+                        </div>
+                        <p className="text-[11px] text-muted">{t('connection.form.logFilesHint')}</p>
+                        {logFileFields.fields.map((row, index) => (
+                          <div key={row.fieldKey} className="grid grid-cols-[1fr_9rem_auto] gap-2">
+                            <FormField
+                              control={form.control}
+                              name={`logFiles.${index}.path`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input
+                                      className="font-mono"
+                                      placeholder={t('connection.form.logFilePathPlaceholder')}
+                                      aria-label={t('connection.form.logFilePath')}
+                                      value={field.value}
+                                      onChange={(event) => field.onChange(event.target.value)}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`logFiles.${index}.label`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input
+                                      placeholder={t('connection.form.logFileLabelPlaceholder')}
+                                      aria-label={t('connection.form.logFileLabel')}
+                                      value={field.value}
+                                      onChange={(event) => field.onChange(event.target.value)}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label={t('connection.form.logFileRemove')}
+                              onClick={() => logFileFields.remove(index)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
                           </div>
-                          <FormDescription>{t('connection.form.agentForwardHint')}</FormDescription>
-                        </FormItem>
-                      )}
-                    />
+                        ))}
+                      </div>
+                    </>
                   ) : null}
                 </div>
               </section>

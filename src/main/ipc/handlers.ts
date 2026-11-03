@@ -20,6 +20,7 @@ import { registerFsHandlers, registerLocalFsHandlers } from './fs'
 import { registerGroupHandlers } from './groups'
 import { registerHistoryHandlers } from './history'
 import { registerInventoryHandlers } from './inventory'
+import { reconcileLogFollows, registerLogFollowHandlers } from './log-follows'
 import { registerSearchHandlers } from './search'
 import { registerSerialHandlers } from './serial'
 import { getProtocolManager, registerSessionHandlers } from './sessions'
@@ -93,6 +94,7 @@ export function registerIpcHandlers(): void {
   registerHistoryHandlers(repositories)
   registerSearchHandlers(repositories, inventory)
   registerSessionHandlers(repositories, vault)
+  registerLogFollowHandlers()
   // Organizations open sessions from the server's inventory, fetching each password just in time.
   getProtocolManager().setConnectionSource(() => {
     if (registry.activeSource().kind === 'local') return null
@@ -118,6 +120,7 @@ export function registerIpcHandlers(): void {
           : 'Sua sessão nesta organização terminou. Entre de novo.'
       )
     }
+    void reconcileLogFollows()
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) win.webContents.send(IpcChannels.WORKSPACES_EVENT, event)
     }

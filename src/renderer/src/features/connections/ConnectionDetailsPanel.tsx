@@ -55,8 +55,10 @@ import {
   X
 } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export function ConnectionDetailsPanel(): React.JSX.Element {
+  const { t } = useTranslation()
   const { connectionId, setConnectionId } = useSelectedConnectionId()
   const { data: connection, isLoading, isError } = useConnection(connectionId ?? undefined)
   const { data: tags = [] } = useConnectionTags(connectionId ?? undefined)
@@ -334,6 +336,47 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
                     label="Senha"
                     value={connection.credentialRef ? 'Definida (vault)' : '—'}
                   />
+                  {connection.protocol === 'ssh' && connection.logFiles.length > 0 ? (
+                    <div className="min-w-0 space-y-1.5">
+                      <dt className="text-xs text-muted">{t('connection.details.logFiles')}</dt>
+                      <dd className="space-y-1">
+                        {connection.logFiles.map((file) => (
+                          <div key={file.id} className="flex items-center gap-2">
+                            <span
+                              className="min-w-0 flex-1 truncate font-mono text-sm"
+                              title={file.path}
+                            >
+                              {file.label?.trim() || file.path}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="h-7 shrink-0"
+                              onClick={() => {
+                                void window.north.logFollows
+                                  .start({ connectionId: connection.id, logFileId: file.id })
+                                  .then((result) => {
+                                    if (!result.ok) {
+                                      toastError(t(`connection.logFollow.errors.${result.code}`))
+                                    }
+                                  })
+                              }}
+                            >
+                              {t('connection.details.follow')}
+                            </Button>
+                          </div>
+                        ))}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {connection.protocol === 'ssh' && connection.startupDirectory ? (
+                    <DetailField
+                      label={t('connection.details.startupDirectory')}
+                      value={connection.startupDirectory}
+                      mono
+                    />
+                  ) : null}
                   {connection.defaultCommand ? (
                     <DetailField label="Comando padrão" value={connection.defaultCommand} mono />
                   ) : null}

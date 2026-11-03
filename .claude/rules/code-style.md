@@ -1,0 +1,37 @@
+<!-- GERADO por scripts/harness/sync.mjs a partir de .agents/rules/code-style.md. Não edite: altere a fonte e rode `npm run harness:sync`. -->
+
+# Estilo de código
+
+## TypeScript
+
+- `strict: true` em todos os tsconfigs.
+- Preferir `type`/`interface` explícitos em APIs públicas (IPC, stores, props).
+- Evitar `any`; usar `unknown` + narrowing.
+- Nomes em inglês no código; docs de produto em português.
+
+## Naming
+
+| Coisa | Convenção |
+| --- | --- |
+| Arquivos de componente | `PascalCase.tsx` |
+| Hooks | `use-*.ts` |
+| Stores Zustand | `*-store.ts` |
+| Canais IPC | `domínio:ação` (`app:get-version`) |
+| Constantes de canal | `SCREAMING_SNAKE` em `IpcChannels` |
+
+## React
+
+- Componentes funcionais.
+- Extrair hooks para IPC e estado reutilizável.
+- Não colocar regra de negócio na UI — só orquestração e apresentação.
+
+## DRY / SOLID
+
+- Um canal IPC = uma responsabilidade no contrato.
+- Repositórios não conhecem React; handlers não conhecem JSX.
+- Reutilizar `cn()` e primitivos `components/ui` antes de criar estilos ad-hoc.
+
+## Formatação
+
+- Biome do repo (`quoteStyle: single`, `semicolons: asNeeded`, `lineWidth: 100`).
+- `biome.json` é a fonte única de lint + format; não desligar regras sem motivo documentado.

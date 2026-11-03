@@ -4,6 +4,8 @@ globs: src/renderer/**
 alwaysApply: false
 ---
 
+<!-- GERADO por scripts/harness/sync.mjs a partir de .agents/rules/ui.md. Não edite: altere a fonte e rode `npm run harness:sync`. -->
+
 # UI (renderer)
 
 ## Stack visual

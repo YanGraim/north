@@ -1,3 +1,5 @@
+import type { ListDirectoryArgs, ListDirectoryResult } from '../lib/list-directory'
+import type { ClassifyPathArgs, ClassifyPathResult } from '../lib/selection-path'
 import type { ThemePreference } from '../lib/theme'
 import type {
   ApiCancelInput,
@@ -81,6 +83,11 @@ import type {
   ListAccessesFilter,
   ListConnectionsFilter,
   ListHistoryFilter,
+  LogFollowChunk,
+  LogFollowReplay,
+  LogFollowSnapshot,
+  LogFollowStartInput,
+  LogFollowStartResult,
   MoveApiRequestInput,
   RecordConnectionInput,
   RevealSecretInput,
@@ -345,6 +352,43 @@ export interface IpcInvokeMap {
   [IpcChannels.SESSIONS_CLAUDE_USAGE]: {
     args: [sessionId: string]
     result: ClaudeUsage | null
+  }
+  [IpcChannels.SESSIONS_CLASSIFY_PATH]: {
+    args: [input: ClassifyPathArgs]
+    result: ClassifyPathResult
+  }
+  [IpcChannels.SESSIONS_LIST_DIRECTORY]: {
+    args: [input: ListDirectoryArgs]
+    result: ListDirectoryResult
+  }
+
+  [IpcChannels.LOG_FOLLOWS_LIST]: {
+    args: []
+    result: LogFollowSnapshot[]
+  }
+  [IpcChannels.LOG_FOLLOWS_START]: {
+    args: [input: LogFollowStartInput]
+    result: LogFollowStartResult
+  }
+  [IpcChannels.LOG_FOLLOWS_REPLAY]: {
+    args: [followId: string]
+    result: LogFollowReplay | null
+  }
+  [IpcChannels.LOG_FOLLOWS_STOP]: {
+    args: [followId: string]
+    result: undefined
+  }
+  [IpcChannels.LOG_FOLLOWS_RETRY]: {
+    args: [followId: string]
+    result: LogFollowSnapshot | null
+  }
+  [IpcChannels.LOG_FOLLOWS_POP_OUT]: {
+    args: [followId: string]
+    result: LogFollowSnapshot | null
+  }
+  [IpcChannels.LOG_FOLLOWS_DOCK]: {
+    args: [followId: string]
+    result: LogFollowSnapshot | null
   }
 
   [IpcChannels.FS_LIST]: {
@@ -897,6 +941,16 @@ export interface NorthApi {
     respondHostKey: (response: HostKeyResponse) => Promise<void>
     /** Best-effort Claude Code context/token usage — null unless it's a `claude` agent session. */
     getClaudeUsage: (sessionId: string) => Promise<ClaudeUsage | null>
+    /**
+     * Stat a path on the SSH client that already owns this terminal.
+     * `absolute` resolves `~` from the login directory and is null when stat did not succeed.
+     */
+    classifyPath: (input: ClassifyPathArgs) => Promise<ClassifyPathResult>
+    /**
+     * List one directory on the SSH client that already owns this terminal.
+     * `reason` is the only failure detail — ssh2 errors stay in the main process.
+     */
+    listDirectory: (input: ListDirectoryArgs) => Promise<ListDirectoryResult>
     /** Terminal stdin (IPC — reliable under sandbox). */
     write: (sessionId: string, data: number[]) => void
     resize: (sessionId: string, cols: number, rows: number) => void
@@ -906,6 +960,19 @@ export interface NorthApi {
     ) => () => void
     onStateChanged: (listener: (session: SessionDescriptor) => void) => () => void
     onHostKeyPrompt: (listener: (prompt: HostKeyPrompt) => void) => () => void
+  }
+  logFollows: {
+    list: () => Promise<LogFollowSnapshot[]>
+    start: (input: LogFollowStartInput) => Promise<LogFollowStartResult>
+    /** Bytes already produced, so the view can paint history before live chunks. */
+    replay: (followId: string) => Promise<LogFollowReplay | null>
+    stop: (followId: string) => Promise<void>
+    retry: (followId: string) => Promise<LogFollowSnapshot | null>
+    popOut: (followId: string) => Promise<LogFollowSnapshot | null>
+    dock: (followId: string) => Promise<LogFollowSnapshot | null>
+    onChanged: (listener: (follows: LogFollowSnapshot[]) => void) => () => void
+    onData: (listener: (chunk: LogFollowChunk) => void) => () => void
+    onReset: (listener: (followId: string) => void) => () => void
   }
   fs: {
     list: (input: FsListInput) => Promise<RemoteEntry[]>

@@ -1,5 +1,8 @@
 import type { VpnConfig, VpnState } from '@shared/types'
 import { describe, expect, it } from 'vitest'
+import en from '../i18n/locales/en.json'
+import es from '../i18n/locales/es.json'
+import ptBR from '../i18n/locales/pt-BR.json'
 import {
   applyConnectionEdit,
   mergeVpnState,
@@ -7,7 +10,8 @@ import {
   summarizeVpns,
   switchVpnKind,
   vpnErrorAction,
-  vpnErrorFromUnknown
+  vpnErrorFromUnknown,
+  vpnErrorShowsDetail
 } from './vpn-ui'
 
 const state = (over: Partial<VpnState>): VpnState => ({
@@ -86,6 +90,35 @@ describe('vpnErrorAction', () => {
     ['UNSUPPORTED_ON_PLATFORM', null]
   ] as const)('%s → %s', (code, action) => {
     expect(vpnErrorAction(code)).toBe(action)
+  })
+})
+
+describe('vpnErrorShowsDetail', () => {
+  it('hides the process line for component failures and keeps curated details', () => {
+    expect(vpnErrorShowsDetail('DRIVER_CRASHED')).toBe(false)
+    expect(vpnErrorShowsDetail('BINARY_MISSING')).toBe(false)
+    expect(vpnErrorShowsDetail('PRIVILEGE_DENIED')).toBe(false)
+    expect(vpnErrorShowsDetail('CONNECTION_REJECTED')).toBe(true)
+    expect(vpnErrorShowsDetail('CERT_UNTRUSTED')).toBe(true)
+    expect(vpnErrorShowsDetail('GATEWAY_UNREACHABLE')).toBe(true)
+  })
+})
+
+describe('component failure copy', () => {
+  it.each([ptBR, en, es])('explains the install cases without a process line', (locale) => {
+    const hint = locale.vpn.errors.BINARY_MISSINGHint
+    const failure = locale.vpn.helper.failure
+    const blob = `${hint} ${failure.PRIVILEGE_DENIED} ${failure.BINARY_MISSING} ${failure.DRIVER_CRASHED}`
+    expect(blob).not.toMatch(/Command failed|build-wsl|north-vpn-service/i)
+    expect(failure.DRIVER_CRASHED.toLowerCase()).toMatch(/use|uso/)
+    expect(locale.vpn.helper.state).toEqual(
+      expect.objectContaining({
+        installed: expect.any(String),
+        missing: expect.any(String),
+        outdated: expect.any(String)
+      })
+    )
+    expect(locale.vpn.helper.update.length).toBeGreaterThan(0)
   })
 })
 

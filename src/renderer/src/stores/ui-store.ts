@@ -1,28 +1,31 @@
-import type { ResolvedTheme, ThemePreference } from '@shared/lib/theme'
+import {
+  isThemePreference,
+  type ResolvedTheme,
+  resolveAutomaticTheme,
+  type ThemePreference
+} from '@shared/lib/theme'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import {
+  rememberFavoriteColor as rememberFavorite,
+  sanitizeFavoriteColors,
+  removeFavoriteColor as withoutFavorite
+} from '../lib/favorite-colors'
+import {
+  DEFAULT_MONO_FONT_FAMILY,
+  type MonoFontFamily,
+  sanitizeMonoFontFamily,
+  sanitizeMonoLigatures
+} from '../lib/mono-font'
 
+export type { MonoFontFamily } from '../lib/mono-font'
 export type { ResolvedTheme, ThemePreference }
 
 export type LocaleCode = 'pt-BR' | 'en' | 'es'
 export type ListSort = 'name' | 'lastAccess'
-export type MonoFontFamily =
-  | 'ibm-plex-mono'
-  | 'jetbrains-mono'
-  | 'ui-monospace'
-  | 'menlo-consolas'
-  | 'courier'
 
 /** Original default size (px); the whole app's rem-based scale is relative to this baseline. */
 export const DEFAULT_MONO_FONT_SIZE = 12.5
-
-export const MONO_FONT_FAMILY_STACKS: Record<MonoFontFamily, string> = {
-  'ibm-plex-mono': '"IBM Plex Mono", "SF Mono", ui-monospace, monospace',
-  'jetbrains-mono': '"JetBrains Mono", "SF Mono", ui-monospace, monospace',
-  'ui-monospace': 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
-  'menlo-consolas': 'Menlo, Consolas, "SF Mono", monospace',
-  courier: '"Courier New", Courier, monospace'
-}
 
 interface UiState {
   sidebarCollapsed: boolean
@@ -34,6 +37,8 @@ interface UiState {
   sidebarAgentsExpanded: boolean
   listSort: ListSort
   theme: ThemePreference
+  /** Bumped when automatic mode crosses 08:00 or 17:00. Not persisted. */
+  automaticThemeTick: number
   locale: LocaleCode
   /** Local display name — empty falls back to OS username at render time. */
   displayName: string
@@ -46,13 +51,19 @@ interface UiState {
   monoFontSize: number
   /** Monospace font family applied app-wide. */
   monoFontFamily: MonoFontFamily
+  /** Join sequences such as `=>` across the app. Off until the user turns it on. */
+  monoLigatures: boolean
   /** Last app version for which the what's-new dialog was dismissed (or silently marked). */
   lastSeenWhatsNewVersion: string | null
   /** Workspace that legacy (unscoped) routes and app launch land on — ADR 0018. */
   lastWorkspaceId: string | null
   /** Left (local) pane of the file browser reopens where it was last left. */
   fileBrowserLocalPath: string | null
+  /** Free colors shown in every color picker on this computer. */
+  favoriteColors: string[]
   setFileBrowserLocalPath: (path: string) => void
+  rememberFavoriteColor: (color: string) => void
+  removeFavoriteColor: (color: string) => void
   setLastWorkspaceId: (id: string) => void
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
@@ -66,6 +77,7 @@ interface UiState {
   setSidebarAgentsExpanded: (expanded: boolean) => void
   setListSort: (sort: ListSort) => void
   setTheme: (theme: ThemePreference) => void
+  bumpAutomaticTheme: () => void
   setLocale: (locale: LocaleCode) => void
   setDisplayName: (name: string) => void
   setProfileEmail: (email: string) => void
@@ -73,10 +85,11 @@ interface UiState {
   setTerminalCopyOnSelect: (enabled: boolean) => void
   setMonoFontSize: (size: number) => void
   setMonoFontFamily: (family: MonoFontFamily) => void
+  setMonoLigatures: (enabled: boolean) => void
   setLastSeenWhatsNewVersion: (version: string) => void
 }
 
-export function resolveTheme(preference: ThemePreference): ResolvedTheme {
+export function resolveTheme(preference: ThemePreference, now: Date = new Date()): ResolvedTheme {
   if (preference === 'system') {
     if (
       typeof window !== 'undefined' &&
@@ -86,6 +99,7 @@ export function resolveTheme(preference: ThemePreference): ResolvedTheme {
     }
     return 'dark'
   }
+  if (preference === 'automatic') return resolveAutomaticTheme(now)
   return preference
 }
 
@@ -101,17 +115,32 @@ export const useUiStore = create<UiState>()(
       sidebarAgentsExpanded: true,
       listSort: 'name',
       theme: 'dark',
+      automaticThemeTick: 0,
       locale: 'pt-BR',
       displayName: '',
       profileEmail: '',
       profileSeeded: false,
       terminalCopyOnSelect: true,
       monoFontSize: DEFAULT_MONO_FONT_SIZE,
-      monoFontFamily: 'ibm-plex-mono',
+      monoFontFamily: DEFAULT_MONO_FONT_FAMILY,
+      monoLigatures: false,
       lastSeenWhatsNewVersion: null,
       lastWorkspaceId: null,
       fileBrowserLocalPath: null,
+      favoriteColors: [],
       setFileBrowserLocalPath: (path) => set({ fileBrowserLocalPath: path }),
+      rememberFavoriteColor: (color) =>
+        set((state) => {
+          const next = rememberFavorite(state.favoriteColors, color)
+          if (next === state.favoriteColors) return state
+          return { favoriteColors: next }
+        }),
+      removeFavoriteColor: (color) =>
+        set((state) => {
+          const next = withoutFavorite(state.favoriteColors, color)
+          if (next === state.favoriteColors) return state
+          return { favoriteColors: next }
+        }),
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       isTreeNodeExpanded: (id) => Boolean(get().expandedTreeNodes[id]),
@@ -135,7 +164,12 @@ export const useUiStore = create<UiState>()(
       setSidebarApisExpanded: (expanded) => set({ sidebarApisExpanded: expanded }),
       setSidebarAgentsExpanded: (expanded) => set({ sidebarAgentsExpanded: expanded }),
       setListSort: (sort) => set({ listSort: sort }),
-      setTheme: (theme) => set({ theme }),
+      setTheme: (theme) => {
+        if (!isThemePreference(theme)) return
+        set({ theme })
+      },
+      bumpAutomaticTheme: () =>
+        set((state) => ({ automaticThemeTick: state.automaticThemeTick + 1 })),
       setLocale: (locale) => set({ locale }),
       setDisplayName: (name) => set({ displayName: name }),
       setProfileEmail: (email) => set({ profileEmail: email }),
@@ -145,12 +179,26 @@ export const useUiStore = create<UiState>()(
         ),
       setTerminalCopyOnSelect: (enabled) => set({ terminalCopyOnSelect: enabled }),
       setMonoFontSize: (size) => set({ monoFontSize: size }),
-      setMonoFontFamily: (family) => set({ monoFontFamily: family }),
+      setMonoFontFamily: (family) => set({ monoFontFamily: sanitizeMonoFontFamily(family) }),
+      setMonoLigatures: (enabled) => set({ monoLigatures: sanitizeMonoLigatures(enabled) }),
       setLastSeenWhatsNewVersion: (version) => set({ lastSeenWhatsNewVersion: version }),
       setLastWorkspaceId: (id) => set({ lastWorkspaceId: id })
     }),
     {
       name: 'north-ui',
+      merge: (persistedState, currentState) => {
+        if (!persistedState || typeof persistedState !== 'object') return currentState
+        const persisted = persistedState as Partial<UiState>
+        return {
+          ...currentState,
+          ...persisted,
+          theme: isThemePreference(persisted.theme) ? persisted.theme : 'dark',
+          automaticThemeTick: 0,
+          favoriteColors: sanitizeFavoriteColors(persisted.favoriteColors),
+          monoFontFamily: sanitizeMonoFontFamily(persisted.monoFontFamily),
+          monoLigatures: sanitizeMonoLigatures(persisted.monoLigatures)
+        }
+      },
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         expandedTreeNodes: state.expandedTreeNodes,
@@ -168,9 +216,11 @@ export const useUiStore = create<UiState>()(
         terminalCopyOnSelect: state.terminalCopyOnSelect,
         monoFontSize: state.monoFontSize,
         monoFontFamily: state.monoFontFamily,
+        monoLigatures: state.monoLigatures,
         lastSeenWhatsNewVersion: state.lastSeenWhatsNewVersion,
         lastWorkspaceId: state.lastWorkspaceId,
-        fileBrowserLocalPath: state.fileBrowserLocalPath
+        fileBrowserLocalPath: state.fileBrowserLocalPath,
+        favoriteColors: sanitizeFavoriteColors(state.favoriteColors)
       })
     }
   )

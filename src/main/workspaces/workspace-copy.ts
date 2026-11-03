@@ -111,6 +111,8 @@ export async function copyToWorkspace(
       agentForward: connection.agentForward,
       jumpHostId: null,
       defaultCommand: connection.defaultCommand,
+      startupDirectory: connection.startupDirectory,
+      logFiles: connection.logFiles,
       notes: connection.notes,
       os: connection.os,
       icon: connection.icon,

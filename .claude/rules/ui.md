@@ -1,0 +1,46 @@
+---
+paths:
+  - "src/renderer/**"
+---
+
+<!-- GERADO por scripts/harness/sync.mjs a partir de .agents/rules/ui.md. Não edite: altere a fonte e rode `npm run harness:sync`. -->
+
+# UI (renderer)
+
+## Stack visual
+
+- Tailwind v4 com tokens em `assets/index.css` (`@theme`).
+- Componentes base em `components/ui` (padrão shadcn/new-york).
+- Ícones: **Lucide** (`lucide-react`) no chrome (nav, ações, pastas).
+- **Marcas vendored** (`assets/brands/`, Simple Icons CC0) só para engines de banco conhecidas via `InventoryIcon`.
+- Tema **dark-first**; cores via tokens (`background`, `surface`, `accent`, …).
+
+## Layout
+
+- Shell de 3 painéis: sidebar / lista / detalhes.
+- Titlebar com `-webkit-app-region: drag`; controles interativos com `no-drag`.
+- Uma responsabilidade por seção; evitar cards decorativos.
+
+## Acessibilidade
+
+- Contraste adequado no dark theme.
+- `aria-label` em botões só-ícone.
+- Foco visível (`ring` / `focus-visible`).
+- Não remover outlines sem substituto.
+
+## Exemplos
+
+```tsx
+// ✅ Tokens + Lucide (chrome)
+import { PanelLeft } from 'lucide-react'
+
+// ✅ Marca de engine no inventário
+import { InventoryIcon } from '@renderer/components/InventoryIcon'
+<InventoryIcon engine="postgres" accessType="database" className="size-3.5" />
+<button className="text-muted hover:text-foreground" aria-label="Menu">
+  <PanelLeft className="size-4" />
+</button>
+
+// ❌ Cores soltas fora do design system
+<div className="bg-[#7c3aed] rounded-full shadow-2xl" />
+```

@@ -38,6 +38,14 @@ export type WslIpsecDeps = {
 export const WSL_MISSING =
   'O IPsec da FortiGate no Windows usa o WSL, que não está ativo neste PC. Ative com "wsl --install" (pede reinício) ou use o FortiClient para esta VPN.'
 
+/** Dev builds do not ship vpn-bin (gitignored). Packaged installs get it from CI. */
+export const WSL_DISTRO_MISSING = [
+  'O IPsec para Windows não veio nesta instalação do North (falta north-wsl.tar.gz).',
+  'Reinstale o North.',
+  'Em desenvolvimento: docker run --rm -v "$PWD:/src" -w /src alpine:3.22',
+  'scripts/vpn-binaries/build-wsl.sh resources/vpn/bin'
+].join(' ')
+
 function spawnWsl(args: string[], input: string, onOutput: (chunk: Buffer) => void): HelperRun {
   const child = spawn('wsl.exe', args, { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
   child.stdout.on('data', onOutput)
@@ -63,10 +71,7 @@ export class WslIpsec {
   async ensure(): Promise<void> {
     const tarball = this.deps.tarball()
     if (!tarball) {
-      throw new VpnError(
-        'BINARY_MISSING',
-        'O IPsec para Windows não veio nesta instalação do North'
-      )
+      throw new VpnError('BINARY_MISSING', WSL_DISTRO_MISSING)
     }
     const status = await this.deps.wsl(['--status'])
     if (status.code !== 0) throw new VpnError('UNSUPPORTED_ON_PLATFORM', WSL_MISSING)

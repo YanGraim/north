@@ -18,6 +18,8 @@ En la **sidebar**, expande cliente → entorno → grupo para ver cada conexión
 
 Piensa en conexiones como “cómo llego al host” y accesos como “qué uso para autenticarme en servicios”.
 
+En el formulario de cliente, entorno, conexión, acceso y etiqueta, puedes escribir un hexadecimal, abrir el selector de color del sistema o reutilizar hasta 10 colores personalizados guardados en este equipo.
+
 ## Workflows
 
 El **grupo** es el dueño de los workflows y de las variables de proyecto. La ejecución apunta a una conexión; las credenciales nunca viven en el workflow — solo en la bolsa de secretos de la conexión.

@@ -6,9 +6,13 @@ import icon from '../../resources/icon.png?asset'
 import { isQuitting, markQuitting } from './app-quit'
 import { closeDatabase } from './database'
 import { registerIpcHandlers } from './ipc/handlers'
+import { disposeLogFollows } from './ipc/log-follows'
 import { disposeProtocolManager } from './ipc/sessions'
 import { disposeVpn, hasActiveVpnTunnels, hasVpnProfiles } from './ipc/vpn'
+import { closeAllLogFollowWindows } from './log-follow-windows'
+import { setMainWindowFocuser } from './main-window'
 import { createTray } from './tray'
+import { markTitleBarOverlay } from './window-theme'
 
 // Must run before any app.getPath('userData') / DB access so paths match productName.
 app.setName('North')
@@ -77,6 +81,7 @@ function createWindow(): void {
   })
 
   mainWindow = window
+  if (process.platform !== 'darwin') markTitleBarOverlay(window)
 
   window.on('ready-to-show', () => {
     window.show()
@@ -84,10 +89,15 @@ function createWindow(): void {
 
   // with VPNs, closing the window keeps North (and its tunnels) running in the tray
   window.on('close', (event) => {
-    if (isQuitting() || !hasVpnProfiles()) return
-    event.preventDefault()
-    window.hide()
-    hintTray()
+    if (isQuitting()) return
+    if (hasVpnProfiles()) {
+      event.preventDefault()
+      window.hide()
+      hintTray()
+      return
+    }
+    // Auxiliary log windows must not keep the process alive after this one closes.
+    if (process.platform !== 'darwin') closeAllLogFollowWindows()
   })
 
   window.webContents.setWindowOpenHandler((details) => {
@@ -111,6 +121,8 @@ if (!singleInstance) {
 } else {
   app.on('second-instance', () => showWindow())
 }
+
+setMainWindowFocuser(showWindow)
 
 app.whenReady().then(() => {
   // the second copy only hands over to the first (second-instance) and quits
@@ -144,7 +156,7 @@ app.on('before-quit', (event) => {
     void disposeVpn().finally(() => app.quit())
     return
   }
-  void disposeProtocolManager().finally(() => {
+  void Promise.all([disposeProtocolManager(), disposeLogFollows()]).finally(() => {
     closeDatabase()
   })
 })

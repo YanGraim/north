@@ -126,6 +126,14 @@ describe('workspace stays interactive while a database session is open', () => {
       .find('[data-testid="connect-button"]')
       .click()
     cy.get('[data-testid="terminal-view"]').should('be.visible')
+    cy.get('[data-testid="terminal-cwd-toggle"]').should('be.visible').and('contain', 'Arquivos')
+    cy.get('[data-testid="terminal-cwd-toggle"]').click()
+    cy.get('[data-testid="terminal-cwd-waiting"]').should('be.visible')
+    cy.get('[data-testid="terminal-cwd-panel"]')
+      .find('[data-testid="file-pane-remote"]')
+      .should('not.exist')
+    cy.get('[data-testid="terminal-cwd-toggle"]').click()
+    cy.get('[data-testid="terminal-cwd-panel"]').should('not.exist')
   })
 
   it('keeps the workspace usable with an API session and a database session open', () => {

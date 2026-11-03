@@ -9,6 +9,7 @@ import { ipcMain } from 'electron'
 import type { CredentialVault } from '../vault'
 import type { InventoryStore } from '../workspaces/inventory-store'
 import type { SecretStore } from '../workspaces/secret-store'
+import { stopLogFollowsForConnection } from './log-follows'
 import { deleteSecretsForConnections } from './vault-cleanup'
 
 function requireEntity<T>(entity: T | null, label: string): T {
@@ -56,6 +57,7 @@ export function registerConnectionHandlers(
       vault.deleteSecret(existing.credentialRef)
     }
     await inventory().connections.delete(connectionId)
+    await stopLogFollowsForConnection(connectionId)
   })
 
   ipcMain.handle(IpcChannels.CONNECTIONS_TOGGLE_FAVORITE, async (_event, id: unknown) => {

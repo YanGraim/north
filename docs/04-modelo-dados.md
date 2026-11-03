@@ -67,7 +67,8 @@ Migrations versionadas via `PRAGMA user_version` em `src/main/database/migration
 | `credentialRef`     | string?   | FK lógica → `credentials.id` (nunca a senha)    |
 | `privateKeyPath`    | string?   | Caminho local da chave (opcional)               |
 | `jumpHostId`        | UUID?     | FK → outra Conexão (bastion), `ON DELETE SET NULL` |
-| `defaultCommand`    | string?   | Comando pós-login (SSH)                         |
+| `defaultCommand`    | string?   | Comando pós-login (SSH). Persistido; não é executado no login |
+| `startupDirectory`  | string?   | Diretório remoto opcional da conexão SSH (REC-002). Terminal e SFTP abrem nele; vazio mantém o diretório de login |
 | `notes`             | markdown? | Notas ricas                                     |
 | `os`                | string?   | SO do host (ex.: Ubuntu 24.04)                  |
 | `icon`              | string?   | Ícone Lucide / chave visual                     |

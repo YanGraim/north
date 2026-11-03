@@ -5,9 +5,9 @@ import mysqlSrc from '@renderer/assets/brands/mysql.svg?url'
 import postgresSrc from '@renderer/assets/brands/postgres.svg?url'
 import redisSrc from '@renderer/assets/brands/redis.svg?url'
 import sqliteSrc from '@renderer/assets/brands/sqlite.svg?url'
+import { useResolvedTheme } from '@renderer/hooks/use-resolved-theme'
 import { type BrandEngine, brandColorForEngine } from '@renderer/lib/engine-brands'
 import { cn } from '@renderer/lib/utils'
-import { resolveTheme, useUiStore } from '@renderer/stores/ui-store'
 
 const BRAND_SRC: Record<BrandEngine, string> = {
   postgres: postgresSrc,
@@ -26,8 +26,7 @@ type BrandMarkProps = {
 }
 
 export function BrandMark({ engine, className, title }: BrandMarkProps): React.JSX.Element {
-  const themePref = useUiStore((s) => s.theme)
-  const color = brandColorForEngine(engine, resolveTheme(themePref))
+  const color = brandColorForEngine(engine, useResolvedTheme())
   const src = BRAND_SRC[engine]
 
   return (
