@@ -1,4 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import type { ListDirectoryResult } from '@shared/lib/list-directory'
+import { normalizeLogFilePath } from '@shared/lib/log-file'
+import {
+  type ClassifyPathResult,
+  ClassifyPathResultSchema,
+  isSafePosixAbsolute
+} from '@shared/lib/selection-path'
+import { canonicalPosixDir } from '@shared/lib/startup-directory'
 import {
   type ClaudeUsage,
   coerceBytes,
@@ -25,6 +33,7 @@ import { configFromAccess } from '../protocols/database/config'
 import { connectAdapter } from '../protocols/database/registry'
 import { DatabaseProtocolSession } from '../protocols/database/session'
 import { LocalShellDriver } from '../protocols/local-shell-driver'
+import { prepareSessionDirectoryList } from '../protocols/ssh-directory-list'
 import { fingerprintHostKey, parseHostKeyType } from '../protocols/ssh-utils'
 import type { Repositories } from '../repositories'
 import type { CredentialVault } from '../vault'
@@ -121,6 +130,50 @@ export class ProtocolManager {
     this.connectionSource = provider
   }
 
+  /**
+   * Connection and secret resolver for a log follow. Not a session: no history row.
+   * Uses the active workspace source, same as `open`.
+   */
+  async openFollowTarget(connectionId: string): Promise<{
+    connection: Connection
+    resolveSecret: (credentialRef: string) => Promise<string>
+  } | null> {
+    const source = this.sourceForOpen()
+    const connection = await source.connection(connectionId)
+    if (!connection) return null
+    return {
+      connection,
+      resolveSecret: (credentialRef) => source.resolveSecret(credentialRef)
+    }
+  }
+
+  /** Same VPN lease as a session, without registering one. */
+  async prepareFollowVpn(connection: Connection, followId: string): Promise<void> {
+    const probeTarget = connection.jumpHostId
+      ? undefined
+      : { host: connection.host, port: connection.port }
+    const profile = this.sourceForOpen().vpnProfile(connection.id)
+    await this.vpnGate?.ensure(profile, followId, probeTarget)
+  }
+
+  releaseFollowVpn(followId: string): void {
+    this.vpnGate?.release(followId)
+  }
+
+  /** Host-key prompt shared with sessions. `followId` is only a label on the prompt. */
+  confirmHostKey(
+    followId: string,
+    info: {
+      host: string
+      port: number
+      keyType: string
+      fingerprint: string
+      hostKey: Uint8Array
+    }
+  ): Promise<boolean> {
+    return this.verifyHostKey(followId, info, 'log-follow')
+  }
+
   private sourceForOpen(): ConnectionSource {
     return (
       this.connectionSource?.() ?? {
@@ -153,6 +206,64 @@ export class ProtocolManager {
 
   getActiveSession(sessionId: string): ProtocolSession | undefined {
     return this.sessions.get(sessionId)?.session
+  }
+
+  /**
+   * Stat a path on the SSH client that already owns the terminal.
+   * Other protocols, a missing session, or an invalid path never open SFTP.
+   * Failures become `unavailable`. ssh2 messages are not returned.
+   */
+  /**
+   * One directory on the SSH client that already owns this terminal.
+   * Other sessions and unsafe paths never open SFTP. ssh2 messages are not returned.
+   * A listing failure does not change the terminal session.
+   */
+  async listDirectory(sessionId: string, path: string): Promise<ListDirectoryResult> {
+    const active = this.sessions.get(sessionId)
+    const session = active?.session
+    const prepared = prepareSessionDirectoryList({
+      path,
+      protocol: session?.protocol ?? null,
+      connectionId: active?.connectionId ?? null,
+      canList: session?.listDirectory != null
+    })
+    if (!prepared.ok) return prepared
+    if (!session?.listDirectory) return { ok: false, reason: 'unavailable' }
+    try {
+      return await session.listDirectory.list(prepared.path)
+    } catch {
+      return { ok: false, reason: 'unavailable' }
+    }
+  }
+
+  async classifyPath(sessionId: string, path: string): Promise<ClassifyPathResult> {
+    const normalized = normalizeLogFilePath(path)
+    if (!normalized.ok) return { kind: 'unavailable', path: '', absolute: null }
+
+    const session = this.sessions.get(sessionId)?.session
+    if (session?.protocol !== 'ssh' || !session?.pathStat) {
+      return { kind: 'unavailable', path: normalized.value, absolute: null }
+    }
+
+    try {
+      const stat = await session.pathStat.classifyPath(normalized.value)
+      if (stat.kind === 'missing') {
+        return { kind: 'missing', path: normalized.value, absolute: null }
+      }
+      if (stat.kind !== 'file' && stat.kind !== 'directory' && stat.kind !== 'other') {
+        return { kind: 'unavailable', path: normalized.value, absolute: null }
+      }
+      const absolute = stat.absolute == null ? null : canonicalPosixDir(stat.absolute)
+      if (absolute == null || !isSafePosixAbsolute(absolute)) {
+        return { kind: 'unavailable', path: normalized.value, absolute: null }
+      }
+      const result = { kind: stat.kind, path: normalized.value, absolute }
+      const checked = ClassifyPathResultSchema.safeParse(result)
+      if (!checked.success) return { kind: 'unavailable', path: normalized.value, absolute: null }
+      return checked.data
+    } catch {
+      return { kind: 'unavailable', path: normalized.value, absolute: null }
+    }
   }
 
   writeStdin(sessionId: string, data: unknown): void {
@@ -663,7 +774,8 @@ export class ProtocolManager {
       keyType: string
       fingerprint: string
       hostKey: Uint8Array
-    }
+    },
+    kind: 'session' | 'log-follow' = 'session'
   ): Promise<boolean> {
     const keyType = info.keyType !== 'unknown' ? info.keyType : parseHostKeyType(info.hostKey)
     const fingerprint = info.fingerprint || fingerprintHostKey(info.hostKey)
@@ -695,7 +807,8 @@ export class ProtocolManager {
         keyType,
         fingerprint,
         previousFingerprint: existing?.fingerprint ?? null,
-        isMismatch
+        isMismatch,
+        kind
       }
 
       this.events?.onHostKeyPrompt(prompt)

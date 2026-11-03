@@ -97,6 +97,22 @@ export const IpcChannels = {
   SESSIONS_RESIZE: 'sessions:resize',
   SESSIONS_STDOUT_READY: 'sessions:stdout-ready',
   SESSIONS_CLAUDE_USAGE: 'sessions:claude-usage',
+  SESSIONS_CLASSIFY_PATH: 'sessions:classify-path',
+  SESSIONS_LIST_DIRECTORY: 'sessions:list-directory',
+
+  LOG_FOLLOWS_LIST: 'log-follows:list',
+  LOG_FOLLOWS_START: 'log-follows:start',
+  LOG_FOLLOWS_REPLAY: 'log-follows:replay',
+  LOG_FOLLOWS_STOP: 'log-follows:stop',
+  LOG_FOLLOWS_RETRY: 'log-follows:retry',
+  LOG_FOLLOWS_POP_OUT: 'log-follows:pop-out',
+  LOG_FOLLOWS_DOCK: 'log-follows:dock',
+  /** Main → renderer: one tail chunk. Same path as terminal stdout (number[]). */
+  LOG_FOLLOWS_DATA: 'log-follows:data',
+  /** Main → renderer: drop the painted scrollback and start over. */
+  LOG_FOLLOWS_RESET: 'log-follows:reset',
+  /** Main → renderer: follow snapshots only. Never log bytes. */
+  LOG_FOLLOWS_CHANGED: 'log-follows:changed',
 
   FS_LIST: 'fs:list',
   FS_MKDIR: 'fs:mkdir',

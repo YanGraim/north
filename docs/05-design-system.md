@@ -4,7 +4,7 @@
 
 1. **Dark default** — o tema escuro é o padrão; `light`, `system` e `automatic` (claro das 08:00 às 17:00 no relógio local) via `ui-store.theme` e classes `html.dark` / `html.light`. Ver [REC-001](./recursos/rec-001-modo-aparencia-automatico/especificacao.md).
 2. **Densidade útil** — informação acessível sem clutter; painéis com uma função cada.
-3. **Tipografia técnica** — IBM Plex Sans (UI) + IBM Plex Mono (hosts, versões, código).
+3. **Tipografia técnica** — a interface, o terminal e o código usam a família mono escolhida em Configurações → Fonte do app. O padrão é IBM Plex Mono. Ligaduras começam desligadas. Ver [REC-007](./recursos/rec-007-fontes-mono-ligaturas/especificacao.md).
 4. **Sem cards no hero do produto** — superfícies por hierarquia (background → surface → elevated), não caixas genéricas.
 5. **Acessibilidade** — contraste AA, foco visível (`ring` / `focus-visible`), alvos clicáveis ≥ 28–32px.
 6. **Accent disciplinado** — só ações primárias, foco e destaques de match; não pintar a UI inteira.
@@ -41,10 +41,9 @@
 
 ### Tipografia
 
-| Papel        | Família       | Tamanhos típicos                         |
-| ------------ | ------------- | ---------------------------------------- |
-| UI / display | IBM Plex Sans | títulos 13–14 medium; corpo 13; meta 11–12 |
-| Mono         | IBM Plex Mono | host/porta 12; atalhos 11                |
+| Papel                         | Família                                              | Tamanhos típicos                                      |
+| ----------------------------- | ---------------------------------------------------- | ----------------------------------------------------- |
+| UI, terminal, código, hosts   | Família mono escolhida (padrão IBM Plex Mono)        | tamanho em Configurações; hosts e atalhos na mesma escala |
 
 Uppercase + tracking só em **rótulos de seção** (sidebar, form sections, command groups).
 
@@ -92,7 +91,7 @@ Atalhos (registro em `lib/shortcuts.ts`):
 
 ## Tipografia (runtime)
 
-Fontes IBM Plex Sans/Mono via `@fontsource` (bundles locais) — sem dependência de CDN em runtime.
+A fonte do app é a mono escolhida (`monoFontFamily` na store `north-ui`), publicada por `useCodeFontEffect` em `--font-sans`, `--font-mono` e `--code-font-family`. Os arquivos vêm de pacotes locais, sem CDN. Ubuntu Mono, Hack e Space Mono entram só no peso 400; as demais empacotadas, em 400 e 500. A Hack vem de `hack-font`, porque `@fontsource/hack` não está no registro. Cascadia Mono vale com ligaduras desligadas e Cascadia Code com ligadas. O interruptor (`monoLigatures`, padrão desligado) aplica `font-variant-ligatures` no documento e `@xterm/addon-ligatures` no terminal e no quadro de log. A grade de resultados SQL não segue esse seletor.
 
 ## Componentes base
 

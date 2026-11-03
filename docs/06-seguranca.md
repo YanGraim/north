@@ -54,6 +54,10 @@ Clientes WASM (noVNC / IronRDP) precisam da senha no renderer para o handshake d
 3. O renderer consome e descarta; não persiste em store/disco.
 4. Ver [ADR 0009](./adr/0009-desktop-remoto-wasm.md).
 
+### Pasta corrente do terminal SSH
+
+O painel **Arquivos** ([REC-010](./recursos/rec-010-arquivos-do-diretorio-atual/especificacao.md), [ADR 0020](./adr/0020-listagem-cwd-terminal-ssh.md)) lê a pasta por OSC 7 do PTY. O texto do gancho é fixo no main e só entra em bash ou zsh; o renderer não o escolhe e ele não é gravado no servidor. O path do OSC volta a ser validado no main antes do `readdir`. A listagem não interpola esse path num shell e não devolve a mensagem crua do ssh2.
+
 ### Isolamento
 
 - Um `MessagePort` por sessão; fechar a porta ao encerrar a sessão.

@@ -1,6 +1,8 @@
+import { toast } from '@renderer/components/ui/sonner'
 import { queryKeys } from '@renderer/lib/query-keys'
 import { toastError, toastSuccess } from '@renderer/lib/toast'
-import { mergeVpnState } from '@renderer/lib/vpn-ui'
+import { mergeVpnState, vpnErrorFromUnknown } from '@renderer/lib/vpn-ui'
+import { isComponentFailureCode } from '@shared/lib/vpn/errors'
 import type {
   CreateVpnProfileInput,
   ImportOvpnInput,
@@ -131,7 +133,18 @@ export function useVpnHelperAction(): UseMutationResult<
     mutationFn: (action) =>
       action === 'install' ? window.north.vpn.installHelper() : window.north.vpn.uninstallHelper(),
     onSuccess: (status) => queryClient.setQueryData(queryKeys.vpn.helper, status),
-    onError: (error) => toastError(error, t('vpn.helper.failed'))
+    onError: (error) => {
+      const parsed = vpnErrorFromUnknown(error)
+      if (!parsed || !isComponentFailureCode(parsed.code)) {
+        toast.error(t('vpn.helper.failed'))
+        return
+      }
+      // DRIVER_CRASHED's connect title ("the VPN failed to connect") is the wrong
+      // sentence for installing or removing the component.
+      const title =
+        parsed.code === 'DRIVER_CRASHED' ? t('vpn.helper.failed') : t(`vpn.errors.${parsed.code}`)
+      toast.error(title, { description: t(`vpn.helper.failure.${parsed.code}`) })
+    }
   })
 }
 

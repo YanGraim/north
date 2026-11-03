@@ -119,6 +119,7 @@ export function SessionView({ tab, visible }: SessionViewProps): React.JSX.Eleme
         agentTaskNote={tab.agentTaskNote}
         isLocalShell={tab.protocol === 'agent-workspace' || tab.protocol === 'local-shell'}
         connectionId={tab.connectionId}
+        protocol={tab.protocol}
       />
     )
   }
@@ -152,7 +153,13 @@ export function SessionView({ tab, visible }: SessionViewProps): React.JSX.Eleme
 
   switch (sessionKind) {
     case 'file-transfer':
-      return <FileBrowserView sessionId={tab.sessionId} visible={visible} />
+      return (
+        <FileBrowserView
+          sessionId={tab.sessionId}
+          visible={visible}
+          connectionId={tab.connectionId}
+        />
+      )
     case 'desktop':
       return (
         <Suspense

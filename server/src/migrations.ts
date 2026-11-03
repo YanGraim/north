@@ -202,6 +202,22 @@ export const migrations: Migration[] = [
       -- ssh-agent forwarding (ssh -A) per connection, off by default like OpenSSH.
       ALTER TABLE connections ADD COLUMN agent_forward BOOLEAN NOT NULL DEFAULT false;
     `
+  },
+  {
+    version: 6,
+    name: '006-connection-startup-directory',
+    sql: `
+      -- Optional remote directory an SSH connection opens in. Null keeps the login directory.
+      ALTER TABLE connections ADD COLUMN startup_directory TEXT;
+    `
+  },
+  {
+    version: 7,
+    name: '007-connection-log-files',
+    sql: `
+      -- Remote log files an SSH connection can follow. Empty list means none.
+      ALTER TABLE connections ADD COLUMN log_files JSONB NOT NULL DEFAULT '[]';
+    `
   }
 ]
 

@@ -18,6 +18,8 @@ import { migration016Vpn } from './016-vpn'
 import { migration017Workspaces } from './017-workspaces'
 import { migration018WorkspaceSessions } from './018-workspace-sessions'
 import { migration019ConnectionAgentForward } from './019-connection-agent-forward'
+import { migration020ConnectionStartupDirectory } from './020-connection-startup-directory'
+import { migration021ConnectionLogFiles } from './021-connection-log-files'
 
 /** Ordered list of schema migrations. Append new ones; never reorder or reuse versions. */
 export const migrations: Migration[] = [
@@ -39,5 +41,7 @@ export const migrations: Migration[] = [
   migration016Vpn,
   migration017Workspaces,
   migration018WorkspaceSessions,
-  migration019ConnectionAgentForward
+  migration019ConnectionAgentForward,
+  migration020ConnectionStartupDirectory,
+  migration021ConnectionLogFiles
 ]

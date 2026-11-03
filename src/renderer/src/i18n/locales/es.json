@@ -65,6 +65,16 @@
       "fontFamilyUiMonospace": "Monoespaciada del sistema",
       "fontFamilyMenloConsolas": "Menlo / Consolas",
       "fontFamilyCourier": "Courier New",
+      "fontFamilyUbuntuMono": "Ubuntu Mono",
+      "fontFamilyFiraCode": "Fira Code",
+      "fontFamilySourceCodePro": "Source Code Pro",
+      "fontFamilyCascadia": "Cascadia",
+      "fontFamilyHack": "Hack",
+      "fontFamilyInconsolata": "Inconsolata",
+      "fontFamilyRobotoMono": "Roboto Mono",
+      "fontFamilySpaceMono": "Space Mono",
+      "fontFamilyNotoSansMono": "Noto Sans Mono",
+      "ligatures": "Ligaduras",
       "preview": "console.log(\"¡Hola, North!\")"
     },
     "general": {
@@ -246,7 +256,85 @@
       "create": "Crear",
       "passwordOrganizationHint": "Se guarda cifrada en el servidor de la organización. North la busca solo al conectar, y cada acceso queda registrado.",
       "agentForward": "Reenviar agente SSH (ssh -A)",
-      "agentForwardHint": "Permite que comandos en el servidor, como git pull, usen las claves de tu ssh-agent sin copiarlas allí. Actívalo solo en servidores de confianza: quien tenga root allí puede usar el agente mientras la sesión esté abierta."
+      "agentForwardHint": "Permite que comandos en el servidor, como git pull, usen las claves de tu ssh-agent sin copiarlas allí. Actívalo solo en servidores de confianza: quien tenga root allí puede usar el agente mientras la sesión esté abierta.",
+      "startupDirectory": "Directorio inicial",
+      "startupDirectoryPlaceholder": "/var/www o ~/app",
+      "startupDirectoryHint": "La terminal y los archivos (SFTP) se abren en esta carpeta. Si no existe, la sesión entra en el directorio de inicio de sesión y avisa.",
+      "startupDirectoryInvalid": "Usa una ruta absoluta (/var/www) o una que empiece con ~/.",
+      "logFiles": "Archivos de log",
+      "logFilesHint": "El panel sigue el archivo y continúa después de que el log rota.",
+      "logFilesAdd": "Agregar archivo",
+      "logFilePath": "Archivo",
+      "logFilePathPlaceholder": "/var/log/app.log o ~/app/app.log",
+      "logFileLabel": "Etiqueta",
+      "logFileLabelPlaceholder": "opcional",
+      "logFileRemove": "Quitar archivo",
+      "logFileInvalid": "Usa una ruta absoluta (/var/log/app.log) o una que empiece con ~/.",
+      "logFileDuplicate": "Ese archivo ya está en la lista.",
+      "logFileLabelInvalid": "La etiqueta no puede tener un salto de línea ni pasar de 80 caracteres."
+    },
+    "details": {
+      "startupDirectory": "Directorio inicial",
+      "logFiles": "Archivos de log",
+      "follow": "Seguir"
+    },
+    "session": {
+      "startupDirectoryUnavailable": "No se pudo abrir {{path}}. Los archivos se abrieron en el directorio de inicio de sesión."
+    },
+    "logFollow": {
+      "popOut": "Destacar",
+      "dock": "Acoplar",
+      "close": "Cerrar",
+      "retry": "Intentar de nuevo",
+      "jumpToEnd": "Ir al final",
+      "states": {
+        "connecting": "Conectando",
+        "awaiting-host-key": "Confirmando el host",
+        "live": "En vivo",
+        "error": "Error",
+        "closed": "Cerrado"
+      },
+      "errors": {
+        "HOST_KEY_REJECTED": "La clave del host fue rechazada.",
+        "AUTH_FAILED": "No se pudo autenticar.",
+        "TAIL_MISSING": "El servidor no tiene el comando tail.",
+        "TAIL_EXITED": "El seguimiento se detuvo.",
+        "PATH_UNRESOLVED": "No se pudo resolver la ruta.",
+        "CONNECTION_LOST": "La conexión se cayó.",
+        "LIMIT": "Se pueden seguir hasta 8 archivos a la vez.",
+        "NOT_FOUND": "Conexión o archivo no encontrado.",
+        "NOT_SSH": "Solo las conexiones SSH siguen un log."
+      }
+    },
+    "terminalSelection": {
+      "setDirectory": "Definir directorio predeterminado",
+      "addLog": "Añadir archivo de log",
+      "followLog": "Seguir log",
+      "confirmTitle": "¿Cambiar el directorio predeterminado?",
+      "confirmCurrent": "Directorio actual",
+      "confirmNext": "Nuevo directorio",
+      "replace": "Cambiar",
+      "savedDirectory": "Directorio predeterminado guardado.",
+      "sameDirectory": "Ese ya es el directorio predeterminado.",
+      "logAdded": "Archivo de log añadido.",
+      "invalidPath": "Ruta no válida.",
+      "notFile": "La selección no es un archivo.",
+      "notDirectory": "La selección no es un archivo ni un directorio.",
+      "unavailable": "No se pudo comprobar la ruta.",
+      "missing": "La ruta no existe.",
+      "duplicate": "Ese archivo ya está en la lista.",
+      "limit": "La lista ya tiene 8 archivos de log.",
+      "saveFailed": "No se pudo guardar en la conexión.",
+      "followFailed": "El archivo se guardó, pero el panel no se abrió."
+    },
+    "terminalCwd": {
+      "badge": "Archivos",
+      "waiting": "La carpeta del terminal todavía no llegó. North lee el prompt de bash y zsh de esta sesión y no muestra el directorio de login en su lugar.",
+      "listFailed": "No se pudo listar esta carpeta."
+    },
+    "fileBrowser": {
+      "addToMonitoring": "Añadir al monitoreo",
+      "monitorLive": "Monitorear en tiempo real"
     },
     "badge": "Servidor"
   },
@@ -723,7 +811,8 @@
       "CONNECTION_REJECTED": "El servidor VPN rechazó la conexión — revisa gateway, clave y contraseña",
       "PROFILE_APPROVAL_REQUIRED": "Aprueba el perfil \"North\" en Ajustes del Sistema → General → Gestión de dispositivos y haz clic en Conectar de nuevo",
       "CERT_UNTRUSTED": "Certificado del gateway no reconocido",
-      "GATEWAY_UNREACHABLE": "No se pudo alcanzar el servidor VPN"
+      "GATEWAY_UNREACHABLE": "No se pudo alcanzar el servidor VPN",
+      "BINARY_MISSINGHint": "Vuelve a instalar el componente en la página de VPNs. Si esta instalación de North no trajo el componente, reinstala la aplicación."
     },
     "install": "macOS: instala con \"brew install openvpn\". Linux: instala el paquete openvpn de tu distribución.",
     "indicator": {
@@ -762,7 +851,18 @@
       "outdated": "El componente de VPN necesita actualizarse (pide la contraseña una vez).",
       "install": "Conectar sin pedir contraseña",
       "remove": "Quitar componente de VPN",
-      "failed": "No se pudo cambiar el componente de VPN"
+      "update": "Actualizar",
+      "failed": "No se pudo cambiar el componente de VPN",
+      "state": {
+        "installed": "Instalado",
+        "missing": "Ausente",
+        "outdated": "Desactualizado"
+      },
+      "failure": {
+        "PRIVILEGE_DENIED": "Acepta el pedido de administrador e inténtalo de nuevo.",
+        "BINARY_MISSING": "Vuelve a instalar el componente en la página de VPNs. Si esta instalación de North no trajo el componente, reinstala la aplicación.",
+        "DRIVER_CRASHED": "Inténtalo de nuevo. Si un archivo del componente está en uso, cierra lo que lo esté usando."
+      }
     },
     "link": {
       "label": "VPN",
@@ -857,5 +957,16 @@
   },
   "sessions": {
     "homeTab": "Panel"
+  },
+  "colorPicker": {
+    "choose": "Elegir color",
+    "none": "Ninguno",
+    "clear": "Limpiar",
+    "hex": "Código hexadecimal",
+    "hexPlaceholder": "#rrggbb",
+    "custom": "Personalizadas",
+    "pipette": "Selector de color del sistema",
+    "swatch": "Color {{color}}",
+    "favorite": "Color personalizado {{color}}"
   }
 }

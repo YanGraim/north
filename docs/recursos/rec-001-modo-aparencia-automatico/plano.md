@@ -2,6 +2,7 @@
 
 - **Criado em:** 2026-10-30
 - **Última atualização:** 2026-10-30
+- **Homologação:** encerrada em 2026-10-30, sem ajuste de código. O what's new continua para o bump da próxima versão.
 - **Esforço do agente:** ⚡ Low
 
 ## Etapas

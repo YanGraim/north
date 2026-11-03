@@ -5,6 +5,7 @@ import { TooltipProvider } from '@renderer/components/ui/tooltip'
 import { CommandPalette } from '@renderer/features/command-palette/CommandPalette'
 import { WhatsNewDialog } from '@renderer/features/help/WhatsNewDialog'
 import { InventoryDialogs } from '@renderer/features/inventory/InventoryDialogs'
+import { LogFollowDock } from '@renderer/features/log-follow/LogFollowDock'
 import { HostKeyDialog } from '@renderer/features/sessions/HostKeyDialog'
 import { SessionTabs } from '@renderer/features/sessions/SessionTabs'
 import { SessionView } from '@renderer/features/sessions/SessionView'
@@ -137,6 +138,7 @@ export function AppShell(): React.JSX.Element {
               </div>
             ))}
         </div>
+        <LogFollowDock />
         <CommandPalette />
         <HostKeyDialog />
         <WhatsNewDialog />

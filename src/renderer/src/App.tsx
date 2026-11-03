@@ -3,6 +3,7 @@ import { ConnectionListPage } from '@renderer/features/connections/ConnectionLis
 import { DashboardPage } from '@renderer/features/dashboard/DashboardPage'
 import { ManualPage } from '@renderer/features/help/ManualPage'
 import { HistoryPage } from '@renderer/features/history/HistoryPage'
+import { LogFollowWindowPage } from '@renderer/features/log-follow/LogFollowWindowPage'
 import { SettingsPage } from '@renderer/features/settings/SettingsPage'
 import { VpnsPage } from '@renderer/features/vpns/VpnsPage'
 import {
@@ -15,6 +16,7 @@ import { Route, Routes } from 'react-router-dom'
 function App(): React.JSX.Element {
   return (
     <Routes>
+      <Route path="log-follow/:followId" element={<LogFollowWindowPage />} />
       <Route path="w/:workspaceId" element={<WorkspaceScope />}>
         <Route index element={<ScopedRedirect to="/dashboard" />} />
         <Route path="dashboard" element={<DashboardPage />} />

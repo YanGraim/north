@@ -1,6 +1,6 @@
 # Correções (bugs)
 
-- **Última atualização:** 2026-10-30
+- **Última atualização:** 2026-10-31
 
 Registro de defeitos, regressões e comportamentos inesperados em funcionalidades existentes, da abertura à correção. Procedimento: skill `ciclo-vida-recursos` (Fase 5). Commits de correção usam `fix(scope): ...` com o trailer `Refs: BUG-XXX`.
 
@@ -26,6 +26,8 @@ Registro de defeitos, regressões e comportamentos inesperados em funcionalidade
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | BUG-001 | IPsec no Windows avisa strongSwan/build.sh quando falta a distro WSL | VPN | Alta | Windows | ✅ Corrigido | 2026-10-30 | 2026-10-30 |
 | BUG-002 | Instalar o serviço de VPN no Windows exige a pasta openconnect | VPN | Alta | Windows | ✅ Corrigido | 2026-10-30 | 2026-10-30 |
+| BUG-003 | IPsec no Windows fica conectado sem alcançar as redes da VPN | VPN | Alta | Windows | ✅ Corrigido | 2026-10-31 | 2026-10-31 |
+| BUG-004 | Abrir o painel de log deixa a janela preta | REC-004 / REC-008 | Alta | Windows | ✅ Corrigido | 2026-10-31 | 2026-10-31 |
 
 ## Detalhamento
 
@@ -72,6 +74,50 @@ Registro de defeitos, regressões e comportamentos inesperados em funcionalidade
 **Solução:** `copyBundledEngines` ignora a pasta quando ela não veio no pacote. `prepareInstallDir` cria o diretório e, se o exe antigo estiver em uso, renomeia para `.old` em vez de apagar. O North também deixa de achar que o serviço está parado só porque `existsSync` não vê o named pipe.
 **Arquivos:** `resources/vpn/windows-service/main_windows.go`, `resources/vpn/windows-service/engines.go`
 **Corrigido em:** 2026-10-30
+
+### BUG-003 — IPsec no Windows conecta e não alcança as redes
+
+- **Área / Recurso:** VPN ([ADR 0017](adr/0017-vpn.md))
+- **Severidade:** Alta
+- **Plataforma:** Windows
+- **Status:** ✅ Corrigido
+- **Reportado em:** 2026-10-31
+
+**Passos para reproduzir:**
+
+1. Conectar uma VPN IPsec IKEv1 (FortiGate, túnel dividido) no Windows, com a distro `NorthVpn`.
+2. Abrir uma sessão SSH para um host de uma rede do split (a mesma VPN funciona no FortiClient).
+
+**Esperado:** o tráfego do Windows sai pelo túnel com o IP virtual e o host responde.
+**Atual:** o log mostra IKE, XAuth e `CHILD_SA` estabelecidos, o North marca conectado e instala as rotas via o IP do WSL, mas o handshake SSH estoura. Não aparece `[north] WSL: … NAT`. O strongSwan registra `failed to create XFRM interface` (`Unknown device type (95)`).
+
+**Causa raiz:** `kernel-netlink` e `kernel-libipsec` empatavam em prioridade e o netlink ficava com o IPsec. A SA ia para o XFRM do WSL, que não encaminha esse tráfego; o TUN `ipsec0` não era o caminho. O NAT dependia de rotas da tabela 220 com `src`, que o `ip` do busybox não lista, então o pacote do Windows mantinha o IP da LAN e não casava com o seletor `VIP/32`.
+
+**Solução:** no ramo `/etc/north-wsl` do helper, `kernel-libipsec` com prioridade 2, IP virtual em `ipsec0` e SNAT do que sai por `ipsec+` para o endereço dessa interface. O `kernel-netlink` permanece para endereço e rota. Complemento no mesmo dia, com a VPN ainda sem tráfego: as distros WSL compartilham o netfilter e o Docker deixa `FORWARD` em `DROP`, então o pacote do Windows morria antes do TUN; o helper passa a aceitar `ipsec+` no topo do `FORWARD`. O Hyper-V também manda o ESP na UDP 4500 com checksum vazio (o IKE, menor, passa); o helper preenche com `CHECKSUM --checksum-fill`. Manual in-app não muda (o capítulo de VPN já descreve a conexão). O what's new fica para o bump da próxima versão: a `0.1.46` já está publicada.
+**Arquivos:** `resources/vpn/north-vpn-helper`, `src/main/services/vpn/vpn-helper.test.ts`, `docs/adr/0017-vpn.md`
+**Corrigido em:** 2026-10-31
+
+### BUG-004 — Abrir o painel de log deixa a janela preta
+
+- **Área / Recurso:** REC-004 / REC-008
+- **Severidade:** Alta
+- **Plataforma:** Windows
+- **Status:** ✅ Corrigido
+- **Reportado em:** 2026-10-31
+
+**Passos para reproduzir:**
+
+1. Abrir um terminal SSH.
+2. Selecionar um caminho e usar **Monitorar log** (ou **Acompanhar** num arquivo gravado).
+
+**Esperado:** a faixa de log aparece embaixo e o restante da janela continua no lugar.
+**Atual:** a janela fica só com o fundo escuro e os botões de minimizar, maximizar e fechar.
+
+**Causa raiz:** com ligaturas ligadas, o quadro cria o xterm sem `allowProposedApi`. O addon de ligaduras chama `registerCharacterJoiner`, o xterm lança `You must set the allowProposedApi option to true`, e o overlay de erro do React cobre a janela inteira. O terminal da sessão já passava essa opção; o quadro de log não.
+
+**Solução:** o xterm do quadro usa `allowProposedApi: true`, como o terminal da sessão. O what's new fica para o bump da próxima versão.
+**Arquivos:** `src/renderer/src/features/log-follow/LogFollowView.tsx`, `src/renderer/src/features/log-follow/LogFollowDock.tsx`, `src/renderer/src/features/log-follow/LogFollowWindowPage.tsx`, `src/renderer/src/assets/index.css`
+**Corrigido em:** 2026-10-31
 
 <!--
 ### BUG-XXX — <Título>

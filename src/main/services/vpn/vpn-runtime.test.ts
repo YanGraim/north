@@ -3,9 +3,10 @@ import { resolve } from 'node:path'
 import { IpcChannels } from '@shared/ipc'
 import { parseVpnErrorMessage } from '@shared/lib/vpn/errors'
 import type { VpnState } from '@shared/types'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createTestRepositories } from '../../database/test-utils'
 import { CredentialVault, FakeEncryptor } from '../../vault'
+import { VpnError } from './vpn-error'
 import { createVpnHandlers, createVpnRuntime } from './vpn-runtime'
 
 const ovpn = readFileSync(
@@ -133,5 +134,55 @@ describe('VPN IPC handlers', () => {
     await handlers[IpcChannels.VPN_DELETE](profile.id)
     expect(handlers[IpcChannels.VPN_LIST]()).toEqual([])
     expect(runtime.manager.listStates().every((s) => s.status === 'disconnected')).toBe(true)
+  })
+
+  it('helper install and remove send a code only, and log the process line', async () => {
+    const { repos } = createTestRepositories()
+    const vault = new CredentialVault(repos.credentials, new FakeEncryptor())
+    const runtime = createVpnRuntime({
+      repos,
+      vault,
+      platform: 'win32',
+      emit: () => {},
+      fake: true
+    })
+    const raw =
+      'Command failed: Access is denied C:\\Program Files\\North VPN Service\\north-vpn-service.exe'
+    const handlers = createVpnHandlers(runtime, 'win32', {
+      status: () => 'missing',
+      install: async () => {
+        throw new Error(raw)
+      },
+      uninstall: async () => {
+        throw new VpnError(
+          'BINARY_MISSING',
+          'falta north-wsl.tar.gz scripts/vpn-binaries/build-wsl.sh'
+        )
+      }
+    })
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      try {
+        await handlers[IpcChannels.VPN_HELPER_INSTALL]()
+        expect.unreachable()
+      } catch (error) {
+        expect((error as Error).message).toBe('[VPN:DRIVER_CRASHED] ')
+        expect((error as Error).message).not.toContain('north-vpn-service')
+      }
+      const loggedInstall = spy.mock.calls[0]?.[1]
+      expect(loggedInstall).toBeInstanceOf(Error)
+      expect((loggedInstall as Error).message).toContain('north-vpn-service.exe')
+
+      try {
+        await handlers[IpcChannels.VPN_HELPER_UNINSTALL]()
+        expect.unreachable()
+      } catch (error) {
+        expect(parseVpnErrorMessage((error as Error).message)?.code).toBe('BINARY_MISSING')
+        expect((error as Error).message).not.toContain('build-wsl')
+      }
+      expect(String(spy.mock.calls[1]?.[1])).toContain('build-wsl.sh')
+    } finally {
+      spy.mockRestore()
+    }
   })
 })

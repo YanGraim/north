@@ -116,6 +116,18 @@ html.light {
     pointer-events: auto;
   }
 
+  /*
+   * xterm's helper and measure nodes sit at left: -9999em. Inside the log
+   * panel that offset becomes scrollable overflow, and focusing the textarea
+   * scrolls the app shell off-screen. The log view does not take keyboard input.
+   */
+  [data-testid='log-follow-dock'] .xterm .xterm-helper-textarea,
+  [data-testid='log-follow-window'] .xterm .xterm-helper-textarea,
+  [data-testid='log-follow-dock'] .xterm-char-measure-element,
+  [data-testid='log-follow-window'] .xterm-char-measure-element {
+    left: 0;
+  }
+
   [data-slot="dialog-content"] {
     pointer-events: auto;
     user-select: text;

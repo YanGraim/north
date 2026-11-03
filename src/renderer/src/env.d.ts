@@ -57,3 +57,17 @@ declare module '@novnc/novnc/core/rfb.js' {
     clipboardPasteFrom(text: string): void
   }
 }
+
+declare module '@xterm/addon-ligatures/lib/addon-ligatures.mjs' {
+  import type { ITerminalAddon, Terminal } from '@xterm/xterm'
+
+  export interface LigaturesAddonOptions {
+    fontFeatureSettings?: string
+  }
+
+  export class LigaturesAddon implements ITerminalAddon {
+    constructor(options?: LigaturesAddonOptions)
+    activate(terminal: Terminal): void
+    dispose(): void
+  }
+}

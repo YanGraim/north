@@ -18,6 +18,8 @@ In the **sidebar**, expand client → environment → group to see each connecti
 
 Think of connections as “how I reach the host” and accesses as “what I use to authenticate to services”.
 
+On client, environment, connection, access, and tag forms, you can type a hex color, open the system color picker, or reuse up to 10 custom colors saved on this computer.
+
 ## Workflows
 
 The **group** owns workflows and project variables. A run targets a connection; credentials never live in the workflow — only in the connection secrets bag.

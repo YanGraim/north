@@ -24,7 +24,7 @@ export function HostKeyDialog(): React.JSX.Element {
     })
     const unsubHost = window.north.sessions.onHostKeyPrompt((next) => {
       setPrompt(next)
-      setAwaitingHostKey(next.sessionId, true)
+      if (next.kind !== 'log-follow') setAwaitingHostKey(next.sessionId, true)
     })
     return () => {
       unsubState()
@@ -40,7 +40,7 @@ export function HostKeyDialog(): React.JSX.Element {
         requestId: prompt.requestId,
         accept
       })
-      setAwaitingHostKey(prompt.sessionId, false)
+      if (prompt.kind !== 'log-follow') setAwaitingHostKey(prompt.sessionId, false)
       setPrompt(null)
       document.body.style.removeProperty('pointer-events')
     } finally {

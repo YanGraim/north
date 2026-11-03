@@ -1,0 +1,10 @@
+/* @fontsource/hack is not published. Weight 400 only, from the hack-font package. No italic. */
+@font-face {
+  font-family: "Hack";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src:
+    url("../../../../node_modules/hack-font/build/web/fonts/hack-regular.woff2") format("woff2"),
+    url("../../../../node_modules/hack-font/build/web/fonts/hack-regular.woff") format("woff");
+}

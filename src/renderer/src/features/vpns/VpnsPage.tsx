@@ -165,15 +165,28 @@ export function VpnsPage(): React.JSX.Element {
   )
 }
 
-/** Passwordless connect: install/remove the root helper (macOS/Linux; hidden elsewhere). */
+/** Passwordless connect: install/remove the VPN component. Hidden when the platform has none. */
 function VpnHelperCard(): React.JSX.Element | null {
   const { t } = useTranslation()
   const { data: status } = useVpnHelperStatus()
   const action = useVpnHelperAction()
   if (!status || status === 'unsupported') return null
   const installed = status === 'installed'
+  const tone = installed ? 'connected' : status === 'outdated' ? 'connecting' : 'error'
+  const actionLabel = installed
+    ? t('vpn.helper.remove')
+    : status === 'outdated'
+      ? t('vpn.helper.update')
+      : t('vpn.helper.install')
   return (
     <div className="m-2 space-y-2 border-t border-border px-2 pt-3" data-testid="vpn-helper">
+      <p
+        className="flex items-center gap-1.5 text-xs font-medium text-foreground"
+        data-testid="vpn-helper-state"
+      >
+        <VpnDot tone={tone} />
+        {t(`vpn.helper.state.${status}`)}
+      </p>
       <p className="text-xs text-muted">
         {installed ? t('vpn.helper.installed') : t(`vpn.helper.${status}`)}
       </p>
@@ -184,7 +197,7 @@ function VpnHelperCard(): React.JSX.Element | null {
         onClick={() => action.mutate(installed ? 'uninstall' : 'install')}
         data-testid="vpn-helper-action"
       >
-        {installed ? t('vpn.helper.remove') : t('vpn.helper.install')}
+        {actionLabel}
       </Button>
     </div>
   )

@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(19)
+    expect(getUserVersion(db)).toBe(21)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -58,7 +58,21 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(19)
+    expect(getUserVersion(db)).toBe(21)
+  })
+
+  it('adds log_files to connections in 021', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+    const columns = db.prepare(`PRAGMA table_info(connections)`).all() as Array<{ name: string }>
+    expect(columns.map((column) => column.name)).toContain('log_files')
+  })
+
+  it('adds startup_directory to connections in 020', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+    const columns = db.prepare(`PRAGMA table_info(connections)`).all() as Array<{ name: string }>
+    expect(columns.map((column) => column.name)).toContain('startup_directory')
   })
 
   it('adds color column to environments from 005', () => {

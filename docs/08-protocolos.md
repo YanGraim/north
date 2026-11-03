@@ -17,7 +17,7 @@ A UI conhece **apenas** o tipo. O protocolo concreto fica no driver.
 
 | Protocolo | Main (driver / I/O)                         | Renderer (view / decode)      |
 | --------- | ------------------------------------------- | ----------------------------- |
-| SSH       | `ssh2` (shell/channel)                      | xterm (PTY bytes)             |
+| SSH       | `ssh2` (shell/channel). Com `startupDirectory`, o shell autenticado abre nessa pasta (`cd` citado após `stat` SFTP) e o SFTP da mesma conexão também; senão, fica no diretório de login | xterm (PTY bytes)             |
 | Telnet    | Negociação Telnet própria + socket TCP      | xterm                         |
 | Serial    | `serialport`                                | xterm                         |
 | SFTP      | Subsistema SFTP do `ssh2`                   | File browser                  |
@@ -27,6 +27,12 @@ A UI conhece **apenas** o tipo. O protocolo concreto fica no driver.
 | SQL       | `pg` / `mysql2` / `tedious` / `better-sqlite3` no main | Estúdio SQL (Access) |
 
 Regra: sockets, TLS, credenciais e arquivos locais ficam no **main**. O renderer só renderiza e envia input do usuário.
+
+No menu de contexto do terminal SSH, a seleção pode gravar o diretório inicial ou um arquivo de log da conexão ([REC-005](./recursos/rec-005-diretorio-log-selecao-terminal/especificacao.md)). Arquivo ou diretório sai de um `stat` SFTP no `Client` já autenticado (`sessions:classify-path`). O PTY só recebe o `cd` citado depois que o diretório é gravado. **Monitorar log** ([REC-008](./recursos/rec-008-monitorar-log-selecao/especificacao.md)) abre o mesmo `tail -F` pelo path selecionado, sem gravar `log_files` e sem entrar no teto de 8 quadros gravados.
+
+No painel remoto de arquivos de uma conexão SSH, a pasta listada grava o mesmo diretório inicial, com confirmação se já houver outro ([REC-009](./recursos/rec-009-diretorio-e-monitoramento-sftp/especificacao.md)). Um arquivo do menu entra na lista de logs e abre o quadro, ou só abre o quadro pelo path, sem gravar `log_files` e sem entrar no teto de 8. FTP e o painel local não têm essas ações. O terminal já aberto não recebe `cd`.
+
+No terminal SSH de uma conexão salva, a badge **Arquivos** abre um painel à direita do xterm com a pasta do shell ([REC-010](./recursos/rec-010-arquivos-do-diretorio-atual/especificacao.md), [ADR 0020](./adr/0020-listagem-cwd-terminal-ssh.md)). A pasta chega por OSC 7 do prompt desta sessão, em bash e zsh. O gancho é um trecho fixo do main, não é gravado no servidor e não entra em fish, dash nem ash. A listagem é `sessions:list-directory`: SFTP curto no mesmo `Client`, sem `fs:list` e sem `ls` no PTY. O painel não escreve no terminal. Sem OSC 7, não lista o diretório de login.
 
 ## Interfaces (contratos em `shared/protocols`)
 
@@ -86,6 +92,7 @@ Eventos de sessão (plano de controle) — canais definitivos:
 - `sessions:state-changed` / `sessions:host-key-prompt` / `sessions:respond-host-key`
 - Entrega do port: `sessions:port` via `postMessage` (transfer)
 - File-transfer: `fs:list|mkdir|rename|delete|download|upload` + evento `fs:progress` ([ADR 0008](./adr/0008-file-transfer-ipc.md))
+- `sessions:list-directory` — pasta corrente do terminal SSH no `Client` já autenticado ([ADR 0020](./adr/0020-listagem-cwd-terminal-ssh.md))
 - SQL studio: `db:test|introspect|query|cancel|pick-file`
 - Serial: `serial:list-ports`
 

@@ -34,6 +34,17 @@ export function mergeVpnState(states: VpnState[], next: VpnState): VpnState[] {
 
 export type VpnErrorAction = 'update-secret' | 'retry' | 'trust-cert' | null
 
+/** Codes whose `error.message` is written for the person. Component failures stay out. */
+const VPN_ERROR_DETAIL_CODES = new Set<VpnErrorCode>([
+  'CONNECTION_REJECTED',
+  'CERT_UNTRUSTED',
+  'GATEWAY_UNREACHABLE'
+])
+
+export function vpnErrorShowsDetail(code: VpnErrorCode): boolean {
+  return VPN_ERROR_DETAIL_CODES.has(code)
+}
+
 export function vpnErrorAction(code: VpnErrorCode): VpnErrorAction {
   switch (code) {
     case 'AUTH_FAILED':

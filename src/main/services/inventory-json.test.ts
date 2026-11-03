@@ -64,6 +64,14 @@ function seed(repos: Repositories) {
     port: 22,
     username: 'ubuntu',
     authMethod: 'password',
+    startupDirectory: '~/app',
+    logFiles: [
+      {
+        id: '11111111-1111-4111-8111-111111111111',
+        path: '/var/log/app.log',
+        label: 'api'
+      }
+    ],
     vpnMode: 'profile',
     vpnProfileId: forti.id
   })
@@ -129,6 +137,16 @@ describe('inventory JSON export/import (schemaVersion 3)', () => {
     // linked to the OpenVPN that isn't in the file: nothing to point at
     expect(data.clients[0].environments[0].vpnName).toBeNull()
     expect(group.connections.find((c) => c.name === 'db-01')).toMatchObject({ vpnMode: 'inherit' })
+    expect(group.connections.find((c) => c.name === 'web-01')).toMatchObject({
+      startupDirectory: '~/app',
+      logFiles: [
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          path: '/var/log/app.log',
+          label: 'api'
+        }
+      ]
+    })
   })
 
   it('imports everything into another North, pointing at the imported VPNs', () => {
@@ -163,6 +181,14 @@ describe('inventory JSON export/import (schemaVersion 3)', () => {
     const web = connections.find((c) => c.name === 'web-01')
     expect(web).toMatchObject({
       username: 'ubuntu',
+      startupDirectory: '~/app',
+      logFiles: [
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          path: '/var/log/app.log',
+          label: 'api'
+        }
+      ],
       vpnMode: 'profile',
       vpnProfileId: vpns.find((v) => v.name === 'Santinvest')?.id
     })

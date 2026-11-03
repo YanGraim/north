@@ -1,3 +1,5 @@
+import type { ListDirectoryResult } from '../lib/list-directory'
+import type { PathStatResult } from '../lib/selection-path'
 import type { AuthMethod, Connection } from '../types'
 import type { ApiSendInput, ApiSendResult } from './api'
 import type { DatabaseIntrospection, DatabaseQueryResult, DatabaseTxState } from './database'
@@ -50,6 +52,22 @@ export type ApiCapability = {
 }
 
 /**
+ * Classify a path on the SSH client that already owns the terminal.
+ * Only the SSH session implements this. Other protocols leave it unset.
+ */
+export type PathStatCapability = {
+  classifyPath(path: string): Promise<PathStatResult>
+}
+
+/**
+ * List one directory on the SSH client that already owns the terminal.
+ * Only that SSH session implements this. The result never includes an ssh2 message.
+ */
+export type DirectoryListCapability = {
+  list(path: string): Promise<ListDirectoryResult>
+}
+
+/**
  * Minimal port surface shared by Electron MessagePortMain (main) and MessagePort (renderer).
  * Main attaches MessagePortMain; messages use structured clone.
  */
@@ -69,6 +87,10 @@ export type ProtocolSession = {
   /** OS pid of the underlying local process (shell/pty) — set only by local-shell sessions. */
   readonly pid?: number
   readonly terminal?: TerminalCapability
+  /** Present only on an SSH terminal session. */
+  readonly pathStat?: PathStatCapability
+  /** Present only on an SSH terminal session. Lists via a short-lived SFTP channel. */
+  readonly listDirectory?: DirectoryListCapability
   readonly fileTransfer?: FileTransferCapability
   readonly database?: DatabaseCapability
   readonly api?: ApiCapability

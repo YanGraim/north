@@ -1,5 +1,5 @@
 import { IpcChannels } from '@shared/ipc'
-import { formatVpnErrorMessage } from '@shared/lib/vpn/errors'
+import { classifyComponentFailure, formatVpnErrorMessage } from '@shared/lib/vpn/errors'
 import {
   CreateVpnProfileInputSchema,
   IdSchema,
@@ -156,6 +156,12 @@ function rethrow(error: unknown): never {
   throw error
 }
 
+/** Log the elevated-process line, then send only a classified code across IPC. */
+function failHelper(action: 'install' | 'uninstall', error: unknown): never {
+  console.error(`[vpn] helper ${action} failed`, error)
+  rethrow(new VpnError(classifyComponentFailure(error), ''))
+}
+
 /**
  * Channel → handler map. Every payload is parsed as untrusted input; no result
  * carries a secret (covered by vpn-runtime.test.ts).
@@ -247,7 +253,7 @@ export function createVpnHandlers(
       try {
         await helper?.install()
       } catch (error) {
-        rethrow(error)
+        failHelper('install', error)
       }
       return helperStatus()
     },
@@ -255,7 +261,7 @@ export function createVpnHandlers(
       try {
         await helper?.uninstall()
       } catch (error) {
-        rethrow(error)
+        failHelper('uninstall', error)
       }
       return helperStatus()
     }

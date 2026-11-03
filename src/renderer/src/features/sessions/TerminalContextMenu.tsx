@@ -12,7 +12,8 @@ import {
   terminalPasteShortcutLabel,
   terminalSelectAllShortcutLabel
 } from '@renderer/lib/terminal/clipboard'
-import { KeyRound } from 'lucide-react'
+import { FilePlus, FolderInput, KeyRound, ScrollText } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 type TerminalContextMenuProps = {
   children: React.ReactNode
@@ -26,6 +27,12 @@ type TerminalContextMenuProps = {
   onClearSelection: () => void
   /** Only offered when the session belongs to a connection with a stored sudo/login password. */
   onPasteSecret?: () => void
+  /** SSH connection only. The view decides; the menu only fires. */
+  sshActions?: {
+    onSetStartupDirectory: () => void
+    onAddLogFile: () => void
+    onFollowLog: () => void
+  }
 }
 
 export function TerminalContextMenu({
@@ -38,8 +45,10 @@ export function TerminalContextMenu({
   onSelectAll,
   onCopyLink,
   onClearSelection,
-  onPasteSecret
+  onPasteSecret,
+  sshActions
 }: TerminalContextMenuProps): React.JSX.Element {
+  const { t } = useTranslation()
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
@@ -61,6 +70,23 @@ export function TerminalContextMenu({
             <KeyRound className="size-3.5" aria-hidden />
             Colar senha salva
           </ContextMenuItem>
+        ) : null}
+        {sshActions ? (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem disabled={!hasSelection} onSelect={sshActions.onSetStartupDirectory}>
+              <FolderInput className="size-3.5" aria-hidden />
+              {t('connection.terminalSelection.setDirectory')}
+            </ContextMenuItem>
+            <ContextMenuItem disabled={!hasSelection} onSelect={sshActions.onAddLogFile}>
+              <FilePlus className="size-3.5" aria-hidden />
+              {t('connection.terminalSelection.addLog')}
+            </ContextMenuItem>
+            <ContextMenuItem disabled={!hasSelection} onSelect={sshActions.onFollowLog}>
+              <ScrollText className="size-3.5" aria-hidden />
+              {t('connection.terminalSelection.followLog')}
+            </ContextMenuItem>
+          </>
         ) : null}
         <ContextMenuItem onSelect={onSelectAll}>
           Selecionar tudo

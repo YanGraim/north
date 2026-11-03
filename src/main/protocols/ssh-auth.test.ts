@@ -26,6 +26,8 @@ function baseConnection(overrides: Partial<Connection> = {}): Connection {
     agentForward: false,
     jumpHostId: null,
     defaultCommand: null,
+    startupDirectory: null,
+    logFiles: [],
     notes: null,
     os: null,
     icon: null,

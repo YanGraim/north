@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { coerceStoredLogFiles } from '@shared/lib/log-file'
 import type {
   Client,
   Connection,
@@ -235,6 +236,8 @@ const CONNECTION_COLUMNS: Record<string, string> = {
   agentForward: 'agent_forward',
   jumpHostId: 'jump_host_id',
   defaultCommand: 'default_command',
+  startupDirectory: 'startup_directory',
+  logFiles: 'log_files',
   notes: 'notes',
   os: 'os',
   icon: 'icon',
@@ -246,7 +249,7 @@ const CONNECTION_COLUMNS: Record<string, string> = {
   checklist: 'checklist',
   relatedFiles: 'related_files'
 }
-const JSON_COLUMNS = new Set(['links', 'checklist', 'relatedFiles'])
+const JSON_COLUMNS = new Set(['links', 'checklist', 'relatedFiles', 'logFiles'])
 
 const mapConnection = (r: Row): Connection => ({
   id: r.id as string,
@@ -263,6 +266,8 @@ const mapConnection = (r: Row): Connection => ({
   agentForward: Boolean(r.agent_forward),
   jumpHostId: (r.jump_host_id as string | null) ?? null,
   defaultCommand: (r.default_command as string | null) ?? null,
+  startupDirectory: (r.startup_directory as string | null) ?? null,
+  logFiles: coerceStoredLogFiles(r.log_files),
   notes: (r.notes as string | null) ?? null,
   os: (r.os as string | null) ?? null,
   icon: (r.icon as string | null) ?? null,
@@ -341,7 +346,9 @@ export async function createConnection(
     relatedFiles: [],
     vpnRequired: false,
     vpnMode: 'inherit',
-    ...input
+    ...input,
+    startupDirectory: input.protocol === 'ssh' ? (input.startupDirectory ?? null) : null,
+    logFiles: input.protocol === 'ssh' ? (input.logFiles ?? []) : []
   }
   const keys = Object.keys(CONNECTION_COLUMNS).filter((k) => values[k] !== undefined)
   const columns = ['id', 'group_id', ...keys.map((k) => CONNECTION_COLUMNS[k])]
@@ -367,7 +374,11 @@ export async function updateConnection(
 ): Promise<Connection | null> {
   if (input.groupId && !(await getGroup(db, input.groupId))) throw notFound('Group')
   await assertAttachable(db, userId, input.credentialRef, id)
-  const set = setClause(input, { ...CONNECTION_COLUMNS, groupId: 'group_id' }, JSON_COLUMNS)
+  const patch: UpdateConnectionInput =
+    input.protocol && input.protocol !== 'ssh'
+      ? { ...input, startupDirectory: null, logFiles: [] }
+      : input
+  const set = setClause(patch, { ...CONNECTION_COLUMNS, groupId: 'group_id' }, JSON_COLUMNS)
   const { rows } = await db.query(`UPDATE connections SET ${set.sql} WHERE id = $1 RETURNING id`, [
     id,
     ...set.params

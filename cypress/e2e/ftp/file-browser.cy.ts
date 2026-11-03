@@ -6,6 +6,7 @@ describe('ftp file-browser', () => {
     cy.visit('/?scenario=ftp')
     cy.get('[data-testid="connect-button"]').click()
     cy.get('[data-testid="file-browser"]').should('be.visible')
+    cy.get('[data-testid="terminal-cwd-toggle"]').should('not.exist')
   })
 
   it('shows the local disk next to the server', () => {
@@ -58,6 +59,22 @@ describe('ftp file-browser', () => {
       .contains('button', 'Pular existentes')
       .click()
     cy.get('[data-testid="transfer-conflict-dialog"]').should('not.exist')
+  })
+
+  it('does not offer SSH directory or log actions on the FTP panes', () => {
+    cy.get('[data-testid="file-pane-remote"] [aria-label="Definir diretório padrão"]').should(
+      'not.exist'
+    )
+    cy.get('[data-testid="file-pane-local"] [aria-label="Definir diretório padrão"]').should(
+      'not.exist'
+    )
+
+    cy.get(remote).find('[data-testid="file-browser-entry-hello.txt"]').rightclick()
+    cy.get('[data-slot="context-menu-content"]')
+      .should('be.visible')
+      .and('contain', 'Abrir')
+      .and('not.contain', 'Adicionar ao monitoramento')
+      .and('not.contain', 'Monitorar em tempo real')
   })
 
   it('shows empty state when a folder has no entries', () => {

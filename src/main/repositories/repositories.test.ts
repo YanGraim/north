@@ -80,6 +80,54 @@ describe('repositories', () => {
     expect(repos.connections.list()).toHaveLength(2)
   })
 
+  it('stores an SSH startup directory and clears it when the protocol changes', () => {
+    const { repos } = createTestRepositories()
+    const client = repos.clients.create({ name: 'C' })
+    const env = repos.environments.create({ clientId: client.id, name: 'E' })
+    const group = repos.groups.create({ environmentId: env.id, name: 'G' })
+    const conn = repos.connections.create({
+      groupId: group.id,
+      name: 'web',
+      protocol: 'ssh',
+      host: 'h',
+      port: 22,
+      authMethod: 'password',
+      startupDirectory: '~/app'
+    })
+
+    expect(repos.connections.get(conn.id)?.startupDirectory).toBe('~/app')
+
+    const copy = repos.connections.duplicate(conn.id)
+    expect(copy?.startupDirectory).toBe('~/app')
+
+    const moved = repos.connections.update(conn.id, { protocol: 'rdp' })
+    expect(moved?.startupDirectory).toBeNull()
+    expect(moved?.logFiles).toEqual([])
+  })
+
+  it('stores SSH log files and clears them when the protocol changes', () => {
+    const { repos } = createTestRepositories()
+    const client = repos.clients.create({ name: 'C' })
+    const env = repos.environments.create({ clientId: client.id, name: 'E' })
+    const group = repos.groups.create({ environmentId: env.id, name: 'G' })
+    const fileId = '11111111-1111-4111-8111-111111111111'
+    const conn = repos.connections.create({
+      groupId: group.id,
+      name: 'web',
+      protocol: 'ssh',
+      host: 'h',
+      port: 22,
+      authMethod: 'password',
+      logFiles: [{ id: fileId, path: '/var/log/app.log', label: 'api' }]
+    })
+
+    expect(repos.connections.get(conn.id)?.logFiles).toEqual([
+      { id: fileId, path: '/var/log/app.log', label: 'api' }
+    ])
+    expect(repos.connections.duplicate(conn.id)?.logFiles).toEqual(conn.logFiles)
+    expect(repos.connections.update(conn.id, { protocol: 'rdp' })?.logFiles).toEqual([])
+  })
+
   it('records history and updates access stats in a transaction', () => {
     const { repos } = createTestRepositories()
     const client = repos.clients.create({ name: 'C' })

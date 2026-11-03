@@ -11,6 +11,8 @@ type SessionIdentityBarProps = {
   environmentName?: string | null
   environmentColor?: string | null
   className?: string
+  /** Sits immediately after the environment badge, before the right-hand group. */
+  afterEnvironment?: React.ReactNode
   children?: React.ReactNode
 }
 
@@ -21,6 +23,7 @@ export function SessionIdentityBar({
   environmentName,
   environmentColor,
   className,
+  afterEnvironment,
   children
 }: SessionIdentityBarProps): React.JSX.Element {
   const identity =
@@ -63,6 +66,7 @@ export function SessionIdentityBar({
           className="shrink-0"
         />
       ) : null}
+      {afterEnvironment}
       {children ? <div className="ml-auto flex shrink-0 items-center gap-1">{children}</div> : null}
     </div>
   )

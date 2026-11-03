@@ -191,6 +191,22 @@ export {
   REQUIRED_CSV_HEADERS
 } from './inventory-csv'
 export {
+  type LogFollowChunk,
+  type LogFollowErrorCode,
+  LogFollowErrorCodeSchema,
+  type LogFollowPortMessage,
+  LogFollowPortMessageSchema,
+  type LogFollowReplay,
+  type LogFollowSnapshot,
+  LogFollowSnapshotSchema,
+  type LogFollowStartInput,
+  LogFollowStartInputSchema,
+  type LogFollowStartResult,
+  LogFollowStartResultSchema,
+  type LogFollowState,
+  LogFollowStateSchema
+} from './log-follow'
+export {
   type SearchIndexItem,
   SearchIndexItemSchema,
   type SearchIndexKind,

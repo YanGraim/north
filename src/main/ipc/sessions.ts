@@ -1,4 +1,6 @@
 import { IpcChannels } from '@shared/ipc'
+import { ListDirectoryArgsSchema } from '@shared/lib/list-directory'
+import { ClassifyPathArgsSchema } from '@shared/lib/selection-path'
 import { coerceBytes, type HostKeyResponse, type SessionPortMessage } from '@shared/protocols'
 import { BrowserWindow, ipcMain } from 'electron'
 import { FtpDriver } from '../protocols/ftp-driver'
@@ -118,6 +120,29 @@ export function registerSessionHandlers(repositories: Repositories, vault: Crede
 
   ipcMain.handle(IpcChannels.SESSIONS_CLAUDE_USAGE, (_event, sessionId: string) => {
     return protocolManager?.getClaudeUsage(sessionId) ?? null
+  })
+
+  ipcMain.handle(IpcChannels.SESSIONS_LIST_DIRECTORY, async (_event, input: unknown) => {
+    const invalid = { ok: false as const, reason: 'invalid' as const }
+    const unavailable = { ok: false as const, reason: 'unavailable' as const }
+    const parsed = ListDirectoryArgsSchema.safeParse(input)
+    if (!parsed.success || !protocolManager) return invalid
+    try {
+      return await protocolManager.listDirectory(parsed.data.sessionId, parsed.data.path)
+    } catch {
+      return unavailable
+    }
+  })
+
+  ipcMain.handle(IpcChannels.SESSIONS_CLASSIFY_PATH, async (_event, input: unknown) => {
+    const unavailable = { kind: 'unavailable' as const, path: '', absolute: null }
+    const parsed = ClassifyPathArgsSchema.safeParse(input)
+    if (!parsed.success || !protocolManager) return unavailable
+    try {
+      return await protocolManager.classifyPath(parsed.data.sessionId, parsed.data.path)
+    } catch {
+      return unavailable
+    }
   })
 
   ipcMain.on(IpcChannels.SESSIONS_STDIN, (_event, sessionId: string, data: unknown) => {

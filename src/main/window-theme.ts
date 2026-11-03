@@ -9,13 +9,28 @@ import { BrowserWindow, nativeTheme, powerMonitor } from 'electron'
 let currentPreference: ThemePreference = 'dark'
 let listening = false
 let boundaryTimer: ReturnType<typeof setTimeout> | null = null
+const overlayWindowIds = new Set<number>()
+
+/** Windows created with `titleBarOverlay`. Others throw if painted with it. */
+export function markTitleBarOverlay(window: BrowserWindow): void {
+  overlayWindowIds.add(window.id)
+  window.on('closed', () => overlayWindowIds.delete(window.id))
+}
+
+/** Frameless windows on Windows lose their surface when another window opens. */
+export function wakeNativeWindows(): void {
+  paintWindows(currentPreference)
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.invalidate()
+  }
+}
 
 function paintWindows(preference: ThemePreference): void {
   const chrome = nativeChromeFor(preference, nativeTheme.shouldUseDarkColors)
   for (const win of BrowserWindow.getAllWindows()) {
     if (win.isDestroyed()) continue
     win.setBackgroundColor(chrome.background)
-    if (process.platform !== 'darwin') {
+    if (process.platform !== 'darwin' && overlayWindowIds.has(win.id)) {
       win.setTitleBarOverlay({
         color: chrome.overlayColor,
         symbolColor: chrome.overlaySymbol,

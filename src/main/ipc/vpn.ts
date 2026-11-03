@@ -464,5 +464,11 @@ async function offerHelperInstall(
     await helper.ensure()
   } catch (error) {
     console.error('[vpn] helper install failed', error)
+    await dialog.showMessageBox({
+      type: 'error',
+      buttons: ['OK'],
+      message: 'Não foi possível instalar o componente de VPN',
+      detail: 'Dá para tentar de novo na página de VPNs.'
+    })
   }
 }

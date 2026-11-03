@@ -200,6 +200,8 @@ describe('ProtocolManager', () => {
       agentForward: false,
       jumpHostId: null,
       defaultCommand: null,
+      startupDirectory: null,
+      logFiles: [],
       notes: null,
       os: null,
       icon: null,

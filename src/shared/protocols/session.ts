@@ -89,7 +89,9 @@ export const HostKeyPromptSchema = z.object({
   keyType: z.string().min(1),
   fingerprint: z.string().min(1),
   previousFingerprint: z.string().nullable(),
-  isMismatch: z.boolean()
+  isMismatch: z.boolean(),
+  /** Log follows reuse this prompt without a session tab. */
+  kind: z.enum(['session', 'log-follow']).optional()
 })
 export type HostKeyPrompt = z.infer<typeof HostKeyPromptSchema>
 

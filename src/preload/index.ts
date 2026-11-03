@@ -17,6 +17,9 @@ import type {
 import type {
   AppIdentity,
   ConnectionHealthStatus,
+  LogFollowChunk,
+  LogFollowSnapshot,
+  LogFollowStartInput,
   UpdateStatus,
   VpnState,
   WorkspaceEvent
@@ -206,6 +209,8 @@ const api: NorthApi = {
     respondHostKey: (response: HostKeyResponse) =>
       ipcRenderer.invoke(IpcChannels.SESSIONS_RESPOND_HOST_KEY, response),
     getClaudeUsage: (sessionId) => ipcRenderer.invoke(IpcChannels.SESSIONS_CLAUDE_USAGE, sessionId),
+    classifyPath: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_CLASSIFY_PATH, input),
+    listDirectory: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_LIST_DIRECTORY, input),
     write: (sessionId, data) => {
       ipcRenderer.send(IpcChannels.SESSIONS_STDIN, sessionId, data)
     },
@@ -238,6 +243,37 @@ const api: NorthApi = {
       }
       ipcRenderer.on(IpcChannels.SESSIONS_HOST_KEY_PROMPT, handler)
       return () => ipcRenderer.removeListener(IpcChannels.SESSIONS_HOST_KEY_PROMPT, handler)
+    }
+  },
+
+  logFollows: {
+    list: () => ipcRenderer.invoke(IpcChannels.LOG_FOLLOWS_LIST),
+    start: (input: LogFollowStartInput) => ipcRenderer.invoke(IpcChannels.LOG_FOLLOWS_START, input),
+    replay: (followId: string) => ipcRenderer.invoke(IpcChannels.LOG_FOLLOWS_REPLAY, followId),
+    stop: (followId: string) => ipcRenderer.invoke(IpcChannels.LOG_FOLLOWS_STOP, followId),
+    retry: (followId: string) => ipcRenderer.invoke(IpcChannels.LOG_FOLLOWS_RETRY, followId),
+    popOut: (followId: string) => ipcRenderer.invoke(IpcChannels.LOG_FOLLOWS_POP_OUT, followId),
+    dock: (followId: string) => ipcRenderer.invoke(IpcChannels.LOG_FOLLOWS_DOCK, followId),
+    onChanged: (listener: (follows: LogFollowSnapshot[]) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, follows: LogFollowSnapshot[]): void => {
+        listener(follows)
+      }
+      ipcRenderer.on(IpcChannels.LOG_FOLLOWS_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.LOG_FOLLOWS_CHANGED, handler)
+    },
+    onData: (listener: (chunk: LogFollowChunk) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, chunk: LogFollowChunk): void => {
+        listener(chunk)
+      }
+      ipcRenderer.on(IpcChannels.LOG_FOLLOWS_DATA, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.LOG_FOLLOWS_DATA, handler)
+    },
+    onReset: (listener: (followId: string) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, followId: string): void => {
+        listener(followId)
+      }
+      ipcRenderer.on(IpcChannels.LOG_FOLLOWS_RESET, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.LOG_FOLLOWS_RESET, handler)
     }
   },
 

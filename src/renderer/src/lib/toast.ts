@@ -9,6 +9,10 @@ export function toastError(error: unknown, fallback = 'Algo deu errado'): void {
   toast.error(formatIpcError(error, fallback))
 }
 
+export function toastWarning(message: string): void {
+  toast.warning(message)
+}
+
 export function toastCopied(label: string): void {
   toast.success(`${label} copiado`)
 }

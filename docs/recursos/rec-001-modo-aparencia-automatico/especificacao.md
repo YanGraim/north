@@ -1,6 +1,6 @@
 # REC-001 — Modo de aparência Automático
 
-- **Status:** 🧪 Em testes
+- **Status:** ✅ Concluído
 - **Ideia de origem:** IDEIA-001
 - **Criado em:** 2026-10-30
 - **Última atualização:** 2026-10-30
@@ -49,13 +49,13 @@ Quem usa o North o dia todo passa a ter claro no expediente e escuro de noite, s
 
 ## Critérios de aceite
 
-- [ ] O select mostra Automático e a escolha persiste depois de reabrir o app.
-- [ ] Antes das 08:00 e a partir das 17:00 o tema resolvido é escuro; das 08:00 inclusive até 17:00 exclusive, claro.
-- [ ] Com o app aberto na virada, `<html>`, chrome nativo e terminal mudam sem reiniciar.
-- [ ] Depois de suspender além de uma virada, o tema ao voltar bate com o relógio.
-- [ ] Escuro, Claro e Sistema seguem iguais para quem não escolheu Automático.
-- [ ] Vitest cobre os limites 07:59, 08:00, 16:59 e 17:00 e o cálculo da próxima virada.
-- [ ] Rótulos em pt-BR, en e es.
+- [x] O select mostra Automático e a escolha persiste depois de reabrir o app.
+- [x] Antes das 08:00 e a partir das 17:00 o tema resolvido é escuro; das 08:00 inclusive até 17:00 exclusive, claro.
+- [x] Com o app aberto na virada, `<html>`, chrome nativo e terminal mudam sem reiniciar.
+- [x] Depois de suspender além de uma virada, o tema ao voltar bate com o relógio.
+- [x] Escuro, Claro e Sistema seguem iguais para quem não escolheu Automático.
+- [x] Vitest cobre os limites 07:59, 08:00, 16:59 e 17:00 e o cálculo da próxima virada.
+- [x] Rótulos em pt-BR, en e es.
 
 ## Fora de escopo
 
@@ -70,3 +70,13 @@ Quem usa o North o dia todo passa a ter claro no expediente e escuro de noite, s
 - Manual: extensão do capítulo `getting-started` nos 3 locales (feito).
 - What's new: entra no bump da próxima versão. A tag `v0.1.46` já existe; o filtro do diálogo só mostra notas até a versão do app, então não dá para anexar esta entrega ao patch já publicado.
 - Engenharia: `docs/05-design-system.md` e a linha de tema em `docs/07-roadmap.md` atualizados. ADR 0012 permanece como está.
+
+## Resultado final
+
+Entregue em 2026-10-30. Homologação encerrada pelo usuário no mesmo dia, sem ajuste de código.
+
+Configurações → Aparência ganhou o modo **Automático**. A preferência `automatic` fica na store `north-ui`. Entre 08:00 inclusive e 17:00 exclusive no relógio local a interface resolve para claro; fora dessa janela, para escuro. Com o app aberto, a virada reaplica a classe do `<html>`, o chrome nativo e o terminal. `nativeTheme.themeSource` recebe só `light` ou `dark`. Escuro, Claro e Sistema seguem como antes.
+
+O manual do capítulo `getting-started` já está nos 3 idiomas. O what's new espera o bump da próxima versão: a tag `v0.1.46` já existe e o diálogo só mostra notas até a versão do app.
+
+Arquivos principais: `src/shared/lib/theme.ts`, `src/main/window-theme.ts`, `src/renderer/src/hooks/use-theme-effect.ts`, `src/renderer/src/features/settings/SettingsPage.tsx`.

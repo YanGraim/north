@@ -77,6 +77,8 @@ export type {
   ConnectOptions,
   DatabaseCapability,
   DatabaseQueryOptions,
+  DirectoryListCapability,
+  PathStatCapability,
   ProtocolDriver,
   ProtocolSession,
   SecretResolver,
