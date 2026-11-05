@@ -8,12 +8,20 @@ describe('namedPipeAlive', () => {
 
   it('is down only when the pipe is not there', () => {
     const missing = Object.assign(new Error('missing'), { code: 'ENOENT' })
-    expect(namedPipeAlive('\\\\.\\pipe\\north-vpn', () => { throw missing })).toBe(false)
+    expect(
+      namedPipeAlive('\\\\.\\pipe\\north-vpn', () => {
+        throw missing
+      })
+    ).toBe(false)
   })
 
   it('treats a busy pipe as up', () => {
     const busy = Object.assign(new Error('busy'), { code: 'EBUSY' })
-    expect(namedPipeAlive('\\\\.\\pipe\\north-vpn', () => { throw busy })).toBe(true)
+    expect(
+      namedPipeAlive('\\\\.\\pipe\\north-vpn', () => {
+        throw busy
+      })
+    ).toBe(true)
   })
 })
 

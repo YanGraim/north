@@ -793,7 +793,9 @@ export function ConnectionFormDialog(): React.JSX.Element | null {
                             {t('connection.form.logFilesAdd')}
                           </Button>
                         </div>
-                        <p className="text-[11px] text-muted">{t('connection.form.logFilesHint')}</p>
+                        <p className="text-[11px] text-muted">
+                          {t('connection.form.logFilesHint')}
+                        </p>
                         {logFileFields.fields.map((row, index) => (
                           <div key={row.fieldKey} className="grid grid-cols-[1fr_9rem_auto] gap-2">
                             <FormField

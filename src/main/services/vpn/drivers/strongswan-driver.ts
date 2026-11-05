@@ -65,10 +65,7 @@ export class StrongswanDriver implements VpnDriver {
     }
     const config = profile.config
     if (!this.deps.binary()) {
-      throw new VpnError(
-        'BINARY_MISSING',
-        this.deps.missingMessage ?? HOST_CHARON_MISSING
-      )
+      throw new VpnError('BINARY_MISSING', this.deps.missingMessage ?? HOST_CHARON_MISSING)
     }
     const psk = secrets.get('psk')
     if (!psk) throw new VpnError('SECRET_MISSING', 'Chave pré-compartilhada não salva')
