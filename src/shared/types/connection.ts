@@ -161,3 +161,9 @@ export const ListConnectionsFilterSchema = z.object({
 })
 
 export type ListConnectionsFilter = z.infer<typeof ListConnectionsFilterSchema>
+
+/** Result of saving a remote directory favorite. `path` is the normalized absolute. */
+export type DirectoryFavoriteAddResult =
+  | { status: 'added'; path: string }
+  | { status: 'duplicate'; path: string }
+  | { status: 'invalid' }

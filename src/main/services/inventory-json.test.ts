@@ -260,4 +260,30 @@ describe('inventory JSON export/import (schemaVersion 3)', () => {
     expect(report.errors).toEqual([])
     expect(report.created.connections).toBe(1)
   })
+
+  it('leaves directory favorites out of the export and does not change the startup directory', () => {
+    const { repos } = createTestRepositories()
+    const client = repos.clients.create({ name: 'Acme' })
+    const env = repos.environments.create({ clientId: client.id, name: 'Prod' })
+    const group = repos.groups.create({ environmentId: env.id, name: 'App' })
+    const connection = repos.connections.create({
+      groupId: group.id,
+      name: 'web',
+      protocol: 'ssh',
+      host: '10.0.0.1',
+      port: 22,
+      authMethod: 'none',
+      startupDirectory: '/var/www'
+    })
+    expect(repos.directoryFavorites.add(connection.id, '/etc/apache2/sites-enabled')).toEqual({
+      status: 'added',
+      path: '/etc/apache2/sites-enabled'
+    })
+
+    const { text, data } = roundTrip(repos)
+    expect(text).not.toContain('/etc/apache2/sites-enabled')
+    expect(data.clients[0].environments[0].groups[0].connections[0].startupDirectory).toBe(
+      '/var/www'
+    )
+  })
 })

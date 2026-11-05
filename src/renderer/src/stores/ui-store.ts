@@ -6,6 +6,7 @@ import {
 } from '@shared/lib/theme'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { type AppFontFamily, DEFAULT_APP_FONT_FAMILY, sanitizeAppFontFamily } from '../lib/app-font'
 import {
   rememberFavoriteColor as rememberFavorite,
   sanitizeFavoriteColors,
@@ -18,6 +19,7 @@ import {
   sanitizeMonoLigatures
 } from '../lib/mono-font'
 
+export type { AppFontFamily } from '../lib/app-font'
 export type { MonoFontFamily } from '../lib/mono-font'
 export type { ResolvedTheme, ThemePreference }
 
@@ -47,11 +49,15 @@ interface UiState {
   /** One-time seed from `app:get-identity` on first launch. */
   profileSeeded: boolean
   terminalCopyOnSelect: boolean
-  /** Monospace font size (px) applied app-wide: terminal, code editors (SQL/API Studio), hosts/ports/shortcuts. */
+  /** Right button copies or pastes; the middle button opens the menu. Off keeps the middle button. */
+  terminalRightButtonCopies: boolean
+  /** Scales the root and sets the terminal font size (px). */
   monoFontSize: number
-  /** Monospace font family applied app-wide. */
+  /** Family for the window, menus, forms, and tables. Default Inter. */
+  appFontFamily: AppFontFamily
+  /** Monospace family for the terminal, code editors, log panel, hosts, ports, and shortcuts. */
   monoFontFamily: MonoFontFamily
-  /** Join sequences such as `=>` across the app. Off until the user turns it on. */
+  /** Join sequences such as `=>` on monospace surfaces. Off until the user turns it on. */
   monoLigatures: boolean
   /** Last app version for which the what's-new dialog was dismissed (or silently marked). */
   lastSeenWhatsNewVersion: string | null
@@ -83,7 +89,9 @@ interface UiState {
   setProfileEmail: (email: string) => void
   seedProfileFromOs: (username: string) => void
   setTerminalCopyOnSelect: (enabled: boolean) => void
+  setTerminalRightButtonCopies: (enabled: boolean) => void
   setMonoFontSize: (size: number) => void
+  setAppFontFamily: (family: AppFontFamily) => void
   setMonoFontFamily: (family: MonoFontFamily) => void
   setMonoLigatures: (enabled: boolean) => void
   setLastSeenWhatsNewVersion: (version: string) => void
@@ -121,7 +129,9 @@ export const useUiStore = create<UiState>()(
       profileEmail: '',
       profileSeeded: false,
       terminalCopyOnSelect: true,
+      terminalRightButtonCopies: false,
       monoFontSize: DEFAULT_MONO_FONT_SIZE,
+      appFontFamily: DEFAULT_APP_FONT_FAMILY,
       monoFontFamily: DEFAULT_MONO_FONT_FAMILY,
       monoLigatures: false,
       lastSeenWhatsNewVersion: null,
@@ -178,7 +188,9 @@ export const useUiStore = create<UiState>()(
           state.profileSeeded ? state : { displayName: username.trim(), profileSeeded: true }
         ),
       setTerminalCopyOnSelect: (enabled) => set({ terminalCopyOnSelect: enabled }),
+      setTerminalRightButtonCopies: (enabled) => set({ terminalRightButtonCopies: enabled }),
       setMonoFontSize: (size) => set({ monoFontSize: size }),
+      setAppFontFamily: (family) => set({ appFontFamily: sanitizeAppFontFamily(family) }),
       setMonoFontFamily: (family) => set({ monoFontFamily: sanitizeMonoFontFamily(family) }),
       setMonoLigatures: (enabled) => set({ monoLigatures: sanitizeMonoLigatures(enabled) }),
       setLastSeenWhatsNewVersion: (version) => set({ lastSeenWhatsNewVersion: version }),
@@ -195,8 +207,10 @@ export const useUiStore = create<UiState>()(
           theme: isThemePreference(persisted.theme) ? persisted.theme : 'dark',
           automaticThemeTick: 0,
           favoriteColors: sanitizeFavoriteColors(persisted.favoriteColors),
+          appFontFamily: sanitizeAppFontFamily(persisted.appFontFamily),
           monoFontFamily: sanitizeMonoFontFamily(persisted.monoFontFamily),
-          monoLigatures: sanitizeMonoLigatures(persisted.monoLigatures)
+          monoLigatures: sanitizeMonoLigatures(persisted.monoLigatures),
+          terminalRightButtonCopies: persisted.terminalRightButtonCopies === true
         }
       },
       partialize: (state) => ({
@@ -214,7 +228,9 @@ export const useUiStore = create<UiState>()(
         profileEmail: state.profileEmail,
         profileSeeded: state.profileSeeded,
         terminalCopyOnSelect: state.terminalCopyOnSelect,
+        terminalRightButtonCopies: state.terminalRightButtonCopies,
         monoFontSize: state.monoFontSize,
+        appFontFamily: state.appFontFamily,
         monoFontFamily: state.monoFontFamily,
         monoLigatures: state.monoLigatures,
         lastSeenWhatsNewVersion: state.lastSeenWhatsNewVersion,

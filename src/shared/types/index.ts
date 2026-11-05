@@ -114,6 +114,7 @@ export {
   ConnectionSchema,
   type CreateConnectionInput,
   CreateConnectionInputSchema,
+  type DirectoryFavoriteAddResult,
   type ListConnectionsFilter,
   ListConnectionsFilterSchema,
   type UpdateConnectionInput,

@@ -28,7 +28,11 @@ O macOS e o Linux precisam de permissão de administrador para a VPN mexer em ro
 
 O North fica com um ícone na barra de menus (macOS) ou na bandeja perto do relógio (Windows e Linux). Clique nele para ver as VPNs e ligar ou desligar qualquer uma com um clique, como no FortiClient. **Abrir North** traz a janela de volta e **Sair do North** desliga as VPNs e fecha o app.
 
-Com pelo menos uma VPN cadastrada, fechar a janela não fecha o North: ele continua no ícone e as VPNs seguem ligadas. Para fechar de verdade, use **Sair do North** no ícone (ou Cmd+Q no macOS). Abrir o North de novo pelo atalho traz a mesma janela, sem abrir uma segunda cópia.
+Com alguma VPN conectada, o N ganha uma elipse verde no canto inferior direito. Várias VPNs no ar continuam com uma elipse só; os nomes seguem no texto ao passar o mouse. Conectando, reconectando, com erro ou desligada, o ícone volta a ser só o N.
+
+Fechar a janela deixa o North no ícone. Com uma VPN cadastrada, isso não pode ser desligado em Configurações, e as VPNs seguem ligadas. Sem VPN, **Fechar para a bandeja** em Configurações → Inicialização controla o botão de fechar. Para encerrar de verdade, use **Sair do North** no ícone (ou Cmd+Q no macOS). Abrir o North de novo pelo atalho traz a mesma janela, sem abrir uma segunda cópia.
+
+O North também avisa na central de notificações quando uma VPN conecta, é desligada ou perde a conexão, com o nome dela. **Avisos de VPN** em Configurações → Inicialização liga ou desliga esses avisos e nasce ligado. Sair do North desliga as VPNs sem esse aviso.
 
 ## Várias VPNs ao mesmo tempo
 
@@ -37,6 +41,8 @@ Duas VPNs com redes diferentes podem ficar ligadas juntas. Se as redes se sobrep
 ## Quando algo dá errado
 
 A mensagem diz o que aconteceu e oferece a ação certa: **Atualizar senha** quando o servidor recusa a credencial, **Tentar de novo** quando o servidor não responde ou o pedido de administrador é negado, **Como instalar** quando falta o OpenVPN. Em **Logs**, **Copiar diagnóstico** copia o log já sem senhas.
+
+Se o sintoma aparece com a VPN já ligada (por exemplo um `git push` que devolve HTTP 408), veja [Problemas conhecidos](troubleshooting).
 
 ## Ligar a VPN sozinha
 

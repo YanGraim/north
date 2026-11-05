@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import { IpcChannels } from '@shared/ipc'
 import {
@@ -29,10 +28,12 @@ import {
   requireAbsolute
 } from '../services/file-transfer/local-fs'
 import {
+  abortTrackedTransfer,
+  startTrackedTransfer
+} from '../services/file-transfer/tracked-transfer'
+import {
   planDownload,
   planUpload,
-  runTransfer,
-  TransferCancelledError,
   type TransferPlan
 } from '../services/file-transfer/transfer-runner'
 import { getProtocolManager } from './sessions'
@@ -134,7 +135,7 @@ export function registerFsHandlers(): void {
 
   ipcMain.handle(IpcChannels.FS_CANCEL, async (_event, raw: FsCancelInput) => {
     const input = FsCancelInputSchema.parse(raw)
-    activeTransfers.get(input.transferId)?.abort()
+    abortTrackedTransfer(input.transferId)
   })
 }
 
@@ -158,8 +159,6 @@ async function removeRemote(ft: FileTransferCapability, path: string): Promise<v
   }
 }
 
-const activeTransfers = new Map<string, AbortController>()
-
 function startTransfer(
   ft: FileTransferCapability,
   opts: {
@@ -171,46 +170,12 @@ function startTransfer(
     plan: () => Promise<TransferPlan>
   }
 ): TransferHandle {
-  const transferId = randomUUID()
-  const controller = new AbortController()
-  activeTransfers.set(transferId, controller)
-  const base = {
-    transferId,
-    sessionId: opts.sessionId,
-    direction: opts.direction,
-    remotePath: opts.remotePath,
-    localPath: opts.localPath
-  }
   const fallbackError = opts.direction === 'download' ? 'Falha no download' : 'Falha no upload'
-
-  void (async () => {
-    try {
-      const plan = await opts.plan()
-      await runTransfer({
-        ft,
-        direction: opts.direction,
-        plan,
-        conflict: opts.conflict,
-        signal: controller.signal,
-        onProgress: (update) => emitProgress({ ...base, ...update, done: false })
-      })
-      emitProgress({ ...base, bytesTransferred: 0, totalBytes: null, done: true })
-    } catch (error) {
-      const cancelled = error instanceof TransferCancelledError
-      emitProgress({
-        ...base,
-        bytesTransferred: 0,
-        totalBytes: null,
-        done: true,
-        cancelled,
-        error: cancelled ? null : error instanceof Error ? error.message : fallbackError
-      })
-    } finally {
-      activeTransfers.delete(transferId)
-    }
-  })()
-
-  return { transferId }
+  return startTrackedTransfer(ft, {
+    ...opts,
+    fallbackError,
+    onProgress: emitProgress
+  })
 }
 
 export function registerLocalFsHandlers(): void {

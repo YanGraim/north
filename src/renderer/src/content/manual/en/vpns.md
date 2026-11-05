@@ -28,7 +28,11 @@ macOS and Linux need administrator permission for a VPN to change routes and DNS
 
 North keeps an icon in the menu bar (macOS) or in the tray next to the clock (Windows and Linux). Click it to see your VPNs and turn any of them on or off with one click, like FortiClient. **Abrir North** brings the window back and **Sair do North** turns the VPNs off and quits.
 
-With at least one VPN set up, closing the window doesn't quit North: it stays in the icon and the VPNs stay on. To really quit, use **Sair do North** in the icon (or Cmd+Q on macOS). Opening North again from its shortcut brings back the same window instead of starting a second copy.
+While a VPN is connected, the N gains a green ellipse in the bottom-right corner. Several VPNs up still show one ellipse; the names stay in the hover text. Connecting, reconnecting, in error, or off, the icon is just the N again.
+
+Closing the window leaves North in the icon. With a VPN saved, that cannot be turned off in Settings, and the VPNs stay on. Without a VPN, **Close to the tray** in Settings → Startup controls the close button. To really quit, use **Sair do North** in the icon (or Cmd+Q on macOS). Opening North again from its shortcut brings back the same window instead of starting a second copy.
+
+North also posts a system notification when a VPN connects, is turned off, or drops, using the VPN's name. **VPN notifications** in Settings → Startup turns those notices on or off and starts on. Quitting North turns the VPNs off without that notice.
 
 ## Several VPNs at once
 
@@ -37,6 +41,8 @@ Two VPNs with different networks can stay on together. If the networks overlap, 
 ## When something goes wrong
 
 The message says what happened and offers the right action: **Update password** when the server rejects the credential, **Try again** when the server doesn't respond or the administrator prompt is denied, **How to install** when OpenVPN is missing. In **Logs**, **Copy diagnostics** copies the log with passwords already removed.
+
+If the symptom shows up while the VPN is already on (for example a `git push` that returns HTTP 408), see [Known issues](troubleshooting).
 
 ## Turn the VPN on automatically
 

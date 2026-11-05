@@ -21,6 +21,7 @@ import { registerGroupHandlers } from './groups'
 import { registerHistoryHandlers } from './history'
 import { registerInventoryHandlers } from './inventory'
 import { reconcileLogFollows, registerLogFollowHandlers } from './log-follows'
+import { registerRemoteEditHandlers } from './remote-edit'
 import { registerSearchHandlers } from './search'
 import { registerSerialHandlers } from './serial'
 import { getProtocolManager, registerSessionHandlers } from './sessions'
@@ -88,7 +89,7 @@ export function registerIpcHandlers(): void {
   registerClientHandlers(repositories, vault, inventory)
   registerEnvironmentHandlers(repositories, vault, inventory)
   registerGroupHandlers(repositories, vault, inventory)
-  registerConnectionHandlers(vault, inventory, secrets)
+  registerConnectionHandlers(vault, inventory, secrets, localRepositories.directoryFavorites)
   registerAccessHandlers(repositories, vault)
   registerTagHandlers(inventory)
   registerHistoryHandlers(repositories)
@@ -129,6 +130,7 @@ export function registerIpcHandlers(): void {
   registerDatabaseHandlers(repositories, vault)
   registerApiHandlers(repositories, vault)
   registerFsHandlers()
+  registerRemoteEditHandlers()
   registerLocalFsHandlers()
   registerSerialHandlers()
   registerStatsHandlers(repositories, inventory)

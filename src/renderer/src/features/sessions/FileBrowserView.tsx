@@ -39,7 +39,9 @@ import {
   paneQueryKey
 } from './file-browser/FilePane'
 import { joinPath } from './file-browser/paths'
+import { RemoteEditSurface } from './file-browser/RemoteEditSurface'
 import { TransferQueue } from './file-browser/TransferQueue'
+import { useRemoteEdits } from './file-browser/use-remote-edits'
 
 type FileBrowserViewProps = {
   sessionId: string
@@ -157,6 +159,7 @@ export function FileBrowserView({
 }: FileBrowserViewProps): React.JSX.Element {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const remoteEdits = useRemoteEdits(sessionId)
   const savedLocalPath = useUiStore((s) => s.fileBrowserLocalPath)
   const setSavedLocalPath = useUiStore((s) => s.setFileBrowserLocalPath)
   const [activeSide, setActiveSide] = useState<PaneSide>('remote')
@@ -543,52 +546,73 @@ export function FileBrowserView({
       aria-label="Navegador de arquivos"
       data-testid="file-browser"
     >
-      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-        <ResizablePanel defaultSize="50%" minSize="20%">
-          {localSource && localPath ? (
-            <FilePane
-              source={localSource}
-              path={localPath}
-              onPathChange={changeLocalPath}
-              visible={visible}
-              active={activeSide === 'local'}
-              onActivate={() => setActiveSide('local')}
-              onCopy={(entries) => void upload(entries.map((e) => e.path))}
-              onDrop={(payload, osPaths) => handleDrop('local', payload, osPaths)}
-              copyLabel="Enviar para o servidor"
-            />
-          ) : (
-            <PaneLoading />
-          )}
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize="50%" minSize="20%">
-          {remotePath ? (
-            <FilePane
-              source={remoteSource}
-              path={remotePath}
-              onPathChange={setRemotePath}
-              visible={visible}
-              active={activeSide === 'remote'}
-              onActivate={() => setActiveSide('remote')}
-              onCopy={(entries) => void download(entries)}
-              onDrop={(payload, osPaths) => handleDrop('remote', payload, osPaths)}
-              copyLabel="Baixar para a pasta local"
-              sshActions={
-                sshPane
-                  ? {
-                      onSetStartupDirectory: requestStartupDirectory,
-                      onAddToMonitoring: requestAddToMonitoring,
-                      onFollowLive: requestFollowLive
-                    }
-                  : undefined
-              }
-            />
-          ) : (
-            <PaneLoading />
-          )}
-        </ResizablePanel>
-      </ResizablePanelGroup>
+      <div className="relative min-h-0 flex-1">
+        <div className="h-full" inert={remoteEdits.tabs.length > 0}>
+          <ResizablePanelGroup orientation="horizontal" className="h-full">
+            <ResizablePanel defaultSize="50%" minSize="20%">
+              {localSource && localPath ? (
+                <FilePane
+                  source={localSource}
+                  path={localPath}
+                  onPathChange={changeLocalPath}
+                  visible={visible}
+                  active={activeSide === 'local'}
+                  onActivate={() => setActiveSide('local')}
+                  onCopy={(entries) => void upload(entries.map((e) => e.path))}
+                  onDrop={(payload, osPaths) => handleDrop('local', payload, osPaths)}
+                  copyLabel="Enviar para o servidor"
+                />
+              ) : (
+                <PaneLoading />
+              )}
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize="50%" minSize="20%">
+              {remotePath ? (
+                <FilePane
+                  source={remoteSource}
+                  path={remotePath}
+                  onPathChange={setRemotePath}
+                  visible={visible}
+                  active={activeSide === 'remote'}
+                  onActivate={() => setActiveSide('remote')}
+                  onCopy={(entries) => void download(entries)}
+                  onDrop={(payload, osPaths) => handleDrop('remote', payload, osPaths)}
+                  copyLabel="Baixar para a pasta local"
+                  editActions={{
+                    editors: remoteEdits.editors,
+                    onEdit: (entry) => void remoteEdits.openInternal(entry.path),
+                    onEditWith: (entry, editorId) =>
+                      void remoteEdits.openExternal(entry.path, editorId)
+                  }}
+                  sshActions={
+                    sshPane
+                      ? {
+                          onSetStartupDirectory: requestStartupDirectory,
+                          onAddToMonitoring: requestAddToMonitoring,
+                          onFollowLive: requestFollowLive
+                        }
+                      : undefined
+                  }
+                  favoriteConnectionId={connectionId}
+                />
+              ) : (
+                <PaneLoading />
+              )}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
+        {remoteEdits.tabs.length > 0 ? (
+          <RemoteEditSurface
+            tabs={remoteEdits.tabs}
+            activeId={remoteEdits.activeId}
+            onActivate={remoteEdits.setActive}
+            onChange={remoteEdits.updateContent}
+            onSave={(editId) => void remoteEdits.save(editId)}
+            onClose={(editId) => void remoteEdits.close(editId)}
+          />
+        ) : null}
+      </div>
       <ConflictDialog
         names={conflictNames}
         onResolve={(choice) => {

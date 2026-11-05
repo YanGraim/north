@@ -7,6 +7,7 @@ export function useLocaleEffect(): void {
   const locale = useUiStore((s) => s.locale)
 
   useEffect(() => {
+    void window.north?.setLocale?.(locale)
     if (i18n.language !== locale) {
       void i18n.changeLanguage(locale)
     }

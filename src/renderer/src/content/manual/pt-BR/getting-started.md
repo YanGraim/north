@@ -22,3 +22,7 @@ Em **Configurações → Aparência**, escolha Escuro, Claro, Sistema ou Automá
 ## Abrir com o sistema
 
 Em **Configurações → Inicialização**, ligue **Abrir o North ao iniciar o sistema** para o North abrir sozinho quando você entra no Windows, macOS ou Linux. Vem desligado. Para desligar, desmarque a opção (ou use os apps de inicialização do Windows / Itens de início de sessão do macOS).
+
+## Fechar a janela
+
+**Fechar para a bandeja**, na mesma seção, vem ligado. Fechar a janela esconde o North no ícone da bandeja (Windows e Linux) ou da barra de menus (macOS). As sessões continuam. Para encerrar, use **Sair do North** no ícone, ou desligue a opção quando não houver VPN cadastrada. Com uma VPN cadastrada, a opção fica ligada e não pode ser desmarcada, porque o túnel depende do North. No macOS, com a opção desligada, o botão vermelho fecha a janela e o app fica no Dock até o Quit.

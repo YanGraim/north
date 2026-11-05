@@ -39,6 +39,30 @@ import { createVpnMock } from './mock-vpn'
 type RunListener = (payload: { runId: string; event: WorkflowRunEvent }) => void
 type ProgressListener = (progress: TransferProgress) => void
 
+/** In-memory stand-in for the local directory-favorite list. One store per harness API. */
+function directoryFavoriteApi() {
+  const paths: string[] = []
+  const normalize = (path: string): string => {
+    if (path.length > 1 && path.endsWith('/')) return path.replace(/\/+$/, '')
+    return path
+  }
+  return {
+    listDirectoryFavorites: async () => [...paths],
+    addDirectoryFavorite: async (_connectionId: string, path: string) => {
+      const normalized = normalize(path)
+      if (!normalized.startsWith('/')) return { status: 'invalid' as const }
+      if (paths.includes(normalized)) return { status: 'duplicate' as const, path: normalized }
+      paths.push(normalized)
+      return { status: 'added' as const, path: normalized }
+    },
+    removeDirectoryFavorite: async (_connectionId: string, path: string) => {
+      const normalized = normalize(path)
+      const index = paths.indexOf(normalized)
+      if (index >= 0) paths.splice(index, 1)
+    }
+  }
+}
+
 function logFollowsMock() {
   return {
     list: async () => [],
@@ -1162,7 +1186,8 @@ export function installMockNorth(opts?: {
         },
         duplicate: async () => {
           throw new Error('not implemented')
-        }
+        },
+        ...directoryFavoriteApi()
       },
       workflows: workflowsApi,
       api: apiClientApi,
@@ -1233,7 +1258,8 @@ export function installMockNorth(opts?: {
       },
       duplicate: async () => {
         throw new Error('not implemented in ftp harness')
-      }
+      },
+      ...directoryFavoriteApi()
     },
     tags: {
       list: async () => [],
@@ -1302,6 +1328,9 @@ export function installMockNorth(opts?: {
       onStateChanged: () => () => undefined,
       onHostKeyPrompt: () => () => undefined
     },
+    listExternalEditors: async () => ({ editors: [] }),
+    saveExternalEditors: async () => ({ ok: true as const }),
+    pickExecutable: async () => null,
     fs: {
       list: async (input: { sessionId: string; path: string }) => {
         const fail =
@@ -1364,7 +1393,22 @@ export function installMockNorth(opts?: {
       },
       getPathForFile: (file: File) => `/tmp/e2e/${file.name}`,
       home: async () => '/',
-      cancel: async () => undefined
+      cancel: async () => undefined,
+      editOpen: async (input: { sessionId: string; remotePath: string; editorId: string }) => {
+        if (input.editorId !== 'internal') {
+          return { ok: false as const, reason: 'editor-missing' as const }
+        }
+        return {
+          ok: true as const,
+          editId: crypto.randomUUID(),
+          remotePath: input.remotePath,
+          content: 'hello\n'
+        }
+      },
+      editSave: async () => ({ ok: true as const }),
+      editClose: async () => undefined,
+      onEditUploaded: () => () => undefined,
+      onEditFailed: () => () => undefined
     },
     localFs: {
       info: async () => ({ home: '/home/e2e', roots: ['/'], separator: '/' as const }),
@@ -1587,7 +1631,8 @@ function installDatabaseMock(workflowsApi: ReturnType<typeof createWorkflowsApi>
       },
       duplicate: async () => {
         throw new Error('not implemented')
-      }
+      },
+      ...directoryFavoriteApi()
     },
     accesses: {
       list: async (filter?: { groupId?: string }) => {

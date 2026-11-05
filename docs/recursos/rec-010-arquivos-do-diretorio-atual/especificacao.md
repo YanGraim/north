@@ -3,8 +3,10 @@
 - **Status:** ✅ Concluído
 - **Ideia de origem:** IDEIA-010
 - **Criado em:** 2026-11-02
-- **Última atualização:** 2026-11-03
+- **Última atualização:** 2026-11-04
 - **ADRs:** [ADR 0020](../../adr/0020-listagem-cwd-terminal-ssh.md)
+
+O [REC-017](../rec-017-acoes-sftp-painel-terminal/especificacao.md) e o [ADR 0021](../../adr/0021-cd-painel-pasta-terminal.md) passam a escrever `cd` na navegação deste painel e habilitam as ações de arquivo. A listagem por OSC 7, o gancho e a recusa de listar o login continuam como aqui. Os critérios abaixo descrevem o que foi homologado em 2026-11-03.
 
 ## Visão geral
 

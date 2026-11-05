@@ -41,7 +41,7 @@ Fechadas na spec e no [ADR 0019](../../adr/0019-acompanhamento-log-ssh.md):
 - Um `Client` ssh2 por acompanhamento. Destacar ou recolher troca o `MessagePort` e reenvia no máximo 256 KiB do texto recente. O SSH permanece.
 - O texto do log não é gravado, não entra na palette e não entra em export. A lista de paths entra no JSON, na cópia de workspace e no North Server. CSV sem coluna nova.
 - Editar o path ou a credencial não altera um acompanhamento já aberto. O próximo **Acompanhar** usa o valor novo.
-- No Windows e no Linux, fechar a janela principal encerra o app e os widgets, exceto quando a VPN recolhe o app para a bandeja. No macOS, fechar a janela principal deixa os widgets até o Quit. Minimizar nunca encerra.
+- No Windows e no Linux, fechar a janela principal encerra o app e os widgets quando **Fechar para a bandeja** está desligada e não há VPN. Com a opção ligada, ou com um perfil de VPN, a janela só se esconde e os widgets continuam ([REC-011](../rec-011-fechar-janela-para-bandeja/especificacao.md)). No macOS, fechar a janela principal deixa os widgets até o Quit. Minimizar nunca encerra.
 
 ## Requisitos funcionais
 

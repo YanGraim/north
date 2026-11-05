@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildTrayMenu, type TrayVpn, trayTooltip } from './tray-menu'
+import { buildTrayMenu, type TrayVpn, trayShowsVpnBadge, trayTooltip } from './tray-menu'
 
 const actions = () => ({ connect: vi.fn(), disconnect: vi.fn(), open: vi.fn(), quit: vi.fn() })
 const click = (item: { click?: unknown }) => (item.click as () => void)()
@@ -67,5 +67,20 @@ describe('trayTooltip', () => {
       ])
     ).toBe('North — VPN: POLY')
     expect(trayTooltip([])).toBe('North')
+  })
+})
+
+describe('trayShowsVpnBadge', () => {
+  const vpn = (status: TrayVpn['status']): TrayVpn => ({ id: status, name: status, status })
+
+  it('is on only while some VPN is connected, one mark for several', () => {
+    expect(trayShowsVpnBadge([])).toBe(false)
+    expect(trayShowsVpnBadge([vpn('connecting')])).toBe(false)
+    expect(trayShowsVpnBadge([vpn('reconnecting')])).toBe(false)
+    expect(trayShowsVpnBadge([vpn('disconnecting')])).toBe(false)
+    expect(trayShowsVpnBadge([vpn('error')])).toBe(false)
+    expect(trayShowsVpnBadge([vpn('disconnected')])).toBe(false)
+    expect(trayShowsVpnBadge([vpn('connected')])).toBe(true)
+    expect(trayShowsVpnBadge([vpn('connected'), vpn('connected'), vpn('connecting')])).toBe(true)
   })
 })

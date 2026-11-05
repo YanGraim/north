@@ -17,7 +17,8 @@ import {
   type ProtocolSession,
   type SessionDescriptor,
   type SessionPortMessage,
-  type SessionState
+  type SessionState,
+  type TerminalShellCapability
 } from '@shared/protocols'
 import type { Connection } from '@shared/types'
 import type { MessagePortMain, WebContents } from 'electron'
@@ -36,6 +37,8 @@ import { LocalShellDriver } from '../protocols/local-shell-driver'
 import { prepareSessionDirectoryList } from '../protocols/ssh-directory-list'
 import { fingerprintHostKey, parseHostKeyType } from '../protocols/ssh-utils'
 import type { Repositories } from '../repositories'
+import { disposeRemoteEdits } from '../services/file-transfer/remote-edit-service'
+import { releaseSessionTransfers } from '../services/file-transfer/session-transfer'
 import type { CredentialVault } from '../vault'
 
 type ActiveSession = {
@@ -234,6 +237,16 @@ export class ProtocolManager {
     } catch {
       return { ok: false, reason: 'unavailable' }
     }
+  }
+
+  /**
+   * File actions on the SSH terminal that already owns this session.
+   * Other protocols and sessions without a saved connection are refused.
+   */
+  shellCapability(sessionId: string): TerminalShellCapability | null {
+    const active = this.sessions.get(sessionId)
+    if (!active?.connectionId || active.session.protocol !== 'ssh') return null
+    return active.session.terminalShell ?? null
   }
 
   async classifyPath(sessionId: string, path: string): Promise<ClassifyPathResult> {
@@ -694,6 +707,8 @@ export class ProtocolManager {
   }
 
   async close(sessionId: string): Promise<void> {
+    releaseSessionTransfers(sessionId)
+    await disposeRemoteEdits(sessionId)
     const active = this.sessions.get(sessionId)
     if (!active) return
 
@@ -732,6 +747,7 @@ export class ProtocolManager {
   }
 
   private async endWith(sessionId: string, message: string): Promise<void> {
+    await disposeRemoteEdits(sessionId)
     const active = this.sessions.get(sessionId)
     if (!active) return
     try {

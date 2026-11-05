@@ -16,6 +16,7 @@ import type {
   VpnTunnelInfo
 } from './drivers/vpn-driver'
 import { toVpnError, VpnError } from './vpn-error'
+import type { VpnNoticeEvent, VpnNoticeReason } from './vpn-notices'
 
 const MANUAL_HOLDER = 'manual'
 const DEFAULT_BACKOFF_MS = [1000, 2000, 4000, 8000, 16_000]
@@ -45,6 +46,8 @@ export type VpnManagerDeps = {
   }
   platform: NodeJS.Platform
   emit: (state: VpnState) => void
+  /** Status change worth a system notice. Electron stays outside this class. */
+  onNotice?: (event: VpnNoticeEvent) => void
   backoffMs?: number[]
 }
 
@@ -137,7 +140,7 @@ export class VpnManager {
     }
     entry.info = undefined
     entry.trigger = null
-    this.setStatus(entry, 'disconnected')
+    this.setStatus(entry, 'disconnected', 'disconnect-requested')
   }
 
   checkConflicts(profileId: string): VpnConflict[] {
@@ -280,7 +283,7 @@ export class VpnManager {
       entry.lastError = undefined
       entry.reconnectAttempt = 0
       if (historyId) this.deps.history?.finish(historyId, 'connected', null)
-      this.setStatus(entry, 'connected')
+      this.setStatus(entry, 'connected', 'connected')
       this.maybeScheduleIdle(entry)
       return this.toState(entry)
     } catch (error) {
@@ -319,7 +322,7 @@ export class VpnManager {
     this.appendLog(entry.profileId, `Túnel caiu: ${error?.message ?? 'sem detalhes'}`)
     if (entry.leases.size === 0) {
       entry.trigger = null
-      this.setStatus(entry, 'disconnected')
+      this.setStatus(entry, 'disconnected', 'dropped')
       return
     }
     this.scheduleReconnect(entry)
@@ -334,7 +337,7 @@ export class VpnManager {
     }
     const delay = backoff[entry.reconnectAttempt]
     entry.reconnectAttempt += 1
-    this.setStatus(entry, 'reconnecting')
+    this.setStatus(entry, 'reconnecting', 'dropped')
     entry.reconnectTimer = setTimeout(() => {
       entry.reconnectTimer = undefined
       this.startConnect(entry, false).catch(() => {})
@@ -397,11 +400,15 @@ export class VpnManager {
     return entry
   }
 
-  private setStatus(entry: Entry, status: VpnStatus): void {
+  private setStatus(entry: Entry, status: VpnStatus, reason?: VpnNoticeReason): void {
+    const from = entry.status
     if (status !== 'connecting' && status !== 'reconnecting') entry.detail = undefined
-    if (entry.status !== status) entry.since = new Date()
+    if (from !== status) entry.since = new Date()
     entry.status = status
     this.emit(entry)
+    if (reason && from !== status) {
+      this.deps.onNotice?.({ profileId: entry.profileId, from, to: status, reason })
+    }
   }
 
   private emit(entry: Entry): void {

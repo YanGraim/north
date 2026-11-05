@@ -1,6 +1,6 @@
 # Ideias (backlog)
 
-- **Última atualização:** 2026-11-02
+- **Última atualização:** 2026-11-04
 
 Primeiro passo de toda funcionalidade nova: a ideia é registrada aqui, amadurece e, quando aprovada, vira um recurso em [`recursos/`](./recursos/README.md). Defeitos em algo que já existe **não** entram aqui, e sim em [`correcoes.md`](./correcoes.md). O procedimento está na skill `ciclo-vida-recursos` (`.agents/skills/`).
 
@@ -35,6 +35,17 @@ Temas de longo prazo ainda sem forma de ideia continuam no [roadmap](./07-roadma
 | IDEIA-008 | Monitorar log da seleção no painel | 🚀 Promovida | Média | ⚡ Low | 2026-10-31 | REC-008 |
 | IDEIA-009 | Diretório padrão e monitoramento no painel SFTP | 🚀 Promovida | Média | ⚡ Low | 2026-10-31 | REC-009 |
 | IDEIA-010 | Arquivos do diretório atual ao lado do terminal | 🚀 Promovida | Média | 🧠 High | 2026-10-31 | REC-010 |
+| IDEIA-011 | Fechar a janela para a bandeja | 🚀 Promovida | Média | ⚡ Low | 2026-11-04 | REC-011 |
+| IDEIA-012 | Notificações do sistema para VPN | 🚀 Promovida | Média | ⚡ Low | 2026-11-04 | REC-012 |
+| IDEIA-013 | Indicador de VPN ativa no ícone da bandeja | 🚀 Promovida | Média | ⚡ Low | 2026-11-04 | REC-013 |
+| IDEIA-014 | Editar arquivo remoto e enviar ao salvar | 🚀 Promovida | Média | 🧠 High | 2026-11-04 | REC-014 |
+| IDEIA-015 | Caminho clicável no painel de arquivos | 🚀 Promovida | Média | ⚡ Low | 2026-11-04 | REC-015 |
+| IDEIA-016 | Diretórios favoritos no painel de arquivos | 🚀 Promovida | Média | ⚡ Low | 2026-11-04 | REC-016 |
+| IDEIA-017 | Ações de SFTP no painel da pasta do terminal | 🚀 Promovida | Média | 🧠 High | 2026-11-04 | REC-017 |
+| IDEIA-018 | Botão do meio copia ou cola no terminal | 🚀 Promovida | Média | ⚡ Low | 2026-11-04 | REC-018 |
+| IDEIA-019 | Inverter botões do meio e direito no shell | 🚀 Promovida | Média | ⚡ Low | 2026-11-04 | REC-019 |
+| IDEIA-020 | Seleção de fontes da aplicação | 🚀 Promovida | Média | 🧠 High | 2026-11-04 | REC-020 |
+| IDEIA-021 | Problemas conhecidos no manual | 🚀 Promovida | Média | ⚡ Low | 2026-11-04 | REC-021 |
 
 ## Detalhamento
 
@@ -273,5 +284,286 @@ Temas de longo prazo ainda sem forma de ideia continuam no [roadmap](./07-roadma
 - A pasta corrente vem de OSC 7 emitido pelo prompt nesta sessão. Não usa `/proc` nem o texto digitado. O gancho não é gravado no servidor.
 - O painel só reflete o terminal. Clicar numa pasta não dá `cd`.
 - Vale só para o terminal SSH de uma conexão salva.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-011 — Fechar a janela para a bandeja
+
+- **Status:** 🚀 Promovida → [REC-011](./recursos/rec-011-fechar-janela-para-bandeja/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** ⚡ Low
+- **Registrada em:** 2026-11-04
+- **Área:** UI
+
+**Descrição:** Em Configurações, um interruptor define se o botão de fechar esconde a janela na bandeja ou encerra o North. A opção nasce ligada. Com pelo menos um perfil de VPN gravado, o interruptor fica bloqueado e a janela continua indo para a bandeja. Sem perfil, a pessoa pode desligar: no Windows e no Linux o botão de fechar encerra o app; no macOS a janela some e o app fica no Dock até o Quit. **Sair do North**, Cmd+Q e a instalação de atualização continuam encerrando de verdade.
+
+**Motivação:** Hoje a janela só vai para a bandeja quando existe um perfil de VPN. Quem não tem VPN perde sessões e o processo ao fechar a janela, mesmo querendo deixar o North no ícone. Quem tem VPN não pode escolher o contrário — e não deve, porque o túnel depende do processo.
+
+**Impacto esperado:** O botão de fechar esconde a janela por padrão, com ou sem VPN. A volta é pelo ícone (clique, **Abrir North** ou abrir o North de novo). Com VPN cadastrada, a opção aparece ligada e não pode ser desmarcada. Sem VPN e com a opção desligada, fechar volta a encerrar no Windows e no Linux. Sessões, widgets de log e túneis seguem enquanto a janela está só escondida.
+
+**Notas técnicas:** O ícone da bandeja já sobe sempre (`createTray`). O `close` em `src/main/index.ts` já esconde a janela (`hide`, não minimizar) quando `hasVpnProfiles()` e deixa fechar de verdade quando `isQuitting()` (bandeja, Cmd+Q, atualização). A preferência substitui essa condição quando não há perfil: o valor fica no processo principal, no padrão de `app:get-launch-at-login` / `app:set-launch-at-login`, porque o `close` não lê a store do renderer. O interruptor entra na seção de inicialização de Configurações, nos 3 locales. Com perfil de VPN, a UI desabilita o controle e o main ignora um valor desligado. O aviso da primeira ida à bandeja deixa de falar só de VPN e passa a dizer que o North continua no ícone, nos 3 idiomas. No macOS, opção ligada esconde a janela em vez de destruí-la; opção desligada mantém o fechamento atual, sem `app.quit` no botão vermelho. Não há ADR: a bandeja, o quit e o desligamento dos túneis em `before-quit` já existem.
+
+**Decisões (2026-11-04):**
+
+- Esconder a janela (`hide`), tirando-a da barra de tarefas. Não minimizar.
+- A opção nasce ligada. Com um ou mais perfis de VPN, fica bloqueada e permanece ligada. Ao apagar o último perfil, o interruptor destrava, continua ligado, e a pessoa pode desligar.
+- No macOS, ligada esconde a janela (sessões sobrevivem; a volta é pelo ícone da barra de menus). Desligada, a janela fecha e o app fica no Dock até o Quit.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-012 — Notificações do sistema para VPN
+
+- **Status:** 🚀 Promovida → [REC-012](./recursos/rec-012-notificacoes-vpn/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** ⚡ Low
+- **Registrada em:** 2026-11-04
+- **Área:** VPN
+
+**Descrição:** O North avisa pelo sistema operacional quando uma VPN conecta, desconecta ou perde a conexão. O aviso aparece na central de notificações do Windows, do macOS ou do Linux, com o nome da VPN, mesmo com a janela escondida na bandeja. Em Configurações, um interruptor liga ou desliga esses avisos. Ele nasce ligado.
+
+**Motivação:** Quem deixa o North na bandeja não vê o estado na tela. Hoje a queda do túnel só entra no log da VPN e no menu do ícone. A saúde das conexões já usa aviso do sistema; a VPN não.
+
+**Impacto esperado:** Três avisos, um por perfil: conectou, desconectou e perdeu a conexão. A perda sai na hora em que o túnel cai, e a volta avisa de novo quando reconecta. Sair do North desliga os túneis em silêncio. O interruptor em Configurações vale para os três avisos e começa ligado. O menu da bandeja e o indicador na janela continuam como estão. Falha ao ligar pela bandeja, que já mostra "VPN não conectou", não ganha um segundo aviso.
+
+**Notas técnicas:** `Notification` do Electron já existe no main: saúde da conexão (`connection-health.ts`), falha ao conectar pela bandeja (`tray.ts`) e o aviso da primeira ida à bandeja. O estado da VPN sai do `VpnManager` (`setStatus` / `handleDrop`) e o `emit` já redesenha a bandeja. Conectou é `connected`, inclusive depois de uma reconexão. Desconectou é o `disconnect` pedido (botão, bandeja ou ociosidade) chegando em `disconnected`. Perda é a queda inesperada (`onDrop`), avisada ao entrar em `reconnecting`; esgotar as tentativas e ir a `error` não gera um segundo aviso de perda. `before-quit` / `isQuitting()` abafa o aviso. A preferência fica no processo principal, no padrão de `app:get-launch-at-login` / `app:set-launch-at-login`, porque o aviso sai no main e não lê a store do renderer. O interruptor entra em Configurações, nos 3 locales. Não há segredo no texto. Os avisos atuais do main estão fixos em português; estes entram nos 3 locales, então o main precisa do idioma ativo.
+
+**Decisões (2026-11-04):**
+
+- A perda avisa na hora, ao entrar em `reconnecting`. Quando o túnel volta a `connected`, avisa que conectou.
+- Sair do North não avisa o desligamento dos túneis.
+- Interruptor em Configurações, nascendo ligado. Desligado, os três avisos ficam em silêncio.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-013 — Indicador de VPN ativa no ícone da bandeja
+
+- **Status:** 🚀 Promovida → [REC-013](./recursos/rec-013-indicador-vpn-icone-bandeja/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** ⚡ Low
+- **Registrada em:** 2026-11-04
+- **Área:** VPN
+
+**Descrição:** Com pelo menos uma VPN conectada, o ícone do North na bandeja (Windows e Linux) ou na barra de menus (macOS) ganha uma elipse verde pequena no canto. Sem túnel no ar, o ícone volta a ser só o N. Continua um ícone só: a elipse faz parte dele, não é um segundo ícone ao lado.
+
+**Motivação:** O estado “VPN no ar” hoje aparece no menu do ícone, no texto ao passar o mouse e no indicador da janela. Com a janela escondida, a pessoa precisa abrir o menu para saber se o túnel segue ativo.
+
+**Impacto esperado:** Uma elipse verde no canto do N enquanto alguma VPN está `connected`. Várias VPNs no ar continuam sendo uma elipse só; os nomes seguem no texto ao passar o mouse. Conectando, reconectando, erro ou desligada, o ícone fica sem a elipse. O ponto verde, âmbar ou cinza de cada item do menu não muda.
+
+**Notas técnicas:** `createTray` já redesenha o menu em todo `onVpnChange`. O desenho entra aí, com `tray.setImage`. O verde é o mesmo sinal de “no ar” do ponto do menu (`dot-on`) e do `VpnDot` da janela (`bg-emerald-500`). No macOS o N idle é imagem template, tingida pelo sistema: a variante com elipse não pode ser template, senão o verde vira preto ou branco. Sem VPN conectada, o template volta. No Windows e no Linux o ícone já é colorido (`tray.png`); a elipse entra no canto. Não há IPC, segredo nem ADR.
+
+**Por que a elipse, e não o cadeado branco:** o N da bandeja tem cerca de 16px. Um cadeado branco nesse canto compete com o desenho e some na barra clara. O cadeado também não é o sinal de “túnel no ar” do North: na janela, o escudo aparece quando não há VPN ativa, e o ponto verde aparece quando há. A elipse repete esse ponto.
+
+**Decisões (2026-11-04):**
+
+- Elipse verde no canto do ícone, só enquanto alguma VPN está conectada.
+- Um ícone só. Não um segundo ícone na bandeja.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-014 — Editar arquivo remoto e enviar ao salvar
+
+- **Status:** 🚀 Promovida → [REC-014](./recursos/rec-014-editar-arquivo-remoto/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** 🧠 High
+- **Registrada em:** 2026-11-04
+- **Área:** sessões/sftp
+
+**Descrição:** No painel de arquivos remoto, um arquivo pode ser editado no editor do North ou num editor de texto instalado no computador. O North baixa o arquivo para uma pasta temporária, abre o editor escolhido e, ao salvar, envia a cópia de volta, substituindo o arquivo no servidor. Pastas e binários ficam de fora. Fechar a conexão apaga a cópia temporária.
+
+**Motivação:** Hoje **Abrir** no painel remoto só baixa o arquivo para a pasta local. Para corrigir um config ou um script no servidor, a pessoa edita fora do North e envia de novo na mão. No WinSCP, salvar no editor já devolve o arquivo.
+
+**Impacto esperado:** No menu do arquivo remoto, **Editar** abre o editor interno e **Editar com…** abre um editor cadastrado. Salvar devolve o arquivo ao servidor, mesmo se o original mudou lá no meio: a cópia local ganha. Em Configurações, a pessoa registra os editores instalados (nome e executável). Vale no painel SFTP e no FTP, que já baixam e enviam. Fechar a sessão apaga o temporário e acaba o envio automático. A pasta local e o duplo clique que só baixa continuam como estão.
+
+**Notas técnicas:** `fs:download` e `fs:upload` já existem no SFTP (`sftp-driver.ts`, `fastGet` / `fastPut`) e no FTP (`ftp-driver.ts`). O ciclo novo fica no main: gravar em pasta temporária, abrir o editor e observar a cópia. O editor interno reusa o CodeMirror já usado em SQL e JSON; o salvar chama o upload. O editor externo é um executável cadastrado, aberto com lista de argumentos, sem passar o nome do arquivo remoto pelo shell. A observação vê a data e o tamanho da cópia, com uma espera curta, porque alguns editores gravam com outro nome e trocam o arquivo. Binário é o que um editor de texto não abre; pasta é o tipo da listagem. Fechar a sessão não segura a conexão: apaga o temporário. O conteúdo do arquivo não vai para log nem para o renderer como segredo de vault. Não há ADR.
+
+**Decisões (2026-11-04):**
+
+- Mesma abordagem do WinSCP ao fechar: a conexão não fica aberta por causa do editor. Fechar a sessão apaga o arquivo temporário e o envio automático acaba.
+- Vale para qualquer arquivo que um editor de texto abre. Pastas e binários ficam de fora.
+- O envio substitui o arquivo no servidor. Se o original mudou no meio tempo, a cópia local ganha.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-015 — Caminho clicável no painel de arquivos
+
+- **Status:** 🚀 Promovida → [REC-015](./recursos/rec-015-caminho-clicavel-painel-arquivos/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** ⚡ Low
+- **Registrada em:** 2026-11-04
+- **Área:** sessões/sftp
+
+**Descrição:** A barra que mostra a pasta atual no painel de arquivos vira um caminho clicável, como no WinSCP. Em `/var/www/html`, clicar em `www` abre `/var/www`. Cada trecho anterior leva à pasta daquele ponto. O trecho final é a pasta atual.
+
+**Motivação:** Hoje a barra é um campo de texto. Para voltar a uma pasta do meio do caminho é preciso apagar o resto e confirmar, ou subir um nível de cada vez. No WinSCP, o trecho do caminho já é o atalho.
+
+**Impacto esperado:** No painel remoto e no painel local, clicar num trecho lista aquela pasta. Digitar um caminho e confirmar com Enter continua valendo, assim como subir um nível e ir para a pasta inicial. No espelho da pasta do terminal, a barra segue só leitura: o caminho não navega.
+
+**Notas técnicas:** A barra é o `input` de `FilePane` (`src/renderer/src/features/sessions/file-browser/FilePane.tsx`). `changePath` já lista a pasta nova. `paths.ts` separa raiz POSIX (`/`) e raiz Windows (`C:\`). O componente corta o caminho nesses separadores e cada trecho chama `changePath` com o prefixo até ali. Não há IPC, sessão nova nem ADR. Rótulos novos nos 3 locales. O modo `mirror` já bloqueia navegação e permanece assim.
+
+**Decisões (2026-11-04):**
+
+- Clicar num trecho abre essa pasta. O exemplo é `/var/www/html` → clique em `www` → `/var/www`.
+- Vale nos dois lados do navegador de arquivos. O espelho da pasta do terminal não navega.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-016 — Diretórios favoritos no painel de arquivos
+
+- **Status:** 🚀 Promovida → [REC-016](./recursos/rec-016-diretorios-favoritos-painel-arquivos/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** ⚡ Low
+- **Registrada em:** 2026-11-04
+- **Área:** sessões/sftp
+
+**Descrição:** No painel remoto, a pessoa salva diretórios favoritos da conexão que está aberta e volta a qualquer um com um clique. O favorito guarda o caminho (por exemplo `/var/www/html` ou `/etc/apache2/sites-enabled`). Adicionar inclui o caminho; remover tira da lista. Um clique lista essa pasta. A lista não passa para outra conexão, nem para exportação, nem para outro lugar.
+
+**Motivação:** O diretório inicial da conexão SSH abre uma pasta só, na hora de conectar. Quem alterna entre o site, o log e o config do Apache hoje digita o caminho ou sobe nível a nível. No WinSCP, a pasta salva abre de novo com um clique.
+
+**Impacto esperado:** No painel remoto de SFTP e de FTP, a lista daquela conexão abre a pasta escolhida. Dá para acrescentar e remover. Outra conexão não vê esses caminhos. O painel local, o espelho da pasta do terminal e o diretório inicial da conexão continuam como estão. Se a pasta não existir mais, a navegação avisa e não troca o caminho.
+
+**Notas técnicas:** A troca de pasta já é `changePath` em `FilePane`. O diretório inicial é uma coluna só, `connections.startup_directory` (migration `020`), normalizada por `normalizeStartupDirectory`. Favoritos são outra lista, só da conexão, não esse campo. A gravação fica no banco local ligada à conexão e fica de fora do import/export do inventário e de qualquer sincronização. O caminho segue a mesma validação do diretório inicial. Rótulos novos nos 3 locales. Não há protocolo novo nem ADR.
+
+**Decisões (2026-11-04):**
+
+- A lista é só da conexão ativa. Não há favoritos compartilhados entre conexões.
+- Por hora, os diretórios salvos não são compartilhados de nenhuma maneira: nem com outra conexão, nem na exportação, nem em sincronização.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-017 — Ações de SFTP no painel da pasta do terminal
+
+- **Status:** 🚀 Promovida → [REC-017](./recursos/rec-017-acoes-sftp-painel-terminal/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** 🧠 High
+- **Registrada em:** 2026-11-04
+- **Área:** sessões/ssh
+
+**Descrição:** O painel de arquivos ao lado do terminal SSH ganha as ações do painel remoto do SFTP: baixar, enviar, abrir, nova pasta, renomear, excluir, atualizar, gravar o diretório inicial e acompanhar log. Ele também pode entrar em outra pasta, subir e ir para a pasta inicial. Essa navegação escreve `cd` no shell, e só quando o prompt está livre. A lista continua sendo a pasta do terminal: um `cd` digitado no shell também troca o painel.
+
+**Motivação:** O painel já mostra a pasta do shell com a cara do SFTP, mas o menu só tem **Atualizar**. Para baixar, criar ou entrar numa pasta, a pessoa abre outra aba de arquivos ou digita no shell.
+
+**Impacto esperado:** No painel da badge **Arquivos**, as ações do remoto SFTP valem na pasta atual. Entrar numa pasta, subir ou ir para a pasta inicial manda `cd` ao shell, e a lista muda quando o prompt informa a pasta nova. Baixar pede o destino, porque não há painel local ao lado. Enviar usa um seletor de arquivo ou um arraste vindo de fora. O navegador de dois lados, o FTP e o terminal local ficam como estão.
+
+**Notas técnicas:** O painel é `TerminalCwdPanel` com `FilePane` em modo `mirror`, que hoje bloqueia navegação, transferência e alteração. A listagem já abre um SFTP curto no `Client` da sessão (`listRemoteDirectory`), sem escrever no PTY. Criar, renomear, excluir, baixar e enviar repetem esse canal pelo tempo da operação. A navegação não troca a pasta por conta própria: escreve `cd` no shell pelo `terminal.write` já existente, com o caminho entre aspas, só com o prompt livre. Se a linha já tiver texto, espera. A lista só muda no OSC 7 que o prompt já emite. Isso revisa a regra do [REC-010](./recursos/rec-010-arquivos-do-diretorio-atual/especificacao.md) e do [ADR 0020](./adr/0020-listagem-cwd-terminal-ssh.md) de que um clique não escreve no terminal. A [IDEIA-015](#ideia-015--caminho-clicável-no-painel-de-arquivos) deixa este painel só leitura; se os dois existirem, um trecho do caminho aqui também manda `cd`. Log e diretório inicial reusam o que o painel SFTP já faz na conexão salva. Não há protocolo novo.
+
+**Decisões (2026-11-04):**
+
+- As ações do SFTP remoto valem neste painel, na pasta em que o terminal está.
+- O painel pode navegar. A navegação reflete no shell com `cd`. A lista segue o que o shell confirmar.
+- O `cd` só sai com o prompt livre. Se a linha já tiver texto, a navegação espera, para não montar um comando inválido.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-018 — Botão do meio copia ou cola no terminal
+
+- **Status:** 🚀 Promovida → [REC-018](./recursos/rec-018-botao-meio-copia-cola-terminal/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** ⚡ Low
+- **Registrada em:** 2026-11-04
+- **Área:** sessões/ssh
+
+**Descrição:** No terminal, o botão do meio copia o texto selecionado. Sem seleção, cola o que está na área de transferência. O botão direito continua abrindo o menu de contexto.
+
+**Motivação:** No PowerShell e no shell do Linux, o botão direito copia se há seleção e cola se não há. No North esse botão abre o menu (copiar, colar, cortar, selecionar tudo e as ações de SSH). O botão do meio não faz nada no app.
+
+**Impacto esperado:** Com texto selecionado, o botão do meio copia e tira a seleção, como o **Copiar** do menu. Sem seleção, cola, inclusive imagem, que já vira caminho. Vale em todo terminal que usa essa tela: SSH, shell local e os demais. O menu do botão direito, o clique que move o cursor e a seleção de palavra com o botão direito ficam como estão.
+
+**Notas técnicas:** Copiar e colar já são `copyTerminalSelection` e `pasteClipboardIntoTerminal`, usados pelo `TerminalContextMenu`. O clique do meio entra em `attachTerminalInteraction`, no `auxclick` com `button === 1`, e chama um ou outro conforme `term.hasSelection()`. O `preventDefault` segura a rolagem automática do Chromium e, no Linux, o atalho do xterm que só reposiciona a área de texto para a seleção primária. O clique para mover o cursor já ignora qualquer botão que não seja o esquerdo. Não há IPC novo nem ADR. A [IDEIA-019](#ideia-019--inverter-botões-do-meio-e-direito-no-shell) troca este papel com o botão direito, por um interruptor que nasce desligado.
+
+**Decisões (2026-11-04):**
+
+- Seleção copia. Sem seleção, cola. O botão direito permanece o menu.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-019 — Inverter botões do meio e direito no shell
+
+- **Status:** 🚀 Promovida → [REC-019](./recursos/rec-019-inverter-botoes-meio-direito/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** ⚡ Low
+- **Registrada em:** 2026-11-04
+- **Área:** sessões/ssh
+- **Depende de:** [IDEIA-018](#ideia-018--botão-do-meio-copia-ou-cola-no-terminal) ([REC-018](./recursos/rec-018-botao-meio-copia-cola-terminal/especificacao.md), concluído)
+
+**Descrição:** Em Configurações, um interruptor troca as funções do botão do meio e do botão direito nos shells. Desligado, vale a IDEIA-018: o meio copia ou cola, o direito abre o menu. Ligado, o direito copia ou cola e o meio abre o menu.
+
+**Motivação:** Quem vem do PowerShell ou do shell do Linux espera o botão direito para copiar e colar. A IDEIA-018 coloca isso no botão do meio para não tirar o menu. O interruptor devolve o gesto antigo a quem preferir.
+
+**Impacto esperado:** O interruptor fica na seção de terminal em Configurações e nasce desligado. Ligado, nos shells, o direito copia a seleção ou cola se não houver seleção, e o meio abre o mesmo menu de hoje. Fora do terminal, os botões não mudam. A preferência permanece neste computador.
+
+**Notas técnicas:** A preferência cabe na store `north-ui`, como `terminalCopyOnSelect`, porque os dois cliques são do renderer. O `TerminalContextMenu` escuta o `contextmenu` do botão direito. Com o interruptor ligado, esse evento deixa de abrir o menu e passa a chamar o copiar ou colar da IDEIA-018. O menu abre no `auxclick` do botão do meio. `rightClickSelectsWord` fica desligado nesse modo: se o direito selecionasse a palavra antes, o copiar dispararia no lugar de colar. Rótulos nos 3 locales. Não há IPC novo nem ADR.
+
+**Decisões (2026-11-04):**
+
+- Depende da IDEIA-018. O interruptor nasce desligado.
+- Vale só nos shells. O resto do app não troca os botões.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-020 — Seleção de fontes da aplicação
+
+- **Status:** 🚀 Promovida → [REC-020](./recursos/rec-020-selecao-fontes-aplicacao/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** 🧠 High
+- **Registrada em:** 2026-11-04
+- **Área:** UI
+
+**Descrição:** A interface do North ganha uma família própria, separada da fonte mono dos shells e dos terminais. A lista da aplicação é a do print: Inter (padrão), Segoe UI, Roboto, Open Sans, Outfit, Montserrat, Ubuntu, o padrão do sistema (SF Pro / Segoe UI), JetBrains Mono e Fira Code. As duas mono entram para quem quiser a interface monoespaçada. Terminal, shell, editores de código e o quadro de log continuam na fonte mono de hoje, com o tamanho e as ligaturas que já existem.
+
+**Motivação:** Hoje a fonte escolhida em Configurações vale para o app inteiro, e ela é sempre mono. Quem quer uma interface proporcional não tem opção. O print mostra esse seletor: a janela, os menus, os formulários, as tabelas, os modais e os widgets flutuantes seguem a família da aplicação, e o terminal fica de fora.
+
+**Impacto esperado:** A família da aplicação entra como mais uma lista na seção de Configurações que já escolhe a fonte mono, no mesmo tipo de seletor. O padrão é Inter. O tamanho continua o de hoje: o controle de tamanho escala a interface inteira, e a família nova acompanha esse tamanho. Trocar a família da aplicação não muda o terminal. Hosts, portas, atalhos e o que já usa a classe mono continuam mono. A frase de exemplo do print ("Gruppe Desktop…") não entra: é de outro produto.
+
+**Notas técnicas:** `useCodeFontEffect` hoje grava a mesma pilha mono em `--font-sans`, `--font-display`, `--font-mono` e `--code-font-family`, e o tamanho mono escala o `font-size` da raiz. Esse escalonamento da raiz permanece: a família da aplicação não ganha tamanho próprio. O token em `assets/index.css` ainda declara IBM Plex Sans, mas o efeito cobre isso. A família nova publica só `--font-sans` e `--font-display`. `--font-mono` e `--code-font-family` ficam na preferência mono atual (`monoFontFamily`). SQL Studio e API Studio leem `--font-sans` no tema do CodeMirror; passam a ler a pilha mono, senão o editor acompanha a interface. O interruptor de ligaturas sai da raiz e fica nas superfícies de código: numa Inter, ligadura de código não deve alterar o texto da janela. Inter, Roboto, Open Sans, Outfit, Montserrat e Ubuntu (a proporcional, não a Ubuntu Mono) entram por pacote local, sem CDN, no padrão do REC-007. JetBrains Mono e Fira Code já estão no app. Segoe UI e SF Pro não se embutem: são fontes do sistema, com fallback. IBM Plex Sans já está empacotada e não está no print, então sai da lista da aplicação. A mono IBM Plex Mono continua no seletor do terminal. Não há IPC, segredo nem ADR. `docs/05-design-system.md` diz que a interface inteira usa a mono; isso muda quando a ideia for promovida.
+
+**Decisões (2026-11-04):**
+
+- Duas preferências. A da aplicação não altera shell, terminal, editor de código nem quadro de log.
+- A lista da aplicação é a do print, nesta ordem: Inter, Segoe UI, Roboto, Open Sans, Outfit, Montserrat, Ubuntu, padrão do sistema, JetBrains Mono, Fira Code.
+- Inter é o padrão da lista. Não há botão separado de restaurar.
+- O tamanho da interface continua o de hoje: o controle existente escala a raiz, e a família da aplicação acompanha.
+- O seletor é uma lista na seção de Configurações que já existe, no mesmo padrão da fonte mono. Não é a grade de cartões do print.
+- O catálogo mono do REC-007 permanece só no seletor do terminal. Na aplicação, as mono são JetBrains Mono e Fira Code.
+
+**Questões em aberto:** nenhuma.
+
+### IDEIA-021 — Problemas conhecidos no manual
+
+- **Status:** 🚀 Promovida → [REC-021](./recursos/rec-021-problemas-conhecidos-manual/especificacao.md)
+- **Prioridade:** Média
+- **Esforço do agente:** ⚡ Low
+- **Registrada em:** 2026-11-04
+- **Área:** UI
+
+**Descrição:** O manual do North ganha um capítulo de problemas conhecidos. Cada registro descreve um sintoma que aparece com o North em uso e o que a pessoa faz na máquina dela. O North não executa a correção, não grava configuração e não altera o programa citado. No topo de cada registro, um aviso visual deixa isso explícito.
+
+**Motivação:** Com a VPN do North no ar, um `git push` por HTTPS devolve `HTTP 408` quando o pack passa de cerca de 1 KB. Um arquivo de uma palavra sobe. O túnel entrega o tráfego. O que falta é o `git` deixar o HTTP/2 e não esperar `100 Continue`. Quem opera não tem onde ler isso dentro do app. O capítulo de VPNs só fala de falha ao conectar.
+
+**Impacto esperado:** Um capítulo novo no manual, nos 3 idiomas, listado com os demais. O de VPNs, em "Quando algo dá errado", aponta para ele. O primeiro registro é o push abaixo. Os próximos entram como seções no mesmo capítulo. A linha do what's new da versão avisa que o manual passou a reunir esses casos.
+
+**Primeiro registro — `git push` com HTTP 408**
+
+No topo do registro, antes do sintoma e dos comandos, o aviso visual:
+
+> **Só orientação.** O North não aplica esta correção. Os comandos rodam no ambiente em que o `git` está, não no app.
+
+Sintoma: com a VPN ligada, `git push` por HTTPS termina em `RPC failed; HTTP 408` e `unexpected disconnect while reading sideband packet`. Um pack de algumas centenas de bytes passa. Um pack acima de cerca de 1 KB não.
+
+O que fazer, no ambiente em que o `git` roda (no Windows com IPsec, a distro WSL de trabalho):
+
+```bash
+git config --global http.version HTTP/1.1
+git config --global http.extraHeader "Expect:"
+```
+
+Sem `--global`, as duas opções valem só para aquele repositório. `HTTP/1.1` tira o push do HTTP/2. O `Expect` vazio impede a espera do `100 Continue`, que o curl envia quando o corpo passa de 1024 bytes.
+
+**Notas técnicas:** Capítulo `troubleshooting` em `src/renderer/src/content/manual/` (pt-BR, en, es), entrada em `MANUAL_CHAPTER_IDS` e título em `help.chapters.troubleshooting` nos 3 locales. O corpo continua markdown. O aviso não é um parágrafo comum: o renderer do manual (`ManualPage`) reconhece um marcador do registro e desenha uma faixa, com ícone e o texto traduzido, no alto da seção. A faixa não é um botão e não dispara comando. Cruzamento de um parágrafo em `vpns.md`, nos 3 idiomas. What's new na versão em que o capítulo entrar. Sem IPC, sem preferência, sem ADR.
+
+**Decisões (2026-11-04):**
+
+- O aviso visual nasce em todo registro do capítulo, não só no primeiro. O texto diz que o North apenas orienta.
+- O primeiro registro é o `git push` com HTTP 408, com os dois `git config` acima.
+- O North não aplica `git config`, nem neste repositório nem com `--global`.
 
 **Questões em aberto:** nenhuma.

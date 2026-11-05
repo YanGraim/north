@@ -1,9 +1,10 @@
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { NATIVE_CHROME, TITLEBAR_OVERLAY_HEIGHT } from '@shared/lib/theme'
 import { app, BrowserWindow, Notification, shell, type Tray } from 'electron'
 import icon from '../../resources/icon.png?asset'
 import { isQuitting, markQuitting } from './app-quit'
+import { shouldHideOnClose, trayHintCopy } from './close-to-tray'
 import { closeDatabase } from './database'
 import { registerIpcHandlers } from './ipc/handlers'
 import { disposeLogFollows } from './ipc/log-follows'
@@ -12,10 +13,21 @@ import { disposeVpn, hasActiveVpnTunnels, hasVpnProfiles } from './ipc/vpn'
 import { closeAllLogFollowWindows } from './log-follow-windows'
 import { setMainWindowFocuser } from './main-window'
 import { createTray } from './tray'
+import { pinCloseToTrayOn, readAppLocale, readWindowPrefs } from './window-prefs'
 import { markTitleBarOverlay } from './window-theme'
 
 // Must run before any app.getPath('userData') / DB access so paths match productName.
 app.setName('North')
+
+// Dev shares userData with the installed app (database, vault). Chromium's disk
+// and GPU caches in that folder cannot be open in both processes: the dev window
+// stays blank and logs "Acesso negado" (0x5) while the installed North is running.
+if (!app.isPackaged) {
+  const sessionDev = join(app.getPath('userData'), 'session-dev')
+  mkdirSync(sessionDev, { recursive: true })
+  app.setPath('sessionData', sessionDev)
+  app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
+}
 
 const isDev = !app.isPackaged
 
@@ -39,13 +51,9 @@ function hintTray(): void {
   const flag = join(app.getPath('userData'), 'tray-hint-shown')
   if (existsSync(flag)) return
   writeFileSync(flag, '')
-  new Notification({
-    title: 'O North continua aberto',
-    body:
-      process.platform === 'darwin'
-        ? 'Suas VPNs seguem conectadas. O North fica no ícone da barra de menus.'
-        : 'Suas VPNs seguem conectadas. O North fica no ícone da bandeja, perto do relógio.'
-  }).show()
+  if (!Notification.isSupported()) return
+  const hint = trayHintCopy(readAppLocale(app.getPath('userData')), process.platform)
+  new Notification(hint).show()
 }
 
 function createWindow(): void {
@@ -87,10 +95,19 @@ function createWindow(): void {
     window.show()
   })
 
-  // with VPNs, closing the window keeps North (and its tunnels) running in the tray
+  // Hide keeps North (and its tunnels) running in the tray. A saved VPN always hides.
   window.on('close', (event) => {
     if (isQuitting()) return
-    if (hasVpnProfiles()) {
+    const userData = app.getPath('userData')
+    const vpn = hasVpnProfiles()
+    if (vpn) pinCloseToTrayOn(userData)
+    if (
+      shouldHideOnClose({
+        quitting: false,
+        hasVpnProfiles: vpn,
+        closeToTray: readWindowPrefs(userData).closeToTray
+      })
+    ) {
       event.preventDefault()
       window.hide()
       hintTray()

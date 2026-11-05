@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(21)
+    expect(getUserVersion(db)).toBe(22)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -58,7 +58,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(21)
+    expect(getUserVersion(db)).toBe(22)
   })
 
   it('adds log_files to connections in 021', () => {
@@ -66,6 +66,49 @@ describe('migrations', () => {
     migrate(db, migrations)
     const columns = db.prepare(`PRAGMA table_info(connections)`).all() as Array<{ name: string }>
     expect(columns.map((column) => column.name)).toContain('log_files')
+  })
+
+  it('creates connection_directory_favorites in 022 and drops rows with the connection', () => {
+    const db = openDatabase(':memory:')
+    migrate(db, migrations)
+    const tables = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`)
+      .all('connection_directory_favorites') as Array<{ name: string }>
+    expect(tables).toHaveLength(1)
+
+    const clientId = 'client-1'
+    const envId = 'env-1'
+    const groupId = 'group-1'
+    const connectionId = 'conn-1'
+    const now = '2026-11-04T00:00:00.000Z'
+    db.prepare(`INSERT INTO clients (id, name, created_at, updated_at) VALUES (?, 'C', ?, ?)`).run(
+      clientId,
+      now,
+      now
+    )
+    db.prepare(
+      `INSERT INTO environments (id, client_id, name, sort_order, created_at, updated_at) VALUES (?, ?, 'E', 0, ?, ?)`
+    ).run(envId, clientId, now, now)
+    db.prepare(
+      `INSERT INTO groups (id, environment_id, name, sort_order, created_at, updated_at) VALUES (?, ?, 'G', 0, ?, ?)`
+    ).run(groupId, envId, now, now)
+    db.prepare(
+      `INSERT INTO connections (
+        id, group_id, name, protocol, host, port, auth_method, created_at, updated_at
+      ) VALUES (?, ?, 'web', 'ssh', 'h', 22, 'none', ?, ?)`
+    ).run(connectionId, groupId, now, now)
+    db.prepare(
+      `INSERT INTO connection_directory_favorites (id, connection_id, path, position) VALUES ('fav-1', ?, '/var/www', 0)`
+    ).run(connectionId)
+    db.prepare(
+      `INSERT INTO connection_directory_favorites (id, connection_id, path, position) VALUES ('fav-org', 'org-connection', '/etc', 0)`
+    ).run()
+
+    db.prepare(`DELETE FROM connections WHERE id = ?`).run(connectionId)
+    const left = db
+      .prepare(`SELECT id FROM connection_directory_favorites ORDER BY id`)
+      .all() as Array<{ id: string }>
+    expect(left.map((row) => row.id)).toEqual(['fav-org'])
   })
 
   it('adds startup_directory to connections in 020', () => {

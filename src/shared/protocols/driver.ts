@@ -1,5 +1,10 @@
 import type { ListDirectoryResult } from '../lib/list-directory'
 import type { PathStatResult } from '../lib/selection-path'
+import type {
+  ChangeDirectoryResult,
+  SessionHomeResult,
+  SessionMutateResult
+} from '../lib/session-shell'
 import type { AuthMethod, Connection } from '../types'
 import type { ApiSendInput, ApiSendResult } from './api'
 import type { DatabaseIntrospection, DatabaseQueryResult, DatabaseTxState } from './database'
@@ -68,6 +73,24 @@ export type DirectoryListCapability = {
 }
 
 /**
+ * File actions on the SSH client that already owns the terminal.
+ * `changeDirectory` may write a quoted `cd`; the other calls stay on SFTP.
+ */
+export type TerminalShellCapability = {
+  home(): SessionHomeResult
+  changeDirectory(path: string): ChangeDirectoryResult
+  cancelDirectoryChange(): void
+  mkdir(path: string): Promise<SessionMutateResult>
+  rename(from: string, to: string): Promise<SessionMutateResult>
+  remove(path: string): Promise<SessionMutateResult>
+  currentDirectory(): string | null
+  openFileTransfer(): Promise<
+    | { ok: true; transfer: FileTransferCapability; close: () => void }
+    | { ok: false; reason: 'unavailable' }
+  >
+}
+
+/**
  * Minimal port surface shared by Electron MessagePortMain (main) and MessagePort (renderer).
  * Main attaches MessagePortMain; messages use structured clone.
  */
@@ -91,6 +114,8 @@ export type ProtocolSession = {
   readonly pathStat?: PathStatCapability
   /** Present only on an SSH terminal session. Lists via a short-lived SFTP channel. */
   readonly listDirectory?: DirectoryListCapability
+  /** Present only on an SSH terminal session. Navigation and file actions for the cwd panel. */
+  readonly terminalShell?: TerminalShellCapability
   readonly fileTransfer?: FileTransferCapability
   readonly database?: DatabaseCapability
   readonly api?: ApiCapability

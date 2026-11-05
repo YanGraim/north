@@ -26,7 +26,9 @@ export const queryKeys = {
   connections: {
     all: ['connections'] as const,
     list: (filter?: ListConnectionsFilter) => ['connections', 'list', filter ?? {}] as const,
-    detail: (id: string) => ['connections', id] as const
+    detail: (id: string) => ['connections', id] as const,
+    directoryFavorites: (connectionId: string) =>
+      ['connections', connectionId, 'directory-favorites'] as const
   },
   accesses: {
     all: ['accesses'] as const,

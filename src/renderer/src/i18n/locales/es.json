@@ -48,18 +48,45 @@
     "startup": {
       "title": "Inicio",
       "description": "Abre North al iniciar sesión en Windows, macOS o Linux. Desactivado por defecto.",
-      "launchAtLogin": "Abrir North al iniciar el sistema"
+      "launchAtLogin": "Abrir North al iniciar el sistema",
+      "closeToTray": "Cerrar a la bandeja",
+      "closeToTrayLocked": "Con una VPN registrada, cerrar la ventana siempre deja North en la bandeja.",
+      "vpnNotifications": "Avisos de VPN",
+      "vpnNotificationsHint": "Avisa cuando una VPN se conecta, se desconecta o pierde la conexión."
     },
     "terminal": {
       "title": "Terminal",
       "description": "Preferencias del terminal integrado.",
-      "copyOnSelect": "Copiar al seleccionar"
+      "copyOnSelect": "Copiar al seleccionar",
+      "rightButtonCopies": "El botón derecho copia o pega",
+      "rightButtonCopiesHint": "Apagado, el botón del medio copia o pega y el derecho abre el menú. Encendido, los papeles se invierten."
+    },
+    "externalEditors": {
+      "title": "Editores",
+      "description": "Programas de este equipo usados en Editar con… del panel remoto de archivos. La ruta queda solo en esta máquina.",
+      "name": "Nombre",
+      "executable": "Ejecutable",
+      "browse": "Elegir",
+      "add": "Añadir",
+      "remove": "Quitar",
+      "invalid": "Indica un nombre único y una ruta absoluta.",
+      "missing": "No se encontró el ejecutable."
     },
     "editor": {
       "title": "Fuente de la app",
-      "description": "Aplicada en toda la app: textos de la interfaz, terminal, editores de código (SQL Studio, API Studio), hosts/puertos y atajos.",
-      "fontFamily": "Familia de fuente",
+      "description": "La familia de la interfaz vale en la ventana, los menús y los formularios. La del terminal vale en el shell, los editores, el panel de registro, hosts, puertos y atajos. El tamaño escala la interfaz y el terminal. Las ligaduras valen solo en lo monoespaciado.",
+      "appFontFamily": "Familia de la interfaz",
+      "appFontPreview": "North, un workspace para infraestructura",
+      "fontFamily": "Familia del terminal",
       "fontSize": "Tamaño de fuente",
+      "fontFamilyInter": "Inter (predeterminado)",
+      "fontFamilySegoeUi": "Segoe UI",
+      "fontFamilyRoboto": "Roboto",
+      "fontFamilyOpenSans": "Open Sans",
+      "fontFamilyOutfit": "Outfit",
+      "fontFamilyMontserrat": "Montserrat",
+      "fontFamilyUbuntu": "Ubuntu",
+      "fontFamilySystem": "Predeterminada del sistema",
       "fontFamilyIbmPlexMono": "IBM Plex Mono (predeterminado)",
       "fontFamilyJetbrainsMono": "JetBrains Mono",
       "fontFamilyUiMonospace": "Monoespaciada del sistema",
@@ -147,7 +174,12 @@
       "database": "Estudio SQL",
       "api": "Cliente API",
       "agents": "Agentes",
-      "vpns": "VPNs"
+      "vpns": "VPNs",
+      "troubleshooting": "Problemas conocidos"
+    },
+    "knownIssues": {
+      "noticeTitle": "Solo orientación",
+      "noticeBody": "North no aplica esta corrección. Los comandos se ejecutan en el entorno donde está git, no en la app."
     }
   },
   "agents": {
@@ -330,11 +362,32 @@
     "terminalCwd": {
       "badge": "Archivos",
       "waiting": "La carpeta del terminal todavía no llegó. North lee el prompt de bash y zsh de esta sesión y no muestra el directorio de login en su lugar.",
-      "listFailed": "No se pudo listar esta carpeta."
+      "listFailed": "No se pudo listar esta carpeta.",
+      "pendingCd": "El terminal está ocupado. La carpeta cambia cuando el prompt esté libre.",
+      "pathRejected": "Esta ruta no puede ir al shell.",
+      "mutateFailed": "No se pudo modificar esta carpeta.",
+      "upload": "Enviar"
     },
     "fileBrowser": {
       "addToMonitoring": "Añadir al monitoreo",
-      "monitorLive": "Monitorear en tiempo real"
+      "monitorLive": "Monitorear en tiempo real",
+      "edit": "Editar",
+      "editWith": "Editar con…",
+      "save": "Guardar",
+      "closeEdit": "Cerrar",
+      "binary": "Este archivo no se abre en un editor de texto.",
+      "tooLarge": "Este archivo es demasiado grande para editarlo aquí.",
+      "sendFailed": "No se pudo enviar el archivo de vuelta.",
+      "editorFailed": "No se pudo abrir el editor.",
+      "sent": "Archivo enviado al servidor.",
+      "path": "Ruta",
+      "openPath": "Abrir {{path}}",
+      "favorites": "Directorios favoritos",
+      "favoritesAdd": "Agregar directorio actual",
+      "favoritesEmpty": "Ningún directorio favorito",
+      "favoritesRemove": "Quitar",
+      "favoritesDuplicate": "Este directorio ya es un favorito",
+      "favoritesInvalid": "No se pudo guardar esta ruta"
     },
     "badge": "Servidor"
   },

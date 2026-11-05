@@ -5,14 +5,15 @@ import {
   isManualChapterId,
   type ManualChapterId
 } from '@renderer/content/manual'
+import { isGuidanceMarker, nodeText } from '@renderer/features/help/manual-markdown'
 import { useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
 import { cn } from '@renderer/lib/utils'
 import { useUiStore } from '@renderer/stores/ui-store'
-import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Info } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import ReactMarkdown from 'react-markdown'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import remarkGfm from 'remark-gfm'
 
 export function ManualPage(): React.JSX.Element {
@@ -154,15 +155,40 @@ function ManualMarkdown({ source }: { source: string }): React.JSX.Element {
         remarkPlugins={[remarkGfm]}
         skipHtml
         components={{
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noreferrer">
-              {children}
-            </a>
-          )
+          a: ({ href, children }) => {
+            if (href && isManualChapterId(href)) {
+              return <Link to={{ search: `?chapter=${href}` }}>{children}</Link>
+            }
+            return (
+              <a href={href} target="_blank" rel="noreferrer">
+                {children}
+              </a>
+            )
+          },
+          blockquote: ({ children }) => {
+            if (isGuidanceMarker(nodeText(children))) return <GuidanceNotice />
+            return <blockquote>{children}</blockquote>
+          }
         }}
       >
         {source}
       </ReactMarkdown>
+    </div>
+  )
+}
+
+function GuidanceNotice(): React.JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <div
+      role="note"
+      className="not-prose my-3 flex gap-2.5 rounded-md border border-border bg-surface-elevated px-3 py-2.5"
+    >
+      <Info className="mt-0.5 size-3.5 shrink-0 text-muted" aria-hidden />
+      <div className="min-w-0 text-xs">
+        <div className="font-medium text-foreground">{t('help.knownIssues.noticeTitle')}</div>
+        <div className="mt-0.5 leading-relaxed text-muted">{t('help.knownIssues.noticeBody')}</div>
+      </div>
     </div>
   )
 }

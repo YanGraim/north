@@ -34,6 +34,7 @@ import {
   writelnFollowing
 } from '@renderer/lib/terminal/follow-output'
 import { applyTerminalLigatures } from '@renderer/lib/terminal/ligatures'
+import { terminalRightClickSelectsWord } from '@renderer/lib/terminal/middle-button'
 import { toastError, toastSuccess, toastWarning } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 import { getXtermTheme } from '@renderer/lib/xterm-theme'
@@ -280,6 +281,7 @@ export function TerminalView({
   const [linkUrl, setLinkUrl] = useState<string | null>(null)
   const [filesOpen, setFilesOpen] = useState(false)
   const [cwd, setCwd] = useState<string | null>(null)
+  const [cwdEpoch, setCwdEpoch] = useState(0)
   const termPanelRef = useRef<PanelImperativeHandle | null>(null)
   const showCwdFiles = Boolean(connectionId) && protocol === 'ssh'
   const resolvedTheme = useResolvedTheme()
@@ -294,6 +296,7 @@ export function TerminalView({
   const monoFontFamily = useUiStore((s) => s.monoFontFamily)
   const monoFontSize = useUiStore((s) => s.monoFontSize)
   const monoLigatures = useUiStore((s) => s.monoLigatures)
+  const terminalRightButtonCopies = useUiStore((s) => s.terminalRightButtonCopies)
   visibleRef.current = visible
   findOpenRef.current = findOpen
 
@@ -311,7 +314,7 @@ export function TerminalView({
       lineHeight: 1.2,
       theme: getXtermTheme(themeRef.current, cursorAccentRef.current),
       allowProposedApi: true,
-      rightClickSelectsWord: true,
+      rightClickSelectsWord: terminalRightClickSelectsWord(ui.terminalRightButtonCopies),
       scrollback: 5000
     })
     const fit = new FitAddon()
@@ -323,6 +326,7 @@ export function TerminalView({
     fitRef.current = fit
     const oscHandler = term.parser.registerOscHandler(7, (data) => {
       setCwd((current) => nextOsc7Cwd(current, data))
+      setCwdEpoch((epoch) => epoch + 1)
       return true
     })
 
@@ -330,6 +334,7 @@ export function TerminalView({
       term,
       container,
       getCopyOnSelect: () => useUiStore.getState().terminalCopyOnSelect,
+      getRightButtonCopies: () => useUiStore.getState().terminalRightButtonCopies,
       isFindOpen: () => findOpenRef.current,
       onOpenFind: () => setFindOpen(true),
       onCloseFind: () => setFindOpen(false),
@@ -442,6 +447,12 @@ export function TerminalView({
       term.options.theme = getXtermTheme(resolvedTheme, cursorAccent)
     }
   }, [resolvedTheme, cursorAccent])
+
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+    term.options.rightClickSelectsWord = terminalRightClickSelectsWord(terminalRightButtonCopies)
+  }, [terminalRightButtonCopies])
 
   useEffect(() => {
     const term = termRef.current
@@ -782,14 +793,20 @@ export function TerminalView({
               ) : null}
             </div>
           </ResizablePanel>
-          {showCwdFiles && filesOpen ? <ResizableHandle withHandle /> : null}
-          {showCwdFiles && filesOpen ? (
+          {showCwdFiles && filesOpen && connectionId ? <ResizableHandle withHandle /> : null}
+          {showCwdFiles && filesOpen && connectionId ? (
             <ResizablePanel defaultSize="36%" minSize="22%" className="min-h-0 min-w-0">
               <div
                 className="h-full min-h-0 overflow-hidden border-l border-border"
                 data-testid="terminal-cwd-panel"
               >
-                <TerminalCwdPanel sessionId={sessionId} path={cwd} visible={visible} />
+                <TerminalCwdPanel
+                  sessionId={sessionId}
+                  connectionId={connectionId}
+                  path={cwd}
+                  cwdEpoch={cwdEpoch}
+                  visible={visible}
+                />
               </div>
             </ResizablePanel>
           ) : null}

@@ -48,18 +48,45 @@
     "startup": {
       "title": "Startup",
       "description": "Opens North when you sign in to Windows, macOS or Linux. Off by default.",
-      "launchAtLogin": "Open North when the computer starts"
+      "launchAtLogin": "Open North when the computer starts",
+      "closeToTray": "Close to the tray",
+      "closeToTrayLocked": "With a VPN saved, closing the window always keeps North in the tray.",
+      "vpnNotifications": "VPN notifications",
+      "vpnNotificationsHint": "Notify when a VPN connects, disconnects, or drops."
     },
     "terminal": {
       "title": "Terminal",
       "description": "Built-in terminal preferences.",
-      "copyOnSelect": "Copy on select"
+      "copyOnSelect": "Copy on select",
+      "rightButtonCopies": "Right button copies or pastes",
+      "rightButtonCopiesHint": "Off, the middle button copies or pastes and the right button opens the menu. On, the roles swap."
+    },
+    "externalEditors": {
+      "title": "Editors",
+      "description": "Programs on this computer used by Edit with… in the remote file pane. The path stays on this machine.",
+      "name": "Name",
+      "executable": "Executable",
+      "browse": "Browse",
+      "add": "Add",
+      "remove": "Remove",
+      "invalid": "Enter a unique name and an absolute path.",
+      "missing": "The executable was not found."
     },
     "editor": {
       "title": "App font",
-      "description": "Applied to the whole app: interface text, terminal, code editors (SQL Studio, API Studio), hosts/ports and shortcuts.",
-      "fontFamily": "Font family",
+      "description": "The interface family applies to the window, menus, and forms. The terminal family applies to the shell, editors, the log panel, hosts, ports, and shortcuts. Size scales the interface and the terminal. Ligatures apply only to monospace text.",
+      "appFontFamily": "Interface family",
+      "appFontPreview": "North, an infrastructure workspace",
+      "fontFamily": "Terminal family",
       "fontSize": "Font size",
+      "fontFamilyInter": "Inter (default)",
+      "fontFamilySegoeUi": "Segoe UI",
+      "fontFamilyRoboto": "Roboto",
+      "fontFamilyOpenSans": "Open Sans",
+      "fontFamilyOutfit": "Outfit",
+      "fontFamilyMontserrat": "Montserrat",
+      "fontFamilyUbuntu": "Ubuntu",
+      "fontFamilySystem": "System default",
       "fontFamilyIbmPlexMono": "IBM Plex Mono (default)",
       "fontFamilyJetbrainsMono": "JetBrains Mono",
       "fontFamilyUiMonospace": "System monospace",
@@ -147,7 +174,12 @@
       "database": "SQL studio",
       "api": "API client",
       "agents": "Agents",
-      "vpns": "VPNs"
+      "vpns": "VPNs",
+      "troubleshooting": "Known issues"
+    },
+    "knownIssues": {
+      "noticeTitle": "Guidance only",
+      "noticeBody": "North does not apply this fix. The commands run in the environment where git is, not in the app."
     }
   },
   "agents": {
@@ -330,11 +362,32 @@
     "terminalCwd": {
       "badge": "Files",
       "waiting": "The terminal folder has not arrived yet. North reads this session's bash and zsh prompt and does not show the login directory instead.",
-      "listFailed": "Could not list this folder."
+      "listFailed": "Could not list this folder.",
+      "pendingCd": "The terminal is busy. The folder changes when the prompt is free.",
+      "pathRejected": "This path cannot go to the shell.",
+      "mutateFailed": "Could not change this folder.",
+      "upload": "Upload"
     },
     "fileBrowser": {
       "addToMonitoring": "Add to monitoring",
-      "monitorLive": "Monitor live"
+      "monitorLive": "Monitor live",
+      "edit": "Edit",
+      "editWith": "Edit with…",
+      "save": "Save",
+      "closeEdit": "Close",
+      "binary": "This file does not open in a text editor.",
+      "tooLarge": "This file is too large to edit here.",
+      "sendFailed": "Could not send the file back.",
+      "editorFailed": "Could not open the editor.",
+      "sent": "File sent to the server.",
+      "path": "Path",
+      "openPath": "Open {{path}}",
+      "favorites": "Favorite directories",
+      "favoritesAdd": "Add current directory",
+      "favoritesEmpty": "No favorite directories",
+      "favoritesRemove": "Remove",
+      "favoritesDuplicate": "This directory is already a favorite",
+      "favoritesInvalid": "This path could not be saved"
     },
     "badge": "Server"
   },

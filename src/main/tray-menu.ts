@@ -67,3 +67,8 @@ export function trayTooltip(vpns: TrayVpn[]): string {
   const up = vpns.filter((v) => v.status === 'connected').map((v) => v.name)
   return up.length > 0 ? `North — VPN: ${up.join(', ')}` : 'North'
 }
+
+/** The tray glyph itself: one green ellipse while any VPN is up. Other states stay the plain N. */
+export function trayShowsVpnBadge(vpns: readonly TrayVpn[]): boolean {
+  return vpns.some((vpn) => vpn.status === 'connected')
+}

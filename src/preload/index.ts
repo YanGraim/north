@@ -1,4 +1,5 @@
 import { IpcChannels, type NorthApi } from '@shared/ipc'
+import type { FsEditNotice } from '@shared/lib/remote-edit'
 import type {
   FsCancelInput,
   FsDownloadInput,
@@ -103,6 +104,16 @@ const api: NorthApi = {
   setTheme: (theme) => ipcRenderer.invoke(IpcChannels.APP_SET_THEME, theme),
   getLaunchAtLogin: () => ipcRenderer.invoke(IpcChannels.APP_GET_LAUNCH_AT_LOGIN),
   setLaunchAtLogin: (enabled) => ipcRenderer.invoke(IpcChannels.APP_SET_LAUNCH_AT_LOGIN, enabled),
+  getCloseToTray: () => ipcRenderer.invoke(IpcChannels.APP_GET_CLOSE_TO_TRAY),
+  setCloseToTray: (enabled) => ipcRenderer.invoke(IpcChannels.APP_SET_CLOSE_TO_TRAY, enabled),
+  setLocale: (locale) => ipcRenderer.invoke(IpcChannels.APP_SET_LOCALE, locale),
+  getVpnNotifications: () => ipcRenderer.invoke(IpcChannels.APP_GET_VPN_NOTIFICATIONS),
+  setVpnNotifications: (enabled) =>
+    ipcRenderer.invoke(IpcChannels.APP_SET_VPN_NOTIFICATIONS, enabled),
+  listExternalEditors: () => ipcRenderer.invoke(IpcChannels.SETTINGS_LIST_EXTERNAL_EDITORS),
+  saveExternalEditors: (input) =>
+    ipcRenderer.invoke(IpcChannels.SETTINGS_SAVE_EXTERNAL_EDITORS, input),
+  pickExecutable: () => ipcRenderer.invoke(IpcChannels.SETTINGS_PICK_EXECUTABLE),
 
   workspaces: {
     list: () => ipcRenderer.invoke(IpcChannels.WORKSPACES_LIST),
@@ -155,7 +166,13 @@ const api: NorthApi = {
     update: (id, input) => ipcRenderer.invoke(IpcChannels.CONNECTIONS_UPDATE, id, input),
     delete: (id) => ipcRenderer.invoke(IpcChannels.CONNECTIONS_DELETE, id),
     toggleFavorite: (id) => ipcRenderer.invoke(IpcChannels.CONNECTIONS_TOGGLE_FAVORITE, id),
-    duplicate: (id) => ipcRenderer.invoke(IpcChannels.CONNECTIONS_DUPLICATE, id)
+    duplicate: (id) => ipcRenderer.invoke(IpcChannels.CONNECTIONS_DUPLICATE, id),
+    listDirectoryFavorites: (connectionId) =>
+      ipcRenderer.invoke(IpcChannels.CONNECTIONS_LIST_DIRECTORY_FAVORITES, connectionId),
+    addDirectoryFavorite: (connectionId, path) =>
+      ipcRenderer.invoke(IpcChannels.CONNECTIONS_ADD_DIRECTORY_FAVORITE, connectionId, path),
+    removeDirectoryFavorite: (connectionId, path) =>
+      ipcRenderer.invoke(IpcChannels.CONNECTIONS_REMOVE_DIRECTORY_FAVORITE, connectionId, path)
   },
 
   accesses: {
@@ -211,6 +228,15 @@ const api: NorthApi = {
     getClaudeUsage: (sessionId) => ipcRenderer.invoke(IpcChannels.SESSIONS_CLAUDE_USAGE, sessionId),
     classifyPath: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_CLASSIFY_PATH, input),
     listDirectory: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_LIST_DIRECTORY, input),
+    changeDirectory: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_CHANGE_DIRECTORY, input),
+    cancelDirectoryChange: (input) =>
+      ipcRenderer.invoke(IpcChannels.SESSIONS_CANCEL_DIRECTORY_CHANGE, input),
+    home: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_HOME, input),
+    mkdir: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_MKDIR, input),
+    rename: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_RENAME, input),
+    delete: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_DELETE, input),
+    download: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_DOWNLOAD, input),
+    upload: (input) => ipcRenderer.invoke(IpcChannels.SESSIONS_UPLOAD, input),
     write: (sessionId, data) => {
       ipcRenderer.send(IpcChannels.SESSIONS_STDIN, sessionId, data)
     },
@@ -286,6 +312,23 @@ const api: NorthApi = {
     upload: (input: FsUploadInput) => ipcRenderer.invoke(IpcChannels.FS_UPLOAD, input),
     cancel: (input: FsCancelInput) => ipcRenderer.invoke(IpcChannels.FS_CANCEL, input),
     home: (sessionId: string) => ipcRenderer.invoke(IpcChannels.FS_HOME, sessionId),
+    editOpen: (input) => ipcRenderer.invoke(IpcChannels.FS_EDIT_OPEN, input),
+    editSave: (input) => ipcRenderer.invoke(IpcChannels.FS_EDIT_SAVE, input),
+    editClose: (input) => ipcRenderer.invoke(IpcChannels.FS_EDIT_CLOSE, input),
+    onEditUploaded: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, notice: FsEditNotice): void => {
+        listener(notice)
+      }
+      ipcRenderer.on(IpcChannels.FS_EDIT_UPLOADED, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.FS_EDIT_UPLOADED, handler)
+    },
+    onEditFailed: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, notice: FsEditNotice): void => {
+        listener(notice)
+      }
+      ipcRenderer.on(IpcChannels.FS_EDIT_FAILED, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.FS_EDIT_FAILED, handler)
+    },
     onProgress: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, progress: TransferProgress): void => {
         listener(progress)

@@ -9,7 +9,7 @@ export type { LigaturesAddon }
  * from that call, so the session and the scrollback stay put.
  * `fontFeatureSettings: 'normal'` keeps the addon from writing a partial
  * `"calt" on`, which would turn other font features off. Joining still comes
- * from the addon; drawing uses `font-variant-ligatures` on the document.
+ * from the addon; drawing uses `font-variant-ligatures` on `.xterm`, not the window.
  */
 export function applyTerminalLigatures(
   term: Terminal,

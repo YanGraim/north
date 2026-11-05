@@ -28,7 +28,11 @@ macOS y Linux necesitan permiso de administrador para que la VPN cambie rutas y 
 
 North deja un ícono en la barra de menús (macOS) o en la bandeja junto al reloj (Windows y Linux). Haz clic en él para ver tus VPNs y encender o apagar cualquiera con un clic, como en FortiClient. **Abrir North** trae la ventana de vuelta y **Sair do North** apaga las VPNs y cierra la app.
 
-Con al menos una VPN registrada, cerrar la ventana no cierra North: sigue en el ícono y las VPNs siguen encendidas. Para cerrarlo de verdad, usa **Sair do North** en el ícono (o Cmd+Q en macOS). Abrir North de nuevo desde su acceso directo trae la misma ventana, sin abrir una segunda copia.
+Con alguna VPN conectada, la N gana una elipse verde en la esquina inferior derecha. Varias VPNs en línea siguen con una sola elipse; los nombres siguen en el texto al pasar el mouse. Conectando, reconectando, con error o apagada, el ícono vuelve a ser solo la N.
+
+Cerrar la ventana deja North en el ícono. Con una VPN registrada, eso no se puede desactivar en Configuración, y las VPNs siguen encendidas. Sin VPN, **Cerrar a la bandeja** en Configuración → Inicio controla el botón de cerrar. Para salir de verdad, usa **Sair do North** en el ícono (o Cmd+Q en macOS). Abrir North de nuevo desde su acceso directo trae la misma ventana, sin abrir una segunda copia.
+
+North también avisa en el centro de notificaciones cuando una VPN se conecta, se apaga o pierde la conexión, con su nombre. **Avisos de VPN** en Configuración → Inicio enciende o apaga esos avisos y empieza encendido. Salir de North apaga las VPNs sin ese aviso.
 
 ## Varias VPNs a la vez
 
@@ -37,6 +41,8 @@ Dos VPNs con redes distintas pueden quedar activas juntas. Si las redes se super
 ## Cuando algo sale mal
 
 El mensaje dice qué pasó y ofrece la acción correcta: **Actualizar contraseña** cuando el servidor rechaza la credencial, **Reintentar** cuando el servidor no responde o se deniega el permiso de administrador, **Cómo instalar** cuando falta OpenVPN. En **Logs**, **Copiar diagnóstico** copia el log ya sin contraseñas.
+
+Si el síntoma aparece con la VPN ya encendida (por ejemplo un `git push` que devuelve HTTP 408), consulta [Problemas conocidos](troubleshooting).
 
 ## Encender la VPN automáticamente
 

@@ -46,3 +46,7 @@ Restrições que valem aqui: credencial só no main (`docs/06-seguranca.md`, ADR
 - Fechar a janela principal no Windows/Linux precisa chamar `app.quit` mesmo com widgets abertos, para `window-all-closed` não deixar o processo vivo só com eles.
 - Ao concluir o REC-004: manual (`connect`, 3 idiomas), what's new da próxima versão, `docs/02-arquitetura.md`, `docs/04-modelo-dados.md`, `docs/06-seguranca.md` e `docs/08-protocolos.md`.
 - O ADR 0016 permanece proposto. Este ADR passa a `Aceito` só quando o usuário aceitar a decisão.
+
+## Adendo (2026-11-04)
+
+O [REC-011](../recursos/rec-011-fechar-janela-para-bandeja/especificacao.md) mudou o fechar da janela principal. A opção **Fechar para a bandeja** nasce ligada: fechar esconde a janela, com ou sem VPN. Com um perfil de VPN a opção fica bloqueada e ligada. Sem VPN e com a opção desligada, fechar no Windows e no Linux ainda encerra o app, e os widgets não seguram o processo sozinhos. No macOS, desligada, a janela fecha e o app fica até o Quit.

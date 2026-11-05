@@ -1,5 +1,27 @@
 import type { ListDirectoryArgs, ListDirectoryResult } from '../lib/list-directory'
+import type {
+  ExternalEditor,
+  FsEditCloseInput,
+  FsEditNotice,
+  FsEditOpenInput,
+  FsEditOpenResult,
+  FsEditSaveInput,
+  FsEditSaveResult,
+  SaveExternalEditorsInput,
+  SaveExternalEditorsResult
+} from '../lib/remote-edit'
 import type { ClassifyPathArgs, ClassifyPathResult } from '../lib/selection-path'
+import type {
+  ChangeDirectoryResult,
+  SessionDownloadInput,
+  SessionHomeResult,
+  SessionIdInput,
+  SessionMutateResult,
+  SessionPathInput,
+  SessionRenameInput,
+  SessionTransferResult,
+  SessionUploadInput
+} from '../lib/session-shell'
 import type { ThemePreference } from '../lib/theme'
 import type {
   ApiCancelInput,
@@ -75,6 +97,7 @@ import type {
   CreateGroupVariableInput,
   CreateTagInput,
   CreateWorkflowInput,
+  DirectoryFavoriteAddResult,
   Environment,
   EnvironmentUpdate,
   Group,
@@ -171,6 +194,22 @@ export interface IpcInvokeMap {
   [IpcChannels.APP_GET_LAUNCH_AT_LOGIN]: { args: []; result: boolean }
   /** returns what the OS actually has afterwards */
   [IpcChannels.APP_SET_LAUNCH_AT_LOGIN]: { args: [enabled: boolean]; result: boolean }
+  /** `enabled` is what the switch shows; a saved VPN forces it on (`locked`). */
+  [IpcChannels.APP_GET_CLOSE_TO_TRAY]: { args: []; result: CloseToTrayState }
+  [IpcChannels.APP_SET_CLOSE_TO_TRAY]: { args: [enabled: boolean]; result: CloseToTrayState }
+  [IpcChannels.APP_SET_LOCALE]: { args: [locale: AppLocale]; result: undefined }
+  /** Absent on disk means on. Applies to connect, disconnect, and drop notices. */
+  [IpcChannels.APP_GET_VPN_NOTIFICATIONS]: { args: []; result: boolean }
+  [IpcChannels.APP_SET_VPN_NOTIFICATIONS]: { args: [enabled: boolean]; result: boolean }
+  [IpcChannels.SETTINGS_LIST_EXTERNAL_EDITORS]: {
+    args: []
+    result: { editors: ExternalEditor[] }
+  }
+  [IpcChannels.SETTINGS_SAVE_EXTERNAL_EDITORS]: {
+    args: [input: SaveExternalEditorsInput]
+    result: SaveExternalEditorsResult
+  }
+  [IpcChannels.SETTINGS_PICK_EXECUTABLE]: { args: []; result: string | null }
 
   [IpcChannels.WORKSPACES_LIST]: { args: []; result: Workspace[] }
   [IpcChannels.WORKSPACES_ACTIVATE]: { args: [id: string]; result: Workspace }
@@ -240,6 +279,18 @@ export interface IpcInvokeMap {
     result: Connection
   }
   [IpcChannels.CONNECTIONS_DUPLICATE]: { args: [id: string]; result: Connection }
+  [IpcChannels.CONNECTIONS_LIST_DIRECTORY_FAVORITES]: {
+    args: [connectionId: string]
+    result: string[]
+  }
+  [IpcChannels.CONNECTIONS_ADD_DIRECTORY_FAVORITE]: {
+    args: [connectionId: string, path: string]
+    result: DirectoryFavoriteAddResult
+  }
+  [IpcChannels.CONNECTIONS_REMOVE_DIRECTORY_FAVORITE]: {
+    args: [connectionId: string, path: string]
+    result: undefined
+  }
 
   [IpcChannels.ACCESSES_LIST]: {
     args: [filter?: ListAccessesFilter]
@@ -361,6 +412,38 @@ export interface IpcInvokeMap {
     args: [input: ListDirectoryArgs]
     result: ListDirectoryResult
   }
+  [IpcChannels.SESSIONS_CHANGE_DIRECTORY]: {
+    args: [input: SessionPathInput]
+    result: ChangeDirectoryResult
+  }
+  [IpcChannels.SESSIONS_CANCEL_DIRECTORY_CHANGE]: {
+    args: [input: SessionIdInput]
+    result: undefined
+  }
+  [IpcChannels.SESSIONS_HOME]: {
+    args: [input: SessionIdInput]
+    result: SessionHomeResult
+  }
+  [IpcChannels.SESSIONS_MKDIR]: {
+    args: [input: SessionPathInput]
+    result: SessionMutateResult
+  }
+  [IpcChannels.SESSIONS_RENAME]: {
+    args: [input: SessionRenameInput]
+    result: SessionMutateResult
+  }
+  [IpcChannels.SESSIONS_DELETE]: {
+    args: [input: SessionPathInput]
+    result: SessionMutateResult
+  }
+  [IpcChannels.SESSIONS_DOWNLOAD]: {
+    args: [input: SessionDownloadInput]
+    result: SessionTransferResult
+  }
+  [IpcChannels.SESSIONS_UPLOAD]: {
+    args: [input: SessionUploadInput]
+    result: SessionTransferResult
+  }
 
   [IpcChannels.LOG_FOLLOWS_LIST]: {
     args: []
@@ -421,6 +504,18 @@ export interface IpcInvokeMap {
   }
   [IpcChannels.FS_CANCEL]: {
     args: [input: FsCancelInput]
+    result: undefined
+  }
+  [IpcChannels.FS_EDIT_OPEN]: {
+    args: [input: FsEditOpenInput]
+    result: FsEditOpenResult
+  }
+  [IpcChannels.FS_EDIT_SAVE]: {
+    args: [input: FsEditSaveInput]
+    result: FsEditSaveResult
+  }
+  [IpcChannels.FS_EDIT_CLOSE]: {
+    args: [input: FsEditCloseInput]
     result: undefined
   }
 
@@ -816,6 +911,11 @@ export interface IpcInvokeMap {
   [IpcChannels.VPN_PREPARE_ACCESS]: { args: [accessId: string]; result: VpnState | null }
 }
 
+/** Tray hint and the rest of the main process need the renderer's language. */
+export type AppLocale = 'pt-BR' | 'en' | 'es'
+
+export type CloseToTrayState = { enabled: boolean; locked: boolean }
+
 export type InvokeChannel = keyof IpcInvokeMap
 
 export type InvokeArgs<C extends InvokeChannel> = IpcInvokeMap[C]['args']
@@ -828,6 +928,14 @@ export interface NorthApi {
   setTheme: (theme: ThemePreference) => Promise<void>
   getLaunchAtLogin: () => Promise<boolean>
   setLaunchAtLogin: (enabled: boolean) => Promise<boolean>
+  getCloseToTray: () => Promise<CloseToTrayState>
+  setCloseToTray: (enabled: boolean) => Promise<CloseToTrayState>
+  setLocale: (locale: AppLocale) => Promise<void>
+  getVpnNotifications: () => Promise<boolean>
+  setVpnNotifications: (enabled: boolean) => Promise<boolean>
+  listExternalEditors: () => Promise<{ editors: ExternalEditor[] }>
+  saveExternalEditors: (input: SaveExternalEditorsInput) => Promise<SaveExternalEditorsResult>
+  pickExecutable: () => Promise<string | null>
   workspaces: {
     list: () => Promise<Workspace[]>
     /** Points main's repositories at this workspace; the renderer calls it on route change. */
@@ -878,6 +986,13 @@ export interface NorthApi {
     delete: (id: string) => Promise<void>
     toggleFavorite: (id: string) => Promise<Connection>
     duplicate: (id: string) => Promise<Connection>
+    /** Remote directory favorites for this connection. Local only; not part of the connection row. */
+    listDirectoryFavorites: (connectionId: string) => Promise<string[]>
+    addDirectoryFavorite: (
+      connectionId: string,
+      path: string
+    ) => Promise<DirectoryFavoriteAddResult>
+    removeDirectoryFavorite: (connectionId: string, path: string) => Promise<void>
   }
   accesses: {
     list: (filter?: ListAccessesFilter) => Promise<Access[]>
@@ -951,6 +1066,20 @@ export interface NorthApi {
      * `reason` is the only failure detail — ssh2 errors stay in the main process.
      */
     listDirectory: (input: ListDirectoryArgs) => Promise<ListDirectoryResult>
+    /** Quoted `cd` on this terminal. `pending` means the prompt was busy. */
+    changeDirectory: (input: SessionPathInput) => Promise<ChangeDirectoryResult>
+    cancelDirectoryChange: (input: SessionIdInput) => Promise<void>
+    /** Login directory of this SSH session. Does not write to the shell. */
+    home: (input: SessionIdInput) => Promise<SessionHomeResult>
+    mkdir: (input: SessionPathInput) => Promise<SessionMutateResult>
+    rename: (input: SessionRenameInput) => Promise<SessionMutateResult>
+    delete: (input: SessionPathInput) => Promise<SessionMutateResult>
+    /** Opens a folder dialog in the main process and downloads into it. */
+    download: (input: SessionDownloadInput) => Promise<SessionTransferResult>
+    /**
+     * Uploads into the OSC 7 folder. Without `localPaths`, the main opens the file dialog.
+     */
+    upload: (input: SessionUploadInput) => Promise<SessionTransferResult>
     /** Terminal stdin (IPC — reliable under sandbox). */
     write: (sessionId: string, data: number[]) => void
     resize: (sessionId: string, cols: number, rows: number) => void
@@ -983,6 +1112,11 @@ export interface NorthApi {
     upload: (input: FsUploadInput) => Promise<TransferHandle>
     cancel: (input: FsCancelInput) => Promise<void>
     home: (sessionId: string) => Promise<string>
+    editOpen: (input: FsEditOpenInput) => Promise<FsEditOpenResult>
+    editSave: (input: FsEditSaveInput) => Promise<FsEditSaveResult>
+    editClose: (input: FsEditCloseInput) => Promise<void>
+    onEditUploaded: (listener: (notice: FsEditNotice) => void) => () => void
+    onEditFailed: (listener: (notice: FsEditNotice) => void) => () => void
     onProgress: (listener: (progress: TransferProgress) => void) => () => void
     getPathForFile: (file: File) => string
   }

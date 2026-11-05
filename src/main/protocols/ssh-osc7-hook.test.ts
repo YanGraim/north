@@ -3,12 +3,17 @@ import type { Client, ClientChannel } from 'ssh2'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   BASH_OSC7_HOOK,
+  createEchoSuppressor,
   loginShell,
   readLoginShell,
   runSavedShellStartup,
   SHELL_PROBE_COMMAND,
   ZSH_OSC7_HOOK
 } from './ssh-osc7-hook'
+
+function asText(data: Uint8Array): string {
+  return Buffer.from(data).toString('utf8')
+}
 
 function assertHookIsQuiet(line: string): void {
   expect(line).not.toContain('\n')
@@ -54,6 +59,40 @@ describe('OSC 7 hook text', () => {
     expect(ZSH_OSC7_HOOK).not.toMatch(/precmd_functions=\(/)
     expect(ZSH_OSC7_HOOK).not.toContain('precmd()')
     expect(ZSH_OSC7_HOOK).not.toContain('PROMPT_COMMAND')
+  })
+})
+
+describe('createEchoSuppressor', () => {
+  it('drops one exact hook echo and keeps the break and the next prompt', () => {
+    const suppress = createEchoSuppressor(BASH_OSC7_HOOK)
+    const echoed = `${BASH_OSC7_HOOK}\r\n[root@host portal]# `
+    expect(asText(suppress.push(Buffer.from(echoed)))).toBe('\r\n[root@host portal]# ')
+  })
+
+  it('holds a split echo and forwards only what follows the match', () => {
+    const suppress = createEchoSuppressor(ZSH_OSC7_HOOK)
+    const cut = 17
+    expect(suppress.push(Buffer.from(ZSH_OSC7_HOOK.slice(0, cut))).length).toBe(0)
+    const rest = `${ZSH_OSC7_HOOK.slice(cut)}\r\n% `
+    expect(asText(suppress.push(Buffer.from(rest)))).toBe('\r\n% ')
+  })
+
+  it('replays a partial match when the echo diverges, then stops filtering', () => {
+    const suppress = createEchoSuppressor('echo hi')
+    expect(asText(suppress.push(Buffer.from('echo ')))).toBe('')
+    expect(asText(suppress.push(Buffer.from('no\r\n')))).toBe('echo no\r\n')
+    expect(asText(suppress.push(Buffer.from('echo hi\r\n')))).toBe('echo hi\r\n')
+  })
+
+  it('forwards output that does not start with the hook', () => {
+    const suppress = createEchoSuppressor(BASH_OSC7_HOOK)
+    const motd = 'Last login: Wed Nov 4\r\n'
+    expect(asText(suppress.push(Buffer.from(motd)))).toBe(motd)
+  })
+
+  it('does not filter when the line is empty', () => {
+    const suppress = createEchoSuppressor('')
+    expect(asText(suppress.push(Buffer.from('prompt')))).toBe('prompt')
   })
 })
 

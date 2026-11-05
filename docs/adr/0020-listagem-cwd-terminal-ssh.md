@@ -3,6 +3,7 @@
 - **Status:** Proposto
 - **Data:** 2026-11-02
 - **Recurso:** [REC-010](../recursos/rec-010-arquivos-do-diretorio-atual/especificacao.md)
+- **Revisão:** a decisão 5 (o painel não escreve no PTY) passa a ser a do [ADR 0021](./0021-cd-painel-pasta-terminal.md) para a navegação. Listagem, gancho e OSC 7 continuam neste ADR.
 
 ## Contexto
 
@@ -21,10 +22,10 @@ Restrições: credencial só no main (`docs/06-seguranca.md`, ADR 0005); o rende
 ## Decisões
 
 1. **OSC 7, nesta sessão.** A pasta é o path de um OSC 7 `file://` lido do PTY com `parser.registerOscHandler`. Não vem de `/proc`, do texto digitado, nem do prompt desenhado na tela. O gancho é um trecho fixo do main, acrescentado a `PROMPT_COMMAND` (bash) e `precmd` (zsh), sem substituir o que já existir. Não grava `.bashrc`, `.zshrc` nem `.profile`. A sessão continua de pé se o gancho não entrar.
-2. **Só bash e zsh, e só no shell interativo da conexão salva.** Antes de escrever, o main lê `$SHELL` com um exec curto e fixo no mesmo `Client`. Se o valor é bash ou zsh, escreve o gancho uma vez, depois do `cd` de diretório inicial do REC-002. Outro shell, falha da leitura ou sessão sem `connectionId` (terminal local, workspace de agente, exec de workflow): não escreve. O renderer não manda o texto do gancho.
+2. **Só bash e zsh, e só no shell interativo da conexão salva.** Antes de escrever, o main lê `$SHELL` com um exec curto e fixo no mesmo `Client`. Se o valor é bash ou zsh, escreve o gancho uma vez, depois do `cd` de diretório inicial do REC-002. Outro shell, falha da leitura ou sessão sem `connectionId` (terminal local, workspace de agente, exec de workflow): não escreve. O renderer não manda o texto do gancho. O eco dessa linha é retirado do fluxo do PTY antes do xterm. Se os bytes que voltam não são exatamente o gancho, seguem inteiros: o main não esconde outra saída.
 3. **O OSC é um path, validado no main.** O renderer tira o path do `file://` e percent-decodifica. O main só lista se `isSafePosixAbsolute` aceitar o absoluto, sem cair em `/` quando o path vem vazio. Esse path não é interpolado em comando. Não há `ls` no PTY.
 4. **SFTP curto no `Client` do shell.** O canal é `sessions:list-directory`: `readdir`, mapeia `RemoteEntry`, `end()` no fim, como o `stat` auxiliar. Não abre segunda conexão SSH e não chama `fs:list`. Enquanto o painel está fechado, não lista. Resposta de uma pasta que já não é a corrente é descartada. Falha de listagem não derruba o terminal.
-5. **O painel só reflete.** Não escreve no PTY. Clicar numa pasta não dá `cd` e não troca a pasta listada. Não grava diretório inicial nem arquivo de log.
+5. **O painel só reflete.** Não escreve no PTY. Clicar numa pasta não dá `cd` e não troca a pasta listada. Não grava diretório inicial nem arquivo de log. A navegação com `cd` e as ações de arquivo ficam no [ADR 0021](./0021-cd-painel-pasta-terminal.md); o path continua sem entrar em qualquer outro comando.
 
 ## Alternativas
 
@@ -39,7 +40,7 @@ Restrições: credencial só no main (`docs/06-seguranca.md`, ADR 0005); o rende
 ## Consequências
 
 - IPC novo `sessions:list-directory`. Sem migration, sem coluna, sem mudança de import/export. O segredo continua no main.
-- O gancho pode aparecer uma vez no scrollback. Não imprime listagem. Fish e os outros shells que não são bash nem zsh não recebem o trecho; o painel fica no aviso e não mostra o login.
+- O eco do gancho não entra no scrollback quando volta igual ao que foi escrito. Não imprime listagem. Fish e os outros shells que não são bash nem zsh não recebem o trecho; o painel fica no aviso e não mostra o login.
 - `$SHELL` é o shell de login. Se a pessoa trocou de shell dentro da sessão, o gancho pode não corresponder ao prompt. O painel continua dependendo do OSC 7, não dessa leitura.
 - Ao concluir o REC-010: manual (`connect`, seção Terminal, 3 idiomas), what's new da próxima versão, `docs/08-protocolos.md` e uma nota em `docs/06-seguranca.md`. `docs/04-modelo-dados.md` não muda.
 - O [ADR 0008](./0008-file-transfer-ipc.md) e o [ADR 0019](./0019-acompanhamento-log-ssh.md) permanecem como estão. Este ADR passa a `Aceito` só quando o usuário aceitar a decisão.

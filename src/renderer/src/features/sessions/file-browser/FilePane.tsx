@@ -5,9 +5,13 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger
 } from '@renderer/components/ui/context-menu'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
+import { DirectoryFavoritesMenu } from '@renderer/features/sessions/file-browser/DirectoryFavoritesMenu'
 import { toastError } from '@renderer/lib/toast'
 import { cn } from '@renderer/lib/utils'
 import type { RemoteEntry } from '@shared/protocols'
@@ -15,6 +19,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
   ArrowUp,
+  ChevronRight,
   CornerLeftUp,
   File,
   FilePlus,
@@ -26,13 +31,14 @@ import {
   Link2,
   Loader2,
   RefreshCw,
-  ScrollText
+  ScrollText,
+  Upload
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isStaleDirectoryListError } from '../terminal-cwd-list'
 import { NameDialog, type NameRequest } from './NameDialog'
-import { formatSize, isRootPath, joinPath, type PathStyle, parentPath } from './paths'
+import { formatSize, isRootPath, joinPath, type PathStyle, parentPath, pathSegments } from './paths'
 
 export type PaneSide = 'local' | 'remote'
 
@@ -49,6 +55,18 @@ export type PaneSource = {
   remove: (path: string) => Promise<void>
   /** Double-click on a file. */
   openFile: (entry: RemoteEntry) => void
+  /**
+   * Lists a path that is not the pane's current folder. The terminal panel uses
+   * this to tell a symlink to a directory from a symlink to a file.
+   */
+  probe?: (path: string) => Promise<RemoteEntry[]>
+}
+
+/** Remote pane only. The mirror and the local pane omit this. */
+export type RemoteEditActions = {
+  editors: { id: string; name: string }[]
+  onEdit: (entry: RemoteEntry) => void
+  onEditWith: (entry: RemoteEntry, editorId: string) => void
 }
 
 export const FILE_DRAG_MIME = 'application/x-north-files'
@@ -95,10 +113,24 @@ type FilePaneProps = {
     onFollowLive: (entry: RemoteEntry) => void
   }
   /**
-   * Terminal cwd mirror. The listed path stays put: navigation, transfer, and
-   * mutation do nothing. Omitted on the two-pane browser.
+   * Read-only list. Navigation, transfer, and mutation do nothing.
+   * The terminal cwd panel does not use this: it passes `shell` instead.
    */
   mirror?: boolean
+  /**
+   * Terminal cwd panel. The parent keeps the listed path on OSC 7.
+   * `onPathChange` asks the shell to `cd`. List failures stay inline.
+   */
+  shell?: boolean
+  /** Opens the main-process file dialog. Only the terminal cwd panel sets this. */
+  onUpload?: () => void
+  /** Remote file browser only. Omitted on the local pane and the terminal mirror. */
+  editActions?: RemoteEditActions
+  /**
+   * Saved connection whose remote directory favorites this pane shows.
+   * Omitted on the local pane and the terminal mirror.
+   */
+  favoriteConnectionId?: string | null
 }
 
 export function FilePane({
@@ -112,7 +144,11 @@ export function FilePane({
   onDrop,
   copyLabel,
   sshActions,
-  mirror = false
+  mirror = false,
+  shell = false,
+  onUpload,
+  editActions,
+  favoriteConnectionId
 }: FilePaneProps): React.JSX.Element {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -120,12 +156,15 @@ export function FilePane({
   const [anchor, setAnchor] = useState<string | null>(null)
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'name', dir: 1 })
   const [pathDraft, setPathDraft] = useState(path)
+  const [editingPath, setEditingPath] = useState(false)
+  const pathInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<RemoteEntry[] | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [nameRequest, setNameRequest] = useState<NameRequest | null>(null)
   const rootRef = useRef<HTMLElement>(null)
   const paneActions = mirror ? undefined : sshActions
+  const remoteEdit = mirror ? undefined : editActions
 
   function changePath(next: string): void {
     if (mirror) return
@@ -134,9 +173,34 @@ export function FilePane({
 
   useEffect(() => {
     setPathDraft(path)
+    setEditingPath(false)
     setSelected(new Set())
     setAnchor(null)
   }, [path])
+
+  useEffect(() => {
+    if (!editingPath || mirror) return
+    pathInputRef.current?.focus()
+    pathInputRef.current?.select()
+  }, [editingPath, mirror])
+
+  function beginPathEdit(): void {
+    if (mirror) return
+    setPathDraft(path)
+    setEditingPath(true)
+  }
+
+  function commitPathEdit(): void {
+    const next = pathDraft.trim()
+    setEditingPath(false)
+    if (next) changePath(next)
+    else setPathDraft(path)
+  }
+
+  function cancelPathEdit(): void {
+    setPathDraft(path)
+    setEditingPath(false)
+  }
 
   const query = useQuery({
     queryKey: paneQueryKey(source.side, source.sessionId, path),
@@ -146,9 +210,9 @@ export function FilePane({
   })
 
   useEffect(() => {
-    if (mirror || !query.error || isStaleDirectoryListError(query.error)) return
+    if (mirror || shell || !query.error || isStaleDirectoryListError(query.error)) return
     toastError(query.error, 'Falha ao listar diretório')
-  }, [mirror, query.error])
+  }, [mirror, shell, query.error])
 
   const entries = useMemo(
     () =>
@@ -171,8 +235,8 @@ export function FilePane({
     if (entry.type === 'dir' || entry.type === 'link') {
       // A link may point to a file; listing it fails harmlessly and we stay put.
       if (entry.type === 'link' && source.side === 'remote') {
-        source
-          .list(entry.path)
+        const list = source.probe ?? source.list
+        list(entry.path)
           .then(() => changePath(entry.path))
           .catch(() => source.openFile(entry))
         return
@@ -328,7 +392,7 @@ export function FilePane({
   const totalBytes = entries.reduce((sum, e) => sum + (e.type === 'dir' ? 0 : e.size), 0)
   const selBytes = selectedEntries.reduce((sum, e) => sum + (e.type === 'dir' ? 0 : e.size), 0)
 
-  const mirrorFailed = mirror && query.isError && !isStaleDirectoryListError(query.error)
+  const listFailed = (mirror || shell) && query.isError && !isStaleDirectoryListError(query.error)
 
   const columns: { key: SortKey; label: string; className: string }[] = [
     { key: 'name', label: 'Nome', className: '' },
@@ -387,7 +451,7 @@ export function FilePane({
           size="icon"
           className="size-7"
           aria-label="Pasta inicial"
-          disabled={mirror}
+          disabled={mirror || source.home === ''}
           onClick={() => changePath(source.home)}
         >
           <Home className="size-3.5" />
@@ -406,6 +470,19 @@ export function FilePane({
             <RefreshCw className="size-3.5" />
           )}
         </Button>
+        {onUpload ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            aria-label={t('connection.terminalCwd.upload')}
+            data-testid="terminal-cwd-upload"
+            onClick={onUpload}
+          >
+            <Upload className="size-3.5" />
+          </Button>
+        ) : null}
         {mirror ? null : (
           <Button
             type="button"
@@ -431,22 +508,83 @@ export function FilePane({
             <FolderInput className="size-3.5" />
           </Button>
         ) : null}
-        <input
-          className="h-7 min-w-0 flex-1 rounded border border-border bg-surface px-2 font-mono text-xs"
-          aria-label="Caminho"
-          readOnly={mirror}
-          value={pathDraft}
-          onChange={(e) => {
-            if (mirror) return
-            setPathDraft(e.target.value)
-          }}
-          onKeyDown={(e) => {
-            if (mirror) return
-            if (e.key === 'Enter' && pathDraft.trim()) changePath(pathDraft.trim())
-            if (e.key === 'Escape') setPathDraft(path)
-          }}
-          onBlur={() => setPathDraft(path)}
-        />
+        {favoriteConnectionId && !mirror ? (
+          <DirectoryFavoritesMenu
+            connectionId={favoriteConnectionId}
+            path={path}
+            canAdd={query.isSuccess && path !== ''}
+            list={source.list}
+            onOpen={changePath}
+          />
+        ) : null}
+        {mirror || editingPath ? (
+          <input
+            ref={pathInputRef}
+            className="h-7 min-w-0 flex-1 rounded border border-border bg-surface px-2 font-mono text-xs"
+            aria-label={t('connection.fileBrowser.path')}
+            data-testid="path-input"
+            readOnly={mirror}
+            value={pathDraft}
+            onChange={(e) => {
+              if (mirror) return
+              setPathDraft(e.target.value)
+            }}
+            onKeyDown={(e) => {
+              if (mirror) return
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                commitPathEdit()
+              }
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                cancelPathEdit()
+              }
+            }}
+            onBlur={cancelPathEdit}
+          />
+        ) : (
+          <div
+            className="flex h-7 min-w-0 flex-1 items-center overflow-x-auto overflow-y-hidden rounded border border-border bg-surface [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            data-testid="path-bar"
+          >
+            {pathSegments(path, source.sep).map((segment, index, all) => {
+              const current = index === all.length - 1
+              return (
+                <span key={segment.path} className="flex h-full shrink-0 items-center">
+                  {index > 0 ? (
+                    <ChevronRight className="size-3 shrink-0 text-muted" aria-hidden />
+                  ) : null}
+                  <button
+                    type="button"
+                    className={cn(
+                      'h-full shrink-0 px-1 font-mono text-xs hover:bg-surface-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      current ? 'text-foreground' : 'text-accent'
+                    )}
+                    aria-label={
+                      current
+                        ? t('connection.fileBrowser.path')
+                        : t('connection.fileBrowser.openPath', { path: segment.path })
+                    }
+                    data-testid={current ? 'path-segment-current' : 'path-segment'}
+                    onMouseDown={current ? (event) => event.preventDefault() : undefined}
+                    onClick={current ? beginPathEdit : () => changePath(segment.path)}
+                  >
+                    {segment.label}
+                  </button>
+                </span>
+              )
+            })}
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-hidden
+              className="h-full min-w-6 flex-1"
+              data-testid="path-bar-rest"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={beginPathEdit}
+            />
+          </div>
+        )}
       </div>
 
       <ContextMenu>
@@ -511,7 +649,7 @@ export function FilePane({
                   </tr>
                 </thead>
                 <tbody>
-                  {!mirrorFailed && !mirror && !isRootPath(path, source.sep) ? (
+                  {!listFailed && !mirror && !isRootPath(path, source.sep) ? (
                     <tr
                       className="cursor-default hover:bg-surface-elevated/50"
                       onDoubleClick={() => changePath(parentPath(path, source.sep))}
@@ -524,7 +662,7 @@ export function FilePane({
                       </td>
                     </tr>
                   ) : null}
-                  {!mirrorFailed &&
+                  {!listFailed &&
                     entries.map((entry) => {
                       const Icon =
                         entry.type === 'dir' ? Folder : entry.type === 'link' ? Link2 : File
@@ -597,7 +735,7 @@ export function FilePane({
                     })}
                 </tbody>
               </table>
-              {mirrorFailed ? (
+              {listFailed ? (
                 <p
                   className="p-6 text-center text-xs text-muted"
                   data-testid="terminal-cwd-list-error"
@@ -631,6 +769,39 @@ export function FilePane({
               >
                 Abrir
               </ContextMenuItem>
+              {remoteEdit ? (
+                <>
+                  <ContextMenuItem
+                    data-testid="file-edit"
+                    disabled={singleFile === null}
+                    onSelect={() => {
+                      if (singleFile) remoteEdit.onEdit(singleFile)
+                    }}
+                  >
+                    {t('connection.fileBrowser.edit')}
+                  </ContextMenuItem>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger
+                      data-testid="file-edit-with"
+                      disabled={singleFile === null || remoteEdit.editors.length === 0}
+                    >
+                      {t('connection.fileBrowser.editWith')}
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent>
+                      {remoteEdit.editors.map((editor) => (
+                        <ContextMenuItem
+                          key={editor.id}
+                          onSelect={() => {
+                            if (singleFile) remoteEdit.onEditWith(singleFile, editor.id)
+                          }}
+                        >
+                          {editor.name}
+                        </ContextMenuItem>
+                      ))}
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                </>
+              ) : null}
               {paneActions ? (
                 <>
                   <ContextMenuSeparator />

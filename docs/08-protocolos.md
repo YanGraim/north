@@ -28,11 +28,19 @@ A UI conhece **apenas** o tipo. O protocolo concreto fica no driver.
 
 Regra: sockets, TLS, credenciais e arquivos locais ficam no **main**. O renderer só renderiza e envia input do usuário.
 
+No terminal (SSH, Telnet, serial, shell local e workspace de agente), o botão do meio copia a seleção e, sem seleção, cola a área de transferência do sistema. Uma imagem cola o caminho do arquivo temporário. O botão direito continua o menu. O gesto fica no renderer e reusa copiar e colar já existentes ([REC-018](./recursos/rec-018-botao-meio-copia-cola-terminal/especificacao.md)). Em Configurações, **Botão direito copia ou cola** nasce desligado e troca esses papéis; ligado, o direito deixa de selecionar a palavra ([REC-019](./recursos/rec-019-inverter-botoes-meio-direito/especificacao.md)). A preferência fica na store `north-ui` deste computador.
+
 No menu de contexto do terminal SSH, a seleção pode gravar o diretório inicial ou um arquivo de log da conexão ([REC-005](./recursos/rec-005-diretorio-log-selecao-terminal/especificacao.md)). Arquivo ou diretório sai de um `stat` SFTP no `Client` já autenticado (`sessions:classify-path`). O PTY só recebe o `cd` citado depois que o diretório é gravado. **Monitorar log** ([REC-008](./recursos/rec-008-monitorar-log-selecao/especificacao.md)) abre o mesmo `tail -F` pelo path selecionado, sem gravar `log_files` e sem entrar no teto de 8 quadros gravados.
 
 No painel remoto de arquivos de uma conexão SSH, a pasta listada grava o mesmo diretório inicial, com confirmação se já houver outro ([REC-009](./recursos/rec-009-diretorio-e-monitoramento-sftp/especificacao.md)). Um arquivo do menu entra na lista de logs e abre o quadro, ou só abre o quadro pelo path, sem gravar `log_files` e sem entrar no teto de 8. FTP e o painel local não têm essas ações. O terminal já aberto não recebe `cd`.
 
-No terminal SSH de uma conexão salva, a badge **Arquivos** abre um painel à direita do xterm com a pasta do shell ([REC-010](./recursos/rec-010-arquivos-do-diretorio-atual/especificacao.md), [ADR 0020](./adr/0020-listagem-cwd-terminal-ssh.md)). A pasta chega por OSC 7 do prompt desta sessão, em bash e zsh. O gancho é um trecho fixo do main, não é gravado no servidor e não entra em fish, dash nem ash. A listagem é `sessions:list-directory`: SFTP curto no mesmo `Client`, sem `fs:list` e sem `ls` no PTY. O painel não escreve no terminal. Sem OSC 7, não lista o diretório de login.
+No mesmo painel remoto, em SFTP e em FTP, **Editar** abre um arquivo de texto no editor do North e **Editar com…** abre um executável cadastrado ([REC-014](./recursos/rec-014-editar-arquivo-remoto/especificacao.md)). O main baixa para um temporário e, ao salvar, envia com sobrescrita. Pasta, byte nulo nos primeiros 8 KiB e arquivo acima de 8 MiB não abrem. Fechar a sessão apaga a cópia e não espera o editor. O espelho da pasta do terminal não edita. **Abrir** e o clique duplo continuam só baixando.
+
+Nos painéis local e remoto, a barra mostra cada pasta do caminho ([REC-015](./recursos/rec-015-caminho-clicavel-painel-arquivos/especificacao.md)). Clicar num trecho anterior lista essa pasta. O trecho final abre o campo; Enter confirma e Esc volta. No painel da pasta do terminal, o trecho pede `cd` ([REC-017](./recursos/rec-017-acoes-sftp-painel-terminal/especificacao.md)).
+
+No painel remoto de SFTP e de FTP, **Diretórios favoritos** guarda a pasta listada só naquela conexão ([REC-016](./recursos/rec-016-diretorios-favoritos-painel-arquivos/especificacao.md)). Um clique lista a pasta de novo. Se ela não existir, o painel permanece. A lista não entra no export, na duplicata nem na sincronização. O painel local e o espelho do terminal não têm o botão.
+
+No terminal SSH de uma conexão salva, a badge **Arquivos** abre um painel à direita do xterm com a pasta do shell ([REC-010](./recursos/rec-010-arquivos-do-diretorio-atual/especificacao.md), [ADR 0020](./adr/0020-listagem-cwd-terminal-ssh.md), [REC-017](./recursos/rec-017-acoes-sftp-painel-terminal/especificacao.md), [ADR 0021](./adr/0021-cd-painel-pasta-terminal.md)). A pasta chega por OSC 7 do prompt desta sessão, em bash e zsh. O gancho é um trecho fixo do main, não é gravado no servidor e não entra em fish, dash nem ash. O eco dessa linha é descartado antes do xterm; a linha do `cd` pedido pelo painel aparece. A listagem e as alterações de arquivo são SFTP curto no mesmo `Client`, sem `fs:list` e sem `ls` no PTY. Entrar numa pasta, subir, ir para a pasta inicial ou clicar num trecho escreve `cd --` com o path citado, e só com o prompt livre. O texto nasce no main. A lista só muda no OSC 7 seguinte. Sem OSC 7, não lista o diretório de login. Baixar pede a pasta local num diálogo do main. **Editar** e os favoritos continuam no navegador de dois lados.
 
 ## Interfaces (contratos em `shared/protocols`)
 
@@ -91,8 +99,9 @@ Eventos de sessão (plano de controle) — canais definitivos:
 - `sessions:open-access` — sessão SQL a partir de Access (sem MessagePort; [ADR 0015](./adr/0015-estudio-sql.md))
 - `sessions:state-changed` / `sessions:host-key-prompt` / `sessions:respond-host-key`
 - Entrega do port: `sessions:port` via `postMessage` (transfer)
-- File-transfer: `fs:list|mkdir|rename|delete|download|upload` + evento `fs:progress` ([ADR 0008](./adr/0008-file-transfer-ipc.md))
+- File-transfer: `fs:list|mkdir|rename|delete|download|upload` + evento `fs:progress` ([ADR 0008](./adr/0008-file-transfer-ipc.md)). Edição no painel: `fs:edit-open|save|close` + eventos `fs:edit-uploaded|failed` ([REC-014](./recursos/rec-014-editar-arquivo-remoto/especificacao.md))
 - `sessions:list-directory` — pasta corrente do terminal SSH no `Client` já autenticado ([ADR 0020](./adr/0020-listagem-cwd-terminal-ssh.md))
+- `sessions:change-directory`, `sessions:cancel-directory-change`, `sessions:home`, `sessions:mkdir`, `sessions:rename`, `sessions:delete`, `sessions:download`, `sessions:upload` — navegação com `cd` e SFTP curto no mesmo `Client` ([ADR 0021](./adr/0021-cd-painel-pasta-terminal.md))
 - SQL studio: `db:test|introspect|query|cancel|pick-file`
 - Serial: `serial:list-ports`
 

@@ -14,6 +14,35 @@ describe('ftp file-browser', () => {
     cy.get(remote).find('[data-testid="file-browser-entry-hello.txt"]').should('be.visible')
   })
 
+  it('jumps to a parent folder from the path bar and still accepts a typed path', () => {
+    cy.get(local).find('[data-testid="file-browser-entry-local.txt"]').should('be.visible')
+    cy.get(local).find('[aria-label="Abrir /"]').should('exist')
+    cy.get(local).find('[aria-label="Abrir /home"]').should('exist')
+    cy.get(local).find('[data-testid="path-segment-current"]').should('contain', 'e2e')
+
+    cy.get(remote).find('[data-testid="file-browser-entry-docs"]').dblclick()
+    cy.get(remote).find('[data-testid="file-browser-entry-readme.txt"]').should('be.visible')
+    cy.get(remote).find('[aria-label="Abrir /docs"]').should('not.exist')
+    cy.get(remote).find('[aria-label="Abrir /"]').click()
+    cy.get(remote).find('[data-testid="file-browser-entry-hello.txt"]').should('be.visible')
+
+    cy.get(remote).find('[data-testid="path-segment-current"]').click()
+    cy.get(remote).find('[data-testid="path-input"]').clear().type('/docs{enter}')
+    cy.get(remote).find('[data-testid="file-browser-entry-readme.txt"]').should('be.visible')
+    cy.get(remote).find('[data-testid="path-input"]').should('not.exist')
+
+    cy.get(remote).find('[data-testid="path-segment-current"]').click()
+    cy.get(remote).find('[data-testid="path-input"]').type('{esc}')
+    cy.get(remote).find('[data-testid="path-input"]').should('not.exist')
+    cy.get(remote).find('[data-testid="file-browser-entry-readme.txt"]').should('be.visible')
+
+    cy.get(remote).find('[data-testid="path-segment-current"]').click()
+    cy.get(remote).find('[data-testid="path-input"]').type('/etc')
+    cy.get(remote).find('[data-testid="file-browser-entry-readme.txt"]').click()
+    cy.get(remote).find('[data-testid="path-input"]').should('not.exist')
+    cy.get(remote).find('[data-testid="file-browser-entry-readme.txt"]').should('be.visible')
+  })
+
   it('lists remote entries and navigates into a directory', () => {
     cy.get(remote).find('[data-testid="file-browser-entry-docs"]').dblclick()
     cy.get(remote)
@@ -84,6 +113,50 @@ describe('ftp file-browser', () => {
     cy.get(remote)
       .find('[data-testid="file-browser-empty"]')
       .should('contain', 'Pasta vazia — arraste arquivos para cá')
+  })
+
+  it('edits a remote text file and hides edit on the local pane', () => {
+    cy.get(remote).find('[data-testid="file-browser-entry-hello.txt"]').click()
+    cy.get(remote).find('[data-testid="file-browser-entry-hello.txt"]').rightclick()
+    cy.get('[data-testid="file-edit"]').should('be.visible').and('not.have.attr', 'data-disabled')
+    cy.get('[data-testid="file-edit-with"]').should('have.attr', 'data-disabled')
+    cy.get('[data-testid="file-edit"]').click()
+    cy.get('[data-testid="remote-edit"]').should('be.visible')
+    cy.get('[data-testid="remote-edit-tab"]').should('contain', 'hello.txt')
+    cy.get('[data-testid="remote-edit-save"]').should('be.disabled')
+    cy.get('[data-testid="remote-edit-close"]').click()
+    cy.get('[data-testid="file-pane-remote"]').should('be.visible')
+    cy.get('[data-testid="remote-edit"]').should('not.exist')
+
+    cy.get(local).find('[data-testid="file-browser-entry-local.txt"]').rightclick()
+    cy.get('[data-slot="context-menu-content"]').should('be.visible')
+    cy.get('[data-testid="file-edit"]').should('not.exist')
+  })
+
+  it('does not edit a remote folder', () => {
+    cy.get(remote).find('[data-testid="file-browser-entry-docs"]').click()
+    cy.get(remote).find('[data-testid="file-browser-entry-docs"]').rightclick()
+    cy.get('[data-testid="file-edit"]').should('have.attr', 'data-disabled')
+  })
+
+  it('saves a favorite directory and returns to it', () => {
+    cy.get(local).find('[data-testid="directory-favorites"]').should('not.exist')
+    cy.get(remote).find('[data-testid="directory-favorites"]').click()
+    cy.get('[data-testid="directory-favorites-empty"]').should('be.visible')
+    cy.get('[data-testid="directory-favorites-add"]').click()
+    cy.get('[data-testid="directory-favorites-item"]').should('not.exist')
+
+    cy.get(remote).find('[data-testid="file-browser-entry-docs"]').dblclick()
+    cy.get(remote).find('[data-testid="file-browser-entry-readme.txt"]').should('be.visible')
+    cy.get(remote).find('[data-testid="directory-favorites"]').click()
+    cy.get('[data-testid="directory-favorites-item"]').should('contain', '/').find('span').click()
+    cy.get(remote).find('[data-testid="file-browser-entry-hello.txt"]').should('be.visible')
+
+    cy.get(remote).find('[data-testid="directory-favorites"]').click()
+    cy.get('[data-testid="directory-favorites-remove"]').click()
+    cy.get('body').type('{esc}')
+    cy.get(remote).find('[data-testid="directory-favorites"]').click()
+    cy.get('[data-testid="directory-favorites-empty"]').should('be.visible')
   })
 })
 

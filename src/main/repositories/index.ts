@@ -8,6 +8,7 @@ import { ApiRequestHistoryRepository } from './api-request-history-repository'
 import { ApiRequestsRepository } from './api-requests-repository'
 import { ApiVariablesRepository } from './api-variables-repository'
 import { ClientsRepository } from './clients-repository'
+import { ConnectionDirectoryFavoritesRepository } from './connection-directory-favorites-repository'
 import { ConnectionHealthEventsRepository } from './connection-health-events-repository'
 import { ConnectionMonitorsRepository } from './connection-monitors-repository'
 import { ConnectionSecretsRepository } from './connection-secrets-repository'
@@ -31,6 +32,7 @@ export type Repositories = {
   environments: EnvironmentsRepository
   groups: GroupsRepository
   connections: ConnectionsRepository
+  directoryFavorites: ConnectionDirectoryFavoritesRepository
   accesses: AccessesRepository
   agentWorkspaces: AgentWorkspacesRepository
   agentBoardColumns: AgentBoardColumnsRepository
@@ -61,6 +63,7 @@ export function createRepositories(db: SqliteDatabase): Repositories {
     environments: new EnvironmentsRepository(db),
     groups: new GroupsRepository(db),
     connections: new ConnectionsRepository(db),
+    directoryFavorites: new ConnectionDirectoryFavoritesRepository(db),
     accesses: new AccessesRepository(db),
     agentWorkspaces: new AgentWorkspacesRepository(db),
     agentBoardColumns: new AgentBoardColumnsRepository(db),

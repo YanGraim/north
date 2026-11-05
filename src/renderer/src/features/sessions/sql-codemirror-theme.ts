@@ -32,7 +32,8 @@ const autocompleteChrome: Record<string, Record<string, string | number>> = {
     border: '1px solid var(--color-border)',
     borderRadius: 'var(--radius-md)',
     boxShadow: '0 8px 24px color-mix(in oklab, #000 35%, transparent)',
-    fontFamily: 'var(--font-sans)',
+    fontFamily:
+      'var(--code-font-family, var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace))',
     fontSize: '12px'
   },
   '.cm-tooltip.cm-tooltip-autocomplete': {

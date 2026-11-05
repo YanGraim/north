@@ -18,6 +18,11 @@ import {
 } from '@renderer/lib/terminal/keys'
 import { attachWebLinks } from '@renderer/lib/terminal/links'
 import {
+  resolveMiddleButtonAction,
+  resolveTerminalPointerRole,
+  terminalRightClickSelectsWord
+} from '@renderer/lib/terminal/middle-button'
+import {
   clientPointToViewportCell,
   getXtermScreenElement,
   viewportCellToBufferPos
@@ -33,6 +38,8 @@ export type AttachTerminalInteractionOptions = {
   term: Terminal
   container: HTMLElement
   getCopyOnSelect: () => boolean
+  /** When true, the right button copies or pastes and the middle button opens the menu. */
+  getRightButtonCopies: () => boolean
   isFindOpen: () => boolean
   onOpenFind: () => void
   onCloseFind: () => void
@@ -157,6 +164,112 @@ function attachClickToMove(term: Terminal, container: HTMLElement): () => void {
   }
 }
 
+function runCopyOrPaste(
+  term: Terminal,
+  copySelection: () => Promise<boolean>,
+  paste: () => Promise<void>
+): void {
+  if (resolveMiddleButtonAction(term.hasSelection()) === 'copy') void copySelection()
+  else void paste()
+}
+
+/**
+ * Opens the Radix menu on the container. Button stays 0 so the capture listener
+ * that treats button 2 as copy or paste does not swallow this event.
+ */
+function openTerminalContextMenu(container: HTMLElement, clientX: number, clientY: number): void {
+  container.dispatchEvent(
+    new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX,
+      clientY,
+      button: 0,
+      view: window
+    })
+  )
+}
+
+function attachPointerButtons(
+  term: Terminal,
+  container: HTMLElement,
+  getRightButtonCopies: () => boolean,
+  copySelection: () => Promise<boolean>,
+  paste: () => Promise<void>
+): () => void {
+  let pressedInside = false
+  let handled = false
+
+  const applyRightClickOption = (): void => {
+    term.options.rightClickSelectsWord = terminalRightClickSelectsWord(getRightButtonCopies())
+  }
+
+  const runMiddleButton = (clientX: number, clientY: number): void => {
+    const role = resolveTerminalPointerRole(1, getRightButtonCopies())
+    if (role === 'menu') openTerminalContextMenu(container, clientX, clientY)
+    else runCopyOrPaste(term, copySelection, paste)
+  }
+
+  const onMouseDown = (event: MouseEvent): void => {
+    if (event.button === 2) {
+      // xterm reads this option on the way to the target. Capture runs first.
+      applyRightClickOption()
+      return
+    }
+    if (event.button !== 1) return
+    event.preventDefault()
+    event.stopPropagation()
+    pressedInside = true
+    handled = false
+  }
+
+  const onMouseUp = (event: MouseEvent): void => {
+    if (event.button !== 1) return
+    const target = event.target
+    const inside = pressedInside && target instanceof Node && container.contains(target)
+    pressedInside = false
+    if (!inside) return
+    event.preventDefault()
+    event.stopPropagation()
+    handled = true
+    runMiddleButton(event.clientX, event.clientY)
+  }
+
+  const onAuxClick = (event: MouseEvent): void => {
+    if (event.button !== 1) return
+    event.preventDefault()
+    event.stopPropagation()
+    // mouseup already handled the click. auxclick still has to be swallowed: on Linux,
+    // xterm moves its textarea here and does not look at defaultPrevented.
+    if (handled) {
+      handled = false
+      return
+    }
+    runMiddleButton(event.clientX, event.clientY)
+  }
+
+  const onContextMenu = (event: MouseEvent): void => {
+    applyRightClickOption()
+    if (resolveTerminalPointerRole(event.button, getRightButtonCopies()) !== 'copy-paste') return
+    event.preventDefault()
+    event.stopPropagation()
+    runCopyOrPaste(term, copySelection, paste)
+  }
+
+  // Capture on mousedown cancels Chromium autoscroll before the target sees the button.
+  container.addEventListener('mousedown', onMouseDown, true)
+  window.addEventListener('mouseup', onMouseUp, true)
+  container.addEventListener('auxclick', onAuxClick, true)
+  container.addEventListener('contextmenu', onContextMenu, true)
+
+  return () => {
+    container.removeEventListener('mousedown', onMouseDown, true)
+    window.removeEventListener('mouseup', onMouseUp, true)
+    container.removeEventListener('auxclick', onAuxClick, true)
+    container.removeEventListener('contextmenu', onContextMenu, true)
+  }
+}
+
 export function attachTerminalInteraction(
   options: AttachTerminalInteractionOptions
 ): TerminalInteraction {
@@ -164,6 +277,7 @@ export function attachTerminalInteraction(
     term,
     container,
     getCopyOnSelect,
+    getRightButtonCopies,
     isFindOpen,
     onOpenFind,
     onCloseFind,
@@ -184,6 +298,13 @@ export function attachTerminalInteraction(
     copyTerminalSelection(term, { clear: true, notifyError: true })
 
   const paste = (): Promise<void> => pasteClipboardIntoTerminal(term)
+  const detachPointerButtons = attachPointerButtons(
+    term,
+    container,
+    getRightButtonCopies,
+    copySelection,
+    paste
+  )
 
   const pasteText = (text: string): void => term.paste(text)
 
@@ -291,6 +412,7 @@ export function attachTerminalInteraction(
       detachCopyOnSelect()
       detachLinks()
       detachClickToMove()
+      detachPointerButtons()
       searchAddon.dispose()
     }
   }

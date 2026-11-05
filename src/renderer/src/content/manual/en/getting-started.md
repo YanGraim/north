@@ -22,3 +22,7 @@ In **Settings → Appearance**, choose Dark, Light, System, or Automatic. Automa
 ## Open at startup
 
 In **Settings → Startup**, turn on **Open North when the computer starts** to have North open by itself when you sign in to Windows, macOS or Linux. It's off by default. To turn it off, uncheck it (or use Windows' Startup apps / macOS Login Items).
+
+## Closing the window
+
+**Close to the tray**, in the same section, starts on. Closing the window hides North in the tray icon (Windows and Linux) or the menu bar icon (macOS). Sessions keep running. To quit, use **Sair do North** on the icon, or turn the option off when no VPN is saved. With a VPN saved, the option stays on and cannot be turned off, because the tunnel depends on North. On macOS, with the option off, the red button closes the window and the app stays in the Dock until Quit.

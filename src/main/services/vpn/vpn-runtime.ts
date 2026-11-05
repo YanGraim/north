@@ -29,6 +29,7 @@ import type { TunnelRegistry } from './tunnel-registry'
 import { VpnError } from './vpn-error'
 import type { VpnHelper } from './vpn-helper'
 import { VpnManager } from './vpn-manager'
+import type { VpnNoticeEvent } from './vpn-notices'
 import { VpnProfileService } from './vpn-profile-service'
 
 const REDACTABLE: VpnSecretKind[] = ['password', 'key-passphrase', 'psk']
@@ -38,6 +39,7 @@ export type VpnRuntimeDeps = {
   vault: CredentialVault
   platform: NodeJS.Platform
   emit: (state: VpnState) => void
+  onNotice?: (event: VpnNoticeEvent) => void
   /** NORTH_VPN_FAKE=1 / tests: register the fake driver for every kind. */
   fake?: boolean
   openvpn?: {
@@ -143,7 +145,8 @@ export function createVpnRuntime(deps: VpnRuntimeDeps) {
     drivers,
     history: deps.repos.vpnHistory,
     platform: deps.platform,
-    emit: deps.emit
+    emit: deps.emit,
+    onNotice: deps.onNotice
   })
 
   return { profiles, drivers, manager, links: deps.repos.vpnProfiles }

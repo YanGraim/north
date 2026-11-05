@@ -8,6 +8,14 @@ export const IpcChannels = {
   APP_SET_THEME: 'app:set-theme',
   APP_GET_LAUNCH_AT_LOGIN: 'app:get-launch-at-login',
   APP_SET_LAUNCH_AT_LOGIN: 'app:set-launch-at-login',
+  APP_GET_CLOSE_TO_TRAY: 'app:get-close-to-tray',
+  APP_SET_CLOSE_TO_TRAY: 'app:set-close-to-tray',
+  APP_SET_LOCALE: 'app:set-locale',
+  APP_GET_VPN_NOTIFICATIONS: 'app:get-vpn-notifications',
+  APP_SET_VPN_NOTIFICATIONS: 'app:set-vpn-notifications',
+  SETTINGS_LIST_EXTERNAL_EDITORS: 'settings:list-external-editors',
+  SETTINGS_SAVE_EXTERNAL_EDITORS: 'settings:save-external-editors',
+  SETTINGS_PICK_EXECUTABLE: 'settings:pick-executable',
 
   WORKSPACES_LIST: 'workspaces:list',
   WORKSPACES_ACTIVATE: 'workspaces:activate',
@@ -45,6 +53,9 @@ export const IpcChannels = {
   CONNECTIONS_DELETE: 'connections:delete',
   CONNECTIONS_TOGGLE_FAVORITE: 'connections:toggle-favorite',
   CONNECTIONS_DUPLICATE: 'connections:duplicate',
+  CONNECTIONS_LIST_DIRECTORY_FAVORITES: 'connections:list-directory-favorites',
+  CONNECTIONS_ADD_DIRECTORY_FAVORITE: 'connections:add-directory-favorite',
+  CONNECTIONS_REMOVE_DIRECTORY_FAVORITE: 'connections:remove-directory-favorite',
 
   ACCESSES_LIST: 'accesses:list',
   ACCESSES_GET: 'accesses:get',
@@ -99,6 +110,14 @@ export const IpcChannels = {
   SESSIONS_CLAUDE_USAGE: 'sessions:claude-usage',
   SESSIONS_CLASSIFY_PATH: 'sessions:classify-path',
   SESSIONS_LIST_DIRECTORY: 'sessions:list-directory',
+  SESSIONS_CHANGE_DIRECTORY: 'sessions:change-directory',
+  SESSIONS_CANCEL_DIRECTORY_CHANGE: 'sessions:cancel-directory-change',
+  SESSIONS_HOME: 'sessions:home',
+  SESSIONS_MKDIR: 'sessions:mkdir',
+  SESSIONS_RENAME: 'sessions:rename',
+  SESSIONS_DELETE: 'sessions:delete',
+  SESSIONS_DOWNLOAD: 'sessions:download',
+  SESSIONS_UPLOAD: 'sessions:upload',
 
   LOG_FOLLOWS_LIST: 'log-follows:list',
   LOG_FOLLOWS_START: 'log-follows:start',
@@ -122,8 +141,15 @@ export const IpcChannels = {
   FS_UPLOAD: 'fs:upload',
   FS_CANCEL: 'fs:cancel',
   FS_HOME: 'fs:home',
+  FS_EDIT_OPEN: 'fs:edit-open',
+  FS_EDIT_SAVE: 'fs:edit-save',
+  FS_EDIT_CLOSE: 'fs:edit-close',
   /** Main → renderer (event): transfer progress. */
   FS_PROGRESS: 'fs:progress',
+  /** Main → renderer (event): an external editor save was uploaded. */
+  FS_EDIT_UPLOADED: 'fs:edit-uploaded',
+  /** Main → renderer (event): an external editor save failed to upload. No file bytes. */
+  FS_EDIT_FAILED: 'fs:edit-failed',
 
   LOCAL_FS_INFO: 'local-fs:info',
   LOCAL_FS_LIST: 'local-fs:list',

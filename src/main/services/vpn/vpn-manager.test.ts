@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeVpnDriverFactory, type FakeVpnBehavior } from './drivers/fake-vpn-driver'
 import { VpnDriverRegistry } from './drivers/vpn-driver'
 import { VpnManager } from './vpn-manager'
+import type { VpnNoticeEvent } from './vpn-notices'
 
 const ovpn = (routes: string[] = [], redirectGateway = false): VpnConfig => ({
   kind: 'openvpn',
@@ -36,6 +37,7 @@ function setup(profiles: VpnProfile[], behavior: FakeVpnBehavior = {}) {
   const drivers = new VpnDriverRegistry()
   drivers.register(factory)
   const events: VpnState[] = []
+  const notices: VpnNoticeEvent[] = []
   const history = { start: vi.fn(() => 'h1'), finish: vi.fn() }
   const byId = new Map(profiles.map((p) => [p.id, p]))
   const manager = new VpnManager({
@@ -48,12 +50,14 @@ function setup(profiles: VpnProfile[], behavior: FakeVpnBehavior = {}) {
     drivers,
     history,
     platform: 'darwin',
-    emit: (s) => events.push(s)
+    emit: (s) => events.push(s),
+    onNotice: (event) => notices.push(event)
   })
   return {
     manager,
     factory,
     events,
+    notices,
     history,
     setBehavior: (b: FakeVpnBehavior) => {
       current = b
@@ -329,5 +333,61 @@ describe('VpnManager progress detail', () => {
     expect(error.message).toMatch(/Informe seu usuário na VPN "VPN POLY"/)
     // no retries: it waits for the user to fill the field
     expect(manager.getState('poly').status).toBe('error')
+  })
+
+  it('reports connect and a requested disconnect, and stays quiet on a first failure', async () => {
+    const { manager, notices } = setup([makeProfile('a')])
+    await manager.connect('a')
+    expect(notices).toEqual([
+      expect.objectContaining({ from: 'connecting', to: 'connected', reason: 'connected' })
+    ])
+    await manager.disconnect('a')
+    expect(notices.at(-1)).toMatchObject({
+      from: 'disconnecting',
+      to: 'disconnected',
+      reason: 'disconnect-requested'
+    })
+
+    const failed = setup([makeProfile('b')], { failWith: 'AUTH_FAILED' })
+    await expect(failed.manager.connect('b')).rejects.toMatchObject({ code: 'AUTH_FAILED' })
+    expect(failed.notices).toEqual([])
+  })
+
+  it('notifies a drop once, then connect again, and not when retries run out', async () => {
+    const { manager, factory, notices, setBehavior } = setup([makeProfile('a')])
+    await manager.connect('a')
+    factory.instances[0].drop()
+    expect(notices.filter((n) => n.reason === 'dropped')).toEqual([
+      expect.objectContaining({ from: 'connected', to: 'reconnecting' })
+    ])
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(notices.at(-1)).toMatchObject({
+      from: 'reconnecting',
+      to: 'connected',
+      reason: 'connected'
+    })
+
+    setBehavior({ failWith: 'HOST_UNREACHABLE' })
+    factory.instances.at(-1)?.drop()
+    await vi.advanceTimersByTimeAsync(1000 + 2000 + 4000 + 8000 + 16_000)
+    expect(manager.getState('a').status).toBe('error')
+    expect(notices.filter((n) => n.reason === 'dropped')).toHaveLength(2)
+    expect(notices.some((n) => n.to === 'error')).toBe(false)
+  })
+
+  it('treats idle disconnect as requested and a lease-less drop as a loss', async () => {
+    const { manager, factory, notices } = setup([makeProfile('a', { idleTimeoutSec: 60 })])
+    await manager.acquire('a', 's1')
+    manager.release('s1')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(notices.at(-1)).toMatchObject({
+      to: 'disconnected',
+      reason: 'disconnect-requested'
+    })
+
+    await manager.acquire('a', 's1')
+    manager.release('s1')
+    factory.instances.at(-1)?.drop()
+    expect(notices.at(-1)).toMatchObject({ to: 'disconnected', reason: 'dropped' })
   })
 })

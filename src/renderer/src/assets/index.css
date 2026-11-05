@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "IBM Plex Sans", "Segoe UI", sans-serif;
-  --font-display: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-sans: "Inter", "Segoe UI", sans-serif;
+  --font-display: "Inter", "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
 
   --color-background: #0a0e17;
@@ -89,6 +89,12 @@ html.light {
     user-select: none;
   }
 
+  .font-mono,
+  .xterm,
+  .cm-editor {
+    font-variant-ligatures: var(--code-ligatures, none);
+  }
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   summary,
@@ -121,10 +127,10 @@ html.light {
    * panel that offset becomes scrollable overflow, and focusing the textarea
    * scrolls the app shell off-screen. The log view does not take keyboard input.
    */
-  [data-testid='log-follow-dock'] .xterm .xterm-helper-textarea,
-  [data-testid='log-follow-window'] .xterm .xterm-helper-textarea,
-  [data-testid='log-follow-dock'] .xterm-char-measure-element,
-  [data-testid='log-follow-window'] .xterm-char-measure-element {
+  [data-testid="log-follow-dock"] .xterm .xterm-helper-textarea,
+  [data-testid="log-follow-window"] .xterm .xterm-helper-textarea,
+  [data-testid="log-follow-dock"] .xterm-char-measure-element,
+  [data-testid="log-follow-window"] .xterm-char-measure-element {
     left: 0;
   }
 

@@ -83,7 +83,8 @@ export type {
   ProtocolSession,
   SecretResolver,
   SessionDataPort,
-  TerminalCapability
+  TerminalCapability,
+  TerminalShellCapability
 } from './driver'
 export {
   type FileTransferCapability,

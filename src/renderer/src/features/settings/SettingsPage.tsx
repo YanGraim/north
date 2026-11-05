@@ -24,6 +24,7 @@ import { Switch } from '@renderer/components/ui/switch'
 import { useAppVersion } from '@renderer/hooks/use-app-version'
 import { useLocalProfile } from '@renderer/hooks/use-local-profile'
 import { useCurrentWorkspace, useWorkspaceNavigate } from '@renderer/hooks/use-workspaces'
+import { APP_FONT_FAMILIES, type AppFontFamily, resolveAppFontStack } from '@renderer/lib/app-font'
 import {
   downloadCsvTemplate,
   exportInventory,
@@ -44,6 +45,7 @@ import {
 } from '@renderer/lib/update-actions'
 import { type LocaleCode, useUiStore } from '@renderer/stores/ui-store'
 import { useWhatsNewStore } from '@renderer/stores/whats-new-store'
+import type { CloseToTrayState } from '@shared/ipc'
 import { isThemePreference } from '@shared/lib/theme'
 import type { UpdateStatus } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
@@ -59,6 +61,7 @@ import {
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
+import { ExternalEditorsSection } from './ExternalEditorsSection'
 
 const REPO_URL = 'https://github.com/YanGraim/north'
 
@@ -76,6 +79,18 @@ const LOCALE_OPTIONS: Array<{ value: LocaleCode; label: string }> = [
 ]
 
 const MONO_FONT_SIZE_OPTIONS = [11, 12, 12.5, 13, 14, 15, 16] as const
+const APP_FONT_FAMILY_LABEL_KEYS: Record<AppFontFamily, string> = {
+  inter: 'settings.editor.fontFamilyInter',
+  'segoe-ui': 'settings.editor.fontFamilySegoeUi',
+  roboto: 'settings.editor.fontFamilyRoboto',
+  'open-sans': 'settings.editor.fontFamilyOpenSans',
+  outfit: 'settings.editor.fontFamilyOutfit',
+  montserrat: 'settings.editor.fontFamilyMontserrat',
+  ubuntu: 'settings.editor.fontFamilyUbuntu',
+  system: 'settings.editor.fontFamilySystem',
+  'jetbrains-mono': 'settings.editor.fontFamilyJetbrainsMono',
+  'fira-code': 'settings.editor.fontFamilyFiraCode'
+}
 const MONO_FONT_FAMILY_LABEL_KEYS: Record<MonoFontFamily, string> = {
   'ibm-plex-mono': 'settings.editor.fontFamilyIbmPlexMono',
   'jetbrains-mono': 'settings.editor.fontFamilyJetbrainsMono',
@@ -106,8 +121,12 @@ export function SettingsPage(): React.JSX.Element {
   const setLocale = useUiStore((s) => s.setLocale)
   const terminalCopyOnSelect = useUiStore((s) => s.terminalCopyOnSelect)
   const setTerminalCopyOnSelect = useUiStore((s) => s.setTerminalCopyOnSelect)
+  const terminalRightButtonCopies = useUiStore((s) => s.terminalRightButtonCopies)
+  const setTerminalRightButtonCopies = useUiStore((s) => s.setTerminalRightButtonCopies)
   const monoFontSize = useUiStore((s) => s.monoFontSize)
   const setMonoFontSize = useUiStore((s) => s.setMonoFontSize)
+  const appFontFamily = useUiStore((s) => s.appFontFamily)
+  const setAppFontFamily = useUiStore((s) => s.setAppFontFamily)
   const monoFontFamily = useUiStore((s) => s.monoFontFamily)
   const setMonoFontFamily = useUiStore((s) => s.setMonoFontFamily)
   const monoLigatures = useUiStore((s) => s.monoLigatures)
@@ -122,9 +141,13 @@ export function SettingsPage(): React.JSX.Element {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
   const updatesDisabled = updatesLikelyDisabledInDev()
   const [launchAtLogin, setLaunchAtLogin] = useState<boolean | null>(null)
+  const [closeToTray, setCloseToTray] = useState<CloseToTrayState | null>(null)
+  const [vpnNotifications, setVpnNotifications] = useState<boolean | null>(null)
 
   useEffect(() => {
     void window.north.getLaunchAtLogin().then(setLaunchAtLogin)
+    void window.north.getCloseToTray().then(setCloseToTray)
+    void window.north.getVpnNotifications().then(setVpnNotifications)
   }, [])
 
   async function onLaunchAtLogin(enabled: boolean): Promise<void> {
@@ -133,6 +156,28 @@ export function SettingsPage(): React.JSX.Element {
       setLaunchAtLogin(await window.north.setLaunchAtLogin(enabled))
     } catch (error) {
       setLaunchAtLogin(!enabled)
+      toastError(error)
+    }
+  }
+
+  async function onCloseToTray(enabled: boolean): Promise<void> {
+    if (closeToTray?.locked) return
+    setCloseToTray({ enabled, locked: false })
+    try {
+      setCloseToTray(await window.north.setCloseToTray(enabled))
+    } catch (error) {
+      setCloseToTray(closeToTray)
+      toastError(error)
+    }
+  }
+
+  async function onVpnNotifications(enabled: boolean): Promise<void> {
+    const previous = vpnNotifications
+    setVpnNotifications(enabled)
+    try {
+      setVpnNotifications(await window.north.setVpnNotifications(enabled))
+    } catch (error) {
+      setVpnNotifications(previous)
       toastError(error)
     }
   }
@@ -326,6 +371,28 @@ export function SettingsPage(): React.JSX.Element {
                 data-testid="settings-launch-at-login"
               />
             </Row>
+            <Row label={t('settings.startup.closeToTray')}>
+              <Switch
+                checked={closeToTray?.enabled ?? true}
+                disabled={closeToTray === null || closeToTray.locked}
+                onCheckedChange={(checked) => void onCloseToTray(checked)}
+                aria-label={t('settings.startup.closeToTray')}
+                data-testid="settings-close-to-tray"
+              />
+            </Row>
+            {closeToTray?.locked ? (
+              <p className="text-xs text-muted">{t('settings.startup.closeToTrayLocked')}</p>
+            ) : null}
+            <Row label={t('settings.startup.vpnNotifications')}>
+              <Switch
+                checked={vpnNotifications ?? true}
+                disabled={vpnNotifications === null}
+                onCheckedChange={(checked) => void onVpnNotifications(checked)}
+                aria-label={t('settings.startup.vpnNotifications')}
+                data-testid="settings-vpn-notifications"
+              />
+            </Row>
+            <p className="text-xs text-muted">{t('settings.startup.vpnNotificationsHint')}</p>
           </SettingsSection>
 
           <Separator />
@@ -341,7 +408,19 @@ export function SettingsPage(): React.JSX.Element {
                 aria-label={t('settings.terminal.copyOnSelect')}
               />
             </Row>
+            <Row label={t('settings.terminal.rightButtonCopies')}>
+              <Switch
+                checked={terminalRightButtonCopies}
+                onCheckedChange={setTerminalRightButtonCopies}
+                aria-label={t('settings.terminal.rightButtonCopies')}
+              />
+            </Row>
+            <p className="text-xs text-muted">{t('settings.terminal.rightButtonCopiesHint')}</p>
           </SettingsSection>
+
+          <Separator />
+
+          <ExternalEditorsSection />
 
           <Separator />
 
@@ -349,6 +428,32 @@ export function SettingsPage(): React.JSX.Element {
             title={t('settings.editor.title')}
             description={t('settings.editor.description')}
           >
+            <Row label={t('settings.editor.appFontFamily')}>
+              <Select
+                value={appFontFamily}
+                onValueChange={(value) => setAppFontFamily(value as AppFontFamily)}
+              >
+                <SelectTrigger className="w-56">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {APP_FONT_FAMILIES.map((family) => (
+                    <SelectItem key={family} value={family}>
+                      {t(APP_FONT_FAMILY_LABEL_KEYS[family])}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Row>
+            <p
+              className="mt-3 rounded-md border border-border bg-surface px-3 py-2 text-foreground"
+              style={{
+                fontFamily: resolveAppFontStack(appFontFamily),
+                fontSize: `${monoFontSize}px`
+              }}
+            >
+              {t('settings.editor.appFontPreview')}
+            </p>
             <Row label={t('settings.editor.fontFamily')}>
               <Select
                 value={monoFontFamily}
@@ -394,7 +499,8 @@ export function SettingsPage(): React.JSX.Element {
               className="mt-3 rounded-md border border-border bg-surface px-3 py-2 text-foreground"
               style={{
                 fontFamily: resolveMonoFontStack(monoFontFamily, monoLigatures),
-                fontSize: `${monoFontSize}px`
+                fontSize: `${monoFontSize}px`,
+                fontVariantLigatures: 'var(--code-ligatures, none)'
               }}
             >
               {t('settings.editor.preview')}

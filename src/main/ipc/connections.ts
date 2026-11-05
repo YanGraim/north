@@ -6,6 +6,7 @@ import {
   UpdateConnectionInputSchema
 } from '@shared/types'
 import { ipcMain } from 'electron'
+import type { ConnectionDirectoryFavoritesRepository } from '../repositories/connection-directory-favorites-repository'
 import type { CredentialVault } from '../vault'
 import type { InventoryStore } from '../workspaces/inventory-store'
 import type { SecretStore } from '../workspaces/secret-store'
@@ -22,7 +23,8 @@ function requireEntity<T>(entity: T | null, label: string): T {
 export function registerConnectionHandlers(
   vault: CredentialVault,
   inventory: () => InventoryStore,
-  secrets: () => SecretStore
+  secrets: () => SecretStore,
+  directoryFavorites: ConnectionDirectoryFavoritesRepository
 ): void {
   ipcMain.handle(IpcChannels.CONNECTIONS_LIST, async (_event, filter?: unknown) => {
     const parsed =
@@ -56,6 +58,7 @@ export function registerConnectionHandlers(
     if (existing.credentialRef && secrets().kind === 'local') {
       vault.deleteSecret(existing.credentialRef)
     }
+    directoryFavorites.removeAll(connectionId)
     await inventory().connections.delete(connectionId)
     await stopLogFollowsForConnection(connectionId)
   })
@@ -93,6 +96,29 @@ export function registerConnectionHandlers(
 
     return copy
   })
+
+  ipcMain.handle(IpcChannels.CONNECTIONS_LIST_DIRECTORY_FAVORITES, async (_event, id: unknown) => {
+    return directoryFavorites.list(IdSchema.parse(id))
+  })
+
+  ipcMain.handle(
+    IpcChannels.CONNECTIONS_ADD_DIRECTORY_FAVORITE,
+    async (_event, id: unknown, path: unknown) => {
+      const connectionId = IdSchema.parse(id)
+      if (typeof path !== 'string') return { status: 'invalid' as const }
+      const existing = await inventory().connections.get(connectionId)
+      if (!existing) return { status: 'invalid' as const }
+      return directoryFavorites.add(connectionId, path)
+    }
+  )
+
+  ipcMain.handle(
+    IpcChannels.CONNECTIONS_REMOVE_DIRECTORY_FAVORITE,
+    async (_event, id: unknown, path: unknown) => {
+      if (typeof path !== 'string') return
+      directoryFavorites.remove(IdSchema.parse(id), path)
+    }
+  )
 }
 
 export { deleteSecretsForConnections }

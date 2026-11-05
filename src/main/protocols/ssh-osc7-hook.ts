@@ -64,6 +64,58 @@ export function osc7HookLine(shell: LoginShell): string {
   return shell === 'bash' ? BASH_OSC7_HOOK : ZSH_OSC7_HOOK
 }
 
+export type EchoSuppressor = {
+  /**
+   * Drops one exact echo of `line`. Anything that diverges is forwarded,
+   * including bytes already held. Later output is never filtered.
+   */
+  push(chunk: Uint8Array): Uint8Array
+}
+
+/**
+ * The PTY echoes the hook as if it had been typed. The line is longer than
+ * the initial 80 columns, so the terminal wraps and then overwrites it,
+ * leaving a fragment on screen. Drop that echo before it reaches xterm.
+ * A mismatch fails open: real output is never hidden.
+ */
+export function createEchoSuppressor(line: string): EchoSuppressor {
+  const expected = Buffer.from(line, 'utf8')
+  if (expected.length === 0) return { push: (chunk) => chunk }
+
+  let offset = 0
+  let active = true
+  const held: number[] = []
+
+  return {
+    push(chunk: Uint8Array): Uint8Array {
+      if (!active) return chunk
+      for (let i = 0; i < chunk.length; i++) {
+        const byte = chunk[i] ?? 0
+        if (byte === expected[offset]) {
+          held.push(byte)
+          offset++
+          if (offset === expected.length) {
+            active = false
+            held.length = 0
+            return chunk.subarray(i + 1)
+          }
+          continue
+        }
+        active = false
+        const rest = chunk.subarray(i)
+        if (held.length === 0) return rest.length === chunk.length ? chunk : rest
+        const prefix = Uint8Array.from(held)
+        held.length = 0
+        const out = new Uint8Array(prefix.length + rest.length)
+        out.set(prefix, 0)
+        out.set(rest, prefix.length)
+        return out
+      }
+      return new Uint8Array(0)
+    }
+  }
+}
+
 export type Osc7HookIo = {
   readShell: () => Promise<string | null>
   write: (line: string) => void

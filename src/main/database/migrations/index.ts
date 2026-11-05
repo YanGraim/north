@@ -20,6 +20,7 @@ import { migration018WorkspaceSessions } from './018-workspace-sessions'
 import { migration019ConnectionAgentForward } from './019-connection-agent-forward'
 import { migration020ConnectionStartupDirectory } from './020-connection-startup-directory'
 import { migration021ConnectionLogFiles } from './021-connection-log-files'
+import { migration022ConnectionDirectoryFavorites } from './022-connection-directory-favorites'
 
 /** Ordered list of schema migrations. Append new ones; never reorder or reuse versions. */
 export const migrations: Migration[] = [
@@ -43,5 +44,6 @@ export const migrations: Migration[] = [
   migration018WorkspaceSessions,
   migration019ConnectionAgentForward,
   migration020ConnectionStartupDirectory,
-  migration021ConnectionLogFiles
+  migration021ConnectionLogFiles,
+  migration022ConnectionDirectoryFavorites
 ]

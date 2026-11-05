@@ -12,7 +12,7 @@ Organiza clientes, entornos, conexiones remotas y accesos (credenciales de base 
 - Workflows del grupo para acciones repetibles (deploy, restart, health-check)
 - Command Palette y atajos para ir del inventario a la sesión en segundos
 - Perfil local (nombre y correo opcional) en **Ajustes** — solo en este equipo, visible en el chip de la barra lateral
-- Fuente de la app (familia, tamaño y ligaduras) en **Ajustes → Fuente de la app** — se aplica a toda la interfaz, terminal, editores de código, hosts/puertos y atajos. Además de las familias de antes, se puede elegir Ubuntu Mono, Fira Code, Source Code Pro, Cascadia, Hack, Inconsolata, Roboto Mono, Space Mono y Noto Sans Mono. El interruptor de ligaduras empieza apagado
+- Fuente de la app en **Ajustes → Fuente de la app** — la familia de la interfaz (Inter de forma predeterminada) vale en la ventana, los menús y los formularios. La familia monoespaciada vale en el terminal, los editores de código, el panel de registro, hosts, puertos y atajos, y sigue incluyendo Ubuntu Mono, Fira Code, Source Code Pro, Cascadia, Hack, Inconsolata, Roboto Mono, Space Mono y Noto Sans Mono, además de las de antes. El tamaño escala la interfaz y el terminal. Las ligaduras empiezan apagadas y valen solo en lo monoespaciado
 
 ## Workspaces
 

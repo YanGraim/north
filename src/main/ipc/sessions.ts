@@ -1,6 +1,13 @@
 import { IpcChannels } from '@shared/ipc'
 import { ListDirectoryArgsSchema } from '@shared/lib/list-directory'
 import { ClassifyPathArgsSchema } from '@shared/lib/selection-path'
+import {
+  SessionDownloadInputSchema,
+  SessionIdInputSchema,
+  SessionPathInputSchema,
+  SessionRenameInputSchema,
+  SessionUploadInputSchema
+} from '@shared/lib/session-shell'
 import { coerceBytes, type HostKeyResponse, type SessionPortMessage } from '@shared/protocols'
 import { BrowserWindow, ipcMain } from 'electron'
 import { FtpDriver } from '../protocols/ftp-driver'
@@ -11,6 +18,7 @@ import { SshDriver } from '../protocols/ssh-driver'
 import { TelnetDriver } from '../protocols/telnet-driver'
 import { VncDriver } from '../protocols/vnc-driver'
 import type { Repositories } from '../repositories'
+import { downloadFromSession, uploadToSession } from '../services/file-transfer/session-transfer'
 import { ProtocolManager } from '../services/protocol-manager'
 import type { CredentialVault } from '../vault'
 
@@ -129,6 +137,99 @@ export function registerSessionHandlers(repositories: Repositories, vault: Crede
     if (!parsed.success || !protocolManager) return invalid
     try {
       return await protocolManager.listDirectory(parsed.data.sessionId, parsed.data.path)
+    } catch {
+      return unavailable
+    }
+  })
+
+  ipcMain.handle(IpcChannels.SESSIONS_CHANGE_DIRECTORY, (_event, input: unknown) => {
+    const invalid = { ok: false as const, reason: 'invalid' as const }
+    const unavailable = { ok: false as const, reason: 'unavailable' as const }
+    const parsed = SessionPathInputSchema.safeParse(input)
+    if (!parsed.success || !protocolManager) return invalid
+    const shell = protocolManager.shellCapability(parsed.data.sessionId)
+    if (!shell) return unavailable
+    return shell.changeDirectory(parsed.data.path)
+  })
+
+  ipcMain.handle(IpcChannels.SESSIONS_CANCEL_DIRECTORY_CHANGE, (_event, input: unknown) => {
+    const parsed = SessionIdInputSchema.safeParse(input)
+    if (!parsed.success || !protocolManager) return
+    protocolManager.shellCapability(parsed.data.sessionId)?.cancelDirectoryChange()
+  })
+
+  ipcMain.handle(IpcChannels.SESSIONS_HOME, (_event, input: unknown) => {
+    const unavailable = { ok: false as const, reason: 'unavailable' as const }
+    const parsed = SessionIdInputSchema.safeParse(input)
+    if (!parsed.success || !protocolManager) return unavailable
+    return protocolManager.shellCapability(parsed.data.sessionId)?.home() ?? unavailable
+  })
+
+  ipcMain.handle(IpcChannels.SESSIONS_MKDIR, async (_event, input: unknown) => {
+    const invalid = { ok: false as const, reason: 'invalid' as const }
+    const unavailable = { ok: false as const, reason: 'unavailable' as const }
+    const parsed = SessionPathInputSchema.safeParse(input)
+    if (!parsed.success || !protocolManager) return invalid
+    const shell = protocolManager.shellCapability(parsed.data.sessionId)
+    if (!shell) return unavailable
+    try {
+      return await shell.mkdir(parsed.data.path)
+    } catch {
+      return unavailable
+    }
+  })
+
+  ipcMain.handle(IpcChannels.SESSIONS_RENAME, async (_event, input: unknown) => {
+    const invalid = { ok: false as const, reason: 'invalid' as const }
+    const unavailable = { ok: false as const, reason: 'unavailable' as const }
+    const parsed = SessionRenameInputSchema.safeParse(input)
+    if (!parsed.success || !protocolManager) return invalid
+    const shell = protocolManager.shellCapability(parsed.data.sessionId)
+    if (!shell) return unavailable
+    try {
+      return await shell.rename(parsed.data.from, parsed.data.to)
+    } catch {
+      return unavailable
+    }
+  })
+
+  ipcMain.handle(IpcChannels.SESSIONS_DELETE, async (_event, input: unknown) => {
+    const invalid = { ok: false as const, reason: 'invalid' as const }
+    const unavailable = { ok: false as const, reason: 'unavailable' as const }
+    const parsed = SessionPathInputSchema.safeParse(input)
+    if (!parsed.success || !protocolManager) return invalid
+    const shell = protocolManager.shellCapability(parsed.data.sessionId)
+    if (!shell) return unavailable
+    try {
+      return await shell.remove(parsed.data.path)
+    } catch {
+      return unavailable
+    }
+  })
+
+  ipcMain.handle(IpcChannels.SESSIONS_DOWNLOAD, async (event, input: unknown) => {
+    const invalid = { ok: false as const, reason: 'invalid' as const }
+    const unavailable = { ok: false as const, reason: 'unavailable' as const }
+    const parsed = SessionDownloadInputSchema.safeParse(input)
+    if (!parsed.success || !protocolManager) return invalid
+    const shell = protocolManager.shellCapability(parsed.data.sessionId)
+    if (!shell) return unavailable
+    try {
+      return await downloadFromSession(shell, event.sender, parsed.data)
+    } catch {
+      return unavailable
+    }
+  })
+
+  ipcMain.handle(IpcChannels.SESSIONS_UPLOAD, async (event, input: unknown) => {
+    const invalid = { ok: false as const, reason: 'invalid' as const }
+    const unavailable = { ok: false as const, reason: 'unavailable' as const }
+    const parsed = SessionUploadInputSchema.safeParse(input)
+    if (!parsed.success || !protocolManager) return invalid
+    const shell = protocolManager.shellCapability(parsed.data.sessionId)
+    if (!shell) return unavailable
+    try {
+      return await uploadToSession(shell, event.sender, parsed.data)
     } catch {
       return unavailable
     }

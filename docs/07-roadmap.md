@@ -29,6 +29,12 @@ Faixa prática para o produto ser usável e distribuível de verdade (ver [ADR 0
 | **Workflows** | Ações repetíveis por grupo: variáveis, engine linear, aba run, secrets bag, Vitest + Cypress | [ADR 0014](./adr/0014-workflows.md) |
 | **Log ao vivo (SSH)** | Arquivos de log por conexão, quadro destacável com `tail -F` | [ADR 0019](./adr/0019-acompanhamento-log-ssh.md), [REC-004](./recursos/rec-004-acompanhamento-log-ssh/especificacao.md) |
 | **Pasta do terminal (SSH)** | Painel com os arquivos da pasta corrente, via OSC 7 e SFTP curto no client da sessão | [ADR 0020](./adr/0020-listagem-cwd-terminal-ssh.md), [REC-010](./recursos/rec-010-arquivos-do-diretorio-atual/especificacao.md) |
+| **Editar arquivo remoto** | No painel SFTP/FTP, texto abre no editor do North ou num executável local e volta ao salvar | [REC-014](./recursos/rec-014-editar-arquivo-remoto/especificacao.md) |
+| **Caminho clicável** | A barra do navegador de arquivos abre a pasta de cada trecho | [REC-015](./recursos/rec-015-caminho-clicavel-painel-arquivos/especificacao.md) |
+| **Diretórios favoritos** | No painel remoto de SFTP e de FTP, a pasta aberta fica salva só naquela conexão | [REC-016](./recursos/rec-016-diretorios-favoritos-painel-arquivos/especificacao.md) |
+| **Ações na pasta do terminal** | No painel Arquivos do SSH, as ações do SFTP remoto e a navegação com `cd` no shell | [ADR 0021](./adr/0021-cd-painel-pasta-terminal.md), [REC-017](./recursos/rec-017-acoes-sftp-painel-terminal/especificacao.md) |
+| **Botão do meio no terminal** | Copia a seleção; sem seleção, cola a área de transferência | [REC-018](./recursos/rec-018-botao-meio-copia-cola-terminal/especificacao.md) |
+| **Botões do terminal** | Interruptor troca o copiar ou colar com o menu entre o meio e o direito | [REC-019](./recursos/rec-019-inverter-botoes-meio-direito/especificacao.md) |
 | **QA** | Checklist manual por protocolo + fluxos de produto + smoke CI local | [09-qa.md](./09-qa.md) |
 | **Distribuição** | Validar electron-builder, GitHub Releases, updater empacotado, signing/notarize opt-in | [10-distribuicao.md](./10-distribuicao.md) |
 

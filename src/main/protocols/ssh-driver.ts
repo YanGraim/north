@@ -1,5 +1,6 @@
 import { normalizeLogFilePath } from '@shared/lib/log-file'
 import { isSafePosixAbsolute, type PathStatResult } from '@shared/lib/selection-path'
+import type { ChangeDirectoryResult, SessionMutateResult } from '@shared/lib/session-shell'
 import {
   canonicalPosixDir,
   normalizeStartupDirectory,
@@ -19,13 +20,27 @@ import {
   type SessionDataPort,
   type SessionPortMessage,
   type SessionState,
-  type TerminalCapability
+  type TerminalCapability,
+  type TerminalShellCapability
 } from '@shared/protocols'
 import { Client, type ClientChannel, type SFTPWrapper, type ShellOptions, type Stats } from 'ssh2'
 import { SessionPortOutlet } from './session-port-outlet'
+import { resolveShellCdPath, ShellPromptGate } from './shell-prompt-gate'
 import { attachKeyboardInteractivePassword, buildSshConnectConfig } from './ssh-auth'
 import { listRemoteDirectory } from './ssh-directory-list'
-import { readLoginShell, runSavedShellStartup } from './ssh-osc7-hook'
+import {
+  createEchoSuppressor,
+  type EchoSuppressor,
+  readLoginShell,
+  runSavedShellStartup
+} from './ssh-osc7-hook'
+import {
+  captureLoginDirectory,
+  mkdirOnSession,
+  openSessionFileTransfer,
+  removeOnSession,
+  renameOnSession
+} from './ssh-session-files'
 import { formatSshClientError } from './ssh-utils'
 
 class SshProtocolSession implements ProtocolSession {
@@ -39,10 +54,15 @@ class SshProtocolSession implements ProtocolSession {
   private readonly client: Client
   private disposed = false
   private onDisposed: (() => void) | null = null
+  /** One exact echo of the OSC 7 hook. Mismatch forwards the bytes unchanged. */
+  private echoSuppressor: EchoSuppressor | null = null
+  private readonly promptGate = new ShellPromptGate()
+  private loginDirectory: string | null = null
 
   readonly terminal: TerminalCapability = {
     write: (data: Uint8Array): void => {
       this.stream?.write(Buffer.from(data))
+      this.writeShellCommand(this.promptGate.noteStdin(data))
     },
     resize: (cols: number, rows: number): void => {
       this.stream?.setWindow(rows, cols, 0, 0)
@@ -58,6 +78,26 @@ class SshProtocolSession implements ProtocolSession {
   /** One `readdir` on this session's client. Does not write to the PTY or change session state. */
   readonly listDirectory: DirectoryListCapability = {
     list: (path: string) => listRemoteDirectory(this.client, path, () => this.disposed)
+  }
+
+  readonly terminalShell: TerminalShellCapability = {
+    home: () => {
+      const path = this.loginDirectory
+      if (path == null || this.disposed) return { ok: false, reason: 'unavailable' }
+      return { ok: true, path }
+    },
+    changeDirectory: (path: string): ChangeDirectoryResult => this.changeDirectory(path),
+    cancelDirectoryChange: (): void => {
+      this.promptGate.cancel()
+    },
+    mkdir: (path: string): Promise<SessionMutateResult> =>
+      mkdirOnSession(this.client, path, () => this.disposed),
+    rename: (from: string, to: string): Promise<SessionMutateResult> =>
+      renameOnSession(this.client, from, to, () => this.disposed),
+    remove: (path: string): Promise<SessionMutateResult> =>
+      removeOnSession(this.client, path, () => this.disposed),
+    currentDirectory: (): string | null => this.promptGate.currentDirectory(),
+    openFileTransfer: () => openSessionFileTransfer(this.client, () => this.disposed)
   }
 
   constructor(id: string, client: Client) {
@@ -99,11 +139,42 @@ class SshProtocolSession implements ProtocolSession {
     this.post({ type: 'state', state: this._state })
   }
 
+  /** Hides the next exact echo of `line`. Divergent output is forwarded. */
+  suppressNextEcho(line: string): void {
+    this.echoSuppressor = createEchoSuppressor(line)
+  }
+
+  setLoginDirectory(path: string): void {
+    this.loginDirectory = path
+  }
+
+  isStopped(): boolean {
+    return this.disposed
+  }
+
+  private changeDirectory(path: string): ChangeDirectoryResult {
+    if (this.disposed || !this.stream) return { ok: false, reason: 'unavailable' }
+    const resolved = resolveShellCdPath(path, this.loginDirectory)
+    if (resolved == null) return { ok: false, reason: 'invalid' }
+    const decision = this.promptGate.request(resolved)
+    if (!decision.ok) return decision
+    this.writeShellCommand(decision.command)
+    return { ok: true, pending: decision.pending }
+  }
+
+  private writeShellCommand(command: string | null): void {
+    if (!command || this.disposed) return
+    this.stream?.write(command)
+  }
+
   attachStream(stream: ClientChannel): void {
     this.stream = stream
     stream.on('data', (chunk: Buffer) => {
-      const copy = Uint8Array.from(chunk)
-      this.post({ type: 'data', data: copy })
+      const visible = this.echoSuppressor ? this.echoSuppressor.push(chunk) : chunk
+      const command = this.promptGate.noteStdout(chunk)
+      this.writeShellCommand(command)
+      if (visible.length === 0) return
+      this.post({ type: 'data', data: Uint8Array.from(visible) })
     })
     stream.stderr?.on('data', (chunk: Buffer) => {
       const copy = Uint8Array.from(chunk)
@@ -339,6 +410,8 @@ export class SshDriver implements ProtocolDriver {
             }
             session.attachStream(stream)
             void (async () => {
+              const login = await captureLoginDirectory(client, () => session.isStopped())
+              if (login) session.setLoginDirectory(login)
               const startupNotice = await runSavedShellStartup({
                 connectionId: opts.connection.id,
                 isCancelled: () => settled,
@@ -351,6 +424,7 @@ export class SshDriver implements ProtocolDriver {
                   ),
                 readShell: () => readLoginShell(client, () => settled),
                 write: (line) => {
+                  session.suppressNextEcho(line)
                   stream.write(`${line}\r`)
                 }
               })

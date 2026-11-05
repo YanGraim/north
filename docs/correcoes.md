@@ -1,6 +1,6 @@
 # Correções (bugs)
 
-- **Última atualização:** 2026-10-31
+- **Última atualização:** 2026-11-04
 
 Registro de defeitos, regressões e comportamentos inesperados em funcionalidades existentes, da abertura à correção. Procedimento: skill `ciclo-vida-recursos` (Fase 5). Commits de correção usam `fix(scope): ...` com o trailer `Refs: BUG-XXX`.
 
@@ -28,6 +28,7 @@ Registro de defeitos, regressões e comportamentos inesperados em funcionalidade
 | BUG-002 | Instalar o serviço de VPN no Windows exige a pasta openconnect | VPN | Alta | Windows | ✅ Corrigido | 2026-10-30 | 2026-10-30 |
 | BUG-003 | IPsec no Windows fica conectado sem alcançar as redes da VPN | VPN | Alta | Windows | ✅ Corrigido | 2026-10-31 | 2026-10-31 |
 | BUG-004 | Abrir o painel de log deixa a janela preta | REC-004 / REC-008 | Alta | Windows | ✅ Corrigido | 2026-10-31 | 2026-10-31 |
+| BUG-005 | Gancho OSC 7 aparece cortado no terminal ao conectar | REC-010 | Baixa | todas | ✅ Corrigido | 2026-11-04 | 2026-11-04 |
 
 ## Detalhamento
 
@@ -118,6 +119,28 @@ Registro de defeitos, regressões e comportamentos inesperados em funcionalidade
 **Solução:** o xterm do quadro usa `allowProposedApi: true`, como o terminal da sessão. O what's new fica para o bump da próxima versão.
 **Arquivos:** `src/renderer/src/features/log-follow/LogFollowView.tsx`, `src/renderer/src/features/log-follow/LogFollowDock.tsx`, `src/renderer/src/features/log-follow/LogFollowWindowPage.tsx`, `src/renderer/src/assets/index.css`
 **Corrigido em:** 2026-10-31
+
+### BUG-005 — Gancho OSC 7 aparece cortado no terminal ao conectar
+
+- **Área / Recurso:** REC-010
+- **Severidade:** Baixa
+- **Plataforma:** todas
+- **Status:** ✅ Corrigido
+- **Reportado em:** 2026-11-04
+
+**Passos para reproduzir:**
+
+1. Abrir uma conexão SSH salva cujo shell de login é bash ou zsh, de preferência com diretório inicial e prompt longo.
+2. Olhar o terminal logo abaixo do `cd` do diretório inicial.
+
+**Esperado:** o prompt fica limpo. O gancho que informa a pasta ao painel Arquivos não aparece.
+**Atual:** uma linha cortada com `__north_osc7`, `PROMPT_COMMAND` e `MMAND` emendados, entre o `cd` e o prompt seguinte.
+
+**Causa raiz:** depois do `cd`, o main escreve no PTY uma linha única que registra `__north_osc7` em `PROMPT_COMMAND` (bash) ou `precmd` (zsh). O tty remoto faz eco dela. A linha passa de 80 colunas (largura com que o PTY abre) e o xterm, ao quebrar e redesenhar o prompt, deixa um fragmento no scrollback. O comando já tinha rodado; o texto era só o eco.
+
+**Solução:** o eco é retirado do fluxo antes do xterm, e só quando os bytes são exatamente o gancho. Se divergir, a saída segue inteira. O what's new fica para o bump da próxima versão. O manual não muda: não há controle novo, o comando interno deixa de aparecer.
+**Arquivos:** `src/main/protocols/ssh-osc7-hook.ts`, `src/main/protocols/ssh-driver.ts`
+**Corrigido em:** 2026-11-04
 
 <!--
 ### BUG-XXX — <Título>

@@ -15,8 +15,9 @@ import { basename, join } from 'node:path'
 import { IpcChannels } from '@shared/ipc'
 import { formatVpnErrorMessage } from '@shared/lib/vpn/errors'
 import * as sudo from '@vscode/sudo-prompt'
-import { app, BrowserWindow, dialog, ipcMain, powerMonitor } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Notification, powerMonitor } from 'electron'
 import helperSource from '../../../resources/vpn/north-vpn-helper?asset&asarUnpack'
+import { isQuitting } from '../app-quit'
 import type { Repositories } from '../repositories'
 import type { ConnectionMonitorService } from '../services/connection-monitor-service'
 import { cleanupFortiOrphans } from '../services/vpn/drivers/openfortivpn-driver'
@@ -34,6 +35,7 @@ import { listTunnelRoutes } from '../services/vpn/tunnel-routes'
 import { VpnError } from '../services/vpn/vpn-error'
 import { VpnGate } from '../services/vpn/vpn-gate'
 import { VpnHelper } from '../services/vpn/vpn-helper'
+import { type VpnNoticeEvent, vpnNoticeCopy, vpnNoticeFor } from '../services/vpn/vpn-notices'
 import { createVpnHandlers, createVpnRuntime, type VpnRuntime } from '../services/vpn/vpn-runtime'
 import { OpenvpnServiceBroker } from '../services/vpn/windows-openvpn-service'
 import { WindowsVpnComponent } from '../services/vpn/windows-vpn-component'
@@ -42,6 +44,7 @@ import { WindowsVpnSetup } from '../services/vpn/windows-vpn-setup'
 import { WSL_DISTRO_MISSING, WslIpsec } from '../services/vpn/wsl-ipsec'
 import type { TrayVpn } from '../tray-menu'
 import type { CredentialVault } from '../vault'
+import { pinCloseToTrayOn, readAppLocale, readVpnNotifications } from '../window-prefs'
 import { getProtocolManager } from './sessions'
 
 let runtime: VpnRuntime | null = null
@@ -53,6 +56,21 @@ const notifyChange = () => {
 
 /** pinned in scripts/vpn-binaries/fetch-windows.sh; x64 is the only Windows build North ships */
 const WINDOWS_OPENVPN_MSI = 'OpenVPN-2.6.14-I001-amd64.msi'
+
+function showVpnNotice(event: VpnNoticeEvent): void {
+  const userData = app.getPath('userData')
+  const kind = vpnNoticeFor({
+    from: event.from,
+    to: event.to,
+    reason: event.reason,
+    enabled: readVpnNotifications(userData),
+    quitting: isQuitting()
+  })
+  if (!kind || !Notification.isSupported()) return
+  const name = runtime?.profiles.get(event.profileId)?.name
+  if (!name) return
+  new Notification(vpnNoticeCopy(kind, name, readAppLocale(userData))).show()
+}
 
 function broadcast(channel: string, payload: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -260,6 +278,7 @@ export function registerVpnHandlers(
       broadcast(IpcChannels.VPN_STATE_CHANGED, state)
       notifyChange()
     },
+    onNotice: showVpnNotice,
     fake: process.env.NORTH_VPN_FAKE === '1',
     openvpn: {
       binary: findOpenvpn,
@@ -360,7 +379,10 @@ export function registerVpnHandlers(
   for (const [channel, handler] of Object.entries(handlers)) {
     ipcMain.handle(channel, async (_event, ...args: unknown[]) => {
       const result = await (handler as (...a: unknown[]) => unknown)(...args)
-      if (profileChanges.has(channel)) notifyChange()
+      if (profileChanges.has(channel)) {
+        notifyChange()
+        if (hasVpnProfiles()) pinCloseToTrayOn(app.getPath('userData'))
+      }
       return result
     })
   }

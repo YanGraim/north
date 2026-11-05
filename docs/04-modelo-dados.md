@@ -84,6 +84,19 @@ Migrations versionadas via `PRAGMA user_version` em `src/main/database/migration
 | `lastConnectedAt`   | datetime? |                                                 |
 | `createdAt` / `updatedAt` | datetime |                                           |
 
+### Diretórios favoritos da conexão
+
+Tabela `connection_directory_favorites` (migration 022, [REC-016](./recursos/rec-016-diretorios-favoritos-painel-arquivos/especificacao.md)). Não é coluna de `connections`, então não viaja no export, na duplicata nem na cópia de workspace.
+
+| Campo | Tipo | Notas |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `connection_id` | UUID | Conexão dona. Sem FK: a conexão de uma organização não está neste SQLite |
+| `path` | string | Absoluto POSIX normalizado |
+| `position` | int | Ordem em que a pasta foi acrescentada |
+
+Um trigger `AFTER DELETE ON connections` apaga as linhas quando a conexão local some.
+
 ### Campos extras por protocolo (futuro / JSON)
 
 - SSH: `sshOptions`, `forwardAgent`, `localForwards`
