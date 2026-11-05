@@ -1,13 +1,40 @@
 import { describe, expect, it } from 'vitest'
-import { FULL_ACCESS, permissionsFor, type WorkspaceAccess } from './workspace-access'
+import {
+  FULL_ACCESS,
+  permissionsFor,
+  type WorkspaceAccess,
+  WorkspaceAccessSchema
+} from './workspace-access'
 
 const path = { clientId: 'c1', environmentId: 'e1', groupId: 'g1' }
 
-const member = (grants: WorkspaceAccess['grants']): WorkspaceAccess => ({ role: 'member', grants })
+const member = (
+  grants: WorkspaceAccess['grants'],
+  connectionGrants: WorkspaceAccess['connectionGrants'] = []
+): WorkspaceAccess => ({ role: 'member', grants, connectionGrants })
 
 describe('permissionsFor', () => {
+  it('a grant on one connection covers only that connection', () => {
+    const conn = { ...path, connectionId: 'k1' }
+    const viewer = permissionsFor(member([], [{ connectionId: 'k1', role: 'viewer' }]))
+    expect(viewer.edit(conn)).toBe(false)
+    expect(viewer.revealPassword(conn)).toBe(false)
+    const editor = permissionsFor(member([], [{ connectionId: 'k1', role: 'editor' }]))
+    expect(editor.edit(conn)).toBe(true)
+    expect(editor.revealPassword(conn)).toBe(true)
+    expect(editor.edit({ ...path, connectionId: 'k2' })).toBe(false)
+    expect(editor.edit(path)).toBe(false)
+  })
+
+  it('reads an older server answer without connection grants', () => {
+    expect(WorkspaceAccessSchema.parse({ role: 'member', grants: [] }).connectionGrants).toEqual([])
+  })
+
   it('the personal workspace and admins can do everything', () => {
-    for (const access of [FULL_ACCESS, { role: 'admin', grants: [] } as WorkspaceAccess]) {
+    for (const access of [
+      FULL_ACCESS,
+      { role: 'admin', grants: [], connectionGrants: [] } as WorkspaceAccess
+    ]) {
       const can = permissionsFor(access)
       expect(can.createClient).toBe(true)
       expect(can.editsSomething).toBe(true)

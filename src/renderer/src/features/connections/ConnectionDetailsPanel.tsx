@@ -138,7 +138,8 @@ export function ConnectionDetailsPanel(): React.JSX.Element {
   const canEdit = can.edit({
     clientId: org.client?.id,
     environmentId: org.environment?.id,
-    groupId: connection.groupId
+    groupId: connection.groupId,
+    connectionId: connection.id
   })
 
   return (

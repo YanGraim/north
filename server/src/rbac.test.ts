@@ -262,9 +262,14 @@ describe('my access', () => {
     await grant('group', acme.group.id, 'viewer')
     expect(await body(bia, 'GET', '/api/v1/me/access')).toEqual({
       role: 'member',
-      grants: [{ scopeType: 'group', scopeId: acme.group.id, role: 'viewer' }]
+      grants: [{ scopeType: 'group', scopeId: acme.group.id, role: 'viewer' }],
+      connectionGrants: []
     })
-    expect(await body(admin, 'GET', '/api/v1/me/access')).toEqual({ role: 'admin', grants: [] })
+    expect(await body(admin, 'GET', '/api/v1/me/access')).toEqual({
+      role: 'admin',
+      grants: [],
+      connectionGrants: []
+    })
   })
 })
 
@@ -375,5 +380,157 @@ describe('admin API', () => {
       (e: { action: string }) => e.action
     )
     expect(actions).toEqual(expect.arrayContaining(['grant.set', 'user.update']))
+  })
+})
+
+describe('one connection', () => {
+  it('shows only that connection, its parents read-only, and connects with its password', async () => {
+    const acme = await tree('Acme')
+    const other = await body(admin, 'POST', '/api/v1/connections', {
+      groupId: acme.group.id,
+      name: 'db-01',
+      protocol: 'ssh',
+      host: '10.0.0.9',
+      port: 22,
+      authMethod: 'password'
+    })
+    await grant('connection', acme.conn.id, 'viewer')
+
+    const conns = await body(bia, 'GET', '/api/v1/connections')
+    expect(conns.map((c: { id: string }) => c.id)).toEqual([acme.conn.id])
+    expect((await call(bia, 'GET', `/api/v1/connections/${other.id}`)).statusCode).toBe(404)
+    expect((await body(bia, 'GET', '/api/v1/groups')).map((g: { id: string }) => g.id)).toEqual([
+      acme.group.id
+    ])
+    expect((await body(bia, 'GET', '/api/v1/clients')).length).toBe(1)
+
+    // Viewer: the password opens a session but is never shown or pasted.
+    const session = await call(bia, 'POST', `/api/v1/secrets/${acme.secret}/reveal`, {
+      purpose: 'session'
+    })
+    expect(session.json().value).toBe('Acme-pass')
+    expect(
+      (await call(bia, 'POST', `/api/v1/secrets/${acme.secret}/reveal`, { purpose: 'reveal' }))
+        .statusCode
+    ).toBe(403)
+    expect((await newConnection(bia, acme.group.id)).statusCode).toBe(403)
+    expect(
+      (await call(bia, 'PATCH', `/api/v1/connections/${acme.conn.id}`, { host: 'x' })).statusCode
+    ).toBe(403)
+
+    expect(await body(bia, 'GET', '/api/v1/me/access')).toEqual({
+      role: 'member',
+      grants: [],
+      connectionGrants: [{ connectionId: acme.conn.id, role: 'viewer' }]
+    })
+  })
+
+  it('an editor of one connection edits it but cannot add to its group or duplicate it', async () => {
+    const acme = await tree('Acme')
+    await grant('connection', acme.conn.id, 'editor')
+    expect(
+      (await call(bia, 'PATCH', `/api/v1/connections/${acme.conn.id}`, { host: '10.1.1.1' }))
+        .statusCode
+    ).toBe(200)
+    expect(
+      (await call(bia, 'POST', `/api/v1/secrets/${acme.secret}/reveal`, { purpose: 'reveal' }))
+        .statusCode
+    ).toBe(200)
+    expect((await newConnection(bia, acme.group.id)).statusCode).toBe(403)
+    expect(
+      (await call(bia, 'POST', `/api/v1/connections/${acme.conn.id}/duplicate`)).statusCode
+    ).toBe(403)
+  })
+
+  it('lists a connection grant among the grants that reach it', async () => {
+    const acme = await tree('Acme')
+    await grant('connection', acme.conn.id, 'viewer')
+    await grant('client', acme.client.id, 'editor')
+    const list = await body(
+      admin,
+      'GET',
+      `/api/v1/admin/grants?scopeType=connection&scopeId=${acme.conn.id}`
+    )
+    expect(list.map((g: { scopeType: string }) => g.scopeType).sort()).toEqual([
+      'client',
+      'connection'
+    ])
+  })
+})
+
+describe('teams', () => {
+  it('a team grant reaches every member, and leaving the team takes it away', async () => {
+    const acme = await tree('Acme')
+    const team = await body(admin, 'POST', '/api/v1/admin/teams', { name: 'Suporte N1' })
+    await body(admin, 'PUT', `/api/v1/admin/teams/${team.id}/members`, { userId: biaId })
+    await body(admin, 'PUT', '/api/v1/admin/grants', {
+      teamId: team.id,
+      scopeType: 'group',
+      scopeId: acme.group.id,
+      role: 'viewer'
+    })
+    expect((await body(bia, 'GET', '/api/v1/connections')).length).toBe(1)
+
+    const teams = await body(admin, 'GET', '/api/v1/admin/teams')
+    expect(teams[0]).toMatchObject({
+      name: 'Suporte N1',
+      members: [{ userId: biaId, source: 'manual' }],
+      grants: [{ scopeType: 'group', scopeId: acme.group.id, role: 'viewer' }]
+    })
+    const users = await body(admin, 'GET', '/api/v1/admin/users')
+    expect(users.find((u: { id: string }) => u.id === biaId).teamIds).toEqual([team.id])
+
+    await body(admin, 'DELETE', `/api/v1/admin/teams/${team.id}/members/${biaId}`)
+    expect(await body(bia, 'GET', '/api/v1/connections')).toEqual([])
+  })
+
+  it('the strongest of own and team grants wins', async () => {
+    const acme = await tree('Acme')
+    const team = await body(admin, 'POST', '/api/v1/admin/teams', { name: 'Infra' })
+    await body(admin, 'PUT', `/api/v1/admin/teams/${team.id}/members`, { userId: biaId })
+    await grant('group', acme.group.id, 'viewer')
+    await body(admin, 'PUT', '/api/v1/admin/grants', {
+      teamId: team.id,
+      scopeType: 'group',
+      scopeId: acme.group.id,
+      role: 'editor'
+    })
+    expect((await newConnection(bia, acme.group.id)).statusCode).toBe(201)
+    expect((await body(bia, 'GET', '/api/v1/me/access')).grants).toEqual([
+      { scopeType: 'group', scopeId: acme.group.id, role: 'editor' }
+    ])
+  })
+
+  it('deleting a team drops its access; names are unique; audit records it', async () => {
+    const acme = await tree('Acme')
+    const team = await body(admin, 'POST', '/api/v1/admin/teams', { name: 'Ops' })
+    expect((await call(admin, 'POST', '/api/v1/admin/teams', { name: 'ops' })).statusCode).toBe(409)
+    await body(admin, 'PUT', `/api/v1/admin/teams/${team.id}/members`, { userId: biaId })
+    await body(admin, 'PUT', '/api/v1/admin/grants', {
+      teamId: team.id,
+      scopeType: 'client',
+      scopeId: acme.client.id,
+      role: 'viewer'
+    })
+    await body(admin, 'DELETE', `/api/v1/admin/teams/${team.id}`)
+    expect(await body(bia, 'GET', '/api/v1/clients')).toEqual([])
+    const actions = (await body(admin, 'GET', '/api/v1/audit')).map(
+      (e: { action: string }) => e.action
+    )
+    expect(actions).toEqual(
+      expect.arrayContaining(['team.create', 'team.member.add', 'team.delete'])
+    )
+  })
+
+  it('a grant needs exactly one of userId or teamId, and teams are admin only', async () => {
+    const acme = await tree('Acme')
+    const both = await call(admin, 'PUT', '/api/v1/admin/grants', {
+      scopeType: 'client',
+      scopeId: acme.client.id,
+      role: 'viewer'
+    })
+    expect(both.statusCode).toBe(400)
+    expect((await call(bia, 'GET', '/api/v1/admin/teams')).statusCode).toBe(403)
+    expect((await call(bia, 'POST', '/api/v1/admin/teams', { name: 'x' })).statusCode).toBe(403)
   })
 })

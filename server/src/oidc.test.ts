@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { OidcConfig } from './config'
 import type { Db } from './db'
 import { type FakeOidcProvider, type FakeUser, startFakeOidc } from './dev/fake-oidc'
+import { addTeamMember, createTeam, listTeams } from './store/teams'
 import { createUser } from './store/users'
 import { createTestApp, login } from './test-utils'
 
@@ -306,5 +307,37 @@ describe('admin panel CSP', () => {
     const csp = String(res.headers['content-security-policy'])
     expect(csp).toContain(`connect-src 'self' ${new URL(idp.issuer).origin};`)
     expect(csp).toContain("script-src 'self';")
+  })
+})
+
+describe('Entra groups → teams', () => {
+  it('joins and leaves teams linked to an Entra group, keeping members added by hand', async () => {
+    const { app, db } = await setup()
+    const linked = await createTeam(db, { name: 'N1', entraGroupId: 'grp-n1' })
+    const manual = await createTeam(db, { name: 'Manual' })
+
+    const first = (await entraLogin(app, { email: 'ana@acme.com', oid: 'oa', groups: [] })).json()
+    await addTeamMember(db, manual.id, first.user.id)
+    await entraLogin(app, { email: 'ana@acme.com', oid: 'oa', groups: ['grp-n1'] })
+    const members = async () => (await listTeams(db)).map((t) => [t.name, t.members.length])
+    expect(await members()).toEqual([
+      ['Manual', 1],
+      ['N1', 1]
+    ])
+
+    await entraLogin(app, { email: 'ana@acme.com', oid: 'oa', groups: ['grp-other'] })
+    expect(await members()).toEqual([
+      ['Manual', 1],
+      ['N1', 0]
+    ])
+    expect(linked.members).toEqual([])
+  })
+
+  it('a token without the groups claim leaves team membership alone', async () => {
+    const { app, db } = await setup()
+    await createTeam(db, { name: 'N1', entraGroupId: 'grp-n1' })
+    await entraLogin(app, { email: 'ana@acme.com', oid: 'oa', groups: ['grp-n1'] })
+    await entraLogin(app, { email: 'ana@acme.com', oid: 'oa', groups: undefined })
+    expect((await listTeams(db))[0].members.length).toBe(1)
   })
 })
