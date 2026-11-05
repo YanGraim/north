@@ -25,8 +25,10 @@ OVPN_SHA=9eb6a6618352f9e7b771a9d38ae1631b5edfeed6d40233e243e602ddf2195e7a
 SWAN=6.1.0
 SWAN_SHA=fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4
 
-fetch() { # url sha file
-  [ -f "$WORK/$3" ] || curl -fsSL "$1" -o "$WORK/$3"
+fetch() { # url sha file [mirror]
+  # The checksum, not the host, is what we trust: a mirror is fine when one site is down.
+  [ -f "$WORK/$3" ] || curl -fsSL --retry 3 --connect-timeout 20 "$1" -o "$WORK/$3" ||
+    { [ -n "${4:-}" ] && curl -fsSL --retry 3 --connect-timeout 20 "$4" -o "$WORK/$3"; }
   got=$( (sha256sum "$WORK/$3" 2>/dev/null || shasum -a 256 "$WORK/$3") | cut -d' ' -f1)
   [ "$got" = "$2" ] || { echo "checksum mismatch: $3" >&2; exit 1; }
 }
@@ -42,7 +44,8 @@ cd "$WORK"
 fetch "https://github.com/openssl/openssl/releases/download/openssl-$OPENSSL/openssl-$OPENSSL.tar.gz" $OPENSSL_SHA openssl.tar.gz
 fetch "https://github.com/adrienverge/openfortivpn/archive/refs/tags/v$FORTI.tar.gz" $FORTI_SHA openfortivpn.tar.gz
 fetch "https://swupdate.openvpn.org/community/releases/openvpn-$OVPN.tar.gz" $OVPN_SHA openvpn.tar.gz
-fetch "https://download.strongswan.org/strongswan-$SWAN.tar.bz2" $SWAN_SHA strongswan.tar.bz2
+fetch "https://download.strongswan.org/strongswan-$SWAN.tar.bz2" $SWAN_SHA strongswan.tar.bz2 \
+  "https://github.com/strongswan/strongswan/releases/download/$SWAN/strongswan-$SWAN.tar.bz2"
 
 # OpenSSL: static only, nothing else on the system is picked up afterwards
 if [ ! -f "$PREFIX/lib/libcrypto.a" ]; then
