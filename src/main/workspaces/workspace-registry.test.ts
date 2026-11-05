@@ -218,14 +218,14 @@ describe('WorkspaceRegistry — organizations', () => {
 
   it('the personal workspace gives full access', async () => {
     const { registry } = setup()
-    expect(await registry.access()).toEqual({ role: 'admin', grants: [] })
+    expect(await registry.access()).toEqual({ role: 'admin', grants: [], connectionGrants: [] })
   })
 
   it('an organization answers with the role and grants from the server', async () => {
     const { registry } = setup()
     const org = await registry.addOrganization({ serverUrl: server.url, email: 'ivo@acme.com' })
     await registry.activate(org.id)
-    expect(await registry.access()).toEqual({ role: 'member', grants: [] })
+    expect(await registry.access()).toEqual({ role: 'member', grants: [], connectionGrants: [] })
     await server.makeAdmin('ivo@acme.com')
     expect((await registry.access()).role).toBe('admin')
   })

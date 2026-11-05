@@ -53,7 +53,7 @@ export function registerInventoryRoutes(
   async function connectionFor(req: FastifyRequest, need: 'read' | 'write') {
     const view = await access(req)
     const conn = orNotFound(await store.getConnection(db, req.user.id, id(req)), 'Connection')
-    view.requireConnection(conn.groupId, need)
+    view.requireConnection(conn.id, need)
     return { view, conn }
   }
 
@@ -143,7 +143,7 @@ export function registerInventoryRoutes(
   app.get(`${v1}/connections`, async (req) => {
     const view = await access(req)
     const rows = await store.listConnections(db, req.user.id, ConnectionsQuery.parse(req.query))
-    return rows.filter((c) => view.canRead('group', c.groupId))
+    return rows.filter((c) => view.canRead('connection', c.id))
   })
   app.post(`${v1}/connections`, async (req, reply) => {
     const input = CreateConnectionInputSchema.parse(req.body)
@@ -167,7 +167,9 @@ export function registerInventoryRoutes(
     return orNotFound(await store.toggleFavorite(db, req.user.id, id(req)), 'Connection')
   })
   app.post(`${v1}/connections/:id/duplicate`, async (req, reply) => {
-    await connectionFor(req, 'write')
+    // The copy is a new connection in the same group, so it needs the group.
+    const { view, conn } = await connectionFor(req, 'write')
+    view.require('group', conn.groupId, 'write')
     return reply.status(201).send(
       orNotFound(
         await store.duplicateConnection(db, req.user.id, id(req), async (ref) => {

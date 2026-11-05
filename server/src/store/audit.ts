@@ -10,6 +10,11 @@ export type AuditAction =
   | 'user.update'
   | 'grant.set'
   | 'grant.delete'
+  | 'team.create'
+  | 'team.update'
+  | 'team.delete'
+  | 'team.member.add'
+  | 'team.member.remove'
 
 export type AuditEvent = {
   id: number

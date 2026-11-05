@@ -1,6 +1,6 @@
 # Ideias (backlog)
 
-- **Última atualização:** 2026-11-04
+- **Última atualização:** 2026-11-05
 
 Primeiro passo de toda funcionalidade nova: a ideia é registrada aqui, amadurece e, quando aprovada, vira um recurso em [`recursos/`](./recursos/README.md). Defeitos em algo que já existe **não** entram aqui, e sim em [`correcoes.md`](./correcoes.md). O procedimento está na skill `ciclo-vida-recursos` (`.agents/skills/`).
 
@@ -567,3 +567,20 @@ Sem `--global`, as duas opções valem só para aquele repositório. `HTTP/1.1` 
 - O North não aplica `git config`, nem neste repositório nem com `--global`.
 
 **Questões em aberto:** nenhuma.
+
+### IDEIA-022 — Equipes e acesso por conexão no North Server
+
+- **Status:** 🚀 Promovida → [REC-022](./recursos/rec-022-equipes-e-acesso-por-conexao/especificacao.md)
+- **Prioridade:** Alta
+- **Esforço do agente:** 🧠 High
+- **Registrada em:** 2026-11-05
+- **Área:** Servidor / UI
+
+**Descrição:** Liberar para alguém uma conexão específica (um SSH, com a senha salva) sem abrir o grupo inteiro, e liberar projetos para equipes em vez de pessoa por pessoa. O painel admin ganha a cara do North.
+
+**Motivação:** A issue do North Server pedia acesso por usuário ou grupo e uma área de gestão completa. O gestor quer que alguém conecte num servidor sem ver a senha nem o resto do grupo.
+
+**Impacto esperado:** Migration no servidor, novas rotas admin e painel refeito. No desktop, a permissão passa a considerar a conexão. Manual e what's new nos 3 idiomas.
+
+**Questões em aberto:** nenhuma.
+

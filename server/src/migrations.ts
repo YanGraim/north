@@ -218,6 +218,67 @@ export const migrations: Migration[] = [
       -- Remote log files an SSH connection can follow. Empty list means none.
       ALTER TABLE connections ADD COLUMN log_files JSONB NOT NULL DEFAULT '[]';
     `
+  },
+  {
+    version: 8,
+    name: '008-teams-and-connection-grants',
+    sql: `
+      -- Teams (ADR 0018 §7): access granted to a team reaches every member.
+      -- entra_group_id keeps membership in sync with an Entra group at sign-in.
+      CREATE TABLE teams (
+        id UUID PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        entra_group_id TEXT UNIQUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX idx_teams_name ON teams(lower(name));
+      CREATE TABLE team_members (
+        team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'entra')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (team_id, user_id)
+      );
+      CREATE INDEX idx_team_members_user ON team_members(user_id);
+
+      -- Grants now go to a user or a team, and may target one connection.
+      ALTER TABLE project_grants RENAME TO project_grants_v3;
+      CREATE TABLE project_grants (
+        id UUID PRIMARY KEY,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+        scope_type TEXT NOT NULL
+          CHECK (scope_type IN ('client', 'environment', 'group', 'connection')),
+        client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+        environment_id UUID REFERENCES environments(id) ON DELETE CASCADE,
+        group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+        connection_id UUID REFERENCES connections(id) ON DELETE CASCADE,
+        scope_id UUID GENERATED ALWAYS AS
+          (COALESCE(client_id, environment_id, group_id, connection_id)) STORED,
+        role TEXT NOT NULL CHECK (role IN ('editor', 'viewer')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CHECK (num_nonnulls(user_id, team_id) = 1),
+        CHECK (num_nonnulls(client_id, environment_id, group_id, connection_id) = 1),
+        CHECK (
+          (scope_type = 'client' AND client_id IS NOT NULL) OR
+          (scope_type = 'environment' AND environment_id IS NOT NULL) OR
+          (scope_type = 'group' AND group_id IS NOT NULL) OR
+          (scope_type = 'connection' AND connection_id IS NOT NULL)
+        )
+      );
+      INSERT INTO project_grants
+        (id, user_id, scope_type, client_id, environment_id, group_id, role, created_at)
+      SELECT gen_random_uuid(), user_id, scope_type, client_id, environment_id, group_id, role,
+             created_at
+      FROM project_grants_v3;
+      DROP TABLE project_grants_v3;
+      CREATE UNIQUE INDEX idx_project_grants_user ON project_grants(user_id, scope_id)
+        WHERE user_id IS NOT NULL;
+      CREATE UNIQUE INDEX idx_project_grants_team ON project_grants(team_id, scope_id)
+        WHERE team_id IS NOT NULL;
+      CREATE INDEX idx_project_grants_scope ON project_grants(scope_id);
+    `
   }
 ]
 

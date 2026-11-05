@@ -122,3 +122,27 @@ Empresas querem uma instância própria que centralize projetos, usuários e per
 ## Ideia registrada — Fase 8 (acesso sem credencial: certificados SSH do North)
 
 Pedido da equipe (2026-10-23): a empresa dá acesso a um servidor e a pessoa conecta sem nunca conhecer usuário/senha. Hoje o Visualizador já conecta sem revelar a senha, mas o segredo ainda chega ao processo main do desktop para o handshake. Proposta: o North Server vira uma CA SSH; cada servidor de destino confia nela (`TrustedUserCAKeys` no `sshd_config`, aplicável por workflow), e ao conectar o servidor emite um certificado de poucos minutos para o principal do usuário (ex. `arthur`) naquele host, após checar o acesso no projeto. Sem senha para vazar; revogar no painel corta o próximo certificado; cada emissão vai para o audit. Opcional: provisionar o usuário no destino na primeira vez usando a conta sudo guardada só no servidor. Referências do modelo: Teleport, HashiCorp Boundary. Depois do deploy (Fase 7).
+
+## Notas de implementação — Fase 7 (equipes e acesso por conexão, 2026-11-05)
+
+- **Conexão como escopo:**
+  - `project_grants.scope_type` aceita `connection`, com a FK `connection_id` em cascata.
+  - Quem recebe uma conexão enxerga cliente, ambiente e grupo dela só como caminho (`level = 'path'`). O grupo continua sem mostrar as outras conexões.
+  - Criar e duplicar exigem escrita no grupo. Editar a conexão e ler a senha seguem o papel na conexão.
+- **Equipes:**
+  - Novas tabelas `teams` e `team_members`.
+  - Uma liberação pertence a uma pessoa **ou** a uma equipe: `num_nonnulls(user_id, team_id) = 1`, com índices únicos parciais.
+  - O acesso efetivo junta as liberações da pessoa com as das equipes dela e fica com a mais forte.
+  - Entrar ou sair de uma equipe, ou uma mudança na liberação da equipe, manda `access.changed` a cada membro. A revogação continua imediata.
+- **Entra:**
+  - `teams.entra_group_id` liga a equipe a um grupo do Entra.
+  - No login com a claim `groups`, a pessoa entra nas equipes ligadas e sai das ligadas de que não faz mais parte, só quando `source = 'entra'`.
+  - Membros manuais não são tocados. Sem a claim, nada muda, na mesma regra de `NORTH_OIDC_ADMIN_GROUPS`.
+- **Compatibilidade:**
+  - `/me/access` manda as liberações de conexão em `connectionGrants`. O `grants` continua só com cliente, ambiente e grupo, porque o desktop ≤ 0.1.48 valida `scopeType` com enum fechado.
+  - O desktop novo aceita servidor sem `connectionGrants` (`default([])`).
+- **Painel:**
+  - Refeito no design system do desktop: tokens, IBM Plex local, Lucide em SVG e rotas por hash.
+  - Telas: Visão geral, Pessoas, página da pessoa, Equipes, página da equipe, Projetos com a árvore até a conexão, e Auditoria com filtro por tipo.
+  - A CSP não mudou.
+- **Alternativa descartada:** criar uma tabela de liberação de conexão separada de `project_grants`. Ela duplicaria a lógica de herança e a auditoria. Uma tabela única, com o escopo gerado (`scope_id`), mantém uma regra só.

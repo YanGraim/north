@@ -6,6 +6,7 @@ import type { ServerConfig } from '../config'
 import type { Db } from '../db'
 import { unauthorized } from '../errors'
 import { endSession, rotateSession, startSession } from '../store/sessions'
+import { syncEntraTeams } from '../store/teams'
 import { upsertUserByEmail, upsertUserByIdentity } from '../store/users'
 
 const DevLoginSchema = z.object({
@@ -45,6 +46,8 @@ export function registerAuthRoutes(
         { allowNew: allowNewUsers }
       )
       if (!user) throw unauthorized('User disabled')
+      // Teams linked to an Entra group follow the token; no groups claim = leave them alone.
+      if (identity.groups) await syncEntraTeams(db, user.id, identity.groups)
       return { ...(await startSession(db, config, user)), user }
     })
   }
@@ -73,8 +76,15 @@ export function registerAuthRoutes(
   app.get('/api/v1/me', async (request) => request.user)
 
   // Lets the desktop hide what the user cannot do; the server still checks every call.
-  app.get('/api/v1/me/access', async (request) => ({
-    role: request.user.role,
-    grants: request.user.role === 'admin' ? [] : await listGrants(db, request.user.id)
-  }))
+  // Connection grants travel apart: desktops before 0.1.49 only know the three tree levels.
+  app.get('/api/v1/me/access', async (request) => {
+    const grants = request.user.role === 'admin' ? [] : await listGrants(db, request.user.id)
+    return {
+      role: request.user.role,
+      grants: grants.filter((g) => g.scopeType !== 'connection'),
+      connectionGrants: grants
+        .filter((g) => g.scopeType === 'connection')
+        .map((g) => ({ connectionId: g.scopeId, role: g.role }))
+    }
+  })
 }

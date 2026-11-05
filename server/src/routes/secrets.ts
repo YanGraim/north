@@ -34,7 +34,7 @@ export function registerSecretRoutes(app: FastifyInstance, db: Db, masterKey: Bu
     const owner = await secrets.secretOwner(db, id(req))
     if (!owner) throw notFound('Secret')
     if (owner.connection) {
-      view.require('group', owner.connection.groupId, need, 'Secret')
+      view.requireConnection(owner.connection.id, need, 'Secret')
     } else if (owner.createdBy !== req.user.id) {
       throw notFound('Secret')
     }

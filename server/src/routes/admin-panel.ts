@@ -5,7 +5,12 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 const FILES: Record<string, string> = {
   'index.html': 'text/html; charset=utf-8',
   'admin.js': 'text/javascript; charset=utf-8',
-  'admin.css': 'text/css; charset=utf-8'
+  'admin.css': 'text/css; charset=utf-8',
+  // IBM Plex, the desktop's typeface (SIL OFL), served locally: no font CDN.
+  'plex-sans-400.woff2': 'font/woff2',
+  'plex-sans-500.woff2': 'font/woff2',
+  'plex-sans-600.woff2': 'font/woff2',
+  'plex-mono-400.woff2': 'font/woff2'
 }
 
 // The Entra token endpoint is the one other origin the panel may call (PKCE redemption).

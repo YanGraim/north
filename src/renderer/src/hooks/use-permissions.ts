@@ -6,7 +6,7 @@ import { type Connection, FULL_ACCESS, type Permissions, permissionsFor } from '
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
-const NO_ACCESS = permissionsFor({ role: 'member', grants: [] })
+const NO_ACCESS = permissionsFor({ role: 'member', grants: [], connectionGrants: [] })
 
 /**
  * What the user may do in the current workspace (ADR 0018 §7). The personal
@@ -29,17 +29,22 @@ export function usePermissions(): Permissions {
 }
 
 /** Path of a connection in the tree, for `edit` / `revealPassword`. */
-function useConnectionPath(groupId: string | undefined) {
+function useConnectionPath(connection: Pick<Connection, 'id' | 'groupId'> | undefined) {
   const { resolveGroup } = useOrgLookup()
-  if (!groupId) return null
-  const org = resolveGroup(groupId)
-  return { clientId: org.client?.id, environmentId: org.environment?.id, groupId }
+  if (!connection?.groupId) return null
+  const org = resolveGroup(connection.groupId)
+  return {
+    clientId: org.client?.id,
+    environmentId: org.environment?.id,
+    groupId: connection.groupId,
+    connectionId: connection.id
+  }
 }
 
 /** Whether the user may edit, duplicate or delete this connection. */
-export function useCanEditConnection(connection: Pick<Connection, 'groupId'>): boolean {
+export function useCanEditConnection(connection: Pick<Connection, 'id' | 'groupId'>): boolean {
   const can = usePermissions()
-  const path = useConnectionPath(connection.groupId)
+  const path = useConnectionPath(connection ?? undefined)
   return path !== null && can.edit(path)
 }
 
@@ -47,6 +52,6 @@ export function useCanEditConnection(connection: Pick<Connection, 'groupId'>): b
 export function useCanRevealConnectionPassword(connectionId: string | null | undefined): boolean {
   const can = usePermissions()
   const { data: connection } = useConnection(connectionId ?? undefined)
-  const path = useConnectionPath(connection?.groupId)
+  const path = useConnectionPath(connection ?? undefined)
   return path !== null && can.revealPassword(path)
 }

@@ -25,8 +25,8 @@ test('offers Microsoft first, and the test e-mail only as a fallback', async ({ 
 test('an admin signs in with Microsoft and lands on the panel', async ({ page }) => {
   await page.goto(`${SERVER}/admin?lang=pt-BR`)
   await microsoft(page, ADMIN)
-  await expect(page.getByRole('tab', { name: 'Pessoas' })).toBeVisible()
-  await expect(page.locator('.who')).toHaveText(ADMIN)
+  await expect(page.getByTestId('tab-overview')).toBeVisible()
+  await expect(page.locator('.me')).toHaveText(ADMIN)
   // The one-time code never stays in the address bar.
   expect(new URL(page.url()).searchParams.has('code')).toBe(false)
   expect(new URL(page.url()).searchParams.get('lang')).toBe('pt-BR')
@@ -35,9 +35,9 @@ test('an admin signs in with Microsoft and lands on the panel', async ({ page })
 test('the session survives a reload', async ({ page }) => {
   await page.goto(`${SERVER}/admin?lang=pt-BR`)
   await microsoft(page, ADMIN)
-  await expect(page.getByRole('tab', { name: 'Pessoas' })).toBeVisible()
+  await expect(page.getByTestId('tab-overview')).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('tab', { name: 'Pessoas' })).toBeVisible()
+  await expect(page.getByTestId('tab-overview')).toBeVisible()
 })
 
 test('a member signing in with Microsoft is told the panel is for admins', async ({ page }) => {
