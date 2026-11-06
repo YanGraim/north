@@ -112,6 +112,8 @@ export type WindowsNativeVpnConfig = z.infer<typeof WindowsNativeVpnConfigSchema
 export const VpnProfileSchema = z.object({
   id: IdSchema,
   clientId: IdSchema.nullable(),
+  /** Workspace whose VPN list holds it (REC-025); absent = My workspace. */
+  workspaceId: z.string().optional(),
   name: z.string().min(1),
   kind: VpnKindSchema,
   config: VpnConfigSchema,

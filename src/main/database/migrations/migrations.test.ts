@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(24)
+    expect(getUserVersion(db)).toBe(25)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -58,7 +58,46 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(24)
+    expect(getUserVersion(db)).toBe(25)
+  })
+
+  it('025 gives an organization its own copy of the VPNs it used, logins included', () => {
+    const db = openDatabase(':memory:')
+    migrate(
+      db,
+      migrations.filter((m) => m.version <= 24)
+    )
+    const now = '2026-11-06T00:00:00.000Z'
+    db.prepare(
+      `INSERT INTO workspaces (id, kind, name, server_url, created_at) VALUES ('org-1', 'organization', 'Gruppe', 'https://n.test', ?)`
+    ).run(now)
+    db.prepare(
+      `INSERT INTO vpn_profiles (id, name, kind, config, created_at, updated_at) VALUES ('p1', 'Poly', 'ipsec-ikev1', '{}', ?, ?)`
+    ).run(now, now)
+    db.prepare(`INSERT INTO credentials VALUES ('c1', x'0102', ?, ?)`).run(now, now)
+    db.prepare(`INSERT INTO vpn_secrets VALUES ('p1', 'password', 'c1')`).run()
+    db.prepare(`INSERT INTO organization_vpn_links VALUES ('org-1', 'tpl-1', 'p1')`).run()
+
+    migrate(db, migrations)
+
+    const link = db.prepare('SELECT vpn_profile_id AS id FROM organization_vpn_links').get() as {
+      id: string
+    }
+    expect(link.id).not.toBe('p1')
+    const profiles = db
+      .prepare('SELECT id, workspace_id, name FROM vpn_profiles ORDER BY workspace_id')
+      .all()
+    expect(profiles).toEqual([
+      { id: 'p1', workspace_id: 'local', name: 'Poly' },
+      { id: link.id, workspace_id: 'org-1', name: 'Poly' }
+    ])
+    const secret = db
+      .prepare(
+        `SELECT c.ciphertext FROM vpn_secrets s JOIN credentials c ON c.id = s.credential_ref
+         WHERE s.vpn_profile_id = ?`
+      )
+      .get(link.id) as { ciphertext: Buffer }
+    expect([...secret.ciphertext]).toEqual([1, 2])
   })
 
   it('adds log_files to connections in 021', () => {
