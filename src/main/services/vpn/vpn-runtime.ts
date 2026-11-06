@@ -49,6 +49,7 @@ export type VpnRuntimeDeps = {
     tunnels: TunnelRegistry
     helper?: OpenVpnDriverDeps['helper']
     prepare?: OpenVpnDriverDeps['prepare']
+    logToFile?: boolean
   }
   macosIpsec?: MacosIpsecDriverDeps
   /** IKEv1 via strongSwan: root helper (macOS/Linux) or WSL (Windows); wins over macosIpsec. */

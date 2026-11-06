@@ -27,9 +27,20 @@ export const EnvironmentUpdateSchema = z.object({
   finishedAt: IsoDateSchema,
   status: EnvironmentUpdateStatusSchema,
   commits: z.array(EnvironmentUpdateCommitSchema),
-  filesChanged: z.number().int().nonnegative()
+  filesChanged: z.number().int().nonnegative(),
+  /**
+   * Who ran it, in an organization (REC-024). Absent in the personal
+   * workspace; null when that person was removed from the server.
+   */
+  ranBy: z
+    .object({ id: z.string(), name: z.string().nullable(), email: z.string() })
+    .nullable()
+    .optional()
 })
 export type EnvironmentUpdate = z.infer<typeof EnvironmentUpdateSchema>
 
-export const CreateEnvironmentUpdateInputSchema = EnvironmentUpdateSchema.omit({ id: true })
+export const CreateEnvironmentUpdateInputSchema = EnvironmentUpdateSchema.omit({
+  id: true,
+  ranBy: true
+})
 export type CreateEnvironmentUpdateInput = z.infer<typeof CreateEnvironmentUpdateInputSchema>

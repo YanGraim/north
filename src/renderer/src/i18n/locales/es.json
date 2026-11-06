@@ -151,6 +151,19 @@
       "product": "Producto",
       "version": "Versión",
       "repository": "Repositorio"
+    },
+    "organization": {
+      "title": "Tú en {{name}}",
+      "description": "Tu rol y tus equipos en esta organización. Un admin concede el acceso en el panel admin.",
+      "loading": "Cargando…",
+      "role": "Rol",
+      "admin": "Admin",
+      "member": "Miembro",
+      "teams": "Equipos",
+      "noTeams": "Ninguno",
+      "adminSees": "Como admin, ves y editas todo en la organización.",
+      "memberSees_one": "Solo ves lo que se concedió a ti o a tus equipos: {{count}} elemento (con todo lo que está debajo).",
+      "memberSees_other": "Solo ves lo que se concedió a ti o a tus equipos: {{count}} elementos (con todo lo que está debajo)."
     }
   },
   "help": {
@@ -1007,6 +1020,8 @@
       "connections_other": "{{count}} conexiones",
       "accesses_one": "{{count}} acceso",
       "accesses_other": "{{count}} accesos",
+      "workflows_one": "{{count}} workflow",
+      "workflows_other": "{{count}} workflows",
       "passwords_one": "{{count}} contraseña",
       "passwords_other": "{{count}} contraseñas"
     },
@@ -1034,5 +1049,11 @@
     "pipette": "Selector de color del sistema",
     "swatch": "Color {{color}}",
     "favorite": "Color personalizado {{color}}"
+  },
+  "workflows": {
+    "updates": {
+      "ranBy": "por {{name}}",
+      "removedUser": "persona eliminada"
+    }
   }
 }

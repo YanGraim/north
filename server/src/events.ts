@@ -16,7 +16,17 @@ export type ServerEvent =
   | { type: 'ready' }
   | {
       type: 'inventory.changed'
-      entity: 'client' | 'environment' | 'group' | 'connection' | 'access' | 'vpn' | 'tag'
+      entity:
+        | 'client'
+        | 'environment'
+        | 'group'
+        | 'connection'
+        | 'access'
+        | 'vpn'
+        | 'tag'
+        | 'workflow'
+        | 'variable'
+        | 'update'
     }
   | { type: 'access.changed' }
   | { type: 'session.revoked'; reason: 'disabled' }
@@ -66,7 +76,10 @@ const ENTITY: Record<string, Extract<ServerEvent, { type: 'inventory.changed' }>
   connections: 'connection',
   accesses: 'access',
   vpns: 'vpn',
-  tags: 'tag'
+  tags: 'tag',
+  workflows: 'workflow',
+  'group-variables': 'variable',
+  'environment-updates': 'update'
 }
 
 const AUTH_TIMEOUT_MS = 5000
@@ -112,7 +125,9 @@ export async function registerEvents(
     if (request.method === 'GET' || reply.statusCode >= 300) return
     const path = request.routeOptions.url ?? ''
     const match =
-      /^\/api\/v1\/(clients|environments|groups|connections|accesses|vpns|tags)(\/|$)/.exec(path)
+      /^\/api\/v1\/(clients|environments|groups|connections|accesses|vpns|tags|workflows|group-variables|environment-updates)(\/|$)/.exec(
+        path
+      )
     if (!match || path.endsWith('/favorite')) return
     hub.broadcast({ type: 'inventory.changed', entity: ENTITY[match[1]] })
   })

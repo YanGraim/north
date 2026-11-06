@@ -13,6 +13,7 @@ import { registerAuditRoutes } from './routes/audit'
 import { registerAuthRoutes } from './routes/auth'
 import { registerInventoryRoutes } from './routes/inventory'
 import { registerSecretRoutes } from './routes/secrets'
+import { registerWorkflowRoutes } from './routes/workflows'
 import { findActiveUser, type User } from './store/users'
 
 declare module 'fastify' {
@@ -109,6 +110,7 @@ export async function buildApp(deps: { db: Db; config: ServerConfig }): Promise<
 
   registerAuthRoutes(app, db, config, oidc)
   registerInventoryRoutes(app, db, config.masterKey)
+  registerWorkflowRoutes(app, db)
   registerSecretRoutes(app, db, config.masterKey)
   registerAuditRoutes(app, db)
   registerAdminRoutes(app, db, hub)

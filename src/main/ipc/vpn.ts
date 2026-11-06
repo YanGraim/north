@@ -43,7 +43,11 @@ import {
   type VpnRuntime
 } from '../services/vpn/vpn-runtime'
 import { OpenvpnServiceBroker } from '../services/vpn/windows-openvpn-service'
-import { WindowsVpnComponent } from '../services/vpn/windows-vpn-component'
+import {
+  OPENVPN_ADMINS,
+  WindowsVpnComponent,
+  windowsAccountName
+} from '../services/vpn/windows-vpn-component'
 import { WindowsVpnService } from '../services/vpn/windows-vpn-service'
 import { WindowsVpnSetup } from '../services/vpn/windows-vpn-setup'
 import { WSL_DISTRO_MISSING, WslIpsec } from '../services/vpn/wsl-ipsec'
@@ -189,9 +193,15 @@ export function registerVpnHandlers(
             const msi = join(bundledDir, WINDOWS_OPENVPN_MSI)
             return existsSync(msi) ? msi : null
           },
-          user: userInfo().username,
+          user: windowsAccountName(process.env, userInfo().username),
           exists: existsSync,
           elevate,
+          listGroup: () =>
+            new Promise((resolve) =>
+              execFile('net', ['localgroup', OPENVPN_ADMINS], { windowsHide: true }, (err, out) =>
+                resolve(err ? null : out)
+              )
+            ),
           marker: {
             has: () => existsSync(join(vpnDir, 'openvpn-installed-by-north')),
             set: () => writeFileSync(join(vpnDir, 'openvpn-installed-by-north'), ''),
@@ -295,10 +305,16 @@ export function registerVpnHandlers(
     openvpn: {
       binary: findOpenvpn,
       broker: windows ? new OpenvpnServiceBroker(tmpDir) : broker,
+      logToFile: Boolean(windows),
       tmpDir,
       tunnels,
       helper,
-      prepare: windows ? () => windows.ensure() : undefined
+      prepare: windows
+        ? async () => {
+            await windows.ensure()
+            await windowsOpenvpn?.ensureMembership()
+          }
+        : undefined
     },
     macosIpsec: {
       run: (cmd, args) =>

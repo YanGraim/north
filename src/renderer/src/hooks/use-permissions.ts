@@ -10,7 +10,8 @@ const NO_ACCESS = permissionsFor({
   role: 'member',
   grants: [],
   connectionGrants: [],
-  accessGrants: []
+  accessGrants: [],
+  teams: []
 })
 
 /**
@@ -59,4 +60,13 @@ export function useCanRevealConnectionPassword(connectionId: string | null | und
   const { data: connection } = useConnection(connectionId ?? undefined)
   const path = useConnectionPath(connection ?? undefined)
   return path !== null && can.revealPassword(path)
+}
+
+/** Whether the user may create or change the group's workflows and variables (REC-024). */
+export function useCanEditGroup(groupId: string | null | undefined): boolean {
+  const can = usePermissions()
+  const { resolveGroup } = useOrgLookup()
+  if (!groupId) return false
+  const org = resolveGroup(groupId)
+  return can.edit({ clientId: org.client?.id, environmentId: org.environment?.id, groupId })
 }

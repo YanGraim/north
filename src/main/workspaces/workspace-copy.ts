@@ -5,10 +5,12 @@ import type {
   CopyToWorkspaceInput,
   CopyToWorkspaceReport
 } from '@shared/types'
+import { cloneWorkflowDefinition } from '@shared/types'
 import type { Repositories } from '../repositories'
 import type { InventoryStore } from './inventory-store'
 import { VPN_NOT_SHAREABLE } from './organization-vpns'
 import type { SecretStore } from './secret-store'
+import type { WorkflowStore } from './workflow-store'
 
 /** Which VPN a client or environment brings up, in this computer's profile ids. */
 export type VpnLinkSide = {
@@ -20,8 +22,10 @@ export type VpnLinkSide = {
 export type CopySide = {
   inventory: InventoryStore
   secrets: SecretStore
-  /** Personal workspace only: what an organization cannot hold yet (API collections, workflows). */
+  /** Personal workspace only: what an organization cannot hold yet (API collections). */
   repositories: Repositories | null
+  /** Workflows and group variables go along with their group (REC-024). */
+  workflows?: WorkflowStore
   vpnLinks?: VpnLinkSide
 }
 
@@ -64,7 +68,14 @@ export async function copyToWorkspace(
   input: CopyToWorkspaceInput
 ): Promise<CopyToWorkspaceReport> {
   const report: CopyToWorkspaceReport = {
-    created: { clients: 0, environments: 0, groups: 0, connections: 0, accesses: 0 },
+    created: {
+      clients: 0,
+      environments: 0,
+      groups: 0,
+      connections: 0,
+      accesses: 0,
+      workflows: 0
+    },
     passwordsCopied: 0,
     warnings: [],
     root: { kind: input.kind, id: '' }
@@ -73,7 +84,6 @@ export async function copyToWorkspace(
   const copiedConnections = new Map<string, string>()
   const pendingJumps: { copyId: string; sourceJumpId: string; name: string }[] = []
   let notCopiedApis = 0
-  let notCopiedWorkflows = 0
   const toOrganization = !target.repositories
 
   /** The VPN link of a client or environment goes along; a VPN that can't be shared stays behind. */
@@ -223,6 +233,33 @@ export async function copyToWorkspace(
     }
   }
 
+  /** A group's variables and workflows; the preferred connection follows when it came along. */
+  const copyWorkflows = async (fromGroupId: string, toGroupId: string) => {
+    if (!source.workflows || !target.workflows) return
+    for (const variable of await source.workflows.variables.listByGroup(fromGroupId)) {
+      await target.workflows.variables.create({
+        groupId: toGroupId,
+        key: variable.key,
+        value: variable.value,
+        description: variable.description
+      })
+    }
+    for (const workflow of await source.workflows.workflows.listByGroup(fromGroupId)) {
+      await target.workflows.workflows.create({
+        groupId: toGroupId,
+        name: workflow.name,
+        description: workflow.description,
+        icon: workflow.icon,
+        sortOrder: workflow.sortOrder,
+        preferredConnectionId: workflow.preferredConnectionId
+          ? (copiedConnections.get(workflow.preferredConnectionId) ?? null)
+          : null,
+        definition: cloneWorkflowDefinition(workflow.definition)
+      })
+      report.created.workflows += 1
+    }
+  }
+
   const copyGroup = async (groupId: string, environmentId: string, name?: string) => {
     const group = await source.inventory.groups.get(groupId)
     if (!group) throw new Error('Grupo não encontrado')
@@ -240,9 +277,7 @@ export async function copyToWorkspace(
     for (const access of await source.inventory.accesses.list({ groupId })) {
       await copyAccess(access, created.id)
     }
-    if (source.repositories && toOrganization) {
-      notCopiedWorkflows += source.repositories.workflows.listByGroup(groupId).length
-    }
+    await copyWorkflows(groupId, created.id)
     return created
   }
 
@@ -311,11 +346,6 @@ export async function copyToWorkspace(
   if (notCopiedApis > 0) {
     report.warnings.push(
       `${notCopiedApis} coleção(ões) de API ficaram de fora: a organização ainda não guarda APIs`
-    )
-  }
-  if (notCopiedWorkflows > 0) {
-    report.warnings.push(
-      `${notCopiedWorkflows} workflow(s) ficaram de fora: a organização ainda não guarda workflows`
     )
   }
   return report

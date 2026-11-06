@@ -57,6 +57,10 @@ export type Repositories = {
   vpnSecrets: VpnSecretsRepository
   vpnHistory: VpnHistoryRepository
   organizationVpnLinks: OrganizationVpnLinksRepository
+  /** Runs of an organization's workflows on this computer (REC-024). */
+  organizationWorkflowRuns: WorkflowRunsRepository
+  /** Git/sudo passwords those runs learned, per organization connection. */
+  organizationConnectionSecrets: ConnectionSecretsRepository
 }
 
 export function createRepositories(db: SqliteDatabase): Repositories {
@@ -88,7 +92,12 @@ export function createRepositories(db: SqliteDatabase): Repositories {
     vpnProfiles: new VpnProfilesRepository(db),
     vpnSecrets: new VpnSecretsRepository(db),
     vpnHistory: new VpnHistoryRepository(db),
-    organizationVpnLinks: new OrganizationVpnLinksRepository(db)
+    organizationVpnLinks: new OrganizationVpnLinksRepository(db),
+    organizationWorkflowRuns: new WorkflowRunsRepository(db, 'organization_workflow_runs'),
+    organizationConnectionSecrets: new ConnectionSecretsRepository(
+      db,
+      'organization_connection_secrets'
+    )
   }
 }
 

@@ -5,7 +5,8 @@ import { formatRelativeDate } from '@renderer/lib/connection-ui'
 import { UpdatesChart } from '@renderer/lib/environment-updates-chart'
 import { cn } from '@renderer/lib/utils'
 import type { EnvironmentUpdate } from '@shared/types'
-import { CheckCircle2, ChevronDown, XCircle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, UserRound, XCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 type EnvironmentUpdatesSectionProps = {
   environmentId: string | null
@@ -24,7 +25,14 @@ export function UpdateRow({
   /** Extra context shown before the workflow name — e.g. "Cliente · Ambiente" on a cross-environment feed. */
   contextLabel?: React.ReactNode
 }): React.JSX.Element {
+  const { t } = useTranslation()
   const success = update.status === 'success'
+  // Organizations sign each update with who ran it (REC-024).
+  const ranBy = update.ranBy
+    ? update.ranBy.name || update.ranBy.email
+    : update.ranBy === null
+      ? t('workflows.updates.removedUser')
+      : null
   return (
     <details className="group rounded-md border border-border">
       <summary className="flex cursor-pointer list-none flex-col gap-0.5 px-2.5 py-2 text-xs">
@@ -38,6 +46,16 @@ export function UpdateRow({
           <span className="shrink-0 truncate font-mono text-foreground">
             {update.currentCommit.slice(0, 7)}
           </span>
+          {ranBy ? (
+            <span
+              className="flex min-w-0 items-center gap-1 truncate text-foreground"
+              title={update.ranBy?.email}
+              data-testid="update-ran-by"
+            >
+              <UserRound className="size-3 shrink-0 text-muted" aria-hidden />
+              <span className="truncate">{t('workflows.updates.ranBy', { name: ranBy })}</span>
+            </span>
+          ) : null}
           <ChevronDown className="ml-auto size-3.5 shrink-0 text-muted transition-transform group-open:rotate-180" />
         </span>
         <span className="truncate pl-5 text-muted">

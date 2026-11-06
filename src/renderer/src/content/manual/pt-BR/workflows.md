@@ -45,3 +45,11 @@ O histórico de atualizações aparece em dois lugares:
 - **Painel da conexão** → seção **Atualizações**, logo abaixo de Workflows — a mesma visão, mas filtrada só pro ambiente daquela conexão.
 
 Em ambos, o histórico é por **ambiente**: se duas conexões diferentes (ex.: backend e frontend) atualizam o mesmo ambiente via workflows distintos, tudo aparece junto.
+
+## Na organização
+
+Numa organização, os workflows e as variáveis do grupo ficam no North Server e valem para toda a equipe. Quem tem acesso ao grupo (ou ao ambiente ou cliente acima dele) vê e roda os workflows; só Editor e Admin criam e mudam. Quem recebeu só uma conexão não vê os workflows do grupo.
+
+O workflow roda no seu computador, com o seu acesso: se o cliente usa VPN, ela liga sozinha antes do primeiro passo e desliga depois, como no SSH. O mesmo vale no Meu workspace. O histórico das execuções e as senhas de Git e sudo que você salvar ficam só neste computador.
+
+Com rastreamento Git ligado, cada atualização vai para o servidor com o nome de quem rodou: em **Últimas atualizações** aparece "por Fulano" ao lado do commit, para a equipe toda saber quem atualizou cada ambiente.

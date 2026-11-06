@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { VpnProfile, VpnSecretKind } from '@shared/types'
@@ -249,6 +249,36 @@ describe('OpenVpnDriver (against fake openvpn)', () => {
     await driver.disconnect()
     expect(log.join('\n')).not.toContain('pw-ok')
     expect(log.length).toBeGreaterThan(0)
+  })
+})
+
+describe('OpenVpnDriver on Windows (log file)', () => {
+  it('shows what openvpn wrote to --log when it dies before management', async () => {
+    const broker: PrivilegeBroker = {
+      launch(_binary, args) {
+        const logPath = args[args.indexOf('--log') + 1]
+        writeFileSync(
+          logPath,
+          '2026-11-06 10:00:00 us=1 Options error: --dev tun requires an adapter\r\n'
+        )
+        return { exited: Promise.resolve({ code: 1 }) }
+      },
+      kill: async () => {}
+    }
+    const driver = new OpenVpnDriver({
+      binary: () => 'C:\\Program Files\\OpenVPN\\bin\\openvpn.exe',
+      broker,
+      tmpDir: join(workDir, 'tmp'),
+      tunnels: new TunnelRegistry(join(workDir, 'tunnels')),
+      handshakeTimeoutMs: 2000,
+      logToFile: true
+    })
+    const log: string[] = []
+    await expect(driver.connect(ctx(profile('crash'), secrets({}), log))).rejects.toMatchObject({
+      code: 'DRIVER_CRASHED'
+    })
+    expect(log).toContain('Options error: --dev tun requires an adapter')
+    expect(tmpFiles()).toEqual([])
   })
 })
 
