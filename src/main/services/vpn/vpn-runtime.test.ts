@@ -108,7 +108,7 @@ describe('VPN IPC handlers', () => {
   it('rejects malformed payloads', async () => {
     const { handlers } = setup()
     expect(() => handlers[IpcChannels.VPN_GET]('not-a-uuid')).toThrow()
-    expect(() => handlers[IpcChannels.VPN_CREATE]({ name: '', config: {} })).toThrow()
+    await expect(handlers[IpcChannels.VPN_CREATE]({ name: '', config: {} })).rejects.toThrow()
     expect(() =>
       handlers[IpcChannels.VPN_SET_SECRET]({
         profileId: crypto.randomUUID(),
@@ -118,10 +118,10 @@ describe('VPN IPC handlers', () => {
     ).toThrow()
   })
 
-  it('import errors carry an INVALID_CONFIG code the renderer can parse', () => {
+  it('import errors carry an INVALID_CONFIG code the renderer can parse', async () => {
     const { handlers } = setup()
     try {
-      handlers[IpcChannels.VPN_IMPORT_OVPN]({ content: 'client\nremote a\nup /x.sh\n' })
+      await handlers[IpcChannels.VPN_IMPORT_OVPN]({ content: 'client\nremote a\nup /x.sh\n' })
       expect.unreachable()
     } catch (error) {
       expect(parseVpnErrorMessage((error as Error).message)?.code).toBe('INVALID_CONFIG')
@@ -130,7 +130,7 @@ describe('VPN IPC handlers', () => {
 
   it('delete disconnects and wipes the profile', async () => {
     const { handlers, runtime } = setup()
-    const { profile } = handlers[IpcChannels.VPN_IMPORT_OVPN]({ content: ovpn })
+    const { profile } = await handlers[IpcChannels.VPN_IMPORT_OVPN]({ content: ovpn })
     await handlers[IpcChannels.VPN_DELETE](profile.id)
     expect(handlers[IpcChannels.VPN_LIST]()).toEqual([])
     expect(runtime.manager.listStates().every((s) => s.status === 'disconnected')).toBe(true)

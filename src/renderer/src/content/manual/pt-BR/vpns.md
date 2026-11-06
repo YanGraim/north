@@ -52,7 +52,11 @@ Em **Editar ambiente** (ou **Editar cliente**), escolha a **VPN** dele. A partir
 
 ## VPN numa organização
 
-A VPN fica no seu computador, com o seu usuário e a sua senha, e aparece igual em todos os workspaces. Quando alguém liga uma VPN FortiGate, IPsec ou do Windows a um cliente, ambiente, conexão ou banco da organização, o servidor guarda só o "modelo" dela: nome, gateway, porta, realm e o certificado confiado. Nunca guarda usuário, senha ou chave pré-compartilhada.
+Cada workspace tem a sua lista de VPNs: na organização, a tela **VPNs** mostra só as VPNs que você usa nela, e o Meu workspace continua com as dele. A VPN fica no seu computador, com o seu usuário e a sua senha, e o túnel sobe só no seu computador: desligar a sua VPN não derruba a de ninguém.
+
+Qual VPN um cliente, ambiente, conexão ou banco usa é escolha **sua**. Se você escolher outra VPN, até com outro gateway, só a sua muda. A primeira escolha feita num item vira a **sugestão** da organização para quem ainda não escolheu. Na cópia do Meu workspace para a organização, as VPNs vão junto, com o seu login, já ligadas aos clientes copiados.
+
+Quando alguém liga uma VPN FortiGate, IPsec ou do Windows a um cliente, ambiente, conexão ou banco da organização, o servidor guarda só o "modelo" dela: nome, gateway, porta, realm e o certificado confiado. Nunca guarda usuário, senha ou chave pré-compartilhada.
 
 Na primeira vez que você abre algo da organização que precisa dessa VPN, o North procura uma VPN sua com o mesmo gateway e passa a usar essa. Se você ainda não tem, ele cria a VPN a partir do modelo, faltando só o seu login: na primeira conexão o North avisa, e você abre a VPN em **VPNs → Editar** e preenche o seu usuário e a sua senha (e a chave pré-compartilhada, no IPsec). Depois disso, clicar no SSH, no banco ou no portal sobe a VPN sozinho, como no Meu workspace. Cada pessoa entra na FortiGate com o próprio login, então a FortiGate registra quem é quem.
 

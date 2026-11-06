@@ -16,6 +16,8 @@ import type { WorkflowStore } from './workflow-store'
 export type VpnLinkSide = {
   get(target: 'client' | 'environment', id: string): Promise<string | null>
   set(target: 'client' | 'environment', id: string, profileId: string | null): Promise<void>
+  /** A VPN from the other workspace, as one of this workspace's own (copied when needed). */
+  adopt?(profileId: string): string | null
 }
 
 /** One side of a copy: a workspace's tree and passwords. */
@@ -86,6 +88,9 @@ export async function copyToWorkspace(
   let notCopiedApis = 0
   const toOrganization = !target.repositories
 
+  const adoptVpn = (profileId: string | null): string | null =>
+    profileId && target.vpnLinks?.adopt ? target.vpnLinks.adopt(profileId) : profileId
+
   /** The VPN link of a client or environment goes along; a VPN that can't be shared stays behind. */
   const copyVpnLink = async (kind: 'client' | 'environment', from: string, to: string) => {
     if (!source.vpnLinks || !target.vpnLinks) return
@@ -153,7 +158,7 @@ export async function copyToWorkspace(
       links: connection.links,
       vpnRequired: connection.vpnRequired,
       vpnMode: connection.vpnMode,
-      vpnProfileId: connection.vpnProfileId,
+      vpnProfileId: adoptVpn(connection.vpnProfileId),
       checklist: connection.checklist,
       relatedFiles: connection.relatedFiles,
       isFavorite: false
@@ -207,6 +212,7 @@ export async function copyToWorkspace(
     try {
       created = await target.inventory.accesses.create({
         ...rest,
+        vpnProfileId: adoptVpn(rest.vpnProfileId),
         groupId,
         credentialRef,
         isFavorite: false

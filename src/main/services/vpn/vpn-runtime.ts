@@ -11,6 +11,7 @@ import {
   type VpnHelperStatus,
   VpnKindSchema,
   VpnLinkTargetSchema,
+  type VpnProfile,
   type VpnSecretKind,
   type VpnState
 } from '@shared/types'
@@ -176,6 +177,10 @@ export type OrganizationVpnLinks = {
   link(target: 'client' | 'environment', id: string): Promise<string | null | undefined>
   /** True when the organization took it; false = personal workspace. */
   setLink(target: 'client' | 'environment', id: string, profileId: string | null): Promise<boolean>
+  /** Whose VPN list the VPNs page shows (REC-025): 'local' or an organization. */
+  workspace(): string
+  /** In an organization, the client this person uses the VPN for; undefined in the personal one. */
+  clientOf(profileId: string): string | null | undefined
 }
 
 export function createVpnHandlers(
@@ -189,24 +194,55 @@ export function createVpnHandlers(
 ) {
   const helperStatus = (): VpnHelperStatus => helper?.status() ?? 'unsupported'
   const { profiles, manager, drivers } = runtime
+  const workspace = () => organization?.workspace() ?? 'local'
+  /** In an organization, a VPN's "client" is the client this person uses it for. */
+  const shown = (profile: VpnProfile): VpnProfile => {
+    const client = organization?.clientOf(profile.id)
+    return client === undefined ? profile : { ...profile, clientId: client }
+  }
+  /** Organization: picking the client on the VPNs page is the person's choice for that client. */
+  const moveClient = async (profileId: string, clientId: string | null) => {
+    const before = organization?.clientOf(profileId)
+    if (before === undefined) return
+    if (before && before !== clientId) await organization?.setLink('client', before, null)
+    if (clientId) await organization?.setLink('client', clientId, profileId)
+  }
   return {
-    [IpcChannels.VPN_LIST]: () => profiles.list(),
-    [IpcChannels.VPN_GET]: (id: unknown) => profiles.get(IdSchema.parse(id)),
-    [IpcChannels.VPN_CREATE]: (input: unknown) =>
-      profiles.create(CreateVpnProfileInputSchema.parse(input)),
-    [IpcChannels.VPN_UPDATE]: (id: unknown, input: unknown) => {
-      const updated = profiles.update(IdSchema.parse(id), UpdateVpnProfileInputSchema.parse(input))
+    [IpcChannels.VPN_LIST]: () =>
+      profiles
+        .list()
+        .filter((p) => (p.workspaceId ?? 'local') === workspace())
+        .map(shown),
+    [IpcChannels.VPN_GET]: (id: unknown) => {
+      const profile = profiles.get(IdSchema.parse(id))
+      return profile ? shown(profile) : null
+    },
+    [IpcChannels.VPN_CREATE]: async (input: unknown) => {
+      const parsed = CreateVpnProfileInputSchema.parse(input)
+      const created = profiles.create(parsed, workspace())
+      if (parsed.clientId) await moveClient(created.id, parsed.clientId)
+      return shown(created)
+    },
+    [IpcChannels.VPN_UPDATE]: async (id: unknown, input: unknown) => {
+      const profileId = IdSchema.parse(id)
+      const parsed = UpdateVpnProfileInputSchema.parse(input)
+      const updated = profiles.update(profileId, parsed)
       if (!updated) throw new Error('VPN não encontrada')
-      return updated
+      if (parsed.clientId !== undefined) await moveClient(profileId, parsed.clientId)
+      return shown(updated)
     },
     [IpcChannels.VPN_DELETE]: async (id: unknown) => {
       const profileId = IdSchema.parse(id)
       await manager.disconnect(profileId)
       profiles.delete(profileId)
     },
-    [IpcChannels.VPN_IMPORT_OVPN]: (input: unknown) => {
+    [IpcChannels.VPN_IMPORT_OVPN]: async (input: unknown) => {
       try {
-        return profiles.importOvpn(ImportOvpnInputSchema.parse(input))
+        const parsed = ImportOvpnInputSchema.parse(input)
+        const result = profiles.importOvpn(parsed, workspace())
+        if (!parsed.profileId && parsed.clientId)
+          await moveClient(result.profile.id, parsed.clientId)
+        return { ...result, profile: shown(result.profile) }
       } catch (error) {
         if (error instanceof Error && error.name === 'OvpnParseError') {
           throw new Error(formatVpnErrorMessage('INVALID_CONFIG', error.message))

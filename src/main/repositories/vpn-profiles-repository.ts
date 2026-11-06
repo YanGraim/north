@@ -5,6 +5,7 @@ import {
   type VpnProfile
 } from '@shared/types'
 import type { SqliteDatabase } from '../database/connection'
+import { cloneVpnProfile } from '../database/migrations/025-workspace-vpns'
 import { newId, nowIso } from './row-utils'
 
 type VpnProfileRow = {
@@ -18,15 +19,19 @@ type VpnProfileRow = {
   notes: string | null
   created_at: string
   updated_at: string
+  workspace_id: string
 }
 
-const COLUMNS = `id, client_id, name, kind, config, auto_disconnect, idle_timeout_sec, notes, created_at, updated_at`
+const COLUMNS = `id, client_id, name, kind, config, auto_disconnect, idle_timeout_sec, notes, created_at, updated_at, workspace_id`
+
+const LOCAL = 'local'
 
 function mapProfile(row: VpnProfileRow): VpnProfile {
   const config = VpnConfigSchema.parse(JSON.parse(row.config))
   return {
     id: row.id,
     clientId: row.client_id,
+    workspaceId: row.workspace_id,
     name: row.name,
     kind: config.kind,
     config,
@@ -49,7 +54,8 @@ function toRow(profile: VpnProfile): VpnProfileRow {
     idle_timeout_sec: profile.idleTimeoutSec,
     notes: profile.notes,
     created_at: profile.createdAt,
-    updated_at: profile.updatedAt
+    updated_at: profile.updatedAt,
+    workspace_id: profile.workspaceId ?? LOCAL
   }
 }
 
@@ -67,7 +73,7 @@ export class VpnProfilesRepository {
   private readonly environmentLinkStmt
   private readonly localClientStmt
 
-  constructor(db: SqliteDatabase) {
+  constructor(private readonly db: SqliteDatabase) {
     this.localClientStmt = db.prepare('SELECT 1 FROM clients WHERE id = ?')
     this.listStmt = db.prepare(
       `SELECT ${COLUMNS} FROM vpn_profiles ORDER BY name COLLATE NOCASE ASC`
@@ -75,7 +81,7 @@ export class VpnProfilesRepository {
     this.getStmt = db.prepare(`SELECT ${COLUMNS} FROM vpn_profiles WHERE id = ?`)
     this.insertStmt = db.prepare(`
       INSERT INTO vpn_profiles (${COLUMNS})
-      VALUES (@id, @client_id, @name, @kind, @config, @auto_disconnect, @idle_timeout_sec, @notes, @created_at, @updated_at)
+      VALUES (@id, @client_id, @name, @kind, @config, @auto_disconnect, @idle_timeout_sec, @notes, @created_at, @updated_at, @workspace_id)
     `)
     this.updateStmt = db.prepare(`
       UPDATE vpn_profiles
@@ -99,8 +105,16 @@ export class VpnProfilesRepository {
     )
   }
 
-  list(): VpnProfile[] {
-    return (this.listStmt.all() as VpnProfileRow[]).map(mapProfile)
+  /** Every profile on this computer, or only one workspace's VPN list. */
+  list(workspaceId?: string): VpnProfile[] {
+    const all = (this.listStmt.all() as VpnProfileRow[]).map(mapProfile)
+    return workspaceId === undefined ? all : all.filter((p) => p.workspaceId === workspaceId)
+  }
+
+  /** A copy (logins included) in another workspace's VPN list. */
+  clone(id: string, workspaceId: string): VpnProfile | null {
+    const cloned = this.db.transaction(() => cloneVpnProfile(this.db, id, workspaceId))()
+    return cloned ? this.get(cloned) : null
   }
 
   get(id: string): VpnProfile | null {
@@ -116,11 +130,13 @@ export class VpnProfilesRepository {
     return clientId && this.localClientStmt.get(clientId) ? clientId : null
   }
 
-  create(input: CreateVpnProfileInput): VpnProfile {
+  create(input: CreateVpnProfileInput, workspaceId = LOCAL): VpnProfile {
     const now = nowIso()
     const profile: VpnProfile = {
       id: newId(),
-      clientId: this.localClient(input.clientId),
+      // an organization's clients live on its server: no local row to point at
+      clientId: workspaceId === LOCAL ? this.localClient(input.clientId) : null,
+      workspaceId,
       name: input.name,
       kind: input.config.kind,
       config: input.config,
@@ -140,7 +156,10 @@ export class VpnProfilesRepository {
     const config = input.config ?? existing.config
     const next: VpnProfile = {
       ...existing,
-      clientId: input.clientId === undefined ? existing.clientId : this.localClient(input.clientId),
+      clientId:
+        input.clientId === undefined || (existing.workspaceId ?? LOCAL) !== LOCAL
+          ? existing.clientId
+          : this.localClient(input.clientId),
       name: input.name ?? existing.name,
       kind: config.kind,
       config,

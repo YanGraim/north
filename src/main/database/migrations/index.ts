@@ -23,6 +23,7 @@ import { migration021ConnectionLogFiles } from './021-connection-log-files'
 import { migration022ConnectionDirectoryFavorites } from './022-connection-directory-favorites'
 import { migration023OrganizationVpnLinks } from './023-organization-vpn-links'
 import { migration024OrganizationWorkflowRuns } from './024-organization-workflow-runs'
+import { migration025WorkspaceVpns } from './025-workspace-vpns'
 
 /** Ordered list of schema migrations. Append new ones; never reorder or reuse versions. */
 export const migrations: Migration[] = [
@@ -49,5 +50,6 @@ export const migrations: Migration[] = [
   migration021ConnectionLogFiles,
   migration022ConnectionDirectoryFavorites,
   migration023OrganizationVpnLinks,
-  migration024OrganizationWorkflowRuns
+  migration024OrganizationWorkflowRuns,
+  migration025WorkspaceVpns
 ]

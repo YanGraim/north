@@ -1,6 +1,7 @@
 import { openvpnGatewayOnly, sameOpenvpnGateway } from '@shared/lib/vpn/ovpn-gateway'
 import type { VpnConfig, VpnProfile } from '@shared/types'
 import type { Repositories } from '../repositories'
+import type { VpnChoiceTarget } from '../repositories/organization-vpn-choices-repository'
 import type { InventoryStore } from './inventory-store'
 import type { OrganizationClient } from './organization-client'
 
@@ -45,8 +46,72 @@ export class OrganizationVpnBridge {
   constructor(
     private readonly api: OrganizationClient,
     private readonly workspaceId: string,
-    private readonly repos: Pick<Repositories, 'vpnProfiles' | 'organizationVpnLinks'>
+    private readonly repos: Pick<
+      Repositories,
+      'vpnProfiles' | 'organizationVpnLinks' | 'organizationVpnChoices'
+    >
   ) {}
+
+  /** This workspace's VPN list (REC-025). */
+  private mine(): VpnProfile[] {
+    return this.repos.vpnProfiles.list(this.workspaceId)
+  }
+
+  /**
+   * A profile from this workspace's own list: itself, else one here for the same
+   * gateway, else a copy (logins included). Copying between workspaces lands here.
+   */
+  adopt(profileId: string): string | null {
+    return adoptVpnProfile(this.repos.vpnProfiles, profileId, this.workspaceId)
+  }
+
+  /** This person's VPN for a node: their own choice, else the organization's suggestion. */
+  async resolve(
+    target: VpnChoiceTarget,
+    id: string,
+    templateId: string | null | undefined,
+    strict = false
+  ): Promise<string | null> {
+    const chosen = this.repos.organizationVpnChoices.get(this.workspaceId, target, id)
+    if (chosen !== undefined) return chosen
+    return strict ? this.requireLocal(templateId) : this.toLocal(templateId)
+  }
+
+  /**
+   * This person picks a VPN for a node. It stays their own choice; the
+   * organization learns it as the suggestion only when it had none, so
+   * nobody else's VPN changes. Returns the template to store on the server,
+   * or undefined to leave the server as it is.
+   */
+  async choose(
+    target: VpnChoiceTarget,
+    id: string,
+    profileId: string | null,
+    currentTemplate: string | null | undefined
+  ): Promise<string | undefined> {
+    const choices = this.repos.organizationVpnChoices
+    const local = profileId ? this.adopt(profileId) : null
+    if (profileId && !local) throw new Error('VPN não encontrada')
+    // a connection or access without its own VPN just follows its environment
+    if (!local && (target === 'connection' || target === 'access')) {
+      choices.clear(this.workspaceId, target, id)
+      return undefined
+    }
+    choices.set(this.workspaceId, target, id, local)
+    if (local && !(currentTemplate && (await this.template(currentTemplate)))) {
+      return (await this.toServer(local)) ?? undefined
+    }
+    return undefined
+  }
+
+  /** The client this person uses a VPN for, shown as its "client" on the VPNs page. */
+  clientOf(profileId: string): string | null {
+    return (
+      this.repos.organizationVpnChoices
+        .usedBy(this.workspaceId, profileId)
+        .find((c) => c.target === 'client')?.id ?? null
+    )
+  }
 
   /** Templates this person may see (the VPNs of what they can open). */
   list(): Promise<OrganizationVpn[]> {
@@ -76,20 +141,23 @@ export class OrganizationVpnBridge {
     if (!templateId) return null
     const { vpnProfiles, organizationVpnLinks } = this.repos
     const linked = organizationVpnLinks.profileFor(this.workspaceId, templateId)
-    if (linked && vpnProfiles.get(linked)) return linked
+    if (linked && vpnProfiles.get(linked)?.workspaceId === this.workspaceId) return linked
     const template = await this.template(templateId)
     if (!template) return null
-    const match = vpnProfiles.list().find((p) => sameGateway(p.config, template.config))
+    const match = this.mine().find((p) => sameGateway(p.config, template.config))
     // An OpenVPN can't be rebuilt from its address: wait for this person's own .ovpn.
     if (!match && template.config.kind === 'openvpn') return null
     const profileId =
       match?.id ??
-      vpnProfiles.create({
-        name: template.name,
-        // username stays empty: North asks for this person's login before connecting
-        config: template.config,
-        notes: template.notes
-      }).id
+      vpnProfiles.create(
+        {
+          name: template.name,
+          // username stays empty: North asks for this person's login before connecting
+          config: template.config,
+          notes: template.notes
+        },
+        this.workspaceId
+      ).id
     organizationVpnLinks.set(this.workspaceId, templateId, profileId)
     return profileId
   }
@@ -107,6 +175,9 @@ export class OrganizationVpnBridge {
   async toServer(profileId: string | null | undefined): Promise<string | null | undefined> {
     if (profileId === undefined || profileId === null) return profileId
     const { vpnProfiles, organizationVpnLinks } = this.repos
+    const adopted = this.adopt(profileId)
+    if (!adopted) return null
+    profileId = adopted
     const known = organizationVpnLinks.templateFor(this.workspaceId, profileId)
     if (known && (await this.template(known))) return known
     const profile = vpnProfiles.get(profileId)
@@ -132,52 +203,110 @@ export class OrganizationVpnBridge {
   }
 }
 
-type WithVpn = { vpnProfileId?: string | null }
+type WithVpn = { id?: string; vpnProfileId?: string | null }
 
 /**
  * The organization inventory as this computer sees it: connections and
- * accesses carry local VPN profile ids, like in the personal workspace.
+ * accesses carry this person's own VPN profile ids, like in the personal
+ * workspace; the server's value is only the suggestion (REC-025).
  */
 export function withLocalVpnIds(
   store: InventoryStore,
   bridge: OrganizationVpnBridge
 ): InventoryStore {
-  const read = async <T extends WithVpn>(item: T | null): Promise<T | null> =>
-    item ? { ...item, vpnProfileId: await bridge.toLocal(item.vpnProfileId) } : item
-  const readAll = async <T extends WithVpn>(items: T[]): Promise<T[]> => {
-    const out: T[] = []
-    for (const item of items) out.push((await read(item)) as T)
-    return out
+  const reader =
+    (target: VpnChoiceTarget) =>
+    async <T extends WithVpn>(item: T | null): Promise<T | null> =>
+      item
+        ? { ...item, vpnProfileId: await bridge.resolve(target, item.id ?? '', item.vpnProfileId) }
+        : item
+  const readerAll =
+    (target: VpnChoiceTarget) =>
+    async <T extends WithVpn>(items: T[]): Promise<T[]> => {
+      const out: T[] = []
+      for (const item of items) out.push((await reader(target)(item)) as T)
+      return out
+    }
+  /** New item: this person's VPN is also the first suggestion. */
+  const forCreate = async <T extends WithVpn>(
+    input: T
+  ): Promise<{ input: T; local: string | null }> => {
+    if (!input.vpnProfileId) return { input, local: null }
+    const local = bridge.adopt(input.vpnProfileId)
+    return { input: { ...input, vpnProfileId: (await bridge.toServer(local)) ?? null }, local }
   }
-  const write = async <T extends WithVpn>(input: T): Promise<T> =>
-    input.vpnProfileId === undefined
-      ? input
-      : { ...input, vpnProfileId: await bridge.toServer(input.vpnProfileId) }
+  const forUpdate = async <T extends WithVpn>(
+    target: VpnChoiceTarget,
+    id: string,
+    input: T,
+    current: () => Promise<{ vpnProfileId?: string | null } | null>
+  ): Promise<T> => {
+    if (input.vpnProfileId === undefined) return input
+    const template = await bridge.choose(
+      target,
+      id,
+      input.vpnProfileId,
+      (await current())?.vpnProfileId
+    )
+    const { vpnProfileId: _mine, ...rest } = input
+    return (template === undefined ? rest : { ...rest, vpnProfileId: template }) as T
+  }
   const { connections, accesses } = store
+  const readConn = reader('connection')
+  const readAccess = reader('access')
   return {
     ...store,
     connections: {
-      list: async (filter) => readAll(await connections.list(filter)),
-      get: async (id) => read(await connections.get(id)),
-      create: async (input) =>
-        (await read(await connections.create(await write(input)))) as Awaited<
-          ReturnType<typeof connections.create>
-        >,
-      update: async (id, input) => read(await connections.update(id, await write(input))),
+      list: async (filter) => readerAll('connection')(await connections.list(filter)),
+      get: async (id) => readConn(await connections.get(id)),
+      create: async (input) => {
+        const { input: sent, local } = await forCreate(input)
+        const created = await connections.create(sent)
+        if (local) await bridge.choose('connection', created.id, local, sent.vpnProfileId)
+        return (await readConn(created)) as typeof created
+      },
+      update: async (id, input) =>
+        readConn(
+          await connections.update(
+            id,
+            await forUpdate('connection', id, input, () => connections.get(id))
+          )
+        ),
       delete: (id) => connections.delete(id),
-      toggleFavorite: async (id) => read(await connections.toggleFavorite(id)),
-      duplicate: async (id) => read(await connections.duplicate(id))
+      toggleFavorite: async (id) => readConn(await connections.toggleFavorite(id)),
+      duplicate: async (id) => readConn(await connections.duplicate(id))
     },
     accesses: {
-      list: async (filter) => readAll(await accesses.list(filter)),
-      get: async (id) => read(await accesses.get(id)),
-      create: async (input) =>
-        (await read(await accesses.create(await write(input)))) as Awaited<
-          ReturnType<typeof accesses.create>
-        >,
-      update: async (id, input) => read(await accesses.update(id, await write(input))),
+      list: async (filter) => readerAll('access')(await accesses.list(filter)),
+      get: async (id) => readAccess(await accesses.get(id)),
+      create: async (input) => {
+        const { input: sent, local } = await forCreate(input)
+        const created = await accesses.create(sent)
+        if (local) await bridge.choose('access', created.id, local, sent.vpnProfileId)
+        return (await readAccess(created)) as typeof created
+      },
+      update: async (id, input) =>
+        readAccess(
+          await accesses.update(id, await forUpdate('access', id, input, () => accesses.get(id)))
+        ),
       delete: (id) => accesses.delete(id),
-      toggleFavorite: async (id) => read(await accesses.toggleFavorite(id))
+      toggleFavorite: async (id) => readAccess(await accesses.toggleFavorite(id))
     }
   }
+}
+
+/** See OrganizationVpnBridge.adopt; also used when copying into My workspace. */
+export function adoptVpnProfile(
+  profiles: Repositories['vpnProfiles'],
+  profileId: string,
+  workspaceId: string
+): string | null {
+  const profile = profiles.get(profileId)
+  if (!profile) return null
+  if ((profile.workspaceId ?? 'local') === workspaceId) return profile.id
+  const same = profiles
+    .list(workspaceId)
+    .find((p) => p.name === profile.name && sameGateway(p.config, profile.config))
+  if (same) return same.id
+  return profiles.clone(profile.id, workspaceId)?.id ?? null
 }

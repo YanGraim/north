@@ -32,11 +32,11 @@ export class VpnProfileService {
     return this.repos.vpnProfiles.get(id)
   }
 
-  create(input: CreateVpnProfileInput): VpnProfile {
-    return this.repos.vpnProfiles.create({
-      ...input,
-      config: normalizeFortinetConfig(input.config)
-    })
+  create(input: CreateVpnProfileInput, workspaceId?: string): VpnProfile {
+    return this.repos.vpnProfiles.create(
+      { ...input, config: normalizeFortinetConfig(input.config) },
+      workspaceId
+    )
   }
 
   update(id: string, input: UpdateVpnProfileInput): VpnProfile | null {
@@ -46,7 +46,7 @@ export class VpnProfileService {
     )
   }
 
-  importOvpn(input: ImportOvpnInput): OvpnImportResult {
+  importOvpn(input: ImportOvpnInput, workspaceId?: string): OvpnImportResult {
     const parsed = parseOvpn(input.content)
     if (input.profileId) {
       const updated = this.repos.vpnProfiles.update(input.profileId, { config: parsed.config })
@@ -61,11 +61,14 @@ export class VpnProfileService {
       }
       return { profile: updated, inlineBlocks: names }
     }
-    const profile = this.repos.vpnProfiles.create({
-      name: input.name ?? parsed.suggestedName,
-      clientId: input.clientId ?? null,
-      config: parsed.config
-    })
+    const profile = this.repos.vpnProfiles.create(
+      {
+        name: input.name ?? parsed.suggestedName,
+        clientId: input.clientId ?? null,
+        config: parsed.config
+      },
+      workspaceId
+    )
     const blockNames = Object.keys(parsed.inlineBlocks)
     if (blockNames.length > 0) {
       this.store(profile.id, 'ovpn-inline', JSON.stringify(parsed.inlineBlocks))

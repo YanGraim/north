@@ -52,7 +52,11 @@ In **Edit environment** (or **Edit client**), pick its **VPN**. From then on, op
 
 ## VPN in an organization
 
-The VPN lives on your computer, with your own username and password, and shows up the same in every workspace. When someone links a FortiGate, IPsec or Windows VPN to a client, environment, connection or database of the organization, the server keeps only its "template": name, gateway, port, realm and the trusted certificate. It never keeps a username, password or pre-shared key.
+Each workspace has its own VPN list: in an organization, the **VPNs** page shows only the VPNs you use there, and My workspace keeps its own. The VPN lives on your computer, with your own username and password, and the tunnel runs only on your computer: turning your VPN off never drops anyone else's.
+
+Which VPN a client, environment, connection or database uses is **your** choice. If you pick another VPN, even with another gateway, only yours changes. The first choice made on an item becomes the organization's **suggestion** for whoever hasn't chosen yet. When copying from My workspace to the organization, the VPNs go along, with your login, already linked to the copied clients.
+
+When someone links a FortiGate, IPsec or Windows VPN to a client, environment, connection or database of the organization, the server keeps only its "template": name, gateway, port, realm and the trusted certificate. It never keeps a username, password or pre-shared key.
 
 The first time you open something in the organization that needs that VPN, North looks for a VPN of yours with the same gateway and uses it. If you don't have one yet, it creates the VPN from the template, missing only your login: on the first connection North tells you, and you open the VPN in **VPNs → Edit** and fill in your username and password (and the pre-shared key, for IPsec). From then on, clicking the SSH, the database or the portal brings the VPN up by itself, like in My workspace. Each person signs in to the FortiGate with their own login, so the FortiGate knows who is who.
 
