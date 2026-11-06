@@ -937,7 +937,8 @@
       "inherit": "Heredar del ambiente/cliente",
       "never": "Nunca usar VPN",
       "envHint": "Las conexiones de este ambiente encienden esta VPN solas al abrirse y la apagan cuando nadie la usa.",
-      "clientHint": "Vale para los ambientes del cliente que no tienen VPN propia."
+      "clientHint": "Vale para los ambientes del cliente que no tienen VPN propia.",
+      "saveError": "No se pudo guardar la VPN"
     },
     "windowsProtocol": {
       "automatic": "Automático",

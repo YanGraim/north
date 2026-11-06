@@ -168,6 +168,8 @@ export function registerIpcHandlers(): void {
   registerVpnHandlers(repositories, vault, monitor, {
     link: (target, id) => registry.organizationVpnLink(target, id),
     setLink: (target, id, profileId) => registry.setOrganizationVpnLink(target, id, profileId),
+    workspace: () => registry.vpnWorkspaceId(),
+    clientOf: (profileId) => registry.organizationVpnClient(profileId),
     access: async (id) => {
       if (registry.activeSource().kind === 'local') return undefined
       const access = await registry.inventory().accesses.get(id)

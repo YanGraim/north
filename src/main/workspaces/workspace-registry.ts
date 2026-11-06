@@ -24,7 +24,7 @@ import {
   type TokenStore
 } from './organization-client'
 import { OrganizationEvents } from './organization-events'
-import { OrganizationVpnBridge, withLocalVpnIds } from './organization-vpns'
+import { adoptVpnProfile, OrganizationVpnBridge, withLocalVpnIds } from './organization-vpns'
 import { ORGANIZATION_UNAVAILABLE, RemoteInventoryStore } from './remote-inventory-store'
 import { localSecretStore, RemoteSecretStore, type SecretStore } from './secret-store'
 import { localWorkflowStore, RemoteWorkflowStore, type WorkflowStore } from './workflow-store'
@@ -63,7 +63,7 @@ class LocalDataSource implements WorkspaceDataSource {
 /**
  * What belongs to this computer, not to a workspace: TOFU host keys, and the
  * VPN profiles with this person's own logins (an organization shares only the
- * gateway, REC-023), so the VPN list is the same in every workspace.
+ * gateway, REC-023). Each workspace shows its own VPN list (REC-025).
  */
 const MACHINE_REPOSITORIES = new Set<keyof Repositories>([
   'knownHosts',
@@ -71,6 +71,7 @@ const MACHINE_REPOSITORIES = new Set<keyof Repositories>([
   'vpnSecrets',
   'vpnHistory',
   'organizationVpnLinks',
+  'organizationVpnChoices',
   'organizationWorkflowRuns',
   'organizationConnectionSecrets'
 ])
@@ -122,25 +123,27 @@ class RemoteDataSource implements WorkspaceDataSource {
     this.repositories = unavailableRepositories(shape)
   }
 
-  /** The VPN a client or environment brings up, as a local profile id. */
-  async vpnLink(target: 'client' | 'environment', id: string): Promise<string | null> {
+  private node(target: 'client' | 'environment', id: string) {
     const path = target === 'client' ? 'clients' : 'environments'
-    const node = await this.client.request<{ vpnId?: string | null }>(
-      'GET',
-      `/api/v1/${path}/${id}`
-    )
-    return this.vpns.toLocal(node.vpnId)
+    return this.client.request<{ vpnId?: string | null }>('GET', `/api/v1/${path}/${id}`)
   }
 
+  /** This person's VPN for a client or environment, as a local profile id (REC-025). */
+  async vpnLink(target: 'client' | 'environment', id: string): Promise<string | null> {
+    return this.vpns.resolve(target, id, (await this.node(target, id)).vpnId)
+  }
+
+  /** Only this person's choice; the server learns it as the suggestion when it had none. */
   async setVpnLink(
     target: 'client' | 'environment',
     id: string,
     profileId: string | null
   ): Promise<void> {
+    const current = (await this.node(target, id)).vpnId
+    const template = await this.vpns.choose(target, id, profileId, current)
+    if (template === undefined) return
     const path = target === 'client' ? 'clients' : 'environments'
-    await this.client.request('PATCH', `/api/v1/${path}/${id}`, {
-      vpnId: (await this.vpns.toServer(profileId)) ?? null
-    })
+    await this.client.request('PATCH', `/api/v1/${path}/${id}`, { vpnId: template })
   }
 }
 
@@ -307,6 +310,17 @@ export class WorkspaceRegistry {
     return source instanceof RemoteDataSource ? source.vpnLink(target, id) : undefined
   }
 
+  /** Whose VPN list the VPNs page shows: the active workspace's (REC-025). */
+  vpnWorkspaceId(): string {
+    return this.active.workspace.id
+  }
+
+  /** In an organization, the client this person uses a VPN for; undefined in the personal one. */
+  organizationVpnClient(profileId: string): string | null | undefined {
+    const source = this.active.source
+    return source instanceof RemoteDataSource ? source.vpns.clientOf(profileId) : undefined
+  }
+
   /** Links a client or environment of the active organization to a VPN; false in the personal one. */
   async setOrganizationVpnLink(
     target: 'client' | 'environment',
@@ -341,12 +355,13 @@ export class WorkspaceRegistry {
       'GET',
       `/api/v1/environments/${group.environmentId}`
     )
-    if (env.vpnId) return source.vpns.toLocal(env.vpnId)
+    const own = await source.vpns.resolve('environment', group.environmentId, env.vpnId, true)
+    if (own) return own
     const client = await api.request<{ vpnId?: string | null }>(
       'GET',
       `/api/v1/clients/${env.clientId}`
     )
-    return source.vpns.toLocal(client.vpnId)
+    return source.vpns.resolve('client', env.clientId, client.vpnId, true)
   }
 
   async probe(serverUrl: string): Promise<OrganizationServerInfo> {
@@ -385,10 +400,12 @@ export class WorkspaceRegistry {
             target === 'client'
               ? links.linkForClient(id)
               : links.linkForEnvironment(id).environment,
-          set: async (target, id, profileId) =>
-            target === 'client'
-              ? links.setClientLink(id, profileId)
-              : links.setEnvironmentLink(id, profileId)
+          set: async (target, id, profileId) => {
+            const own = profileId ? adoptVpnProfile(links, profileId, LOCAL_WORKSPACE_ID) : null
+            if (target === 'client') links.setClientLink(id, own)
+            else links.setEnvironmentLink(id, own)
+          },
+          adopt: (profileId) => adoptVpnProfile(links, profileId, LOCAL_WORKSPACE_ID)
         }
       }
     }
@@ -402,7 +419,8 @@ export class WorkspaceRegistry {
       workflows: source.workflows,
       vpnLinks: {
         get: (target, id) => source.vpnLink(target, id),
-        set: (target, id, profileId) => source.setVpnLink(target, id, profileId)
+        set: (target, id, profileId) => source.setVpnLink(target, id, profileId),
+        adopt: (profileId) => source.vpns.adopt(profileId)
       }
     }
   }
