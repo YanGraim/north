@@ -151,6 +151,19 @@
       "product": "Product",
       "version": "Version",
       "repository": "Repository"
+    },
+    "organization": {
+      "title": "You in {{name}}",
+      "description": "Your role and teams in this organization. An admin grants access in the admin panel.",
+      "loading": "Loading…",
+      "role": "Role",
+      "admin": "Admin",
+      "member": "Member",
+      "teams": "Teams",
+      "noTeams": "None",
+      "adminSees": "As an admin, you see and edit everything in the organization.",
+      "memberSees_one": "You only see what was granted to you or your teams: {{count}} item (with everything under it).",
+      "memberSees_other": "You only see what was granted to you or your teams: {{count}} items (with everything under them)."
     }
   },
   "help": {
@@ -1007,6 +1020,8 @@
       "connections_other": "{{count}} connections",
       "accesses_one": "{{count}} access",
       "accesses_other": "{{count}} accesses",
+      "workflows_one": "{{count}} workflow",
+      "workflows_other": "{{count}} workflows",
       "passwords_one": "{{count}} password",
       "passwords_other": "{{count}} passwords"
     },
@@ -1034,5 +1049,11 @@
     "pipette": "System color picker",
     "swatch": "Color {{color}}",
     "favorite": "Custom color {{color}}"
+  },
+  "workflows": {
+    "updates": {
+      "ranBy": "by {{name}}",
+      "removedUser": "removed user"
+    }
   }
 }

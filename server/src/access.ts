@@ -115,6 +115,12 @@ export class AccessView {
     return this.level(type, id) !== null
   }
 
+  /** Granted on the node or above it: being on the way to something else is not enough. */
+  canUse(type: ScopeType, id: string): boolean {
+    const level = this.level(type, id)
+    return level !== null && level !== 'path'
+  }
+
   canWrite(type: ScopeType, id: string): boolean {
     const level = this.level(type, id)
     return level === 'admin' || level === 'editor'

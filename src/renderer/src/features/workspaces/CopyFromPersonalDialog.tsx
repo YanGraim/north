@@ -26,6 +26,7 @@ const emptyTotals = (): Totals => ({
   groups: 0,
   connections: 0,
   accesses: 0,
+  workflows: 0,
   passwords: 0
 })
 
@@ -113,6 +114,7 @@ export function CopyFromPersonalDialog({
         t('workspaces.copy.clients', { count: totals.clients }),
         totals.connections && t('workspaces.copy.connections', { count: totals.connections }),
         totals.accesses && t('workspaces.copy.accesses', { count: totals.accesses }),
+        totals.workflows && t('workspaces.copy.workflows', { count: totals.workflows }),
         totals.passwords && t('workspaces.copy.passwords', { count: totals.passwords })
       ]
         .filter(Boolean)

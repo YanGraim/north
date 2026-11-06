@@ -1,7 +1,15 @@
+import { randomUUID } from 'node:crypto'
 import type {
+  Connection,
   ConnectionSecret,
+  CreateGroupVariableInput,
+  CreateWorkflowInput,
+  Group,
   RunStatus,
   StartWorkflowRunInput,
+  UpdateGroupVariableInput,
+  UpdateWorkflowInput,
+  Workflow,
   WorkflowRun,
   WorkflowRunEvent,
   WorkflowRunRespondInput
@@ -13,15 +21,37 @@ import {
 } from '@shared/types'
 import type { BrowserWindow } from 'electron'
 import { BrowserWindow as BW } from 'electron'
-import type { Repositories } from '../../repositories'
 import type { CredentialVault } from '../../vault'
+import type { WorkflowStore } from '../../workspaces/workflow-store'
 import { listGitTags as listGitTagsOnRemote } from './list-git-tags-service'
 import { remoteExecService } from './remote-exec-service'
 import { WorkflowEngine } from './workflow-engine'
 
+/** VPN lease before reaching the host, same as a session (ADR 0017). */
+export type WorkflowVpn = {
+  ensure: (connection: Connection, leaseId: string) => Promise<void>
+  release: (leaseId: string) => void
+}
+
 type ActiveRun = {
   engine: WorkflowEngine
   run: WorkflowRun
+  /** Where the run's learned secrets go (the workspace it started in). */
+  scope: WorkflowScope
+}
+
+/**
+ * What a workflow needs from the active workspace (REC-024): its store, the
+ * tree to find the target, and how to read the connection's own password.
+ * Passwords a run learns (git, sudo) always go to this computer's vault.
+ */
+export type WorkflowScope = {
+  store: WorkflowStore
+  connection(id: string): Promise<Connection | null>
+  group(id: string): Promise<Group | null>
+  resolveSecret(credentialRef: string): Promise<string>
+  /** The personal workspace only: a learned password may become the connection's own. */
+  updateConnectionCredential?(connectionId: string, credentialRef: string | null): Promise<void>
 }
 
 /**
@@ -31,17 +61,26 @@ export class WorkflowService {
   private readonly active = new Map<string, ActiveRun>()
 
   constructor(
-    private readonly repos: Repositories,
+    private readonly scope: () => WorkflowScope,
     private readonly vault: CredentialVault,
-    private readonly emitEvent: (runId: string, event: WorkflowRunEvent) => void
+    private readonly emitEvent: (runId: string, event: WorkflowRunEvent) => void,
+    private readonly vpn: WorkflowVpn | null = null
   ) {}
 
   listWorkflows(groupId: string) {
-    return this.repos.workflows.listByGroup(groupId)
+    return this.scope().store.workflows.listByGroup(groupId)
   }
 
   getWorkflow(id: string) {
-    return this.repos.workflows.get(id)
+    return this.scope().store.workflows.get(id)
+  }
+
+  private async secretsOf(scope: WorkflowScope, connectionId: string) {
+    return async (kind: string): Promise<string | null> => {
+      const entry = scope.store.connectionSecrets.getByKind(connectionId, kind)
+      if (!entry) return null
+      return this.vault.resolveSecret(entry.credentialRef)
+    }
   }
 
   /**
@@ -50,23 +89,28 @@ export class WorkflowService {
    * the run-parameters dialog before the actual run starts.
    */
   async listGitTags(connectionId: string, repositoryPath: string): Promise<string[]> {
-    const connection = this.repos.connections.get(connectionId)
+    const scope = this.scope()
+    const connection = await scope.connection(connectionId)
     if (!connection) throw new Error('Conexão não encontrada')
 
-    const resolveConnectionSecret = async (kind: string): Promise<string | null> => {
-      const entry = this.repos.connectionSecrets.getByKind(connectionId, kind)
-      if (!entry) return null
-      return this.vault.resolveSecret(entry.credentialRef)
-    }
+    const resolveConnectionSecret = await this.secretsOf(scope, connectionId)
     const gitPassword = await resolveConnectionSecret(WORKFLOW_SECRET_KINDS.git)
     const gitUsername = await resolveConnectionSecret(WORKFLOW_SECRET_KINDS.gitUsername)
     const sudoPassword = await resolveConnectionSecret(WORKFLOW_SECRET_KINDS.sudo)
 
-    const session = await remoteExecService.openSession({
-      connection,
-      resolveSecret: async (ref) => this.vault.resolveSecret(ref),
-      verifyHostKey: async () => true
-    })
+    const leaseId = `git-tags:${randomUUID()}`
+    let session: Awaited<ReturnType<typeof remoteExecService.openSession>>
+    try {
+      await this.vpn?.ensure(connection, leaseId)
+      session = await remoteExecService.openSession({
+        connection,
+        resolveSecret: (ref) => scope.resolveSecret(ref),
+        verifyHostKey: async () => true
+      })
+    } catch (error) {
+      this.vpn?.release(leaseId)
+      throw error
+    }
     try {
       return await listGitTagsOnRemote(
         session,
@@ -76,15 +120,17 @@ export class WorkflowService {
       )
     } finally {
       await session.dispose()
+      this.vpn?.release(leaseId)
     }
   }
 
-  createWorkflow(...args: Parameters<Repositories['workflows']['create']>) {
-    return this.repos.workflows.create(...args)
+  createWorkflow(input: CreateWorkflowInput) {
+    return this.scope().store.workflows.create(input)
   }
 
-  copyWorkflow(workflowId: string, targetGroupIds: string[], allowDuplicateNames = false) {
-    const source = this.repos.workflows.get(workflowId)
+  async copyWorkflow(workflowId: string, targetGroupIds: string[], allowDuplicateNames = false) {
+    const scope = this.scope()
+    const source = await scope.store.workflows.get(workflowId)
     if (!source) {
       throw new Error('Workflow not found')
     }
@@ -96,12 +142,12 @@ export class WorkflowService {
     const sourceKey = normalizeWorkflowName(source.name)
     const conflicts: string[] = []
     for (const groupId of uniqueTargets) {
-      if (!this.repos.groups.get(groupId)) {
+      if (!(await scope.group(groupId))) {
         throw new Error(`Group not found: ${groupId}`)
       }
-      const hasSameName = this.repos.workflows
-        .listByGroup(groupId)
-        .some((w) => normalizeWorkflowName(w.name) === sourceKey)
+      const hasSameName = (await scope.store.workflows.listByGroup(groupId)).some(
+        (w) => normalizeWorkflowName(w.name) === sourceKey
+      )
       if (hasSameName) conflicts.push(groupId)
     }
 
@@ -111,10 +157,10 @@ export class WorkflowService {
       )
     }
 
-    const created: ReturnType<Repositories['workflows']['create']>[] = []
+    const created: Workflow[] = []
     for (const groupId of uniqueTargets) {
       created.push(
-        this.repos.workflows.create({
+        await scope.store.workflows.create({
           groupId,
           name: source.name,
           description: source.description,
@@ -127,77 +173,83 @@ export class WorkflowService {
     return created
   }
 
-  updateWorkflow(...args: Parameters<Repositories['workflows']['update']>) {
-    return this.repos.workflows.update(...args)
+  updateWorkflow(id: string, input: UpdateWorkflowInput) {
+    return this.scope().store.workflows.update(id, input)
   }
 
   deleteWorkflow(id: string) {
-    return this.repos.workflows.delete(id)
+    return this.scope().store.workflows.delete(id)
   }
 
   listVariables(groupId: string) {
-    return this.repos.groupVariables.listByGroup(groupId)
+    return this.scope().store.variables.listByGroup(groupId)
   }
 
-  createVariable(...args: Parameters<Repositories['groupVariables']['create']>) {
-    return this.repos.groupVariables.create(...args)
+  createVariable(input: CreateGroupVariableInput) {
+    return this.scope().store.variables.create(input)
   }
 
-  updateVariable(...args: Parameters<Repositories['groupVariables']['update']>) {
-    return this.repos.groupVariables.update(...args)
+  updateVariable(id: string, input: UpdateGroupVariableInput) {
+    return this.scope().store.variables.update(id, input)
   }
 
   deleteVariable(id: string) {
-    return this.repos.groupVariables.delete(id)
+    return this.scope().store.variables.delete(id)
   }
 
   listRuns(groupId: string, limit?: number) {
-    return this.repos.workflowRuns.listByGroup(groupId, limit)
+    return this.scope().store.runs.listByGroup(groupId, limit)
   }
 
   getRun(id: string) {
-    return this.repos.workflowRuns.get(id)
+    return this.scope().store.runs.get(id)
   }
 
   listConnectionSecrets(connectionId: string): ConnectionSecret[] {
-    return this.repos.connectionSecrets.listByConnection(connectionId)
+    return this.scope().store.connectionSecrets.listByConnection(connectionId)
   }
 
   async setConnectionSecret(
     connectionId: string,
     kind: string,
-    secret: string
+    secret: string,
+    scope: WorkflowScope = this.scope()
   ): Promise<ConnectionSecret> {
-    const connection = this.repos.connections.get(connectionId)
+    const connection = await scope.connection(connectionId)
     if (!connection) {
       throw new Error('Connection not found')
     }
-    const existing = this.repos.connectionSecrets.getByKind(connectionId, kind)
+    const secrets = scope.store.connectionSecrets
+    const existing = secrets.getByKind(connectionId, kind)
     const credentialRef = this.vault.setSecret(secret, existing?.credentialRef)
-    const entry = this.repos.connectionSecrets.upsert(connectionId, kind, credentialRef)
+    const entry = secrets.upsert(connectionId, kind, credentialRef)
 
     // Keep legacy credentialRef in sync for primary auth kinds.
     if (kind === 'password' || kind === 'passphrase') {
-      this.repos.connections.update(connectionId, { credentialRef })
+      await scope.updateConnectionCredential?.(connectionId, credentialRef)
     }
     return entry
   }
 
   async deleteConnectionSecret(connectionId: string, kind: string): Promise<void> {
-    const existing = this.repos.connectionSecrets.getByKind(connectionId, kind)
+    const scope = this.scope()
+    const secrets = scope.store.connectionSecrets
+    const existing = secrets.getByKind(connectionId, kind)
     if (!existing) return
-    this.repos.connectionSecrets.deleteByKind(connectionId, kind)
+    secrets.deleteByKind(connectionId, kind)
     this.vault.deleteSecret(existing.credentialRef)
     if (
       (kind === 'password' || kind === 'passphrase') &&
-      this.repos.connections.get(connectionId)?.credentialRef === existing.credentialRef
+      (await scope.connection(connectionId))?.credentialRef === existing.credentialRef
     ) {
-      this.repos.connections.update(connectionId, { credentialRef: null })
+      await scope.updateConnectionCredential?.(connectionId, null)
     }
   }
 
   async startRun(input: StartWorkflowRunInput): Promise<WorkflowRun> {
-    const workflow = this.repos.workflows.get(input.workflowId)
+    const scope = this.scope()
+    const { store } = scope
+    const workflow = await store.workflows.get(input.workflowId)
     if (!workflow) {
       throw new Error('Workflow not found')
     }
@@ -208,7 +260,7 @@ export class WorkflowService {
     if (!target) {
       throw new Error('Missing target')
     }
-    const connection = this.repos.connections.get(target.connectionId)
+    const connection = await scope.connection(target.connectionId)
     if (!connection) {
       throw new Error('Target connection not found')
     }
@@ -216,7 +268,11 @@ export class WorkflowService {
       throw new Error('Workflows MVP requires an SSH connection target')
     }
 
-    const groupVariables = this.repos.groupVariables.toRecord(workflow.groupId)
+    const groupVariables: Record<string, string> = {}
+    for (const variable of await store.variables.listByGroup(workflow.groupId)) {
+      groupVariables[variable.key] = variable.value
+    }
+    const environmentId = (await scope.group(connection.groupId))?.environmentId ?? null
     const inputValues = input.inputValues ?? {}
     const variablesSnapshot = { ...groupVariables }
     for (const def of workflow.definition.inputs) {
@@ -229,7 +285,7 @@ export class WorkflowService {
       variablesSnapshot[key] = typeof value === 'boolean' ? (value ? 'true' : 'false') : value
     }
 
-    const run = this.repos.workflowRuns.create({
+    const run = store.runs.create({
       workflowId: workflow.id,
       groupId: workflow.groupId,
       mode: input.mode,
@@ -239,29 +295,27 @@ export class WorkflowService {
       variablesSnapshot,
       inputValues
     })
+    const resolveConnectionSecret = await this.secretsOf(scope, connection.id)
 
     const engine = new WorkflowEngine({
       onEvent: (event) => this.emitEvent(run.id, event),
       persistStatus: (status, finishedAt) => {
-        this.repos.workflowRuns.updateStatus(run.id, status, finishedAt)
+        store.runs.updateStatus(run.id, status, finishedAt)
       },
       openExecSession: async () => {
+        await this.vpn?.ensure(connection, `workflow:${run.id}`)
         return remoteExecService.openSession({
           connection,
-          resolveSecret: async (ref) => this.vault.resolveSecret(ref),
+          resolveSecret: (ref) => scope.resolveSecret(ref),
           verifyHostKey: async () => true
         })
       },
-      resolveConnectionSecret: async (kind) => {
-        const entry = this.repos.connectionSecrets.getByKind(connection.id, kind)
-        if (!entry) return null
-        return this.vault.resolveSecret(entry.credentialRef)
-      },
+      resolveConnectionSecret,
       onTrackingComplete: (data) => {
-        try {
-          const environmentId = this.repos.groups.get(connection.groupId)?.environmentId
-          if (!environmentId) return
-          this.repos.environmentUpdates.create({
+        if (!environmentId) return
+        // In an organization this lands on the server, signed with whoever ran it.
+        void store.updates
+          .create({
             environmentId,
             connectionId: connection.id,
             workflowId: workflow.id,
@@ -275,13 +329,13 @@ export class WorkflowService {
             commits: data.commits,
             filesChanged: data.filesChanged
           })
-        } catch {
-          // history persistence must never affect the already-finished run
-        }
+          .catch(() => {
+            // history persistence must never affect the already-finished run
+          })
       }
     })
 
-    this.active.set(run.id, { engine, run })
+    this.active.set(run.id, { engine, run, scope })
 
     void engine
       .run({
@@ -291,8 +345,12 @@ export class WorkflowService {
         groupVariables,
         inputValues
       })
+      .catch(() => {
+        // the engine reports failures as events; nothing to surface here
+      })
       .finally(() => {
         this.active.delete(run.id)
+        this.vpn?.release(`workflow:${run.id}`)
       })
 
     return run
@@ -308,9 +366,14 @@ export class WorkflowService {
       if (input.learnToSave && input.secretKind) {
         const connectionId = active.run.targets[0]?.connectionId
         if (connectionId) {
-          await this.setConnectionSecret(connectionId, input.secretKind, input.secret)
+          await this.setConnectionSecret(connectionId, input.secretKind, input.secret, active.scope)
           if (input.username && input.secretKind === 'git') {
-            await this.setConnectionSecret(connectionId, 'git_username', input.username)
+            await this.setConnectionSecret(
+              connectionId,
+              'git_username',
+              input.username,
+              active.scope
+            )
           }
         }
       }
@@ -348,7 +411,8 @@ export class WorkflowService {
   }
 
   getActiveStatus(runId: string): RunStatus | null {
-    const run = this.repos.workflowRuns.get(runId)
+    const run =
+      this.active.get(runId)?.scope.store.runs.get(runId) ?? this.scope().store.runs.get(runId)
     return run?.status ?? null
   }
 }

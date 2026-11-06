@@ -79,8 +79,15 @@ export function registerAuthRoutes(
   // Connection and access grants travel apart: older desktops only know the three tree levels.
   app.get('/api/v1/me/access', async (request) => {
     const grants = request.user.role === 'admin' ? [] : await listGrants(db, request.user.id)
+    const teams = await db.query<{ id: string; name: string }>(
+      `SELECT t.id, t.name FROM teams t
+       INNER JOIN team_members tm ON tm.team_id = t.id
+       WHERE tm.user_id = $1 ORDER BY lower(t.name)`,
+      [request.user.id]
+    )
     return {
       role: request.user.role,
+      teams: teams.rows,
       grants: grants.filter((g) => g.scopeType !== 'connection' && g.scopeType !== 'access'),
       connectionGrants: grants
         .filter((g) => g.scopeType === 'connection')

@@ -143,7 +143,29 @@ export class WorkflowEngine {
     try {
       const tracking = opts.definition.tracking
       if (opts.mode === 'live' && (tracking || steps.some((s) => needsRemoteExec(s)))) {
-        session = await this.openExecSession()
+        try {
+          session = await this.openExecSession()
+        } catch (error) {
+          // VPN or SSH failed before any step ran: fail the run visibly instead of hanging.
+          const first = steps.find((s) => needsRemoteExec(s)) ?? steps[0]
+          if (first) {
+            const message = error instanceof Error ? error.message : String(error)
+            this.onEvent({ type: 'step_started', stepId: first.id, index: steps.indexOf(first) })
+            this.onEvent({
+              type: 'step_log',
+              stepId: first.id,
+              stream: 'system',
+              chunk: `${message}\n`
+            })
+            this.onEvent({
+              type: 'step_finished',
+              stepId: first.id,
+              status: 'failed',
+              durationMs: 0
+            })
+          }
+          finalStatus = 'failed'
+        }
       }
 
       if (tracking && session) {
@@ -154,7 +176,7 @@ export class WorkflowEngine {
         }
       }
 
-      for (let index = 0; index < steps.length; index++) {
+      for (let index = 0; finalStatus !== 'failed' && index < steps.length; index++) {
         if (this.cancelled) {
           finalStatus = 'cancelled'
           break

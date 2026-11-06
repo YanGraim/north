@@ -57,19 +57,23 @@ export class WorkflowRunsRepository {
   private readonly insertStmt
   private readonly updateStatusStmt
 
-  constructor(db: SqliteDatabase) {
+  /** `table` is the organization copy (no foreign keys) for runs of a server's workflows. */
+  constructor(
+    db: SqliteDatabase,
+    table: 'workflow_runs' | 'organization_workflow_runs' = 'workflow_runs'
+  ) {
     this.getStmt = db.prepare(`
       SELECT id, workflow_id, group_id, mode, status, targets,
              definition_snapshot, variables_snapshot, input_values,
              started_at, finished_at
-      FROM workflow_runs
+      FROM ${table}
       WHERE id = ?
     `)
     this.listByWorkflowStmt = db.prepare(`
       SELECT id, workflow_id, group_id, mode, status, targets,
              definition_snapshot, variables_snapshot, input_values,
              started_at, finished_at
-      FROM workflow_runs
+      FROM ${table}
       WHERE workflow_id = ?
       ORDER BY started_at DESC
       LIMIT ?
@@ -78,13 +82,13 @@ export class WorkflowRunsRepository {
       SELECT id, workflow_id, group_id, mode, status, targets,
              definition_snapshot, variables_snapshot, input_values,
              started_at, finished_at
-      FROM workflow_runs
+      FROM ${table}
       WHERE group_id = ?
       ORDER BY started_at DESC
       LIMIT ?
     `)
     this.insertStmt = db.prepare(`
-      INSERT INTO workflow_runs (
+      INSERT INTO ${table} (
         id, workflow_id, group_id, mode, status, targets,
         definition_snapshot, variables_snapshot, input_values,
         started_at, finished_at
@@ -95,7 +99,7 @@ export class WorkflowRunsRepository {
       )
     `)
     this.updateStatusStmt = db.prepare(`
-      UPDATE workflow_runs
+      UPDATE ${table}
       SET status = @status, finished_at = @finished_at
       WHERE id = @id
     `)

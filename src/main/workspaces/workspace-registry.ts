@@ -27,6 +27,7 @@ import { OrganizationEvents } from './organization-events'
 import { OrganizationVpnBridge, withLocalVpnIds } from './organization-vpns'
 import { ORGANIZATION_UNAVAILABLE, RemoteInventoryStore } from './remote-inventory-store'
 import { localSecretStore, RemoteSecretStore, type SecretStore } from './secret-store'
+import { localWorkflowStore, RemoteWorkflowStore, type WorkflowStore } from './workflow-store'
 import { type CopySide, copyTargets, copyToWorkspace } from './workspace-copy'
 
 /**
@@ -40,18 +41,22 @@ export interface WorkspaceDataSource {
   readonly inventory: InventoryStore
   readonly repositories: Repositories
   readonly secrets: SecretStore
+  /** Workflows, group variables and environment updates (REC-024). */
+  readonly workflows: WorkflowStore
 }
 
 class LocalDataSource implements WorkspaceDataSource {
   readonly kind = 'local' as const
   readonly inventory: InventoryStore
   readonly secrets: SecretStore
+  readonly workflows: WorkflowStore
   constructor(
     readonly repositories: Repositories,
     vault: CredentialVault
   ) {
     this.inventory = localInventoryStore(repositories)
     this.secrets = localSecretStore(vault)
+    this.workflows = localWorkflowStore(repositories)
   }
 }
 
@@ -65,7 +70,9 @@ const MACHINE_REPOSITORIES = new Set<keyof Repositories>([
   'vpnProfiles',
   'vpnSecrets',
   'vpnHistory',
-  'organizationVpnLinks'
+  'organizationVpnLinks',
+  'organizationWorkflowRuns',
+  'organizationConnectionSecrets'
 ])
 
 /**
@@ -98,6 +105,7 @@ class RemoteDataSource implements WorkspaceDataSource {
   readonly inventory: InventoryStore
   readonly repositories: Repositories
   readonly secrets: SecretStore
+  readonly workflows: WorkflowStore
   /** Organization VPN templates ↔ this computer's VPN profiles (REC-023). */
   readonly vpns: OrganizationVpnBridge
   /** Push channel, open while signed in (started on first activation). */
@@ -110,6 +118,7 @@ class RemoteDataSource implements WorkspaceDataSource {
     this.vpns = new OrganizationVpnBridge(client, workspaceId, shape)
     this.inventory = withLocalVpnIds(new RemoteInventoryStore(client), this.vpns)
     this.secrets = new RemoteSecretStore(client)
+    this.workflows = new RemoteWorkflowStore(client, shape)
     this.repositories = unavailableRepositories(shape)
   }
 
@@ -218,6 +227,10 @@ export class WorkspaceRegistry {
 
   secrets(): SecretStore {
     return this.active.source.secrets
+  }
+
+  workflows(): WorkflowStore {
+    return this.active.source.workflows
   }
 
   /** Points main at a workspace. Organizations must have a live session (checked with `/me`). */
@@ -366,6 +379,7 @@ export class WorkspaceRegistry {
         inventory: this.local.inventory,
         secrets: this.local.secrets,
         repositories: this.local.repositories,
+        workflows: this.local.workflows,
         vpnLinks: {
           get: async (target, id) =>
             target === 'client'
@@ -385,6 +399,7 @@ export class WorkspaceRegistry {
       inventory: source.inventory,
       secrets: source.secrets,
       repositories: null,
+      workflows: source.workflows,
       vpnLinks: {
         get: (target, id) => source.vpnLink(target, id),
         set: (target, id, profileId) => source.setVpnLink(target, id, profileId)

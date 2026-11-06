@@ -222,7 +222,8 @@ describe('WorkspaceRegistry — organizations', () => {
       role: 'admin',
       grants: [],
       connectionGrants: [],
-      accessGrants: []
+      accessGrants: [],
+      teams: []
     })
   })
 
@@ -234,7 +235,8 @@ describe('WorkspaceRegistry — organizations', () => {
       role: 'member',
       grants: [],
       connectionGrants: [],
-      accessGrants: []
+      accessGrants: [],
+      teams: []
     })
     await server.makeAdmin('ivo@acme.com')
     expect((await registry.access()).role).toBe('admin')

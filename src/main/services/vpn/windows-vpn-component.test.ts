@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildWindowsInstall,
+  groupListsUser,
   type WindowsComponentDeps,
-  WindowsVpnComponent
+  WindowsVpnComponent,
+  windowsAccountName
 } from './windows-vpn-component'
 
 const MSI = 'C:\\Program Files\\North\\resources\\vpn-bin\\OpenVPN-2.6.14-I001-amd64.msi'
@@ -78,5 +80,54 @@ describe('WindowsVpnComponent', () => {
     await c.uninstall()
     expect(commands[1]).toBe(`msiexec /x "${MSI}" /qn /norestart`)
     expect(marked()).toBe(false)
+  })
+})
+
+describe('Windows account and OpenVPN Administrators', () => {
+  it('qualifies domain and Entra ID accounts, keeps local ones bare', () => {
+    expect(windowsAccountName({ USERDOMAIN: 'AzureAD', COMPUTERNAME: 'NB-01' }, 'AnaMaria')).toBe(
+      'AzureAD\\AnaMaria'
+    )
+    expect(windowsAccountName({ USERDOMAIN: 'NB-01', COMPUTERNAME: 'nb-01' }, 'ana')).toBe('ana')
+    expect(windowsAccountName({}, 'ana')).toBe('ana')
+  })
+
+  const OUTPUT = [
+    'Alias name     OpenVPN Administrators',
+    '',
+    'Members',
+    '',
+    '-------------------------------------------------------------------------------',
+    'NB-01\\ana',
+    'AzureAD\\JoaoSilva',
+    'The command completed successfully.'
+  ].join('\r\n')
+
+  it('finds the account in net localgroup output', () => {
+    expect(groupListsUser(OUTPUT, 'ana')).toBe(true)
+    expect(groupListsUser(OUTPUT, 'azuread\\joaosilva')).toBe(true)
+    expect(groupListsUser(OUTPUT, 'AzureAD\\ana')).toBe(false)
+    expect(groupListsUser(OUTPUT, 'maria')).toBe(false)
+  })
+
+  it('adds a missing user once when OpenVPN was already installed', async () => {
+    const { d, files, commands } = deps({
+      user: 'AzureAD\\Maria',
+      listGroup: async () => OUTPUT
+    })
+    files.add('C:\\Program Files\\OpenVPN\\bin\\openvpn.exe')
+    files.add('C:\\Program Files\\OpenVPN\\bin\\openvpnserv.exe')
+    const component = new WindowsVpnComponent(d)
+    await component.ensureMembership()
+    await component.ensureMembership()
+    expect(commands).toEqual(['net localgroup "OpenVPN Administrators" "AzureAD\\Maria" /add'])
+  })
+
+  it('no prompt when the user is already a member', async () => {
+    const { d, files, commands } = deps({ user: 'ana', listGroup: async () => OUTPUT })
+    files.add('C:\\Program Files\\OpenVPN\\bin\\openvpn.exe')
+    files.add('C:\\Program Files\\OpenVPN\\bin\\openvpnserv.exe')
+    await new WindowsVpnComponent(d).ensureMembership()
+    expect(commands).toEqual([])
   })
 })

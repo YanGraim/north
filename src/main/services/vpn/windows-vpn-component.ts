@@ -22,6 +22,37 @@ export type WindowsComponentDeps = {
   elevate: (command: string) => Promise<void>
   /** marks that North (not the user) installed OpenVPN, so "remove" only undoes North's own */
   marker: { has: () => boolean; set: () => void; clear: () => void }
+  /** output of `net localgroup "OpenVPN Administrators"` (no admin needed), null if it failed */
+  listGroup?: () => Promise<string | null>
+}
+
+export const OPENVPN_ADMINS = 'OpenVPN Administrators'
+
+/**
+ * The account as `net localgroup` needs it: a domain or Entra ID account ("AzureAD\\ana")
+ * is not the local "ana" — adding the bare name failed silently on company laptops.
+ */
+export function windowsAccountName(env: NodeJS.ProcessEnv, username: string): string {
+  const domain = env.USERDOMAIN?.trim()
+  const computer = env.COMPUTERNAME?.trim()
+  if (!domain || (computer && domain.toUpperCase() === computer.toUpperCase())) return username
+  return `${domain}\\${username}`
+}
+
+/** Whether `net localgroup` output lists the account (bare or DOMAIN\\name). */
+export function groupListsUser(output: string, account: string): boolean {
+  const want = account.toLowerCase()
+  const bare = want.includes('\\') ? want.slice(want.lastIndexOf('\\') + 1) : want
+  const local = !want.includes('\\')
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trim().toLowerCase())
+    .some((line) => line === want || (local && line.endsWith(`\\${bare}`)))
+}
+
+export function buildGroupAdd(user: string): string {
+  if (!SAFE_USER.test(user)) throw new VpnError('INVALID_CONFIG', 'Nome de usuário inválido')
+  return `net localgroup "${OPENVPN_ADMINS}" "${user}" /add`
 }
 
 export function buildWindowsInstall(msi: string, user: string): string {
@@ -44,7 +75,31 @@ export function buildWindowsUninstall(msi: string): string {
 }
 
 export class WindowsVpnComponent {
+  private memberChecked = false
+
   constructor(private readonly deps: WindowsComponentDeps) {}
+
+  /**
+   * The Interactive Service refuses North's config path and options unless the user is in
+   * "OpenVPN Administrators". The install adds them, but not when OpenVPN was already
+   * there (installed by hand or by OpenVPN GUI): check once per run and fix it with UAC.
+   */
+  async ensureMembership(): Promise<void> {
+    if (this.memberChecked || !this.deps.listGroup || this.status() !== 'installed') return
+    const output = await this.deps.listGroup()
+    // no group (older OpenVPN) or no output: nothing North can check
+    if (output !== null && !groupListsUser(output, this.deps.user)) {
+      try {
+        await this.deps.elevate(buildGroupAdd(this.deps.user))
+      } catch (error) {
+        throw new VpnError(
+          'DRIVER_CRASHED',
+          `Seu usuário precisa estar no grupo "${OPENVPN_ADMINS}" do Windows para o North usar o OpenVPN (${(error as Error).message})`
+        )
+      }
+    }
+    this.memberChecked = true
+  }
 
   status(): VpnHelperStatus {
     const ok =
