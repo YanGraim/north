@@ -372,6 +372,8 @@ export {
   WorkspaceSchema
 } from './workspace'
 export {
+  type AccessGrant,
+  AccessGrantSchema,
   type ConnectionGrant,
   ConnectionGrantSchema,
   FULL_ACCESS,

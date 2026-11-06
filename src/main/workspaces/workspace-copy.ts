@@ -1,4 +1,5 @@
 import type {
+  Access,
   Connection,
   CopyTargetTree,
   CopyToWorkspaceInput,
@@ -6,14 +7,22 @@ import type {
 } from '@shared/types'
 import type { Repositories } from '../repositories'
 import type { InventoryStore } from './inventory-store'
+import { VPN_NOT_SHAREABLE } from './organization-vpns'
 import type { SecretStore } from './secret-store'
+
+/** Which VPN a client or environment brings up, in this computer's profile ids. */
+export type VpnLinkSide = {
+  get(target: 'client' | 'environment', id: string): Promise<string | null>
+  set(target: 'client' | 'environment', id: string, profileId: string | null): Promise<void>
+}
 
 /** One side of a copy: a workspace's tree and passwords. */
 export type CopySide = {
   inventory: InventoryStore
   secrets: SecretStore
-  /** Personal workspace only: what an organization cannot hold yet (accesses, workflows). */
+  /** Personal workspace only: what an organization cannot hold yet (API collections, workflows). */
   repositories: Repositories | null
+  vpnLinks?: VpnLinkSide
 }
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error))
@@ -55,7 +64,7 @@ export async function copyToWorkspace(
   input: CopyToWorkspaceInput
 ): Promise<CopyToWorkspaceReport> {
   const report: CopyToWorkspaceReport = {
-    created: { clients: 0, environments: 0, groups: 0, connections: 0 },
+    created: { clients: 0, environments: 0, groups: 0, connections: 0, accesses: 0 },
     passwordsCopied: 0,
     warnings: [],
     root: { kind: input.kind, id: '' }
@@ -63,8 +72,21 @@ export async function copyToWorkspace(
   const tagIds = new Map<string, string>()
   const copiedConnections = new Map<string, string>()
   const pendingJumps: { copyId: string; sourceJumpId: string; name: string }[] = []
-  let notCopiedAccesses = 0
+  let notCopiedApis = 0
   let notCopiedWorkflows = 0
+  const toOrganization = !target.repositories
+
+  /** The VPN link of a client or environment goes along; a VPN that can't be shared stays behind. */
+  const copyVpnLink = async (kind: 'client' | 'environment', from: string, to: string) => {
+    if (!source.vpnLinks || !target.vpnLinks) return
+    const profileId = await source.vpnLinks.get(kind, from)
+    if (!profileId) return
+    try {
+      await target.vpnLinks.set(kind, to, profileId)
+    } catch (error) {
+      report.warnings.push(`VPN não copiada (${message(error)})`)
+    }
+  }
 
   const targetTag = async (name: string, color: string | null): Promise<string> => {
     const key = name.toLowerCase()
@@ -80,13 +102,13 @@ export async function copyToWorkspace(
     return id
   }
 
-  const copyPassword = async (connection: Connection): Promise<string | null> => {
-    if (!connection.credentialRef || !input.includePasswords) return null
+  const copyPassword = async (item: Pick<Connection, 'credentialRef' | 'name'>) => {
+    if (!item.credentialRef || !input.includePasswords) return null
     let value: string
     try {
-      value = await source.secrets.resolve(connection.credentialRef, 'reveal')
+      value = await source.secrets.resolve(item.credentialRef, 'reveal')
     } catch (error) {
-      report.warnings.push(`“${connection.name}”: senha não copiada (${message(error)})`)
+      report.warnings.push(`“${item.name}”: senha não copiada (${message(error)})`)
       return null
     }
     const ref = await target.secrets.set(value)
@@ -96,7 +118,7 @@ export async function copyToWorkspace(
 
   const copyConnection = async (connection: Connection, groupId: string, name: string) => {
     const credentialRef = await copyPassword(connection)
-    const created = await target.inventory.connections.create({
+    const values: Parameters<InventoryStore['connections']['create']>[0] = {
       groupId,
       name,
       description: connection.description,
@@ -125,7 +147,19 @@ export async function copyToWorkspace(
       checklist: connection.checklist,
       relatedFiles: connection.relatedFiles,
       isFavorite: false
-    })
+    }
+    let created: Connection
+    try {
+      created = await target.inventory.connections.create(values)
+    } catch (error) {
+      if (message(error) !== VPN_NOT_SHAREABLE) throw error
+      report.warnings.push(`“${name}”: copiada sem VPN (OpenVPN fica só neste computador)`)
+      created = await target.inventory.connections.create({
+        ...values,
+        vpnMode: values.vpnMode === 'profile' ? 'inherit' : values.vpnMode,
+        vpnProfileId: null
+      })
+    }
     report.created.connections += 1
     copiedConnections.set(connection.id, created.id)
     if (connection.jumpHostId) {
@@ -144,6 +178,51 @@ export async function copyToWorkspace(
     return created
   }
 
+  const copyAccess = async (access: Access, groupId: string) => {
+    if (access.type === 'api' && toOrganization) {
+      notCopiedApis += 1
+      return
+    }
+    const credentialRef = await copyPassword(access)
+    const {
+      id: _id,
+      createdAt: _c,
+      updatedAt: _u,
+      groupId: _g,
+      isFavorite: _f,
+      credentialRef: _r,
+      ...rest
+    } = access
+    let created: Access
+    try {
+      created = await target.inventory.accesses.create({
+        ...rest,
+        groupId,
+        credentialRef,
+        isFavorite: false
+      })
+    } catch (error) {
+      // A VPN that cannot be shared must not cost the whole access.
+      if (message(error) !== VPN_NOT_SHAREABLE) throw error
+      report.warnings.push(`“${access.name}”: copiado sem VPN (OpenVPN fica só neste computador)`)
+      created = await target.inventory.accesses.create({
+        ...rest,
+        groupId,
+        credentialRef,
+        isFavorite: false,
+        vpnMode: rest.vpnMode === 'profile' ? 'inherit' : rest.vpnMode,
+        vpnProfileId: null
+      })
+    }
+    report.created.accesses += 1
+    const tags = await source.inventory.tags.listForAccess(access.id)
+    if (tags.length > 0) {
+      const ids: string[] = []
+      for (const tag of tags) ids.push(await targetTag(tag.name, tag.color))
+      await target.inventory.tags.setForAccess({ accessId: created.id, tagIds: ids })
+    }
+  }
+
   const copyGroup = async (groupId: string, environmentId: string, name?: string) => {
     const group = await source.inventory.groups.get(groupId)
     if (!group) throw new Error('Grupo não encontrado')
@@ -158,8 +237,10 @@ export async function copyToWorkspace(
     for (const connection of await source.inventory.connections.list({ groupId })) {
       await copyConnection(connection, created.id, connection.name)
     }
-    if (source.repositories && !target.repositories) {
-      notCopiedAccesses += source.repositories.accesses.list({ groupId }).length
+    for (const access of await source.inventory.accesses.list({ groupId })) {
+      await copyAccess(access, created.id)
+    }
+    if (source.repositories && toOrganization) {
       notCopiedWorkflows += source.repositories.workflows.listByGroup(groupId).length
     }
     return created
@@ -177,6 +258,7 @@ export async function copyToWorkspace(
       sortOrder: environment.sortOrder
     })
     report.created.environments += 1
+    await copyVpnLink('environment', environment.id, created.id)
     for (const group of await source.inventory.groups.list(environmentId)) {
       await copyGroup(group.id, created.id, group.name)
     }
@@ -199,6 +281,7 @@ export async function copyToWorkspace(
     })
     report.created.clients += 1
     report.root.id = created.id
+    await copyVpnLink('client', client.id, created.id)
     for (const environment of await source.inventory.environments.list(client.id)) {
       await copyEnvironment(environment.id, created.id, environment.name)
     }
@@ -225,9 +308,9 @@ export async function copyToWorkspace(
       report.warnings.push(`“${jump.name}”: o jump host não veio junto; configure de novo`)
     }
   }
-  if (notCopiedAccesses > 0) {
+  if (notCopiedApis > 0) {
     report.warnings.push(
-      `${notCopiedAccesses} acesso(s) de banco/login ficaram de fora: a organização ainda não guarda acessos`
+      `${notCopiedApis} coleção(ões) de API ficaram de fora: a organização ainda não guarda APIs`
     )
   }
   if (notCopiedWorkflows > 0) {

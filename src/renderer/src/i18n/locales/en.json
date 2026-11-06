@@ -120,11 +120,12 @@
       "importing": "Importing…",
       "exporting": "Exporting…",
       "csvSecretsTitle": "Does this CSV contain passwords?",
-      "organizationHint": "In this organization, CSV brings servers only (database and login accesses stay in My workspace for now). Everything goes to the server and the team sees it right away. JSON backup is for My workspace only.",
+      "organizationHint": "This is the organization: what goes in here lands on the server and the team sees it right away, according to each person's access. To bring what you already have, use “Copy from My workspace” (whole clients, with connections, databases, logins, tags and VPNs) or import a CSV sheet. JSON backup is for My workspace only.",
       "csvSecretsDescriptionOrganization": "If the CSV has the senha column filled in, the passwords go encrypted to the organization's North Server, and anyone with access to the project can use them. Without confirming, they are ignored.",
       "csvSecretsDescription": "If the password column is filled, credentials will be stored in the system vault. Confirm only if you trust the file.",
       "csvSecretsConfirm": "Yes, import with passwords",
-      "csvSecretsWithout": "Import without passwords"
+      "csvSecretsWithout": "Import without passwords",
+      "copyFromPersonal": "Copy from My workspace…"
     },
     "updates": {
       "title": "Updates",
@@ -1004,8 +1005,20 @@
       "groups_other": "{{count}} groups",
       "connections_one": "{{count}} connection",
       "connections_other": "{{count}} connections",
+      "accesses_one": "{{count}} access",
+      "accesses_other": "{{count}} accesses",
       "passwords_one": "{{count}} password",
       "passwords_other": "{{count}} passwords"
+    },
+    "copyFrom": {
+      "title": "Copy from My workspace",
+      "description": "Pick the clients that go to {{workspace}}. Each one goes whole: environments, groups, connections, databases and logins, tags and its VPN. The copy is new: changing one leaves the other alone.",
+      "empty": "My workspace has no clients yet.",
+      "all": "All ({{count}})",
+      "leftOut": "Left out: API collections, workflows and OpenVPN VPNs. Only the VPN gateway goes; VPN logins and passwords stay on your computer, and each person uses their own.",
+      "submit_one": "Copy {{count}} client",
+      "submit_other": "Copy {{count}} clients",
+      "progress": "Copying {{done}} of {{total}}…"
     }
   },
   "sessions": {

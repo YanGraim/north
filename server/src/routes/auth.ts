@@ -76,15 +76,18 @@ export function registerAuthRoutes(
   app.get('/api/v1/me', async (request) => request.user)
 
   // Lets the desktop hide what the user cannot do; the server still checks every call.
-  // Connection grants travel apart: desktops before 0.1.49 only know the three tree levels.
+  // Connection and access grants travel apart: older desktops only know the three tree levels.
   app.get('/api/v1/me/access', async (request) => {
     const grants = request.user.role === 'admin' ? [] : await listGrants(db, request.user.id)
     return {
       role: request.user.role,
-      grants: grants.filter((g) => g.scopeType !== 'connection'),
+      grants: grants.filter((g) => g.scopeType !== 'connection' && g.scopeType !== 'access'),
       connectionGrants: grants
         .filter((g) => g.scopeType === 'connection')
-        .map((g) => ({ connectionId: g.scopeId, role: g.role }))
+        .map((g) => ({ connectionId: g.scopeId, role: g.role })),
+      accessGrants: grants
+        .filter((g) => g.scopeType === 'access')
+        .map((g) => ({ accessId: g.scopeId, role: g.role }))
     }
   })
 }

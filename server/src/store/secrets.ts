@@ -29,31 +29,37 @@ export async function createSecret(
   return id
 }
 
-/** Who a secret belongs to: the connection that uses it, or its author while still loose. */
+/** What uses a secret: one connection or one access. */
+export type SecretHolder = { type: 'connection' | 'access'; id: string; name: string }
+
+/** Who a secret belongs to: the connection or access that uses it, or its author while still loose. */
 export async function secretOwner(
   db: Db,
   id: string
-): Promise<{
-  createdBy: string | null
-  connection: { id: string; groupId: string } | null
-} | null> {
+): Promise<{ createdBy: string | null; holder: SecretHolder | null } | null> {
   const { rows } = await db.query<{
     created_by: string | null
     connection_id: string | null
-    group_id: string | null
+    connection_name: string | null
+    access_id: string | null
+    access_name: string | null
   }>(
-    `SELECT s.created_by, c.id AS connection_id, c.group_id
-     FROM secrets s LEFT JOIN connections c ON c.credential_ref = s.id
+    `SELECT s.created_by, c.id AS connection_id, c.name AS connection_name,
+            a.id AS access_id, a.name AS access_name
+     FROM secrets s
+     LEFT JOIN connections c ON c.credential_ref = s.id
+     LEFT JOIN accesses a ON a.credential_ref = s.id
      WHERE s.id = $1 LIMIT 1`,
     [id]
   )
   const row = rows[0]
   if (!row) return null
-  return {
-    createdBy: row.created_by,
-    connection:
-      row.connection_id && row.group_id ? { id: row.connection_id, groupId: row.group_id } : null
-  }
+  const holder: SecretHolder | null = row.connection_id
+    ? { type: 'connection', id: row.connection_id, name: row.connection_name ?? '' }
+    : row.access_id
+      ? { type: 'access', id: row.access_id, name: row.access_name ?? '' }
+      : null
+  return { createdBy: row.created_by, holder }
 }
 
 export async function replaceSecret(
@@ -75,29 +81,23 @@ export async function deleteSecret(db: Db, id: string): Promise<boolean> {
   return rows.length > 0
 }
 
-/** Plaintext of a secret plus the connection that owns it; null when no connection uses it. */
-export async function readConnectionSecret(
+/** Plaintext of a secret that a connection or access uses; null when nothing uses it. */
+export async function readHeldSecret(
   db: Db,
   masterKey: Buffer | null,
   id: string
-): Promise<{ value: string; connection: { id: string; name: string } } | null> {
+): Promise<{ value: string; holder: SecretHolder } | null> {
   const key = requireKey(masterKey)
-  const { rows } = await db.query<{
-    wrapped_key: string
-    ciphertext: string
-    connection_id: string
-    connection_name: string
-  }>(
-    `SELECT s.id, s.wrapped_key, s.ciphertext, c.id AS connection_id, c.name AS connection_name
-     FROM secrets s INNER JOIN connections c ON c.credential_ref = s.id
-     WHERE s.id = $1 LIMIT 1`,
+  const owner = await secretOwner(db, id)
+  if (!owner?.holder) return null
+  const { rows } = await db.query<{ wrapped_key: string; ciphertext: string }>(
+    'SELECT wrapped_key, ciphertext FROM secrets WHERE id = $1',
     [id]
   )
-  const row = rows[0]
-  if (!row) return null
+  if (!rows[0]) return null
   return {
-    value: open(key, { wrappedKey: row.wrapped_key, ciphertext: row.ciphertext }, id),
-    connection: { id: row.connection_id, name: row.connection_name }
+    value: open(key, { wrappedKey: rows[0].wrapped_key, ciphertext: rows[0].ciphertext }, id),
+    holder: owner.holder
   }
 }
 

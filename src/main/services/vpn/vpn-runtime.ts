@@ -169,12 +169,22 @@ function failHelper(action: 'install' | 'uninstall', error: unknown): never {
  * Channel → handler map. Every payload is parsed as untrusted input; no result
  * carries a secret (covered by vpn-runtime.test.ts).
  */
+/** Where an organization keeps its client/environment VPN links (REC-023). */
+export type OrganizationVpnLinks = {
+  /** Local profile id, or undefined when the active workspace is the personal one. */
+  link(target: 'client' | 'environment', id: string): Promise<string | null | undefined>
+  /** True when the organization took it; false = personal workspace. */
+  setLink(target: 'client' | 'environment', id: string, profileId: string | null): Promise<boolean>
+}
+
 export function createVpnHandlers(
   runtime: VpnRuntime,
   platform: NodeJS.Platform,
   helper?: Pick<VpnHelper, 'status' | 'install' | 'uninstall'>,
   /** VPN an Access resolves to (see VpnGate.profileForAccess) */
-  accessProfile: (accessId: string) => string | null = () => null
+  accessProfile: (accessId: string) => string | null | Promise<string | null> = () => null,
+  /** Client/environment links of the active organization (REC-023); undefined = personal workspace. */
+  organization?: OrganizationVpnLinks
 ) {
   const helperStatus = (): VpnHelperStatus => helper?.status() ?? 'unsupported'
   const { profiles, manager, drivers } = runtime
@@ -228,22 +238,25 @@ export function createVpnHandlers(
       profiles.history(IdSchema.parse(id), limit === undefined ? undefined : Number(limit)),
     [IpcChannels.VPN_CHECK_CONFLICTS]: (id: unknown) => manager.checkConflicts(IdSchema.parse(id)),
     [IpcChannels.VPN_PLATFORM_SUPPORT]: () => drivers.support(platform),
-    [IpcChannels.VPN_LINK_GET]: (input: unknown) => {
+    [IpcChannels.VPN_LINK_GET]: async (input: unknown) => {
       const { target, id } = VpnLinkTargetSchema.parse(input)
+      const fromOrganization = await organization?.link(target, id)
+      if (fromOrganization !== undefined) return fromOrganization
       const links = runtime.links
       return target === 'client'
         ? links.linkForClient(id)
         : links.linkForEnvironment(id).environment
     },
-    [IpcChannels.VPN_LINK_SET]: (input: unknown) => {
+    [IpcChannels.VPN_LINK_SET]: async (input: unknown) => {
       const { target, id, profileId } = SetVpnLinkInputSchema.parse(input)
       if (profileId && !profiles.get(profileId)) throw new Error('VPN não encontrada')
+      if (await organization?.setLink(target, id, profileId)) return
       if (target === 'client') runtime.links.setClientLink(id, profileId)
       else runtime.links.setEnvironmentLink(id, profileId)
     },
     // the browser opens outside North, so this is a manual lease: it stays up until "Desligar"
     [IpcChannels.VPN_PREPARE_ACCESS]: async (id: unknown) => {
-      const profileId = accessProfile(IdSchema.parse(id))
+      const profileId = await accessProfile(IdSchema.parse(id))
       if (!profileId) return null
       try {
         return await manager.connect(profileId)

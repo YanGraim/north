@@ -13,7 +13,7 @@ describe('migrations', () => {
 
     migrate(db, migrations)
 
-    expect(getUserVersion(db)).toBe(22)
+    expect(getUserVersion(db)).toBe(23)
     const tables = db
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
       .all() as Array<{ name: string }>
@@ -58,7 +58,7 @@ describe('migrations', () => {
     const db = openDatabase(':memory:')
     migrate(db, migrations)
     migrate(db, migrations)
-    expect(getUserVersion(db)).toBe(22)
+    expect(getUserVersion(db)).toBe(23)
   })
 
   it('adds log_files to connections in 021', () => {

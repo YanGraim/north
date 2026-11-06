@@ -279,6 +279,122 @@ export const migrations: Migration[] = [
         WHERE team_id IS NOT NULL;
       CREATE INDEX idx_project_grants_scope ON project_grants(scope_id);
     `
+  },
+  {
+    version: 9,
+    name: '009-accesses-and-vpns',
+    sql: `
+      -- VPN templates (REC-023): gateway, port and the like, shared by the
+      -- organization. Never a username or password: each person signs in to
+      -- the VPN with their own login, kept on their own computer.
+      CREATE TABLE vpns (
+        id UUID PRIMARY KEY,
+        name TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        config JSONB NOT NULL,
+        notes TEXT,
+        created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      ALTER TABLE clients ADD COLUMN vpn_id UUID REFERENCES vpns(id) ON DELETE SET NULL;
+      ALTER TABLE environments ADD COLUMN vpn_id UUID REFERENCES vpns(id) ON DELETE SET NULL;
+      ALTER TABLE connections ADD COLUMN vpn_id UUID REFERENCES vpns(id) ON DELETE SET NULL;
+
+      -- Accesses (database, login/web portal, other) under a group, like connections.
+      CREATE TABLE accesses (
+        id UUID PRIMARY KEY,
+        group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+        type TEXT NOT NULL CHECK (type IN ('database', 'login', 'other')),
+        name TEXT NOT NULL,
+        description TEXT,
+        notes TEXT,
+        username TEXT,
+        credential_ref UUID REFERENCES secrets(id) ON DELETE SET NULL,
+        url TEXT,
+        links JSONB NOT NULL DEFAULT '[]',
+        icon TEXT,
+        color TEXT,
+        engine TEXT,
+        host TEXT,
+        port INTEGER CHECK (port > 0),
+        database TEXT,
+        ssl BOOLEAN,
+        vpn_mode TEXT NOT NULL DEFAULT 'inherit',
+        vpn_id UUID REFERENCES vpns(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX idx_accesses_group ON accesses(group_id);
+      CREATE INDEX idx_accesses_credential ON accesses(credential_ref);
+
+      CREATE FUNCTION drop_access_secret() RETURNS trigger AS $$
+      BEGIN
+        IF OLD.credential_ref IS NOT NULL
+           AND (TG_OP = 'DELETE' OR NEW.credential_ref IS DISTINCT FROM OLD.credential_ref) THEN
+          DELETE FROM secrets WHERE id = OLD.credential_ref;
+        END IF;
+        RETURN NULL;
+      END;
+      $$ LANGUAGE plpgsql;
+      CREATE TRIGGER accesses_drop_secret
+        AFTER DELETE OR UPDATE OF credential_ref ON accesses
+        FOR EACH ROW EXECUTE FUNCTION drop_access_secret();
+
+      CREATE TABLE access_tags (
+        access_id UUID NOT NULL REFERENCES accesses(id) ON DELETE CASCADE,
+        tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+        PRIMARY KEY (access_id, tag_id)
+      );
+      CREATE TABLE user_access_favorites (
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        access_id UUID NOT NULL REFERENCES accesses(id) ON DELETE CASCADE,
+        PRIMARY KEY (user_id, access_id)
+      );
+
+      -- Grants may now target one access, too.
+      ALTER TABLE project_grants RENAME TO project_grants_v8;
+      DROP INDEX idx_project_grants_user;
+      DROP INDEX idx_project_grants_team;
+      DROP INDEX idx_project_grants_scope;
+      CREATE TABLE project_grants (
+        id UUID PRIMARY KEY,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+        scope_type TEXT NOT NULL
+          CHECK (scope_type IN ('client', 'environment', 'group', 'connection', 'access')),
+        client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+        environment_id UUID REFERENCES environments(id) ON DELETE CASCADE,
+        group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
+        connection_id UUID REFERENCES connections(id) ON DELETE CASCADE,
+        access_id UUID REFERENCES accesses(id) ON DELETE CASCADE,
+        scope_id UUID GENERATED ALWAYS AS
+          (COALESCE(client_id, environment_id, group_id, connection_id, access_id)) STORED,
+        role TEXT NOT NULL CHECK (role IN ('editor', 'viewer')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CHECK (num_nonnulls(user_id, team_id) = 1),
+        CHECK (num_nonnulls(client_id, environment_id, group_id, connection_id, access_id) = 1),
+        CHECK (
+          (scope_type = 'client' AND client_id IS NOT NULL) OR
+          (scope_type = 'environment' AND environment_id IS NOT NULL) OR
+          (scope_type = 'group' AND group_id IS NOT NULL) OR
+          (scope_type = 'connection' AND connection_id IS NOT NULL) OR
+          (scope_type = 'access' AND access_id IS NOT NULL)
+        )
+      );
+      INSERT INTO project_grants
+        (id, user_id, team_id, scope_type, client_id, environment_id, group_id, connection_id,
+         role, created_at)
+      SELECT id, user_id, team_id, scope_type, client_id, environment_id, group_id, connection_id,
+             role, created_at
+      FROM project_grants_v8;
+      DROP TABLE project_grants_v8;
+      CREATE UNIQUE INDEX idx_project_grants_user ON project_grants(user_id, scope_id)
+        WHERE user_id IS NOT NULL;
+      CREATE UNIQUE INDEX idx_project_grants_team ON project_grants(team_id, scope_id)
+        WHERE team_id IS NOT NULL;
+      CREATE INDEX idx_project_grants_scope ON project_grants(scope_id);
+    `
   }
 ]
 

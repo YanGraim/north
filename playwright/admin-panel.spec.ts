@@ -3,7 +3,7 @@ import { expect, type Page, test } from '@playwright/test'
 /**
  * The North Server's admin page, against a real server on in-memory Postgres
  * (`server/src/dev-pglite.ts`: admin@north.test + Acme → Prod → Web { web-01,
- * web-02 } / Db { pg-01 }). Tests share that server, so each one uses its own
+ * web-02 } / Db { pg-01, pg-prod database access }). Tests share that server, so each one uses its own
  * people and teams.
  */
 const SERVER = 'http://127.0.0.1:5181'
@@ -41,7 +41,8 @@ async function memberApi(page: Page, email: string) {
   return {
     clients: () => get('clients'),
     groups: () => get('groups'),
-    connections: () => get('connections')
+    connections: () => get('connections'),
+    accesses: () => get('accesses')
   }
 }
 
@@ -97,6 +98,20 @@ test('sharing one connection shows only it, read-only path included', async ({ p
 
   expect((await member.connections()).map((c: { name: string }) => c.name)).toEqual(['pg-01'])
   expect((await member.groups()).map((g: { name: string }) => g.name)).toEqual(['Db'])
+})
+
+test('sharing one database access gives only that access', async ({ page }) => {
+  await signIn(page)
+  const email = unique('ines')
+  await addPerson(page, email)
+  const member = await memberApi(page, email)
+
+  await share(page, 'pg-prod')
+  await expect(page.getByTestId('grant-pg-prod')).toContainText('Visualizador')
+  await expect(page.getByTestId('grant-pg-prod')).toContainText('Acme › Prod › Db')
+
+  expect((await member.accesses()).map((a: { name: string }) => a.name)).toEqual(['pg-prod'])
+  expect(await member.connections()).toEqual([])
 })
 
 test('a project shows who has access, inherited from above', async ({ page }) => {

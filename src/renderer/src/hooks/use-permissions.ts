@@ -6,7 +6,12 @@ import { type Connection, FULL_ACCESS, type Permissions, permissionsFor } from '
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
-const NO_ACCESS = permissionsFor({ role: 'member', grants: [], connectionGrants: [] })
+const NO_ACCESS = permissionsFor({
+  role: 'member',
+  grants: [],
+  connectionGrants: [],
+  accessGrants: []
+})
 
 /**
  * What the user may do in the current workspace (ADR 0018 §7). The personal

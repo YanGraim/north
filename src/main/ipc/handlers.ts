@@ -90,10 +90,10 @@ export function registerIpcHandlers(): void {
   registerEnvironmentHandlers(repositories, vault, inventory)
   registerGroupHandlers(repositories, vault, inventory)
   registerConnectionHandlers(vault, inventory, secrets, localRepositories.directoryFavorites)
-  registerAccessHandlers(repositories, vault)
+  registerAccessHandlers(repositories, vault, inventory, secrets)
   registerTagHandlers(inventory)
   registerHistoryHandlers(repositories)
-  registerSearchHandlers(repositories, inventory)
+  registerSearchHandlers(inventory)
   registerSessionHandlers(repositories, vault)
   registerLogFollowHandlers()
   // Organizations open sessions from the server's inventory, fetching each password just in time.
@@ -104,7 +104,15 @@ export function registerIpcHandlers(): void {
     return {
       connection: (id) => store.connections.get(id),
       resolveSecret: (ref) => passwords.resolve(ref, 'session'),
-      vpnProfile: () => null,
+      vpnProfile: async (id) => {
+        const connection = await store.connections.get(id)
+        return connection ? registry.organizationVpnFor(connection) : null
+      },
+      access: (id) => store.accesses.get(id),
+      accessVpnProfile: async (id) => {
+        const access = await store.accesses.get(id)
+        return access ? registry.organizationVpnFor(access) : null
+      },
       scope: registry.activeId()
     }
   })
@@ -127,7 +135,7 @@ export function registerIpcHandlers(): void {
     }
   })
   app.on('will-quit', () => registry.dispose())
-  registerDatabaseHandlers(repositories, vault)
+  registerDatabaseHandlers(inventory, secrets)
   registerApiHandlers(repositories, vault)
   registerFsHandlers()
   registerRemoteEditHandlers()
@@ -141,5 +149,14 @@ export function registerIpcHandlers(): void {
   registerEnvironmentUpdateHandlers(repositories)
   registerTerminalHandlers()
   const monitor = registerConnectionHealthHandlers(repositories)
-  registerVpnHandlers(repositories, vault, monitor)
+  // VPN profiles live on this computer; an organization only says which one (REC-023).
+  registerVpnHandlers(repositories, vault, monitor, {
+    link: (target, id) => registry.organizationVpnLink(target, id),
+    setLink: (target, id, profileId) => registry.setOrganizationVpnLink(target, id, profileId),
+    access: async (id) => {
+      if (registry.activeSource().kind === 'local') return undefined
+      const access = await registry.inventory().accesses.get(id)
+      return access ? registry.organizationVpnFor(access) : null
+    }
+  })
 }

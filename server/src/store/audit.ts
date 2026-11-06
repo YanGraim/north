@@ -15,6 +15,9 @@ export type AuditAction =
   | 'team.delete'
   | 'team.member.add'
   | 'team.member.remove'
+  | 'vpn.create'
+  | 'vpn.update'
+  | 'vpn.delete'
 
 export type AuditEvent = {
   id: number

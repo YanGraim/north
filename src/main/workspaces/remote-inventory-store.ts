@@ -1,8 +1,10 @@
 import type {
+  Access,
   Client,
   Connection,
   Environment,
   Group,
+  ListAccessesFilter,
   ListConnectionsFilter,
   Tag
 } from '@shared/types'
@@ -77,6 +79,14 @@ export class RemoteInventoryStore implements InventoryStore {
       this.orNull(this.api.request<Connection>('POST', `${v1}/connections/${id}/duplicate`))
   }
 
+  readonly accesses: InventoryStore['accesses'] = {
+    list: (filter: ListAccessesFilter = {}) =>
+      this.api.request<Access[]>('GET', `${v1}/accesses${query(filter)}`),
+    ...this.crud('accesses'),
+    toggleFavorite: (id) =>
+      this.orNull(this.api.request<Access>('POST', `${v1}/accesses/${id}/favorite`))
+  }
+
   readonly tags: InventoryStore['tags'] = {
     list: () => this.api.request<Tag[]>('GET', `${v1}/tags`),
     create: (input) => this.api.request<Tag>('POST', `${v1}/tags`, input),
@@ -88,10 +98,10 @@ export class RemoteInventoryStore implements InventoryStore {
       }),
     listForConnection: (connectionId) =>
       this.api.request<Tag[]>('GET', `${v1}/connections/${connectionId}/tags`),
-    // Accesses are not part of the organization inventory yet.
-    setForAccess: async () => {
-      throw new Error(ORGANIZATION_UNAVAILABLE)
-    },
-    listForAccess: async () => []
+    setForAccess: (input) =>
+      this.api.request<Tag[]>('PUT', `${v1}/accesses/${input.accessId}/tags`, {
+        tagIds: input.tagIds
+      }),
+    listForAccess: (accessId) => this.api.request<Tag[]>('GET', `${v1}/accesses/${accessId}/tags`)
   }
 }

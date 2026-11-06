@@ -10,8 +10,9 @@ const path = { clientId: 'c1', environmentId: 'e1', groupId: 'g1' }
 
 const member = (
   grants: WorkspaceAccess['grants'],
-  connectionGrants: WorkspaceAccess['connectionGrants'] = []
-): WorkspaceAccess => ({ role: 'member', grants, connectionGrants })
+  connectionGrants: WorkspaceAccess['connectionGrants'] = [],
+  accessGrants: WorkspaceAccess['accessGrants'] = []
+): WorkspaceAccess => ({ role: 'member', grants, connectionGrants, accessGrants })
 
 describe('permissionsFor', () => {
   it('a grant on one connection covers only that connection', () => {
@@ -26,14 +27,26 @@ describe('permissionsFor', () => {
     expect(editor.edit(path)).toBe(false)
   })
 
-  it('reads an older server answer without connection grants', () => {
-    expect(WorkspaceAccessSchema.parse({ role: 'member', grants: [] }).connectionGrants).toEqual([])
+  it('a grant on one access covers only that access', () => {
+    const db = { ...path, accessId: 'a1' }
+    const editor = permissionsFor(member([], [], [{ accessId: 'a1', role: 'editor' }]))
+    expect(editor.edit(db)).toBe(true)
+    expect(editor.editsSomething).toBe(true)
+    expect(editor.edit({ ...path, accessId: 'a2' })).toBe(false)
+    const viewer = permissionsFor(member([], [], [{ accessId: 'a1', role: 'viewer' }]))
+    expect(viewer.revealPassword(db)).toBe(false)
+  })
+
+  it('reads an older server answer without connection or access grants', () => {
+    const parsed = WorkspaceAccessSchema.parse({ role: 'member', grants: [] })
+    expect(parsed.connectionGrants).toEqual([])
+    expect(parsed.accessGrants).toEqual([])
   })
 
   it('the personal workspace and admins can do everything', () => {
     for (const access of [
       FULL_ACCESS,
-      { role: 'admin', grants: [], connectionGrants: [] } as WorkspaceAccess
+      { role: 'admin', grants: [], connectionGrants: [], accessGrants: [] } as WorkspaceAccess
     ]) {
       const can = permissionsFor(access)
       expect(can.createClient).toBe(true)

@@ -22,8 +22,8 @@ const RevealBody = z.object({ purpose: z.enum(['session', 'reveal', 'paste']) })
 
 /**
  * Secrets go up as plaintext and come back only by id. The one way out is
- * `reveal`, and only for a secret some connection uses. A secret follows its
- * connection's access; a loose one (stored, not yet attached) only its author
+ * `reveal`, and only for a secret some connection or access uses. A secret
+ * follows its holder's access; a loose one (stored, not yet attached) only its author
  * can see. Viewers get it for a session, never to read or paste (ADR 0018 §7).
  */
 export function registerSecretRoutes(app: FastifyInstance, db: Db, masterKey: Buffer | null): void {
@@ -33,8 +33,8 @@ export function registerSecretRoutes(app: FastifyInstance, db: Db, masterKey: Bu
     const view = await loadAccess(db, req.user)
     const owner = await secrets.secretOwner(db, id(req))
     if (!owner) throw notFound('Secret')
-    if (owner.connection) {
-      view.requireConnection(owner.connection.id, need, 'Secret')
+    if (owner.holder) {
+      view.require(owner.holder.type, owner.holder.id, need, 'Secret')
     } else if (owner.createdBy !== req.user.id) {
       throw notFound('Secret')
     }
@@ -74,14 +74,14 @@ export function registerSecretRoutes(app: FastifyInstance, db: Db, masterKey: Bu
   app.post(`${v1}/secrets/:id/reveal`, async (req) => {
     const { purpose } = RevealBody.parse(req.body)
     const { owner } = await owned(req, purpose === 'session' ? 'read' : 'write')
-    if (!owner.connection) throw notFound('Secret')
-    const found = await secrets.readConnectionSecret(db, masterKey, id(req))
+    if (!owner.holder) throw notFound('Secret')
+    const found = await secrets.readHeldSecret(db, masterKey, id(req))
     if (!found) throw notFound('Secret')
     await recordAudit(
       db,
       req.user,
       'secret.read',
-      { type: 'connection', id: found.connection.id, name: found.connection.name },
+      { type: found.holder.type, id: found.holder.id, name: found.holder.name },
       { purpose, secretId: id(req) }
     )
     return { value: found.value }

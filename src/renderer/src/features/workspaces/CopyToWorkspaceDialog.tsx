@@ -159,6 +159,8 @@ export function CopyToWorkspaceDialog(): React.JSX.Element | null {
           t('workspaces.copy.environments', { count: report.created.environments }),
         report.created.groups && t('workspaces.copy.groups', { count: report.created.groups }),
         t('workspaces.copy.connections', { count: report.created.connections }),
+        report.created.accesses &&
+          t('workspaces.copy.accesses', { count: report.created.accesses }),
         report.passwordsCopied && t('workspaces.copy.passwords', { count: report.passwordsCopied })
       ]
         .filter(Boolean)

@@ -108,11 +108,7 @@ export function registerInventoryHandlers(
       const raw = await readFile(result.filePaths[0], 'utf8')
       const source = activeSource()
       const report = await importInventoryCsv(
-        {
-          inventory: source.inventory,
-          secrets: source.secrets,
-          accesses: source.kind === 'local' ? source.repositories.accesses : null
-        },
+        { inventory: source.inventory, secrets: source.secrets },
         raw,
         { allowSecrets }
       )

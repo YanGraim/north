@@ -64,14 +64,22 @@ export const CopyToWorkspaceInputSchema = z.object({
   targetWorkspaceId: WorkspaceIdSchema,
   /** Client for an environment, environment for a group, group for a connection; null for a client. */
   targetParentId: z.string().uuid().nullable(),
-  includePasswords: z.boolean()
+  includePasswords: z.boolean(),
+  /** Where the item lives; the active workspace when left out. */
+  sourceWorkspaceId: WorkspaceIdSchema.optional()
 })
 export type CopyToWorkspaceInput = z.infer<typeof CopyToWorkspaceInputSchema>
 
 export type CopyToWorkspaceReport = {
-  created: { clients: number; environments: number; groups: number; connections: number }
+  created: {
+    clients: number
+    environments: number
+    groups: number
+    connections: number
+    accesses: number
+  }
   passwordsCopied: number
-  /** What was left out and why (accesses, a password you may not read, a jump host…). */
+  /** What was left out and why (API collections, a password you may not read, a jump host…). */
   warnings: string[]
   /** The new top item, to open it in the target workspace. */
   root: { kind: CopyItemKind; id: string }

@@ -85,10 +85,9 @@ describe('RemoteInventoryStore', () => {
     expect(await store.connections.get(conn.id)).toBeNull()
   })
 
-  it('has no access tags in organizations yet', async () => {
-    expect(await store.tags.listForAccess('3f1c2b9e-1111-4222-8333-444455556666')).toEqual([])
+  it('answers 404 for tags of an access that is not there', async () => {
     await expect(
-      store.tags.setForAccess({ accessId: '3f1c2b9e-1111-4222-8333-444455556666', tagIds: [] })
-    ).rejects.toThrow(/organiza/i)
+      store.tags.listForAccess('3f1c2b9e-1111-4222-8333-444455556666')
+    ).rejects.toMatchObject({ status: 404 })
   })
 })

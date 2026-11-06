@@ -146,3 +146,16 @@ Pedido da equipe (2026-10-23): a empresa dá acesso a um servidor e a pessoa con
   - Telas: Visão geral, Pessoas, página da pessoa, Equipes, página da equipe, Projetos com a árvore até a conexão, e Auditoria com filtro por tipo.
   - A CSP não mudou.
 - **Alternativa descartada:** criar uma tabela de liberação de conexão separada de `project_grants`. Ela duplicaria a lógica de herança e a auditoria. Uma tabela única, com o escopo gerado (`scope_id`), mantém uma regra só.
+
+## Notas de implementação — Fase 8 (acessos e VPN na organização, 2026-11-05)
+
+- **Acessos:**
+  - Tabela `accesses` (tipos `database`, `login`, `other`), com senha no envelope do servidor e o mesmo gatilho das conexões. API fica de fora: a configuração de uma coleção pode carregar token em claro.
+  - `scope_type = 'access'` em `project_grants`, recriada como na Fase 7. Um segredo pertence a uma conexão **ou** a um acesso.
+  - `/me/access` manda `accessGrants` à parte, pelo mesmo motivo de `connectionGrants`.
+- **VPN — modelo no servidor, login no computador:**
+  - Tabela `vpns` com o `config` sem usuário (o servidor zera `username`). OpenVPN é recusado.
+  - `vpn_id` em clientes, ambientes, conexões e acessos, com `ON DELETE SET NULL`. Id desconhecido vira `null`, porque desktops anteriores mandam o id do perfil local.
+  - No desktop, `OrganizationVpnBridge` traduz na fronteira do `RemoteInventoryStore`. Na leitura: link salvo → perfil com o mesmo gateway → perfil novo sem usuário. Na escrita: link salvo → modelo existente com o mesmo gateway → publica um modelo. Daí para dentro (sessões, `VpnGate`, UI) só circulam ids locais.
+  - Os perfis de VPN viraram dado da máquina: aparecem em todos os workspaces.
+- **Alternativa descartada:** guardar a credencial de VPN no servidor, como as senhas das conexões. Na FortiGate, cada pessoa tem o próprio login, e um login compartilhado derruba sessões e apaga a trilha de quem conectou.

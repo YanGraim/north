@@ -120,11 +120,12 @@
       "importing": "Importando…",
       "exporting": "Exportando…",
       "csvSecretsTitle": "Este CSV contém senhas?",
-      "organizationHint": "Nesta organização, o CSV traz só servidores (acessos de banco e login ainda ficam no Meu workspace). O que entra vai para o servidor e a equipe vê na hora. Backup em JSON é só do Meu workspace.",
+      "organizationHint": "Esta é a organização: o que entra aqui vai para o servidor e a equipe vê na hora, conforme o acesso de cada um. Para trazer o que você já tem, use “Copiar do Meu workspace” (clientes inteiros, com conexões, bancos, logins, tags e VPNs) ou importe uma planilha CSV. O backup em JSON é só do Meu workspace.",
       "csvSecretsDescriptionOrganization": "Se o CSV tiver a coluna senha preenchida, as senhas vão criptografadas para o North Server da organização, e quem tiver acesso ao projeto poderá usá-las. Sem confirmar, elas são ignoradas.",
       "csvSecretsDescription": "Se o arquivo tiver a coluna senha preenchida, as credenciais serão gravadas no vault do sistema. Confirme só se você confia no arquivo.",
       "csvSecretsConfirm": "Sim, importar com senhas",
-      "csvSecretsWithout": "Importar sem senhas"
+      "csvSecretsWithout": "Importar sem senhas",
+      "copyFromPersonal": "Copiar do Meu workspace…"
     },
     "updates": {
       "title": "Atualizações",
@@ -1004,8 +1005,20 @@
       "groups_other": "{{count}} grupos",
       "connections_one": "{{count}} conexão",
       "connections_other": "{{count}} conexões",
+      "accesses_one": "{{count}} acesso",
+      "accesses_other": "{{count}} acessos",
       "passwords_one": "{{count}} senha",
       "passwords_other": "{{count}} senhas"
+    },
+    "copyFrom": {
+      "title": "Copiar do Meu workspace",
+      "description": "Escolha os clientes que vão para {{workspace}}. Cada um vai inteiro: ambientes, grupos, conexões, bancos e logins, tags e a VPN ligada a ele. A cópia é nova: mexer numa não muda a outra.",
+      "empty": "O Meu workspace ainda não tem clientes.",
+      "all": "Todos ({{count}})",
+      "leftOut": "Ficam de fora: coleções de API, workflows e VPNs OpenVPN. Da VPN vai só o gateway; o login e a senha de VPN continuam no seu computador, e cada pessoa usa o dela.",
+      "submit_one": "Copiar {{count}} cliente",
+      "submit_other": "Copiar {{count}} clientes",
+      "progress": "Copiando {{done}} de {{total}}…"
     }
   },
   "sessions": {

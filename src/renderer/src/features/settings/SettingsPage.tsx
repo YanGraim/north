@@ -51,6 +51,7 @@ import type { UpdateStatus } from '@shared/types'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   BookOpen,
+  Copy,
   Download,
   ExternalLink,
   FileSpreadsheet,
@@ -61,6 +62,7 @@ import {
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
+import { CopyFromPersonalDialog } from '../workspaces/CopyFromPersonalDialog'
 import { ExternalEditorsSection } from './ExternalEditorsSection'
 
 const REPO_URL = 'https://github.com/YanGraim/north'
@@ -138,6 +140,7 @@ export function SettingsPage(): React.JSX.Element {
   const [csvSecretsOpen, setCsvSecretsOpen] = useState(false)
   // JSON backup is a personal-workspace tool; an organization takes CSV (servers only).
   const inOrganization = useCurrentWorkspace()?.kind === 'organization'
+  const [copyFromOpen, setCopyFromOpen] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
   const updatesDisabled = updatesLikelyDisabledInDev()
   const [launchAtLogin, setLaunchAtLogin] = useState<boolean | null>(null)
@@ -548,7 +551,18 @@ export function SettingsPage(): React.JSX.Element {
               </p>
             ) : null}
             <div className="flex flex-wrap gap-2">
-              {inOrganization ? null : (
+              {inOrganization ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={busy !== null}
+                  onClick={() => setCopyFromOpen(true)}
+                  data-testid="copy-from-personal-open"
+                >
+                  <Copy className="size-3.5" />
+                  {t('settings.inventory.copyFromPersonal')}
+                </Button>
+              ) : (
                 <>
                   <Button
                     type="button"
@@ -600,6 +614,8 @@ export function SettingsPage(): React.JSX.Element {
               </Button>
             </div>
           </SettingsSection>
+
+          <CopyFromPersonalDialog open={copyFromOpen} onOpenChange={setCopyFromOpen} />
 
           <AlertDialog open={csvSecretsOpen} onOpenChange={setCsvSecretsOpen}>
             <AlertDialogContent>

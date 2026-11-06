@@ -2,13 +2,13 @@ import type { Db } from './db'
 import { forbidden, notFound } from './errors'
 import type { User } from './store/users'
 
-export type ScopeType = 'client' | 'environment' | 'group' | 'connection'
+export type ScopeType = 'client' | 'environment' | 'group' | 'connection' | 'access'
 export type ProjectRole = 'editor' | 'viewer'
 export type Grant = { scopeType: ScopeType; scopeId: string; role: ProjectRole }
 
 /**
  * What one user may do on each node (ADR 0018 §7). Admin is global; a grant
- * on a client/environment/group/connection flows down to everything under it,
+ * on a client/environment/group/connection/access flows down to everything under it,
  * given to the person or to a team they are in, and the strongest grant on the
  * path wins. The parents of a granted node stay visible (read-only) so the
  * tree can reach it.
@@ -19,7 +19,8 @@ const LABEL: Record<ScopeType, string> = {
   client: 'Client',
   environment: 'Environment',
   group: 'Group',
-  connection: 'Connection'
+  connection: 'Connection',
+  access: 'Access'
 }
 
 const RANK: Record<ProjectRole, number> = { viewer: 1, editor: 2 }
@@ -38,6 +39,7 @@ export class AccessView {
   private readonly envClient = new Map<string, string>()
   private readonly groupEnv = new Map<string, string>()
   private readonly connGroup = new Map<string, string>()
+  private readonly accessGroup = new Map<string, string>()
   private readonly clients = new Set<string>()
   private readonly direct = new Map<string, ProjectRole>()
   private readonly paths = new Set<string>()
@@ -50,12 +52,14 @@ export class AccessView {
       environments: Array<{ id: string; clientId: string }>
       groups: Array<{ id: string; environmentId: string }>
       connections: Array<{ id: string; groupId: string }>
+      accesses?: Array<{ id: string; groupId: string }>
     }
   ) {
     for (const id of tree.clients) this.clients.add(id)
     for (const e of tree.environments) this.envClient.set(e.id, e.clientId)
     for (const g of tree.groups) this.groupEnv.set(g.id, g.environmentId)
     for (const c of tree.connections) this.connGroup.set(c.id, c.groupId)
+    for (const a of tree.accesses ?? []) this.accessGroup.set(a.id, a.groupId)
     for (const g of mergeGrants(grants)) {
       this.direct.set(g.scopeId, g.role)
       for (const parent of this.ancestors(g.scopeType, g.scopeId).slice(1)) this.paths.add(parent)
@@ -75,7 +79,8 @@ export class AccessView {
     if (type === 'client') return this.clients.has(id)
     if (type === 'environment') return this.envClient.has(id)
     if (type === 'group') return this.groupEnv.has(id)
-    return this.connGroup.has(id)
+    if (type === 'connection') return this.connGroup.has(id)
+    return this.accessGroup.has(id)
   }
 
   /** The node itself first, then its parents up to the client. */
@@ -89,7 +94,7 @@ export class AccessView {
       const env = this.groupEnv.get(id)
       return env ? [id, ...this.ancestors('environment', env)] : [id]
     }
-    const group = this.connGroup.get(id)
+    const group = type === 'connection' ? this.connGroup.get(id) : this.accessGroup.get(id)
     return group ? [id, ...this.ancestors('group', group)] : [id]
   }
 
@@ -102,7 +107,7 @@ export class AccessView {
       if (role && (!best || RANK[role] > RANK[best])) best = role
     }
     if (best) return best
-    // Connections are the leaves, so a connection is never just a path.
+    // Connections and accesses are the leaves, so they are never just a path.
     return this.paths.has(id) ? 'path' : null
   }
 
@@ -121,6 +126,11 @@ export class AccessView {
     if (need === 'write' && !this.canWrite(type, id)) {
       throw forbidden('You can only view this project')
     }
+  }
+
+  /** An access's own grant, or one on its group and above. */
+  requireAccess(accessId: string, need: 'read' | 'write', what = 'Access'): void {
+    this.require('access', accessId, need, what)
   }
 
   /** A connection's own grant, or one on its group and above. */
@@ -146,17 +156,19 @@ export async function listGrants(db: Db, userId: string): Promise<Grant[]> {
 
 /** Loaded once per request: the tree skeleton is small next to the inventory itself. */
 export async function loadAccess(db: Db, user: User): Promise<AccessView> {
-  const [grants, clients, environments, groups, connections] = await Promise.all([
+  const [grants, clients, environments, groups, connections, accesses] = await Promise.all([
     user.role === 'admin' ? Promise.resolve([]) : listGrants(db, user.id),
     db.query<{ id: string }>('SELECT id FROM clients'),
     db.query<{ id: string; client_id: string }>('SELECT id, client_id FROM environments'),
     db.query<{ id: string; environment_id: string }>('SELECT id, environment_id FROM groups'),
-    db.query<{ id: string; group_id: string }>('SELECT id, group_id FROM connections')
+    db.query<{ id: string; group_id: string }>('SELECT id, group_id FROM connections'),
+    db.query<{ id: string; group_id: string }>('SELECT id, group_id FROM accesses')
   ])
   return new AccessView(user, grants, {
     clients: clients.rows.map((r) => r.id),
     environments: environments.rows.map((r) => ({ id: r.id, clientId: r.client_id })),
     groups: groups.rows.map((r) => ({ id: r.id, environmentId: r.environment_id })),
-    connections: connections.rows.map((r) => ({ id: r.id, groupId: r.group_id }))
+    connections: connections.rows.map((r) => ({ id: r.id, groupId: r.group_id })),
+    accesses: accesses.rows.map((r) => ({ id: r.id, groupId: r.group_id }))
   })
 }

@@ -22,8 +22,7 @@ async function signedIn(email: string, admin = true) {
   if (admin) await server.makeAdmin(email)
   return {
     inventory: new RemoteInventoryStore(client),
-    secrets: new RemoteSecretStore(client),
-    accesses: null
+    secrets: new RemoteSecretStore(client)
   }
 }
 
@@ -51,20 +50,26 @@ describe('importInventoryCsv into an organization', () => {
     expect(tags.map((t) => t.name).sort()).toEqual(['linux', 'prod'])
   })
 
-  it('reports accesses (banco/login) as not available yet, line by line', async () => {
+  it('creates database and login accesses on the server, with their passwords', async () => {
     const target = await signedIn('csv-admin2@acme.com')
     const csv = [
       HEADER,
-      'banco,AccCo,Prod,Db,pg,,postgres,10.0.0.3,5432,app,,app,,,',
+      'banco,AccCo,Prod,Db,pg,,postgres,10.0.0.3,5432,app,,app,dbpass,,prod',
       'login,AccCo,Prod,Db,portal,,,,,,https://x.example,ana,,,',
       'servidor,AccCo,Prod,Db,db-01,ssh,,10.0.0.3,22,,,root,,,',
       ''
     ].join('\n')
-    const report = await importInventoryCsv(target, csv, { allowSecrets: false })
-    expect(report.created.connections).toBe(1)
-    expect(report.created.accesses).toBe(0)
-    expect(report.errors).toHaveLength(2)
-    expect(report.errors[0]).toMatch(/^Linha 2: acessos .* Meu workspace/)
+    const report = await importInventoryCsv(target, csv, { allowSecrets: true })
+    expect(report.errors).toEqual([])
+    expect(report.created).toMatchObject({ connections: 1, accesses: 2 })
+    const accesses = await target.inventory.accesses.list()
+    const pg = accesses.find((a) => a.name === 'pg')
+    expect(pg).toMatchObject({ type: 'database', engine: 'postgres', port: 5432 })
+    expect(await target.secrets.resolve(pg?.credentialRef as string, 'reveal')).toBe('dbpass')
+    expect(
+      (await target.inventory.tags.listForAccess(pg?.id as string)).map((t) => t.name)
+    ).toEqual(['prod'])
+    expect(accesses.find((a) => a.name === 'portal')?.url).toBe('https://x.example')
   })
 
   it('a member without access gets a per-line error, nothing half-created', async () => {

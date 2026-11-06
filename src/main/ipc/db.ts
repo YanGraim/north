@@ -15,8 +15,8 @@ import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { configFromTestInput, exportLimitsForFormat } from '../protocols/database/config'
 import { EXPORT_EXTENSIONS, EXPORT_FILTER_NAMES, writeExport } from '../protocols/database/export'
 import { testConnection } from '../protocols/database/registry'
-import type { Repositories } from '../repositories'
-import type { CredentialVault } from '../vault'
+import type { InventoryStore } from '../workspaces/inventory-store'
+import type { SecretStore } from '../workspaces/secret-store'
 import { getProtocolManager } from './sessions'
 
 function requireDatabase(sessionId: string) {
@@ -33,7 +33,11 @@ function requireDatabase(sessionId: string) {
   return session.database
 }
 
-export function registerDatabaseHandlers(repositories: Repositories, vault: CredentialVault): void {
+export function registerDatabaseHandlers(
+  /** The active workspace's accesses and passwords (an organization's live on its server). */
+  inventory: () => InventoryStore,
+  secrets: () => SecretStore
+): void {
   ipcMain.handle(IpcChannels.DB_TEST, async (_event, raw: unknown) => {
     const input = DatabaseTestInputSchema.parse(raw)
     if (!isSqlStudioEngine(input.engine)) {
@@ -44,10 +48,12 @@ export function registerDatabaseHandlers(repositories: Repositories, vault: Cred
     if (!input.password) {
       const credentialRef =
         input.credentialRef ??
-        (input.accessId ? (repositories.accesses.get(input.accessId)?.credentialRef ?? null) : null)
+        (input.accessId
+          ? ((await inventory().accesses.get(input.accessId))?.credentialRef ?? null)
+          : null)
       if (credentialRef) {
         try {
-          password = await vault.resolveSecret(credentialRef)
+          password = await secrets().resolve(credentialRef, 'session')
         } catch (error) {
           return {
             ok: false,

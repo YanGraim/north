@@ -191,7 +191,7 @@ describe('connections', () => {
     expect((await call('GET', '/api/v1/connections')).json()).toHaveLength(1)
   })
 
-  it('ignores machine-local fields (private key path, local VPN profile)', async () => {
+  it('ignores machine-local fields (private key path, a VPN id it does not know)', async () => {
     const { group } = await seedTree()
     const res = await call('POST', '/api/v1/connections', {
       groupId: group.id,
