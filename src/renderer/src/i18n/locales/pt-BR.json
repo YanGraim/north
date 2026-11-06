@@ -151,6 +151,19 @@
       "product": "Produto",
       "version": "Versão",
       "repository": "Repositório"
+    },
+    "organization": {
+      "title": "Você em {{name}}",
+      "description": "Seu papel e suas equipes nesta organização. Quem libera o acesso é um admin, no painel admin.",
+      "loading": "Carregando…",
+      "role": "Papel",
+      "admin": "Admin",
+      "member": "Membro",
+      "teams": "Equipes",
+      "noTeams": "Nenhuma",
+      "adminSees": "Como admin, você vê e edita tudo da organização.",
+      "memberSees_one": "Você vê só o que foi liberado para você ou para suas equipes: {{count}} item liberado (com tudo que está abaixo dele).",
+      "memberSees_other": "Você vê só o que foi liberado para você ou para suas equipes: {{count}} itens liberados (com tudo que está abaixo deles)."
     }
   },
   "help": {
@@ -1007,6 +1020,8 @@
       "connections_other": "{{count}} conexões",
       "accesses_one": "{{count}} acesso",
       "accesses_other": "{{count}} acessos",
+      "workflows_one": "{{count}} workflow",
+      "workflows_other": "{{count}} workflows",
       "passwords_one": "{{count}} senha",
       "passwords_other": "{{count}} senhas"
     },
@@ -1034,5 +1049,11 @@
     "pipette": "Seletor de cor do sistema",
     "swatch": "Cor {{color}}",
     "favorite": "Cor personalizada {{color}}"
+  },
+  "workflows": {
+    "updates": {
+      "ranBy": "por {{name}}",
+      "removedUser": "pessoa removida"
+    }
   }
 }

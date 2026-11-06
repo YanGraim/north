@@ -144,9 +144,24 @@ export function registerIpcHandlers(): void {
   registerStatsHandlers(repositories, inventory)
   registerInventoryHandlers(repositories, () => registry.activeSource())
   registerUpdateHandlers()
-  registerWorkflowHandlers(repositories, vault)
+  registerWorkflowHandlers(() => {
+    const store = registry.inventory()
+    const local = registry.activeSource().kind === 'local'
+    const passwords = registry.secrets()
+    return {
+      store: registry.workflows(),
+      connection: (id) => store.connections.get(id),
+      group: (id) => store.groups.get(id),
+      resolveSecret: (ref) => passwords.resolve(ref, 'session'),
+      updateConnectionCredential: local
+        ? async (id, credentialRef) => {
+            await store.connections.update(id, { credentialRef })
+          }
+        : undefined
+    }
+  }, vault)
   registerAgentWorkspaceHandlers(repositories)
-  registerEnvironmentUpdateHandlers(repositories)
+  registerEnvironmentUpdateHandlers(() => registry.workflows())
   registerTerminalHandlers()
   const monitor = registerConnectionHealthHandlers(repositories)
   // VPN profiles live on this computer; an organization only says which one (REC-023).

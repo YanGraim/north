@@ -3,6 +3,7 @@ import { DetailSection } from '@renderer/features/connections/DetailSection'
 import { startWorkflowOnConnection } from '@renderer/features/workflows/start-workflow'
 import { WorkflowHubDialog } from '@renderer/features/workflows/WorkflowHubDialog'
 import { WorkflowInputsDialog } from '@renderer/features/workflows/WorkflowInputsDialog'
+import { useCanEditGroup } from '@renderer/hooks/use-permissions'
 import { useWorkflows } from '@renderer/hooks/use-workflows'
 import type { Workflow } from '@shared/types'
 import { Pencil, Play, Plus, Workflow as WorkflowIcon } from 'lucide-react'
@@ -29,6 +30,8 @@ export function WorkflowSection({
   const [hub, setHub] = useState<HubIntent>({ open: false, workflowId: null, createMode: false })
   const [pendingWorkflow, setPendingWorkflow] = useState<Workflow | null>(null)
   const sshOk = connectionProtocol === 'ssh'
+  // In an organization, viewers run the group's workflows but do not change them.
+  const canEdit = useCanEditGroup(groupId)
 
   async function handleRun(workflow: Workflow): Promise<void> {
     if (!sshOk) return
@@ -56,17 +59,19 @@ export function WorkflowSection({
       <DetailSection
         title="Workflows"
         action={
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            data-testid="workflow-section-new"
-            onClick={() => openCreate()}
-          >
-            <Plus className="mr-1 size-3.5" />
-            Novo
-          </Button>
+          canEdit ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              data-testid="workflow-section-new"
+              onClick={() => openCreate()}
+            >
+              <Plus className="mr-1 size-3.5" />
+              Novo
+            </Button>
+          ) : undefined
         }
       >
         <div data-testid="workflow-section" className="min-w-0 space-y-1.5">
@@ -76,15 +81,17 @@ export function WorkflowSection({
             <div className="rounded-md border border-dashed border-border px-3 py-4 text-center">
               <WorkflowIcon className="mx-auto mb-2 size-5 text-muted" />
               <p className="text-sm text-muted">Nenhum workflow neste grupo.</p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-1 h-auto p-0 text-accent"
-                onClick={() => openCreate()}
-              >
-                Criar workflow…
-              </Button>
+              {canEdit ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1 h-auto p-0 text-accent"
+                  onClick={() => openCreate()}
+                >
+                  Criar workflow…
+                </Button>
+              ) : null}
             </div>
           ) : (
             <ul className="min-w-0 space-y-1">
@@ -97,7 +104,7 @@ export function WorkflowSection({
                     type="button"
                     data-testid={`workflow-item-${workflow.id}`}
                     className="min-w-0 flex-1 truncate px-1 py-1 text-left text-sm text-foreground"
-                    onClick={() => openEdit(workflow)}
+                    onClick={() => (canEdit ? openEdit(workflow) : void handleRun(workflow))}
                   >
                     {workflow.name}
                   </button>
@@ -113,22 +120,24 @@ export function WorkflowSection({
                   >
                     <Play className="size-3.5 text-accent" />
                   </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 shrink-0"
-                    data-testid={`workflow-edit-${workflow.id}`}
-                    aria-label={`Editar ${workflow.name}`}
-                    onClick={() => openEdit(workflow)}
-                  >
-                    <Pencil className="size-3.5 text-muted" />
-                  </Button>
+                  {canEdit ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 shrink-0"
+                      data-testid={`workflow-edit-${workflow.id}`}
+                      aria-label={`Editar ${workflow.name}`}
+                      onClick={() => openEdit(workflow)}
+                    >
+                      <Pencil className="size-3.5 text-muted" />
+                    </Button>
+                  ) : null}
                 </li>
               ))}
             </ul>
           )}
-          {workflows.length > 0 ? (
+          {workflows.length > 0 && canEdit ? (
             <Button
               type="button"
               variant="ghost"

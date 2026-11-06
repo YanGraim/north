@@ -45,3 +45,11 @@ The update history shows up in two places:
 - **Connection panel** → **Updates** section, right below Workflows — the same view, filtered to that connection's environment.
 
 In both, history is scoped per **environment**: if two different connections (e.g. backend and frontend) update the same environment via separate workflows, it all shows up together.
+
+## In an organization
+
+In an organization, workflows and group variables live on the North Server and are shared with the whole team. Whoever has access to the group (or the environment or client above it) sees and runs its workflows; only Editors and Admins create and change them. Someone given a single connection does not see the group's workflows.
+
+The workflow runs on your computer, with your access: if the client uses a VPN, it comes up by itself before the first step and goes down afterwards, just like SSH. The same holds in My workspace. The run history and the Git and sudo passwords you save stay on this computer only.
+
+With Git tracking on, each update goes to the server with the name of who ran it: **Latest updates** shows "by Someone" next to the commit, so the whole team knows who updated each environment.

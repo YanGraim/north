@@ -31,37 +31,39 @@ export class ConnectionSecretsRepository {
   private readonly deleteStmt
   private readonly deleteByKindStmt
 
-  constructor(db: SqliteDatabase) {
+  /** `table` is the organization copy (no foreign keys) for runs of a server's workflows. */
+  constructor(
+    db: SqliteDatabase,
+    table: 'connection_secrets' | 'organization_connection_secrets' = 'connection_secrets'
+  ) {
     this.listByConnectionStmt = db.prepare(`
       SELECT id, connection_id, kind, credential_ref, created_at, updated_at
-      FROM connection_secrets
+      FROM ${table}
       WHERE connection_id = ?
       ORDER BY kind COLLATE NOCASE ASC
     `)
     this.getByKindStmt = db.prepare(`
       SELECT id, connection_id, kind, credential_ref, created_at, updated_at
-      FROM connection_secrets
+      FROM ${table}
       WHERE connection_id = ? AND kind = ?
     `)
     this.getStmt = db.prepare(`
       SELECT id, connection_id, kind, credential_ref, created_at, updated_at
-      FROM connection_secrets
+      FROM ${table}
       WHERE id = ?
     `)
     this.insertStmt = db.prepare(`
-      INSERT INTO connection_secrets
+      INSERT INTO ${table}
         (id, connection_id, kind, credential_ref, created_at, updated_at)
       VALUES (@id, @connection_id, @kind, @credential_ref, @created_at, @updated_at)
     `)
     this.updateStmt = db.prepare(`
-      UPDATE connection_secrets
+      UPDATE ${table}
       SET credential_ref = @credential_ref, updated_at = @updated_at
       WHERE id = @id
     `)
-    this.deleteStmt = db.prepare(`DELETE FROM connection_secrets WHERE id = ?`)
-    this.deleteByKindStmt = db.prepare(
-      `DELETE FROM connection_secrets WHERE connection_id = ? AND kind = ?`
-    )
+    this.deleteStmt = db.prepare(`DELETE FROM ${table} WHERE id = ?`)
+    this.deleteByKindStmt = db.prepare(`DELETE FROM ${table} WHERE connection_id = ? AND kind = ?`)
   }
 
   listByConnection(connectionId: string): ConnectionSecret[] {

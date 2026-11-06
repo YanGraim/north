@@ -172,6 +172,42 @@ test('a team shares a group with everyone in it, and leaving takes it away', asy
   expect(await member.connections()).toEqual([])
 })
 
+test('checks several items and shares them in one go', async ({ page }) => {
+  await signIn(page)
+  const email = unique('lia')
+  await addPerson(page, email)
+  const member = await memberApi(page, email)
+  const picker = page.getByTestId('grant-picker')
+
+  // A checked parent already covers what is under it.
+  await picker.getByTestId('check-Prod').check()
+  await expect(picker.getByTestId('check-web-01')).toBeDisabled()
+  await expect(picker.getByTestId('check-web-01')).toBeChecked()
+  await picker.getByTestId('check-Prod').uncheck()
+
+  await picker.getByTestId('check-Web').check()
+  await picker.getByTestId('check-pg-prod').check()
+  await picker.getByRole('button', { name: 'Liberar 2' }).click()
+  await expect(page.getByTestId('grant-Web')).toBeVisible()
+  await expect(page.getByTestId('grant-pg-prod')).toBeVisible()
+  expect((await member.connections()).map((c: { name: string }) => c.name).sort()).toEqual([
+    'web-01',
+    'web-02'
+  ])
+  expect((await member.accesses()).map((a: { name: string }) => a.name)).toEqual(['pg-prod'])
+})
+
+test('a team page without Entra shows no stray text', async ({ page }) => {
+  await signIn(page)
+  const team = `Infra ${Date.now()}`
+  await nav(page, 'Equipes').click()
+  await page.getByRole('button', { name: 'Nova equipe' }).click()
+  await page.getByLabel('Nome da equipe').fill(team)
+  await page.getByRole('button', { name: 'Criar' }).click()
+  await expect(page.getByRole('heading', { name: team })).toBeVisible()
+  await expect(page.locator('main')).not.toContainText('null')
+})
+
 test('disabling a person cuts their sign-in', async ({ page }) => {
   await signIn(page)
   const email = unique('ida')

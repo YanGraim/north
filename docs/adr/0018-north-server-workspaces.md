@@ -159,3 +159,12 @@ Pedido da equipe (2026-10-23): a empresa dá acesso a um servidor e a pessoa con
   - No desktop, `OrganizationVpnBridge` traduz na fronteira do `RemoteInventoryStore`. Na leitura: link salvo → perfil com o mesmo gateway → perfil novo sem usuário. Na escrita: link salvo → modelo existente com o mesmo gateway → publica um modelo. Daí para dentro (sessões, `VpnGate`, UI) só circulam ids locais.
   - Os perfis de VPN viraram dado da máquina: aparecem em todos os workspaces.
 - **Alternativa descartada:** guardar a credencial de VPN no servidor, como as senhas das conexões. Na FortiGate, cada pessoa tem o próprio login, e um login compartilhado derruba sessões e apaga a trilha de quem conectou.
+
+## Notas de implementação — Fase 9 (workflows na organização, 2026-11-06)
+
+- **Definição no servidor, execução no computador:** migration `010-workflows` cria `workflows`, `group_variables` e `environment_updates`. O run e o log continuam locais (`organization_workflow_runs`, migration local 024, sem FKs porque o workflow e a conexão estão no servidor).
+- **Permissão:** os workflows seguem o grupo, por `AccessView.canUse('group')`: concedido no grupo ou acima. Ser só caminho até uma conexão não mostra os workflows do grupo, que podem rodar em qualquer conexão dele.
+- **Senhas de Git e sudo:** ficam no vault local (`organization_connection_secrets`), por pessoa; o servidor não as recebe. A senha da conexão continua vindo do envelope do servidor na hora.
+- **Controle:** `environment_updates.user_id` registra quem rodou; a lista é filtrada por quem pode ver a conexão.
+- **VPN:** o run e a listagem de tags pegam uma concessão no `VpnGate` (`prepareFollowVpn`), como as sessões e o log follow.
+- **Alternativa descartada:** rodar workflows no servidor. Exigiria que o servidor alcançasse as redes dos clientes e guardasse as credenciais de VPN, o oposto da Fase 8.

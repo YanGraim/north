@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type Socket, connect as tcpConnect } from 'node:net'
 import { join } from 'node:path'
 import { SECRET_INLINE_BLOCKS } from '@shared/lib/vpn/ovpn-parse'
@@ -29,7 +29,15 @@ export type OpenVpnDriverDeps = {
   helper?: Pick<VpnHelper, 'ensure' | 'startOpenvpn'>
   /** Windows: install the OpenVPN service once (UAC) before the first launch. */
   prepare?: () => Promise<void>
+  /**
+   * Windows: the Interactive Service drops openvpn.exe's output, so an early exit
+   * (bad option, adapter, refused config) left no trace. openvpn writes it to a file
+   * instead, shown in the VPN log when the process dies before management answers.
+   */
+  logToFile?: boolean
 }
+
+const EARLY_LOG_LINES = 60
 
 const LOOPBACK = '127.0.0.1'
 
@@ -170,6 +178,7 @@ export class OpenVpnDriver implements VpnDriver {
     const token = randomBytes(8).toString('hex')
     const configPath = join(this.deps.tmpDir, `${profile.id}-${token}.ovpn`)
     const pwPath = join(this.deps.tmpDir, `${profile.id}-${token}.mgmt`)
+    const logPath = join(this.deps.tmpDir, `${profile.id}-${token}.log`)
     const mgmtPassword = randomBytes(24).toString('hex')
     const fullConfig = buildConfig(config.ovpn, secrets.inlineBlocks())
     const port = await freePort()
@@ -205,7 +214,7 @@ export class OpenVpnDriver implements VpnDriver {
       )
       exited = this.run.exited
     } else {
-      this.files = [configPath, pwPath]
+      this.files = this.deps.logToFile ? [configPath, pwPath, logPath] : [configPath, pwPath]
       writeFileSync(configPath, fullConfig, { mode: 0o600 })
       writeFileSync(pwPath, `${mgmtPassword}\n`, { mode: 0o600 })
       const args = [
@@ -219,7 +228,8 @@ export class OpenVpnDriver implements VpnDriver {
         '--management-hold',
         '--auth-nocache',
         '--auth-retry',
-        'none'
+        'none',
+        ...(this.deps.logToFile ? ['--log', logPath] : [])
       ]
       this.stdoutFeed = false
       exited = this.deps.broker.launch(binary, args).exited
@@ -227,6 +237,10 @@ export class OpenVpnDriver implements VpnDriver {
     }
     this.exited = exited.then((result) => {
       this.hasExited = true
+      // management replays the log once attached; before that, only the file has it
+      if (this.deps.logToFile && !this.socket) {
+        for (const line of readEarlyLog(logPath)) log(line)
+      }
       this.onProcessExit()
       if (!this.connected) {
         failWith(
@@ -463,6 +477,21 @@ export class OpenVpnDriver implements VpnDriver {
     for (const file of this.files) rmSync(file, { force: true })
     this.files = []
     if (this.profileId) this.deps.tunnels.remove(this.profileId)
+  }
+}
+
+function readEarlyLog(path: string): string[] {
+  try {
+    const lines = readFileSync(path, 'utf8')
+      .split(/\r?\n/)
+      .map((line) => line.replace(OPENVPN_LOG_LINE, '').trim())
+      .filter(Boolean)
+    if (lines.length === 0) return []
+    return ['[north] log do OpenVPN:', ...lines.slice(-EARLY_LOG_LINES)]
+  } catch {
+    return [
+      '[north] o OpenVPN encerrou sem gravar log (o serviço do OpenVPN pode ter recusado a configuração)'
+    ]
   }
 }
 

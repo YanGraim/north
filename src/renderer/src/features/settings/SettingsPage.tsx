@@ -36,6 +36,7 @@ import {
   type MonoFontFamily,
   resolveMonoFontStack
 } from '@renderer/lib/mono-font'
+import { queryKeys } from '@renderer/lib/query-keys'
 import { SHORTCUTS, shortcutDisplayLabel } from '@renderer/lib/shortcuts'
 import { toastError } from '@renderer/lib/toast'
 import {
@@ -48,7 +49,7 @@ import { useWhatsNewStore } from '@renderer/stores/whats-new-store'
 import type { CloseToTrayState } from '@shared/ipc'
 import { isThemePreference } from '@shared/lib/theme'
 import type { UpdateStatus } from '@shared/types'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BookOpen,
   Copy,
@@ -139,7 +140,8 @@ export function SettingsPage(): React.JSX.Element {
   >(null)
   const [csvSecretsOpen, setCsvSecretsOpen] = useState(false)
   // JSON backup is a personal-workspace tool; an organization takes CSV (servers only).
-  const inOrganization = useCurrentWorkspace()?.kind === 'organization'
+  const workspace = useCurrentWorkspace()
+  const inOrganization = workspace?.kind === 'organization'
   const [copyFromOpen, setCopyFromOpen] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
   const updatesDisabled = updatesLikelyDisabledInDev()
@@ -310,6 +312,19 @@ export function SettingsPage(): React.JSX.Element {
               <p className="text-xs text-muted">{t('settings.profile.localNote')}</p>
             </div>
           </SettingsSection>
+
+          {inOrganization ? (
+            <>
+              <Separator />
+              <SettingsSection
+                id="organization-access"
+                title={t('settings.organization.title', { name: workspace?.name ?? '' })}
+                description={t('settings.organization.description')}
+              >
+                <OrganizationAccess />
+              </SettingsSection>
+            </>
+          ) : null}
 
           <Separator />
 
@@ -790,6 +805,41 @@ function SettingsSection({
       </div>
       {children}
     </section>
+  )
+}
+
+/** Role, teams and what is granted in the active organization (REC-024). */
+function OrganizationAccess(): React.JSX.Element {
+  const { t } = useTranslation()
+  const { data: access } = useQuery({
+    queryKey: queryKeys.workspaces.access,
+    queryFn: () => window.north.workspaces.access(),
+    staleTime: 60_000
+  })
+  if (!access) return <p className="text-xs text-muted">{t('settings.organization.loading')}</p>
+  const granted = access.grants.length + access.connectionGrants.length + access.accessGrants.length
+  return (
+    <div className="space-y-2" data-testid="organization-access">
+      <Row label={t('settings.organization.role')}>
+        <span className="text-foreground">
+          {access.role === 'admin'
+            ? t('settings.organization.admin')
+            : t('settings.organization.member')}
+        </span>
+      </Row>
+      <Row label={t('settings.organization.teams')}>
+        <span className="truncate text-right text-foreground">
+          {access.teams.length > 0
+            ? access.teams.map((team) => team.name).join(', ')
+            : t('settings.organization.noTeams')}
+        </span>
+      </Row>
+      <p className="text-xs text-muted">
+        {access.role === 'admin'
+          ? t('settings.organization.adminSees')
+          : t('settings.organization.memberSees', { count: granted })}
+      </p>
+    </div>
   )
 }
 

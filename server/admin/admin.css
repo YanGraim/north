@@ -753,6 +753,22 @@ button.item:hover {
   color: var(--muted);
 }
 
+.tree-check {
+  margin: 0 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Already included by a checked parent. */
+.tree-row.covered {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.tree-row.covered:hover {
+  background: transparent;
+}
+
 .tree-row[aria-current="true"] .icon {
   color: var(--accent);
 }
@@ -780,8 +796,13 @@ button.item:hover {
 }
 
 .picker .search {
+  gap: 6px;
   padding: 8px;
   border-bottom: 1px solid var(--border);
+}
+
+.picker .search .btn {
+  flex-shrink: 0;
 }
 
 .picker .search .icon {

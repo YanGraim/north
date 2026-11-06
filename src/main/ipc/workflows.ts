@@ -12,9 +12,13 @@ import {
 } from '@shared/types'
 import { ipcMain } from 'electron'
 import { z } from 'zod'
-import type { Repositories } from '../repositories'
-import { broadcastWorkflowEvent, WorkflowService } from '../services/workflows/workflow-service'
+import {
+  broadcastWorkflowEvent,
+  type WorkflowScope,
+  WorkflowService
+} from '../services/workflows/workflow-service'
 import type { CredentialVault } from '../vault'
+import { getProtocolManager } from './sessions'
 
 const LimitSchema = z.number().int().positive().max(100).optional()
 const KindSchema = z.string().min(1)
@@ -35,10 +39,22 @@ export function getWorkflowService(): WorkflowService {
   return workflowService
 }
 
-export function registerWorkflowHandlers(repos: Repositories, vault: CredentialVault): void {
-  workflowService = new WorkflowService(repos, vault, (runId, event) => {
-    broadcastWorkflowEvent(IpcChannels.WORKFLOWS_RUN_EVENT, { runId, event })
-  })
+/**
+ * Workflows follow the active workspace (REC-024): the definition from SQLite
+ * or the North Server, the run always here, behind the client's VPN.
+ */
+export function registerWorkflowHandlers(scope: () => WorkflowScope, vault: CredentialVault): void {
+  workflowService = new WorkflowService(
+    scope,
+    vault,
+    (runId, event) => {
+      broadcastWorkflowEvent(IpcChannels.WORKFLOWS_RUN_EVENT, { runId, event })
+    },
+    {
+      ensure: (connection, leaseId) => getProtocolManager().prepareFollowVpn(connection, leaseId),
+      release: (leaseId) => getProtocolManager().releaseFollowVpn(leaseId)
+    }
+  )
 
   const service = workflowService
 
@@ -63,19 +79,17 @@ export function registerWorkflowHandlers(repos: Repositories, vault: CredentialV
     )
   })
 
-  ipcMain.handle(IpcChannels.WORKFLOWS_UPDATE, (_e, id: unknown, input: unknown) => {
+  ipcMain.handle(IpcChannels.WORKFLOWS_UPDATE, async (_e, id: unknown, input: unknown) => {
     return requireEntity(
-      service.updateWorkflow(IdSchema.parse(id), UpdateWorkflowInputSchema.parse(input)),
+      await service.updateWorkflow(IdSchema.parse(id), UpdateWorkflowInputSchema.parse(input)),
       'Workflow'
     )
   })
 
-  ipcMain.handle(IpcChannels.WORKFLOWS_DELETE, (_e, id: unknown) => {
-    const workflowId = IdSchema.parse(id)
-    if (!service.getWorkflow(workflowId)) {
+  ipcMain.handle(IpcChannels.WORKFLOWS_DELETE, async (_e, id: unknown) => {
+    if (!(await service.deleteWorkflow(IdSchema.parse(id)))) {
       throw new Error('Workflow not found')
     }
-    service.deleteWorkflow(workflowId)
   })
 
   ipcMain.handle(IpcChannels.WORKFLOWS_LIST_VARIABLES, (_e, groupId: unknown) => {
@@ -86,19 +100,17 @@ export function registerWorkflowHandlers(repos: Repositories, vault: CredentialV
     return service.createVariable(CreateGroupVariableInputSchema.parse(input))
   })
 
-  ipcMain.handle(IpcChannels.WORKFLOWS_UPDATE_VARIABLE, (_e, id: unknown, input: unknown) => {
+  ipcMain.handle(IpcChannels.WORKFLOWS_UPDATE_VARIABLE, async (_e, id: unknown, input: unknown) => {
     return requireEntity(
-      service.updateVariable(IdSchema.parse(id), UpdateGroupVariableInputSchema.parse(input)),
+      await service.updateVariable(IdSchema.parse(id), UpdateGroupVariableInputSchema.parse(input)),
       'GroupVariable'
     )
   })
 
-  ipcMain.handle(IpcChannels.WORKFLOWS_DELETE_VARIABLE, (_e, id: unknown) => {
-    const variableId = IdSchema.parse(id)
-    if (!repos.groupVariables.get(variableId)) {
+  ipcMain.handle(IpcChannels.WORKFLOWS_DELETE_VARIABLE, async (_e, id: unknown) => {
+    if (!(await service.deleteVariable(IdSchema.parse(id)))) {
       throw new Error('GroupVariable not found')
     }
-    service.deleteVariable(variableId)
   })
 
   ipcMain.handle(IpcChannels.WORKFLOWS_LIST_RUNS, (_e, groupId: unknown, limit?: unknown) => {

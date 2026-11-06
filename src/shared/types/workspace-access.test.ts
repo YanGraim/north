@@ -12,7 +12,7 @@ const member = (
   grants: WorkspaceAccess['grants'],
   connectionGrants: WorkspaceAccess['connectionGrants'] = [],
   accessGrants: WorkspaceAccess['accessGrants'] = []
-): WorkspaceAccess => ({ role: 'member', grants, connectionGrants, accessGrants })
+): WorkspaceAccess => ({ role: 'member', grants, connectionGrants, accessGrants, teams: [] })
 
 describe('permissionsFor', () => {
   it('a grant on one connection covers only that connection', () => {
@@ -46,7 +46,13 @@ describe('permissionsFor', () => {
   it('the personal workspace and admins can do everything', () => {
     for (const access of [
       FULL_ACCESS,
-      { role: 'admin', grants: [], connectionGrants: [], accessGrants: [] } as WorkspaceAccess
+      {
+        role: 'admin',
+        grants: [],
+        connectionGrants: [],
+        accessGrants: [],
+        teams: []
+      } as WorkspaceAccess
     ]) {
       const can = permissionsFor(access)
       expect(can.createClient).toBe(true)

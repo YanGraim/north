@@ -1,5 +1,5 @@
 import type { Connection } from '@shared/types'
-import { Client, type ClientChannel } from 'ssh2'
+import { Client, type ClientChannel, type ExecOptions } from 'ssh2'
 import { attachKeyboardInteractivePassword, buildSshConnectConfig } from '../../protocols/ssh-auth'
 
 export type RemoteExecResult = {
@@ -58,13 +58,24 @@ export class RemoteExecService {
     })
 
     let disposed = false
+    // Like the terminal (`ssh -A`): forward the local agent on each channel so
+    // `git pull` on the server can use the keys loaded with ssh-add.
+    let forwardAgent = opts.connection.agentForward && connectConfig.agent !== undefined
 
     return {
       async exec(command, execOpts = {}) {
         if (disposed) {
           throw new Error('Remote exec session already disposed')
         }
-        return execOnClient(client, command, execOpts)
+        try {
+          return await execOnClient(client, command, execOpts, forwardAgent)
+        } catch (err) {
+          if (!forwardAgent || !/agent forwarding/i.test((err as Error).message)) throw err
+          // The server refused forwarding (AllowAgentForwarding no): run without it.
+          forwardAgent = false
+          execOpts.onStderr?.(`${AGENT_REFUSED}\n`)
+          return execOnClient(client, command, execOpts, false)
+        }
       },
       async dispose() {
         if (disposed) return
@@ -76,6 +87,9 @@ export class RemoteExecService {
   }
 }
 
+const AGENT_REFUSED =
+  'O servidor recusou o encaminhamento do agente SSH (veja AllowAgentForwarding no sshd_config).'
+
 function execOnClient(
   client: Client,
   command: string,
@@ -83,7 +97,8 @@ function execOnClient(
     timeoutMs?: number
     onStdout?: (chunk: string) => void
     onStderr?: (chunk: string) => void
-  }
+  },
+  forwardAgent = false
 ): Promise<RemoteExecResult> {
   return new Promise((resolve, reject) => {
     let settled = false
@@ -109,7 +124,9 @@ function execOnClient(
       }, opts.timeoutMs)
     }
 
-    client.exec(command, (err: Error | undefined, stream: ClientChannel) => {
+    // ssh2 honors `agentForward` per channel; @types/ssh2 just doesn't declare it.
+    const execOptions = { agentForward: forwardAgent } as ExecOptions
+    client.exec(command, execOptions, (err: Error | undefined, stream: ClientChannel) => {
       if (err) {
         finish(err)
         return

@@ -395,6 +395,60 @@ export const migrations: Migration[] = [
         WHERE team_id IS NOT NULL;
       CREATE INDEX idx_project_grants_scope ON project_grants(scope_id);
     `
+  },
+  {
+    // REC-024: workflows and group variables live in the organization; each
+    // person runs them on their own computer (runs and git/sudo passwords stay
+    // there). Environment updates record who ran them, for the whole team.
+    version: 10,
+    name: '010-workflows',
+    sql: `
+      CREATE TABLE workflows (
+        id UUID PRIMARY KEY,
+        group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        description TEXT,
+        icon TEXT,
+        preferred_connection_id UUID REFERENCES connections(id) ON DELETE SET NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        definition JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX idx_workflows_group ON workflows(group_id);
+
+      CREATE TABLE group_variables (
+        id UUID PRIMARY KEY,
+        group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        description TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (group_id, key)
+      );
+
+      CREATE TABLE environment_updates (
+        id UUID PRIMARY KEY,
+        environment_id UUID NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
+        connection_id UUID NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+        workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+        -- the run itself stays on the computer that ran it
+        workflow_run_id UUID NOT NULL,
+        user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        branch TEXT NOT NULL,
+        previous_commit TEXT NOT NULL,
+        current_commit TEXT NOT NULL,
+        started_at TIMESTAMPTZ NOT NULL,
+        finished_at TIMESTAMPTZ NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('success', 'failed')),
+        commits JSONB NOT NULL,
+        files_changed INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX idx_environment_updates_env ON environment_updates(environment_id, started_at DESC);
+      CREATE INDEX idx_environment_updates_started ON environment_updates(started_at DESC);
+    `
   }
 ]
 

@@ -77,6 +77,7 @@ export type CopyToWorkspaceReport = {
     groups: number
     connections: number
     accesses: number
+    workflows: number
   }
   passwordsCopied: number
   /** What was left out and why (API collections, a password you may not read, a jump host…). */

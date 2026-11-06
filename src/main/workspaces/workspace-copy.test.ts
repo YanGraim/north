@@ -90,7 +90,8 @@ describe('copy from Meu workspace to an organization', () => {
       environments: 1,
       groups: 1,
       connections: 2,
-      accesses: 1
+      accesses: 1,
+      workflows: 0
     })
     expect(report.passwordsCopied).toBe(1)
     expect(report.warnings).toEqual([])
@@ -112,6 +113,69 @@ describe('copy from Meu workspace to an organization', () => {
     expect(accesses).toEqual([
       expect.objectContaining({ name: 'portal', type: 'login', url: 'https://portal.example' })
     ])
+  })
+
+  it('takes the group workflows and variables along, there and back', async () => {
+    const { registry, local, vault, org } = await setup()
+    const { client, group, web } = seedLocal(local, vault)
+    local.groupVariables.create({ groupId: group.id, key: 'APP_DIR', value: '/srv/app' })
+    local.workflows.create({
+      groupId: group.id,
+      name: 'Atualizar backend',
+      preferredConnectionId: web.id,
+      definition: {
+        schemaVersion: 1,
+        inputs: [],
+        steps: [
+          {
+            id: crypto.randomUUID(),
+            type: 'ssh.exec',
+            name: 'pull',
+            policy: { onFailure: 'stop' },
+            config: { command: 'git pull' }
+          }
+        ],
+        tracking: { type: 'git-update', repositoryPath: '/srv/app' }
+      }
+    })
+    const report = await registry.copyToWorkspace({
+      kind: 'client',
+      id: client.id,
+      targetWorkspaceId: org.id,
+      targetParentId: null,
+      includePasswords: false
+    })
+    expect(report.created.workflows).toBe(1)
+    expect(report.warnings).toEqual([])
+
+    await registry.activate(org.id)
+    const [orgEnv] = await registry.inventory().environments.list(report.root.id)
+    const [orgGroup] = await registry.inventory().groups.list(orgEnv.id)
+    const orgWeb = (await registry.inventory().connections.list({ groupId: orgGroup.id })).find(
+      (c) => c.name === 'web-01'
+    )
+    const [workflow] = await registry.workflows().workflows.listByGroup(orgGroup.id)
+    expect(workflow).toMatchObject({
+      name: 'Atualizar backend',
+      preferredConnectionId: orgWeb?.id,
+      definition: { tracking: { repositoryPath: '/srv/app' } }
+    })
+    expect(await registry.workflows().variables.listByGroup(orgGroup.id)).toMatchObject([
+      { key: 'APP_DIR', value: '/srv/app' }
+    ])
+
+    // And back into Meu workspace, from the organization.
+    const back = await registry.copyToWorkspace({
+      kind: 'group',
+      id: orgGroup.id,
+      sourceWorkspaceId: org.id,
+      targetWorkspaceId: LOCAL_WORKSPACE_ID,
+      targetParentId: local.environments.list(client.id)[0].id,
+      includePasswords: false
+    })
+    expect(back.created.workflows).toBe(1)
+    expect(local.workflows.listByGroup(back.root.id)).toHaveLength(1)
+    expect(local.groupVariables.toRecord(back.root.id)).toEqual({ APP_DIR: '/srv/app' })
   })
 
   it('takes the client VPN along; another computer gets it without anyone’s login', async () => {

@@ -28,7 +28,9 @@ export const WorkspaceAccessSchema = z.object({
   /** Servers before teams/connection grants do not send it. */
   connectionGrants: z.array(ConnectionGrantSchema).default([]),
   /** Servers before organization accesses (REC-023) do not send it. */
-  accessGrants: z.array(AccessGrantSchema).default([])
+  accessGrants: z.array(AccessGrantSchema).default([]),
+  /** The teams the person is in (REC-024); servers before it do not send it. */
+  teams: z.array(z.object({ id: z.string(), name: z.string() })).default([])
 })
 
 export type ProjectGrant = z.infer<typeof ProjectGrantSchema>
@@ -41,7 +43,8 @@ export const FULL_ACCESS: WorkspaceAccess = {
   role: 'admin',
   grants: [],
   connectionGrants: [],
-  accessGrants: []
+  accessGrants: [],
+  teams: []
 }
 
 export type ProjectPath = {

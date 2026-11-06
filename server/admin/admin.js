@@ -70,8 +70,12 @@ const STRINGS = {
     giveAccess: 'Dar acesso',
     giveAccessHint: 'Escolha o que liberar. Vale para o item escolhido e tudo abaixo dele.',
     searchTree: 'Buscar cliente, grupo ou conexão',
-    pickSomething: 'Escolha um item na lista.',
+    pickSomething: 'Marque um ou mais itens na lista.',
     give: 'Liberar',
+    giveMany: 'Liberar {count}',
+    selectedCount: '{count} itens marcados',
+    selectAllClients: 'Marcar todos os clientes',
+    clear: 'Limpar',
     editor: 'Editor',
     viewer: 'Visualizador',
     editorHelp: 'Conecta, vê as senhas e edita.',
@@ -208,8 +212,12 @@ const STRINGS = {
     giveAccess: 'Give access',
     giveAccessHint: 'Pick what to share. It covers the chosen item and everything under it.',
     searchTree: 'Search client, group or connection',
-    pickSomething: 'Pick an item from the list.',
+    pickSomething: 'Check one or more items in the list.',
     give: 'Share',
+    giveMany: 'Share {count}',
+    selectedCount: '{count} items checked',
+    selectAllClients: 'Check all clients',
+    clear: 'Clear',
     editor: 'Editor',
     viewer: 'Viewer',
     editorHelp: 'Connects, sees passwords and edits.',
@@ -346,8 +354,12 @@ const STRINGS = {
     giveAccess: 'Dar acceso',
     giveAccessHint: 'Elige qué compartir. Vale para el elemento elegido y todo lo que hay debajo.',
     searchTree: 'Buscar cliente, grupo o conexión',
-    pickSomething: 'Elige un elemento de la lista.',
+    pickSomething: 'Marca uno o más elementos de la lista.',
     give: 'Compartir',
+    giveMany: 'Compartir {count}',
+    selectedCount: '{count} elementos marcados',
+    selectAllClients: 'Marcar todos los clientes',
+    clear: 'Limpiar',
     editor: 'Editor',
     viewer: 'Lector',
     editorHelp: 'Conecta, ve las contraseñas y edita.',
@@ -1081,15 +1093,33 @@ function nodeLabel(id) {
  * The organization's tree down to each connection. `onPick` makes rows
  * selectable; the search keeps matches and the parents that lead to them.
  */
-function projectTree({ selected, onPick, query = '' }) {
+function projectTree({ selected, onPick, query = '', checked = null, onToggle = null }) {
   const { clients, environments, groups, connections, accesses } = state.data
   const q = query.trim().toLowerCase()
   const matches = (node) =>
     !q || [node.name, node.host, node.url].filter(Boolean).join(' ').toLowerCase().includes(q)
 
-  const row = (type, item, children) => {
+  // With `checked`, rows carry a checkbox: several items are shared in one go.
+  // Under a checked item everything is already included, so it shows as such.
+  const row = (type, item, children, covered = false) => {
     const keep = matches(item) || children.length > 0
     if (!keep) return null
+    const node = { type, id: item.id, name: item.name }
+    const isChecked = checked ? checked.has(item.id) : false
+    const box = checked
+      ? h('input', {
+          type: 'checkbox',
+          class: 'tree-check',
+          checked: isChecked || covered,
+          disabled: covered,
+          'aria-label': item.name,
+          testid: `check-${item.name}`,
+          onclick: (event) => {
+            event.stopPropagation()
+            onToggle(node, event.target.checked)
+          }
+        })
+      : null
     return h(
       'li',
       {},
@@ -1097,11 +1127,13 @@ function projectTree({ selected, onPick, query = '' }) {
         'button',
         {
           type: 'button',
-          class: 'tree-row',
-          'aria-current': String(selected === item.id),
+          class: covered ? 'tree-row covered' : 'tree-row',
+          'aria-current': String(checked ? isChecked : selected === item.id),
           testid: `project-${item.name}`,
-          onclick: () => onPick({ type, id: item.id, name: item.name })
+          disabled: covered,
+          onclick: () => (checked ? onToggle(node, !isChecked) : onPick(node))
         },
+        box,
         icon(type),
         h('span', { class: 'tree-name' }, item.name),
         item.host || item.url ? h('span', { class: 'tree-host' }, item.host ?? item.url) : null
@@ -1109,38 +1141,46 @@ function projectTree({ selected, onPick, query = '' }) {
       children.length ? h('ul', {}, children) : null
     )
   }
+  const under = (covered, id) => covered || (checked ? checked.has(id) : false)
 
   const items = clients
-    .map((c) =>
-      row(
+    .map((c) => {
+      const cc = under(false, c.id)
+      return row(
         'client',
         c,
         environments
           .filter((e) => e.clientId === c.id)
-          .map((e) =>
-            row(
+          .map((e) => {
+            const ec = under(cc, e.id)
+            return row(
               'environment',
               e,
               groups
                 .filter((g) => g.environmentId === e.id)
-                .map((g) =>
-                  row(
+                .map((g) => {
+                  const gc = under(ec, g.id)
+                  return row(
                     'group',
                     g,
                     [
                       ...connections
                         .filter((k) => k.groupId === g.id)
-                        .map((k) => row('connection', k, [])),
-                      ...accesses.filter((a) => a.groupId === g.id).map((a) => row('access', a, []))
-                    ].filter(Boolean)
+                        .map((k) => row('connection', k, [], gc)),
+                      ...accesses
+                        .filter((a) => a.groupId === g.id)
+                        .map((a) => row('access', a, [], gc))
+                    ].filter(Boolean),
+                    ec
                   )
-                )
-                .filter(Boolean)
+                })
+                .filter(Boolean),
+              cc
             )
-          )
+          })
           .filter(Boolean)
       )
-    )
+    })
     .filter(Boolean)
 
   if (clients.length === 0) return h('p', { class: 'empty' }, t('noClients'))
@@ -1148,44 +1188,96 @@ function projectTree({ selected, onPick, query = '' }) {
   return h('ul', { class: 'tree' }, items)
 }
 
-/** Search + tree + role + button, for giving one person or team access. */
+/** Every node under `id` (not `id` itself), to drop what a checked parent already covers. */
+function descendantsOf(id) {
+  const { environments, groups, connections, accesses } = state.data
+  const out = new Set()
+  const envs = environments.filter((e) => e.clientId === id || e.id === id).map((e) => e.id)
+  for (const e of envs) if (e !== id) out.add(e)
+  const grps = groups.filter((g) => envs.includes(g.environmentId) || g.id === id).map((g) => g.id)
+  for (const g of grps) if (g !== id) out.add(g)
+  for (const k of [...connections, ...accesses]) if (grps.includes(k.groupId)) out.add(k.id)
+  return out
+}
+
+/** Search + tree with checkboxes + role + button: share several items with a person or team at once. */
 function grantPicker(principal) {
-  let picked = null
+  const checked = new Map()
   let query = ''
   const treeSlot = h('div', {})
   const pickedSlot = h('span', { class: 'picked muted' }, t('pickSomething'))
   const role = roleSelect(`grant-role-${principal.id}`)
   const give = h('button', { class: 'btn primary', type: 'button', disabled: true }, t('give'))
+  const allClients = h(
+    'button',
+    { class: 'btn sm ghost', type: 'button', testid: 'grant-all-clients' },
+    t('selectAllClients')
+  )
+  const clear = h('button', { class: 'btn sm ghost', type: 'button', hidden: true }, t('clear'))
+
+  /** What will be sent: checked items whose parent is not checked too. */
+  const chosen = () => {
+    const covered = new Set()
+    for (const id of checked.keys()) for (const d of descendantsOf(id)) covered.add(d)
+    return [...checked.values()].filter((node) => !covered.has(node.id))
+  }
 
   const draw = () => {
+    const items = chosen()
+    give.disabled = items.length === 0
+    clear.hidden = items.length === 0
+    give.textContent = items.length > 1 ? t('giveMany', { count: items.length }) : t('give')
+    if (items.length === 0) {
+      pickedSlot.className = 'picked muted'
+      pickedSlot.replaceChildren(t('pickSomething'))
+    } else {
+      pickedSlot.className = 'picked'
+      pickedSlot.replaceChildren(
+        items.length === 1
+          ? h(
+              'span',
+              {},
+              h('strong', {}, items[0].name),
+              ' ',
+              h('span', { class: 'path' }, pathOf(items[0].id).slice(0, -1).join(' › '))
+            )
+          : h('strong', {}, t('selectedCount', { count: items.length }))
+      )
+    }
     treeSlot.replaceChildren(
       projectTree({
-        selected: picked?.id,
         query,
-        onPick: (node) => {
-          picked = node
-          give.disabled = false
-          pickedSlot.className = 'picked'
-          pickedSlot.replaceChildren(
-            h('strong', {}, node.name),
-            ' ',
-            h('span', { class: 'path' }, pathOf(node.id).slice(0, -1).join(' › '))
-          )
+        checked: new Set(checked.keys()),
+        onToggle: (node, on) => {
+          if (on) checked.set(node.id, node)
+          else checked.delete(node.id)
           draw()
         }
       })
     )
   }
+  allClients.addEventListener('click', () => {
+    for (const c of state.data.clients)
+      checked.set(c.id, { type: 'client', id: c.id, name: c.name })
+    draw()
+  })
+  clear.addEventListener('click', () => {
+    checked.clear()
+    draw()
+  })
   give.addEventListener('click', () => {
-    if (!picked) return
-    change(() =>
-      api('PUT', '/api/v1/admin/grants', {
-        [principal.kind === 'team' ? 'teamId' : 'userId']: principal.id,
-        scopeType: picked.type,
-        scopeId: picked.id,
-        role: role.value
-      })
-    )
+    const items = chosen()
+    if (items.length === 0) return
+    change(async () => {
+      for (const node of items) {
+        await api('PUT', '/api/v1/admin/grants', {
+          [principal.kind === 'team' ? 'teamId' : 'userId']: principal.id,
+          scopeType: node.type,
+          scopeId: node.id,
+          role: role.value
+        })
+      }
+    })
   })
   draw()
 
@@ -1204,7 +1296,9 @@ function grantPicker(principal) {
           query = e.target.value
           draw()
         }
-      })
+      }),
+      allClients,
+      clear
     ),
     treeSlot,
     h('div', { class: 'picker-foot' }, pickedSlot, role, give)
@@ -1882,6 +1976,7 @@ function renderTeam(container, id) {
       { href: '#/teams', label: t('teams') }
     ),
     formSlot,
+    // DOM append() writes a literal "null", so an empty slot must be ''.
     team.entraGroupId
       ? h(
           'p',
@@ -1890,7 +1985,7 @@ function renderTeam(container, id) {
           ' ',
           h('span', { class: 'mono' }, team.entraGroupId)
         )
-      : null,
+      : '',
     h(
       'div',
       { class: 'grid-2' },
