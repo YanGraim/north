@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { openvpnGatewayOnly } from '@shared/lib/vpn/ovpn-gateway'
 import { VpnConfigSchema } from '@shared/types'
 import { z } from 'zod'
 import type { Db } from '../db'
@@ -7,16 +8,14 @@ import { iso, setClause } from './inventory'
 type Row = Record<string, unknown>
 
 /**
- * Kinds an organization can share. OpenVPN stays personal: a .ovpn file
- * often embeds the user's own certificate and key.
+ * The gateway part of a VPN; the username is always dropped (each person signs in as themself).
+ * OpenVPN keeps only its remotes: a .ovpn often embeds the person's own certificate and key,
+ * so each person imports their own file and North matches it by server address.
  */
-const SHARED_KINDS = ['ipsec-ikev1', 'ipsec-ikev2', 'fortinet-sslvpn', 'windows-native'] as const
-
-/** The gateway part of a VPN; the username is always dropped (each person signs in as themself). */
 export const VpnTemplateConfigSchema = VpnConfigSchema.refine(
-  (c) => (SHARED_KINDS as readonly string[]).includes(c.kind),
-  { message: 'This kind of VPN cannot be shared with an organization' }
-).transform((c) => ({ ...c, username: '' }))
+  (c) => c.kind !== 'openvpn' || c.remoteSummary.length > 0,
+  { message: 'This OpenVPN has no server address to share' }
+).transform((c) => (c.kind === 'openvpn' ? openvpnGatewayOnly(c) : { ...c, username: '' }))
 
 export const CreateVpnTemplateSchema = z.object({
   name: z.string().trim().min(1).max(200),

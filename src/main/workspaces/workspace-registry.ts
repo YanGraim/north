@@ -341,12 +341,12 @@ export class WorkspaceRegistry {
       'GET',
       `/api/v1/environments/${group.environmentId}`
     )
-    if (env.vpnId) return source.vpns.toLocal(env.vpnId)
+    if (env.vpnId) return source.vpns.requireLocal(env.vpnId)
     const client = await api.request<{ vpnId?: string | null }>(
       'GET',
       `/api/v1/clients/${env.clientId}`
     )
-    return source.vpns.toLocal(client.vpnId)
+    return source.vpns.requireLocal(client.vpnId)
   }
 
   async probe(serverUrl: string): Promise<OrganizationServerInfo> {

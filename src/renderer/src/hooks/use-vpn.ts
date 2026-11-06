@@ -106,11 +106,13 @@ export function useSetVpnLink(): UseMutationResult<
   Error,
   { target: 'client' | 'environment'; id: string; profileId: string | null }
 > {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input) => window.north.vpn.setLink(input),
     onSuccess: (_r, input) =>
-      queryClient.setQueryData(queryKeys.vpn.link(input.target, input.id), input.profileId)
+      queryClient.setQueryData(queryKeys.vpn.link(input.target, input.id), input.profileId),
+    onError: (error) => toastError(error, t('vpn.link.saveError'))
   })
 }
 
