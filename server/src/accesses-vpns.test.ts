@@ -169,20 +169,27 @@ describe('VPN templates', () => {
     expect(vpn.config.username).toBe('')
   })
 
-  it('refuses OpenVPN (its file usually carries a personal key)', async () => {
-    const res = await call(admin, 'POST', '/api/v1/vpns', {
+  it('keeps only the address of an OpenVPN, never its certificate or key', async () => {
+    const vpn = await body(admin, 'POST', '/api/v1/vpns', {
       name: 'ovpn',
       config: {
         kind: 'openvpn',
-        ovpn: 'client',
-        requiresUserPass: false,
-        requiresKeyPassphrase: false,
-        remoteSummary: [],
+        ovpn: 'client\nremote vpn.acme.com 1194 udp\n<cert>\nMINE\n</cert>\n<key>\nSECRET\n</key>',
+        requiresUserPass: true,
+        requiresKeyPassphrase: true,
+        username: 'ana',
+        remoteSummary: [{ host: 'vpn.acme.com', port: 1194, proto: 'udp' }],
         redirectGateway: false,
         declaredRoutes: []
       }
     })
-    expect(res.statusCode).toBe(400)
+    expect(vpn.config.ovpn).toBe('client\nremote vpn.acme.com 1194 udp')
+    expect(vpn.config).toMatchObject({ username: '', requiresKeyPassphrase: false })
+    const empty = await call(admin, 'POST', '/api/v1/vpns', {
+      name: 'none',
+      config: { ...vpn.config, remoteSummary: [] }
+    })
+    expect(empty.statusCode).toBe(400)
   })
 
   it('links to clients, environments, connections and accesses', async () => {

@@ -97,6 +97,9 @@ import notes051Pt from './0.1.51/pt-BR.md?raw'
 import notes052En from './0.1.52/en.md?raw'
 import notes052Es from './0.1.52/es.md?raw'
 import notes052Pt from './0.1.52/pt-BR.md?raw'
+import notes053En from './0.1.53/en.md?raw'
+import notes053Es from './0.1.53/es.md?raw'
+import notes053Pt from './0.1.53/pt-BR.md?raw'
 import { filterWhatsNewEntries } from './filter'
 
 export type WhatsNewEntry = {
@@ -395,6 +398,11 @@ export const WHATS_NEW_ENTRIES: readonly WhatsNewEntry[] = [
       en: notes052En,
       es: notes052Es
     }
+  },
+  {
+    version: '0.1.53',
+    chapter: 'vpns',
+    bodies: { 'pt-BR': notes053Pt, en: notes053En, es: notes053Es }
   }
 ]
 

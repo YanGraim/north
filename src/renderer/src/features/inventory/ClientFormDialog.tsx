@@ -98,7 +98,12 @@ export function ClientFormDialog(): React.JSX.Element | null {
       savedId = created.id
     }
     if (savedId && vpnProfileId !== (mode === 'edit' ? (linkedVpn ?? null) : null)) {
-      await setVpnLink.mutateAsync({ target: 'client', id: savedId, profileId: vpnProfileId })
+      try {
+        await setVpnLink.mutateAsync({ target: 'client', id: savedId, profileId: vpnProfileId })
+      } catch {
+        // the toast says why; keep the dialog open to pick another VPN
+        return
+      }
     }
     close()
   }

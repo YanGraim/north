@@ -248,7 +248,7 @@ describe('copy from Meu workspace to an organization', () => {
     expect(other.local.vpnProfiles.list()).toHaveLength(1)
   })
 
-  it('leaves an OpenVPN behind with a warning, and copies the rest', async () => {
+  it('shares only the address of an OpenVPN and keeps it linked here', async () => {
     const { registry, local, vault, org } = await setup()
     const { client } = seedLocal(local, vault)
     const ovpn = local.vpnProfiles.create({
@@ -272,7 +272,60 @@ describe('copy from Meu workspace to an organization', () => {
       includePasswords: false
     })
     expect(report.created.connections).toBe(2)
-    expect(report.warnings).toEqual([expect.stringMatching(/^VPN não copiada \(VPNs OpenVPN/)])
+    expect(report.warnings).toEqual([])
+    await registry.activate(org.id)
+    expect(await registry.organizationVpnLink('client', report.root.id)).toBe(ovpn.id)
+  })
+
+  it('OpenVPN: each person uses their own .ovpn, matched by server address', async () => {
+    const { registry, local, vault, org } = await setup()
+    const { client } = seedLocal(local, vault)
+    const ovpn = local.vpnProfiles.create({
+      name: 'Ecofitus',
+      config: {
+        kind: 'openvpn',
+        ovpn: 'client\nremote vpn.ovpn.test 1194 udp\n<cert>\nMINE\n</cert>\n',
+        requiresUserPass: true,
+        requiresKeyPassphrase: true,
+        remoteSummary: [{ host: 'vpn.ovpn.test', port: 1194, proto: 'udp' }],
+        redirectGateway: false,
+        declaredRoutes: []
+      }
+    })
+    local.vpnProfiles.setClientLink(client.id, ovpn.id)
+    const report = await registry.copyToWorkspace({
+      kind: 'client',
+      id: client.id,
+      targetWorkspaceId: org.id,
+      targetParentId: null,
+      includePasswords: false
+    })
+
+    // Someone without the file: told to import it, nothing half-made on their computer.
+    const other = await setup()
+    await other.registry.activate(other.org.id)
+    expect(await other.registry.organizationVpnLink('client', report.root.id)).toBeNull()
+    const conn = (
+      await other.registry.inventory().connections.list({ clientId: report.root.id })
+    ).find((c) => c.name === 'web-01')
+    if (!conn) throw new Error('web-01 not copied')
+    await expect(other.registry.organizationVpnFor(conn)).rejects.toThrow(/Importe o seu/)
+    expect(other.local.vpnProfiles.list()).toHaveLength(0)
+
+    // Once they import their own .ovpn for the same server, it is used.
+    const theirs = other.local.vpnProfiles.create({
+      name: 'Minha Ecofitus',
+      config: {
+        kind: 'openvpn',
+        ovpn: 'client\nremote VPN.ovpn.test 1194 udp\n',
+        requiresUserPass: true,
+        requiresKeyPassphrase: false,
+        remoteSummary: [{ host: 'VPN.ovpn.test', port: 1194, proto: 'udp' }],
+        redirectGateway: false,
+        declaredRoutes: []
+      }
+    })
+    expect(await other.registry.organizationVpnFor(conn)).toBe(theirs.id)
   })
 
   it('the copy is unlinked: editing it leaves the original alone', async () => {
