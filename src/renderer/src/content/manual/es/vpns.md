@@ -49,3 +49,11 @@ Si el síntoma aparece con la VPN ya encendida (por ejemplo un `git push` que de
 En **Editar ambiente** (o **Editar cliente**), elige su **VPN**. Desde entonces, abrir una sesión SSH, RDP, de base de datos o API de ese ambiente enciende primero la VPN, espera a que el servidor responda y solo entonces abre la sesión; varias sesiones comparten el mismo túnel, que se apaga solo cuando se cierra la última (si la VPN tiene apagado automático). Vale la VPN del ambiente; sin ella, la del cliente. En cada conexión o acceso, el campo **VPN** ofrece **Heredar** (por defecto), **Nunca usar VPN** u otra VPN. Si la VPN falla, la sesión muestra el error con su nombre. El monitor de conexiones no marca como caído un servidor mientras su VPN está apagada.
 
 **Abrir URL** en un acceso de login (portal web) también enciende la VPN heredada antes de abrir el navegador. Como North no sabe cuándo terminaste de usar el sitio, esa VPN queda encendida hasta que hagas clic en **Apagar**.
+
+## VPN en una organización
+
+La VPN queda en tu computadora, con tu propio usuario y contraseña, y aparece igual en todos los workspaces. Cuando alguien vincula una VPN FortiGate, IPsec o de Windows a un cliente, ambiente, conexión o base de datos de la organización, el servidor guarda solo su "plantilla": nombre, gateway, puerto, realm y el certificado de confianza. Nunca guarda usuario, contraseña ni clave precompartida.
+
+La primera vez que abres algo de la organización que necesita esa VPN, North busca una VPN tuya con el mismo gateway y la usa. Si todavía no tienes, crea la VPN a partir de la plantilla, faltando solo tu login: en la primera conexión North avisa, y abres la VPN en **VPNs → Editar** y completas tu usuario y contraseña (y la clave precompartida, en IPsec). Desde entonces, hacer clic en el SSH, la base de datos o el portal levanta la VPN sola, como en Mi workspace. Cada persona entra en la FortiGate con su propio login, así la FortiGate sabe quién es quién.
+
+Las VPN OpenVPN no se comparten, porque el archivo `.ovpn` suele llevar el certificado personal. Al copiar a la organización, North avisa y copia el resto sin la VPN.

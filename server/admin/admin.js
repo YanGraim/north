@@ -59,7 +59,7 @@ const STRINGS = {
     personTeams: 'Equipes',
     noTeams: 'Não está em nenhuma equipe.',
     addToTeam: 'Adicionar a uma equipe…',
-    access: 'Acessos',
+    accessTitle: 'Acessos',
     accessHint:
       'Tudo o que esta pessoa vê no North. Acessos de equipe saem quando ela sai da equipe.',
     adminSeesAll: 'Admins veem e editam tudo na organização. Não é preciso dar acesso.',
@@ -80,6 +80,7 @@ const STRINGS = {
     environment: 'ambiente',
     group: 'grupo',
     connection: 'conexão',
+    access: 'acesso',
     noClients: 'Nenhum cliente ainda. Crie pelo North.',
     teamsHint:
       'Libere projetos para uma equipe e todo mundo nela recebe o acesso. Quem sai da equipe perde na hora.',
@@ -196,7 +197,7 @@ const STRINGS = {
     personTeams: 'Teams',
     noTeams: 'Not in any team.',
     addToTeam: 'Add to a team…',
-    access: 'Access',
+    accessTitle: 'Access',
     accessHint:
       'Everything this person sees in North. Team access goes away when they leave the team.',
     adminSeesAll: 'Admins see and edit everything in the organization. No grants needed.',
@@ -217,6 +218,7 @@ const STRINGS = {
     environment: 'environment',
     group: 'group',
     connection: 'connection',
+    access: 'access',
     noClients: 'No clients yet. Create them in North.',
     teamsHint:
       'Share projects with a team and everyone in it gets access. Whoever leaves the team loses it right away.',
@@ -333,7 +335,7 @@ const STRINGS = {
     personTeams: 'Equipos',
     noTeams: 'No está en ningún equipo.',
     addToTeam: 'Agregar a un equipo…',
-    access: 'Accesos',
+    accessTitle: 'Accesos',
     accessHint:
       'Todo lo que esta persona ve en North. El acceso del equipo se va cuando sale del equipo.',
     adminSeesAll: 'Los admins ven y editan todo en la organización. No hace falta dar acceso.',
@@ -354,6 +356,7 @@ const STRINGS = {
     environment: 'entorno',
     group: 'grupo',
     connection: 'conexión',
+    access: 'acceso',
     noClients: 'Todavía no hay clientes. Créalos en North.',
     teamsHint:
       'Comparte proyectos con un equipo y todos en él reciben el acceso. Quien sale del equipo lo pierde al instante.',
@@ -512,6 +515,11 @@ const ICONS = {
       }
     ]
   ],
+  access: [
+    ['ellipse', { cx: 12, cy: 5, rx: 9, ry: 3 }],
+    ['path', { d: 'M3 5v14a9 3 0 0 0 18 0V5' }],
+    ['path', { d: 'M3 12a9 3 0 0 0 18 0' }]
+  ],
   connection: [
     ['rect', { x: 2, y: 2, width: 20, height: 8, rx: 2 }],
     ['rect', { x: 2, y: 14, width: 20, height: 8, rx: 2 }],
@@ -661,13 +669,15 @@ function toast(message, isError = false) {
 
 /** Everything the panel draws from, fetched together and refreshed after each change. */
 async function loadData() {
-  const [users, teams, clients, environments, groups, connections] = await Promise.all([
+  const [users, teams, clients, environments, groups, connections, accesses] = await Promise.all([
     api('GET', '/api/v1/admin/users'),
     api('GET', '/api/v1/admin/teams'),
     api('GET', '/api/v1/clients'),
     api('GET', '/api/v1/environments'),
     api('GET', '/api/v1/groups'),
-    api('GET', '/api/v1/connections')
+    api('GET', '/api/v1/connections'),
+    // Servers before REC-023 have no accesses yet.
+    api('GET', '/api/v1/accesses').catch(() => [])
   ])
   const nodes = new Map()
   for (const c of clients) nodes.set(c.id, { type: 'client', id: c.id, name: c.name, parent: null })
@@ -684,6 +694,14 @@ async function loadData() {
       host: c.host,
       protocol: c.protocol
     })
+  for (const a of accesses)
+    nodes.set(a.id, {
+      type: 'access',
+      id: a.id,
+      name: a.name,
+      parent: a.groupId,
+      host: a.url ?? a.host ?? null
+    })
   state.data = {
     users,
     teams,
@@ -691,6 +709,7 @@ async function loadData() {
     environments,
     groups,
     connections,
+    accesses,
     nodes,
     userById: new Map(users.map((u) => [u.id, u])),
     teamById: new Map(teams.map((tm) => [tm.id, tm]))
@@ -1063,10 +1082,10 @@ function nodeLabel(id) {
  * selectable; the search keeps matches and the parents that lead to them.
  */
 function projectTree({ selected, onPick, query = '' }) {
-  const { clients, environments, groups, connections } = state.data
+  const { clients, environments, groups, connections, accesses } = state.data
   const q = query.trim().toLowerCase()
   const matches = (node) =>
-    !q || [node.name, node.host].filter(Boolean).join(' ').toLowerCase().includes(q)
+    !q || [node.name, node.host, node.url].filter(Boolean).join(' ').toLowerCase().includes(q)
 
   const row = (type, item, children) => {
     const keep = matches(item) || children.length > 0
@@ -1085,7 +1104,7 @@ function projectTree({ selected, onPick, query = '' }) {
         },
         icon(type),
         h('span', { class: 'tree-name' }, item.name),
-        item.host ? h('span', { class: 'tree-host' }, item.host) : null
+        item.host || item.url ? h('span', { class: 'tree-host' }, item.host ?? item.url) : null
       ),
       children.length ? h('ul', {}, children) : null
     )
@@ -1108,10 +1127,12 @@ function projectTree({ selected, onPick, query = '' }) {
                   row(
                     'group',
                     g,
-                    connections
-                      .filter((k) => k.groupId === g.id)
-                      .map((k) => row('connection', k, []))
-                      .filter(Boolean)
+                    [
+                      ...connections
+                        .filter((k) => k.groupId === g.id)
+                        .map((k) => row('connection', k, [])),
+                      ...accesses.filter((a) => a.groupId === g.id).map((a) => row('access', a, []))
+                    ].filter(Boolean)
                   )
                 )
                 .filter(Boolean)
@@ -1641,7 +1662,12 @@ function renderPerson(container, id) {
             h(
               'div',
               { class: 'panel-head' },
-              h('div', {}, h('h2', {}, t('access')), h('p', { class: 'hint' }, t('accessHint')))
+              h(
+                'div',
+                {},
+                h('h2', {}, t('accessTitle')),
+                h('p', { class: 'hint' }, t('accessHint'))
+              )
             ),
             grantList(effectiveGrants(user), (entry) =>
               change(() =>
@@ -1924,7 +1950,7 @@ function renderTeam(container, id) {
       h(
         'section',
         { class: 'panel' },
-        h('div', { class: 'panel-head' }, h('h2', {}, t('access'))),
+        h('div', { class: 'panel-head' }, h('h2', {}, t('accessTitle'))),
         grantList(
           team.grants.map((g) => ({ ...g, via: null })),
           (entry) =>

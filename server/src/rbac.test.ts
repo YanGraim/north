@@ -263,12 +263,14 @@ describe('my access', () => {
     expect(await body(bia, 'GET', '/api/v1/me/access')).toEqual({
       role: 'member',
       grants: [{ scopeType: 'group', scopeId: acme.group.id, role: 'viewer' }],
-      connectionGrants: []
+      connectionGrants: [],
+      accessGrants: []
     })
     expect(await body(admin, 'GET', '/api/v1/me/access')).toEqual({
       role: 'admin',
       grants: [],
-      connectionGrants: []
+      connectionGrants: [],
+      accessGrants: []
     })
   })
 })
@@ -421,7 +423,8 @@ describe('one connection', () => {
     expect(await body(bia, 'GET', '/api/v1/me/access')).toEqual({
       role: 'member',
       grants: [],
-      connectionGrants: [{ connectionId: acme.conn.id, role: 'viewer' }]
+      connectionGrants: [{ connectionId: acme.conn.id, role: 'viewer' }],
+      accessGrants: []
     })
   })
 

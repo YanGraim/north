@@ -85,11 +85,15 @@ describe('copy from Meu workspace to an organization', () => {
       targetParentId: null,
       includePasswords: true
     })
-    expect(report.created).toEqual({ clients: 1, environments: 1, groups: 1, connections: 2 })
+    expect(report.created).toEqual({
+      clients: 1,
+      environments: 1,
+      groups: 1,
+      connections: 2,
+      accesses: 1
+    })
     expect(report.passwordsCopied).toBe(1)
-    expect(report.warnings).toEqual([
-      '1 acesso(s) de banco/login ficaram de fora: a organização ainda não guarda acessos'
-    ])
+    expect(report.warnings).toEqual([])
 
     await registry.activate(org.id)
     const inventory = registry.inventory()
@@ -104,6 +108,107 @@ describe('copy from Meu workspace to an organization', () => {
     expect(await registry.secrets().resolve(web?.credentialRef as string, 'reveal')).toBe('s3cret')
     const tags = await inventory.tags.listForConnection(web?.id as string)
     expect(tags.map((t) => t.name)).toEqual(['linux'])
+    const accesses = await inventory.accesses.list({ clientId: report.root.id })
+    expect(accesses).toEqual([
+      expect.objectContaining({ name: 'portal', type: 'login', url: 'https://portal.example' })
+    ])
+  })
+
+  it('takes the client VPN along; another computer gets it without anyone’s login', async () => {
+    const { registry, local, vault, org } = await setup()
+    const { client, web } = seedLocal(local, vault)
+    const forti = local.vpnProfiles.create({
+      name: 'Acme VPN',
+      config: { kind: 'fortinet-sslvpn', gateway: 'vpn.acme.com', port: 10443, username: 'ana' }
+    })
+    local.vpnProfiles.setClientLink(client.id, forti.id)
+    local.connections.update(web.id, { vpnMode: 'profile', vpnProfileId: forti.id })
+    const report = await registry.copyToWorkspace({
+      kind: 'client',
+      id: client.id,
+      targetWorkspaceId: org.id,
+      targetParentId: null,
+      includePasswords: false
+    })
+    expect(report.warnings).toEqual([])
+
+    // Here: the organization points back at this computer's own profile.
+    await registry.activate(org.id)
+    expect(await registry.organizationVpnLink('client', report.root.id)).toBe(forti.id)
+    const copied = (await registry.inventory().connections.list({ clientId: report.root.id })).find(
+      (c) => c.name === 'web-01'
+    )
+    expect(copied?.vpnProfileId).toBe(forti.id)
+    expect(local.vpnProfiles.list()).toHaveLength(1)
+
+    // Someone else, on another computer: a profile with the gateway and no login.
+    const other = await setup()
+    await other.registry.activate(other.org.id)
+    const theirs = await other.registry.organizationVpnLink('client', report.root.id)
+    const profile = other.local.vpnProfiles.get(theirs as string)
+    expect(profile?.config).toMatchObject({
+      kind: 'fortinet-sslvpn',
+      gateway: 'vpn.acme.com',
+      port: 10443,
+      username: ''
+    })
+    const conn = (
+      await other.registry.inventory().connections.list({ clientId: report.root.id })
+    ).find((c) => c.name === 'web-01')
+    expect(conn?.vpnProfileId).toBe(theirs)
+    expect(await other.registry.organizationVpnFor(conn as NonNullable<typeof conn>)).toBe(theirs)
+  })
+
+  it('reuses a profile the person already has for the same gateway', async () => {
+    const { registry, local, vault, org } = await setup()
+    const { client } = seedLocal(local, vault)
+    const forti = local.vpnProfiles.create({
+      name: 'Acme',
+      config: { kind: 'fortinet-sslvpn', gateway: 'vpn.reuse.com', port: 443, username: 'ana' }
+    })
+    local.vpnProfiles.setClientLink(client.id, forti.id)
+    const report = await registry.copyToWorkspace({
+      kind: 'client',
+      id: client.id,
+      targetWorkspaceId: org.id,
+      targetParentId: null,
+      includePasswords: false
+    })
+    const other = await setup()
+    const mine = other.local.vpnProfiles.create({
+      name: 'Minha VPN da Acme',
+      config: { kind: 'fortinet-sslvpn', gateway: 'VPN.reuse.com', port: 443, username: 'bia' }
+    })
+    await other.registry.activate(other.org.id)
+    expect(await other.registry.organizationVpnLink('client', report.root.id)).toBe(mine.id)
+    expect(other.local.vpnProfiles.list()).toHaveLength(1)
+  })
+
+  it('leaves an OpenVPN behind with a warning, and copies the rest', async () => {
+    const { registry, local, vault, org } = await setup()
+    const { client } = seedLocal(local, vault)
+    const ovpn = local.vpnProfiles.create({
+      name: 'Pessoal',
+      config: {
+        kind: 'openvpn',
+        ovpn: 'client\nremote vpn.example 1194\n',
+        requiresUserPass: false,
+        requiresKeyPassphrase: false,
+        remoteSummary: [{ host: 'vpn.example', port: 1194, proto: 'udp' }],
+        redirectGateway: false,
+        declaredRoutes: []
+      }
+    })
+    local.vpnProfiles.setClientLink(client.id, ovpn.id)
+    const report = await registry.copyToWorkspace({
+      kind: 'client',
+      id: client.id,
+      targetWorkspaceId: org.id,
+      targetParentId: null,
+      includePasswords: false
+    })
+    expect(report.created.connections).toBe(2)
+    expect(report.warnings).toEqual([expect.stringMatching(/^VPN não copiada \(VPNs OpenVPN/)])
   })
 
   it('the copy is unlinked: editing it leaves the original alone', async () => {

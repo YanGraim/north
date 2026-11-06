@@ -17,7 +17,7 @@ import {
 } from '../store/teams'
 import { createUser, listUsers, updateUser } from '../store/users'
 
-const ScopeType = z.enum(['client', 'environment', 'group', 'connection'])
+const ScopeType = z.enum(['client', 'environment', 'group', 'connection', 'access'])
 const GrantKey = z
   .object({
     userId: IdSchema.optional(),

@@ -65,8 +65,10 @@ export class VpnProfilesRepository {
   private readonly environmentLinksStmt
   private readonly clientLinkStmt
   private readonly environmentLinkStmt
+  private readonly localClientStmt
 
   constructor(db: SqliteDatabase) {
+    this.localClientStmt = db.prepare('SELECT 1 FROM clients WHERE id = ?')
     this.listStmt = db.prepare(
       `SELECT ${COLUMNS} FROM vpn_profiles ORDER BY name COLLATE NOCASE ASC`
     )
@@ -106,11 +108,19 @@ export class VpnProfilesRepository {
     return row ? mapProfile(row) : null
   }
 
+  /**
+   * A profile belongs to this computer. Picked while in an organization, its
+   * "client" is a server id with no row here: keep the profile, drop the label.
+   */
+  private localClient(clientId: string | null | undefined): string | null {
+    return clientId && this.localClientStmt.get(clientId) ? clientId : null
+  }
+
   create(input: CreateVpnProfileInput): VpnProfile {
     const now = nowIso()
     const profile: VpnProfile = {
       id: newId(),
-      clientId: input.clientId ?? null,
+      clientId: this.localClient(input.clientId),
       name: input.name,
       kind: input.config.kind,
       config: input.config,
@@ -130,7 +140,7 @@ export class VpnProfilesRepository {
     const config = input.config ?? existing.config
     const next: VpnProfile = {
       ...existing,
-      clientId: input.clientId === undefined ? existing.clientId : input.clientId,
+      clientId: input.clientId === undefined ? existing.clientId : this.localClient(input.clientId),
       name: input.name ?? existing.name,
       kind: config.kind,
       config,

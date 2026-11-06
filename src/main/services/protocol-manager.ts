@@ -20,7 +20,7 @@ import {
   type SessionState,
   type TerminalShellCapability
 } from '@shared/protocols'
-import type { Connection } from '@shared/types'
+import type { Access, Connection } from '@shared/types'
 import type { MessagePortMain, WebContents } from 'electron'
 import { MessageChannelMain } from 'electron'
 import {
@@ -83,7 +83,10 @@ export type VpnGateLike = {
 export type ConnectionSource = {
   connection(connectionId: string): Promise<Connection | null>
   resolveSecret(credentialRef: string): Promise<string>
-  vpnProfile(connectionId: string): string | null
+  vpnProfile(connectionId: string): string | null | Promise<string | null>
+  /** Organization accesses (REC-023); the personal workspace reads SQLite. */
+  access?(accessId: string): Promise<Access | null>
+  accessVpnProfile?(accessId: string): Promise<string | null>
   /** Workspace the source belongs to, so its sessions can be rechecked or ended together. */
   scope?: string
 }
@@ -155,7 +158,7 @@ export class ProtocolManager {
     const probeTarget = connection.jumpHostId
       ? undefined
       : { host: connection.host, port: connection.port }
-    const profile = this.sourceForOpen().vpnProfile(connection.id)
+    const profile = await this.sourceForOpen().vpnProfile(connection.id)
     await this.vpnGate?.ensure(profile, followId, probeTarget)
   }
 
@@ -400,7 +403,7 @@ export class ProtocolManager {
         connection.protocol === 'serial' || connection.jumpHostId
           ? undefined
           : { host: connection.host, port: connection.port }
-      await this.vpnGate?.ensure(source.vpnProfile(connectionId), sessionId, probeTarget)
+      await this.vpnGate?.ensure(await source.vpnProfile(connectionId), sessionId, probeTarget)
       const session = await driver.createSession({
         connection,
         sessionId,
@@ -553,8 +556,19 @@ export class ProtocolManager {
     }
   }
 
+  /** The active organization's access source, or null for the personal workspace. */
+  private organizationAccessSource(): ConnectionSource | null {
+    const source = this.connectionSource?.() ?? null
+    return source?.access ? source : null
+  }
+
+  private async findAccess(accessId: string): Promise<Access | null> {
+    const source = this.organizationAccessSource()
+    return source?.access ? source.access(accessId) : this.repositories.accesses.get(accessId)
+  }
+
   async openAccess(accessId: string): Promise<{ descriptor: SessionDescriptor }> {
-    const access = this.repositories.accesses.get(accessId)
+    const access = await this.findAccess(accessId)
     if (!access) {
       throw new Error('Acesso não encontrado')
     }
@@ -661,6 +675,8 @@ export class ProtocolManager {
       descriptor,
       connectionId: null,
       accessId,
+      // an organization's access ends with its grant or sign-out, like its connections
+      source: this.organizationAccessSource() ?? undefined,
       startedAt: Date.now(),
       portMain: null,
       historyRecorded: false,
@@ -670,16 +686,22 @@ export class ProtocolManager {
     this.emitState(descriptor)
 
     try {
-      const full = this.repositories.accesses.get(accessId)
+      const organization = this.organizationAccessSource()
+      const full = await this.findAccess(accessId)
       if (!full) throw new Error('Acesso não encontrado')
+      const vpnProfile = organization?.accessVpnProfile
+        ? await organization.accessVpnProfile(accessId)
+        : (this.vpnGate?.profileForAccess(accessId) ?? null)
       await this.vpnGate?.ensure(
-        this.vpnGate.profileForAccess(accessId),
+        vpnProfile,
         sessionId,
         full.host && full.port ? { host: full.host, port: full.port } : undefined
       )
       let password: string | null = null
       if (full.credentialRef) {
-        password = await this.vault.resolveSecret(full.credentialRef)
+        password = organization
+          ? await organization.resolveSecret(full.credentialRef)
+          : await this.vault.resolveSecret(full.credentialRef)
       }
       const config = configFromAccess(full, password)
       const adapter = await connectAdapter(config)
@@ -730,10 +752,20 @@ export class ProtocolManager {
   async revalidate(scope: string): Promise<number> {
     let ended = 0
     for (const [sessionId, active] of [...this.sessions]) {
-      if (active.source?.scope !== scope || !active.connectionId) continue
-      const still = await active.source.connection(active.connectionId).catch(() => null)
+      if (active.source?.scope !== scope) continue
+      const { source } = active
+      const still = active.connectionId
+        ? await source.connection(active.connectionId).catch(() => null)
+        : active.accessId && source.access
+          ? await source.access(active.accessId).catch(() => null)
+          : true
       if (!still) {
-        await this.endWith(sessionId, 'Seu acesso a esta conexão foi removido.')
+        await this.endWith(
+          sessionId,
+          active.connectionId
+            ? 'Seu acesso a esta conexão foi removido.'
+            : 'Você não tem mais permissão para este acesso.'
+        )
         ended++
       }
     }

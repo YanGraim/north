@@ -1,6 +1,8 @@
 import type {
+  Access,
   Client,
   Connection,
+  CreateAccessInput,
   CreateClientInput,
   CreateConnectionInput,
   CreateEnvironmentInput,
@@ -8,10 +10,12 @@ import type {
   CreateTagInput,
   Environment,
   Group,
+  ListAccessesFilter,
   ListConnectionsFilter,
   SetAccessTagsInput,
   SetConnectionTagsInput,
   Tag,
+  UpdateAccessInput,
   UpdateClientInput,
   UpdateConnectionInput,
   UpdateEnvironmentInput,
@@ -55,6 +59,15 @@ export interface InventoryStore {
     toggleFavorite(id: string): Promise<Connection | null>
     duplicate(id: string): Promise<Connection | null>
   }
+  /** Database, login and other accesses (organizations keep no API collections yet). */
+  accesses: {
+    list(filter?: ListAccessesFilter): Promise<Access[]>
+    get(id: string): Promise<Access | null>
+    create(input: CreateAccessInput): Promise<Access>
+    update(id: string, input: UpdateAccessInput): Promise<Access | null>
+    delete(id: string): Promise<boolean>
+    toggleFavorite(id: string): Promise<Access | null>
+  }
   tags: {
     list(): Promise<Tag[]>
     create(input: CreateTagInput): Promise<Tag>
@@ -89,6 +102,7 @@ export function localInventoryStore(repos: Repositories): InventoryStore {
     environments: lift(repos.environments),
     groups: lift(repos.groups),
     connections: lift(repos.connections),
+    accesses: lift(repos.accesses),
     tags: lift(repos.tags)
   } as unknown as InventoryStore
 }

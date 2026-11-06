@@ -117,4 +117,32 @@ describe('migrations', () => {
     )
     expect(rows).toEqual([{ user_id: user, scope_id: client, role: 'editor' }])
   })
+
+  it('009 keeps team and connection grants', async () => {
+    const db = createPgliteDb(new PGlite())
+    await db.exec(
+      'CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())'
+    )
+    for (const m of migrations.filter((m) => m.version < 9)) {
+      await db.exec(m.sql)
+      await db.query('INSERT INTO schema_migrations (version, name) VALUES ($1, $2)', [
+        m.version,
+        m.name
+      ])
+    }
+    const team = '00000000-0000-4000-8000-000000000020'
+    const client = '00000000-0000-4000-8000-000000000021'
+    const grant = '00000000-0000-4000-8000-000000000022'
+    await db.exec(`
+      INSERT INTO teams (id, name) VALUES ('${team}', 'Suporte');
+      INSERT INTO clients (id, name) VALUES ('${client}', 'c');
+      INSERT INTO project_grants (id, team_id, scope_type, client_id, role)
+        VALUES ('${grant}', '${team}', 'client', '${client}', 'viewer');
+    `)
+    await migrate(db)
+    const { rows } = await db.query<{ id: string; team_id: string; scope_id: string }>(
+      'SELECT id, team_id, scope_id FROM project_grants'
+    )
+    expect(rows).toEqual([{ id: grant, team_id: team, scope_id: client }])
+  })
 })

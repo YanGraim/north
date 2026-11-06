@@ -24,6 +24,7 @@ import {
   type TokenStore
 } from './organization-client'
 import { OrganizationEvents } from './organization-events'
+import { OrganizationVpnBridge, withLocalVpnIds } from './organization-vpns'
 import { ORGANIZATION_UNAVAILABLE, RemoteInventoryStore } from './remote-inventory-store'
 import { localSecretStore, RemoteSecretStore, type SecretStore } from './secret-store'
 import { type CopySide, copyTargets, copyToWorkspace } from './workspace-copy'
@@ -54,8 +55,18 @@ class LocalDataSource implements WorkspaceDataSource {
   }
 }
 
-/** Trust that belongs to this computer, not to a workspace (TOFU host keys). */
-const MACHINE_REPOSITORIES = new Set<keyof Repositories>(['knownHosts'])
+/**
+ * What belongs to this computer, not to a workspace: TOFU host keys, and the
+ * VPN profiles with this person's own logins (an organization shares only the
+ * gateway, REC-023), so the VPN list is the same in every workspace.
+ */
+const MACHINE_REPOSITORIES = new Set<keyof Repositories>([
+  'knownHosts',
+  'vpnProfiles',
+  'vpnSecrets',
+  'vpnHistory',
+  'organizationVpnLinks'
+])
 
 /**
  * Repositories an organization does not serve yet: `list*` reads come back
@@ -87,15 +98,40 @@ class RemoteDataSource implements WorkspaceDataSource {
   readonly inventory: InventoryStore
   readonly repositories: Repositories
   readonly secrets: SecretStore
+  /** Organization VPN templates ↔ this computer's VPN profiles (REC-023). */
+  readonly vpns: OrganizationVpnBridge
   /** Push channel, open while signed in (started on first activation). */
   events: OrganizationEvents | null = null
   constructor(
     readonly client: OrganizationClient,
-    shape: Repositories
+    shape: Repositories,
+    workspaceId: string
   ) {
-    this.inventory = new RemoteInventoryStore(client)
+    this.vpns = new OrganizationVpnBridge(client, workspaceId, shape)
+    this.inventory = withLocalVpnIds(new RemoteInventoryStore(client), this.vpns)
     this.secrets = new RemoteSecretStore(client)
     this.repositories = unavailableRepositories(shape)
+  }
+
+  /** The VPN a client or environment brings up, as a local profile id. */
+  async vpnLink(target: 'client' | 'environment', id: string): Promise<string | null> {
+    const path = target === 'client' ? 'clients' : 'environments'
+    const node = await this.client.request<{ vpnId?: string | null }>(
+      'GET',
+      `/api/v1/${path}/${id}`
+    )
+    return this.vpns.toLocal(node.vpnId)
+  }
+
+  async setVpnLink(
+    target: 'client' | 'environment',
+    id: string,
+    profileId: string | null
+  ): Promise<void> {
+    const path = target === 'client' ? 'clients' : 'environments'
+    await this.client.request('PATCH', `/api/v1/${path}/${id}`, {
+      vpnId: (await this.vpns.toServer(profileId)) ?? null
+    })
   }
 }
 
@@ -227,7 +263,10 @@ export class WorkspaceRegistry {
       emit({ workspaceId, kind: 'signed-out', reason })
     }
     source.events = new OrganizationEvents(source.client, {
-      onInventoryChanged: (entity) => emit({ workspaceId, kind: 'inventory', entity }),
+      onInventoryChanged: (entity) => {
+        if (entity === 'vpn' || entity === 'unknown') source.vpns.invalidate()
+        emit({ workspaceId, kind: 'inventory', entity })
+      },
       onAccessChanged: () => emit({ workspaceId, kind: 'access' }),
       onRevoked: () => signedOut('revoked'),
       onSignedOut: () => signedOut('expired')
@@ -242,6 +281,61 @@ export class WorkspaceRegistry {
     return WorkspaceAccessSchema.parse(await source.client.request('GET', '/api/v1/me/access'))
   }
 
+  /**
+   * The VPN a client or environment brings up in the active organization, as
+   * a local profile id. Undefined in the personal workspace (the VPN repo
+   * answers there).
+   */
+  async organizationVpnLink(
+    target: 'client' | 'environment',
+    id: string
+  ): Promise<string | null | undefined> {
+    const source = this.active.source
+    return source instanceof RemoteDataSource ? source.vpnLink(target, id) : undefined
+  }
+
+  /** Links a client or environment of the active organization to a VPN; false in the personal one. */
+  async setOrganizationVpnLink(
+    target: 'client' | 'environment',
+    id: string,
+    profileId: string | null
+  ): Promise<boolean> {
+    const source = this.active.source
+    if (!(source instanceof RemoteDataSource)) return false
+    await source.setVpnLink(target, id, profileId)
+    return true
+  }
+
+  /**
+   * Which local VPN profile a session in the active organization needs:
+   * the item's own, else its environment's, else its client's.
+   */
+  async organizationVpnFor(item: {
+    vpnMode: 'inherit' | 'none' | 'profile'
+    vpnProfileId: string | null
+    groupId: string
+  }): Promise<string | null> {
+    const source = this.active.source
+    if (!(source instanceof RemoteDataSource)) return null
+    if (item.vpnMode === 'none') return null
+    if (item.vpnMode === 'profile') return item.vpnProfileId
+    const api = source.client
+    const group = await api.request<{ environmentId: string }>(
+      'GET',
+      `/api/v1/groups/${item.groupId}`
+    )
+    const env = await api.request<{ clientId: string; vpnId?: string | null }>(
+      'GET',
+      `/api/v1/environments/${group.environmentId}`
+    )
+    if (env.vpnId) return source.vpns.toLocal(env.vpnId)
+    const client = await api.request<{ vpnId?: string | null }>(
+      'GET',
+      `/api/v1/clients/${env.clientId}`
+    )
+    return source.vpns.toLocal(client.vpnId)
+  }
+
   async probe(serverUrl: string): Promise<OrganizationServerInfo> {
     const { oidc, ...info } = await probeServer(serverUrl)
     return { ...info, entra: info.authModes.includes('entra') && oidc !== null }
@@ -252,12 +346,13 @@ export class WorkspaceRegistry {
     return copyTargets((await this.copySide(workspaceId)).inventory)
   }
 
-  /** "Copiar para workspace…": from the active workspace into another one. */
+  /** "Copiar para workspace…": from the active workspace (or the one named) into another one. */
   async copyToWorkspace(input: CopyToWorkspaceInput): Promise<CopyToWorkspaceReport> {
-    if (input.targetWorkspaceId === this.active.workspace.id) {
+    const sourceId = input.sourceWorkspaceId ?? this.active.workspace.id
+    if (input.targetWorkspaceId === sourceId) {
       throw new Error('Escolha outro workspace para a cópia')
     }
-    const source = await this.copySide(this.active.workspace.id)
+    const source = await this.copySide(sourceId)
     const target = await this.copySide(input.targetWorkspaceId)
     return copyToWorkspace(source, target, input)
   }
@@ -266,16 +361,35 @@ export class WorkspaceRegistry {
     const workspace = this.workspaces.get(WorkspaceIdSchema.parse(id))
     if (!workspace) throw new Error(`Workspace ${id} not found`)
     if (workspace.kind === 'local') {
+      const links = this.local.repositories.vpnProfiles
       return {
         inventory: this.local.inventory,
         secrets: this.local.secrets,
-        repositories: this.local.repositories
+        repositories: this.local.repositories,
+        vpnLinks: {
+          get: async (target, id) =>
+            target === 'client'
+              ? links.linkForClient(id)
+              : links.linkForEnvironment(id).environment,
+          set: async (target, id, profileId) =>
+            target === 'client'
+              ? links.setClientLink(id, profileId)
+              : links.setEnvironmentLink(id, profileId)
+        }
       }
     }
     const source = this.remoteFor(workspace)
     // Signed out of that organization → the usual "entre de novo" error, before copying anything.
     await source.client.request('GET', '/api/v1/me')
-    return { inventory: source.inventory, secrets: source.secrets, repositories: null }
+    return {
+      inventory: source.inventory,
+      secrets: source.secrets,
+      repositories: null,
+      vpnLinks: {
+        get: (target, id) => source.vpnLink(target, id),
+        set: (target, id, profileId) => source.setVpnLink(target, id, profileId)
+      }
+    }
   }
 
   /** Stops waiting for the browser (the person closed it or pressed Cancel). */
@@ -370,7 +484,7 @@ export class WorkspaceRegistry {
         workspace.serverUrl as string,
         vaultTokenStore(this.workspaces, this.vault, workspace.id)
       )
-      source = new RemoteDataSource(client, this.local.repositories)
+      source = new RemoteDataSource(client, this.local.repositories, workspace.id)
       this.remotes.set(workspace.id, source)
     }
     return source

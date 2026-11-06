@@ -23,11 +23,11 @@ import { ApiError, notFound } from '../errors'
 
 type Row = Record<string, unknown>
 
-const iso = (value: unknown): string =>
+export const iso = (value: unknown): string =>
   value instanceof Date ? value.toISOString() : new Date(String(value)).toISOString()
 
 /** `{ name: 'x', sortOrder: 1 }` → `name = $2, sort_order = $3` (after the id param). */
-function setClause(
+export function setClause(
   input: Record<string, unknown>,
   columns: Record<string, string>,
   json: ReadonlySet<string> = new Set()
@@ -43,31 +43,53 @@ function setClause(
   return { sql: parts.join(', '), params }
 }
 
+/** The organization VPN a client, environment, connection or access brings up (REC-023). */
+export type VpnLink = { vpnId?: string | null }
+
+/**
+ * A VPN id the organization does not have becomes null. Desktops before
+ * REC-023 send their own local profile id here, which means nothing to the
+ * server, and must keep working.
+ */
+export async function knownVpn(
+  db: Db,
+  vpnId: string | null | undefined
+): Promise<string | null | undefined> {
+  if (!vpnId) return vpnId
+  const { rows } = await db.query('SELECT 1 FROM vpns WHERE id = $1', [vpnId])
+  return rows[0] ? vpnId : null
+}
+
 // ── clients ────────────────────────────────────────────────────────────────
 
-const mapClient = (r: Row): Client => ({
+const mapClient = (r: Row): Client & VpnLink => ({
   id: r.id as string,
   name: r.name as string,
   notes: (r.notes as string | null) ?? null,
   color: (r.color as string | null) ?? null,
+  vpnId: (r.vpn_id as string | null) ?? null,
   createdAt: iso(r.created_at),
   updatedAt: iso(r.updated_at)
 })
 
-export async function listClients(db: Db): Promise<Client[]> {
+export async function listClients(db: Db): Promise<Array<Client & VpnLink>> {
   const { rows } = await db.query('SELECT * FROM clients ORDER BY lower(name), created_at')
   return rows.map(mapClient)
 }
 
-export async function getClient(db: Db, id: string): Promise<Client | null> {
+export async function getClient(db: Db, id: string): Promise<(Client & VpnLink) | null> {
   const { rows } = await db.query('SELECT * FROM clients WHERE id = $1', [id])
   return rows[0] ? mapClient(rows[0]) : null
 }
 
-export async function createClient(db: Db, input: CreateClientInput): Promise<Client> {
+export async function createClient(
+  db: Db,
+  input: CreateClientInput & VpnLink
+): Promise<Client & VpnLink> {
+  const vpnId = await knownVpn(db, input.vpnId)
   const { rows } = await db.query(
-    'INSERT INTO clients (id, name, notes, color) VALUES ($1, $2, $3, $4) RETURNING *',
-    [randomUUID(), input.name, input.notes ?? null, input.color ?? null]
+    'INSERT INTO clients (id, name, notes, color, vpn_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [randomUUID(), input.name, input.notes ?? null, input.color ?? null, vpnId ?? null]
   )
   return mapClient(rows[0])
 }
@@ -75,9 +97,12 @@ export async function createClient(db: Db, input: CreateClientInput): Promise<Cl
 export async function updateClient(
   db: Db,
   id: string,
-  input: UpdateClientInput
-): Promise<Client | null> {
-  const set = setClause(input, { name: 'name', notes: 'notes', color: 'color' })
+  input: UpdateClientInput & VpnLink
+): Promise<(Client & VpnLink) | null> {
+  const set = setClause(
+    { ...input, vpnId: await knownVpn(db, input.vpnId) },
+    { name: 'name', notes: 'notes', color: 'color', vpnId: 'vpn_id' }
+  )
   const { rows } = await db.query(`UPDATE clients SET ${set.sql} WHERE id = $1 RETURNING *`, [
     id,
     ...set.params
@@ -92,18 +117,22 @@ export async function deleteClient(db: Db, id: string): Promise<boolean> {
 
 // ── environments ───────────────────────────────────────────────────────────
 
-const mapEnvironment = (r: Row): Environment => ({
+const mapEnvironment = (r: Row): Environment & VpnLink => ({
   id: r.id as string,
   clientId: r.client_id as string,
   name: r.name as string,
   notes: (r.notes as string | null) ?? null,
   color: (r.color as string | null) ?? null,
+  vpnId: (r.vpn_id as string | null) ?? null,
   sortOrder: Number(r.sort_order),
   createdAt: iso(r.created_at),
   updatedAt: iso(r.updated_at)
 })
 
-export async function listEnvironments(db: Db, clientId?: string): Promise<Environment[]> {
+export async function listEnvironments(
+  db: Db,
+  clientId?: string
+): Promise<Array<Environment & VpnLink>> {
   const { rows } = clientId
     ? await db.query(
         'SELECT * FROM environments WHERE client_id = $1 ORDER BY sort_order, lower(name)',
@@ -113,26 +142,28 @@ export async function listEnvironments(db: Db, clientId?: string): Promise<Envir
   return rows.map(mapEnvironment)
 }
 
-export async function getEnvironment(db: Db, id: string): Promise<Environment | null> {
+export async function getEnvironment(db: Db, id: string): Promise<(Environment & VpnLink) | null> {
   const { rows } = await db.query('SELECT * FROM environments WHERE id = $1', [id])
   return rows[0] ? mapEnvironment(rows[0]) : null
 }
 
 export async function createEnvironment(
   db: Db,
-  input: CreateEnvironmentInput
-): Promise<Environment> {
+  input: CreateEnvironmentInput & VpnLink
+): Promise<Environment & VpnLink> {
   if (!(await getClient(db, input.clientId))) throw notFound('Client')
+  const vpnId = await knownVpn(db, input.vpnId)
   const { rows } = await db.query(
-    `INSERT INTO environments (id, client_id, name, notes, color, sort_order)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    `INSERT INTO environments (id, client_id, name, notes, color, sort_order, vpn_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
     [
       randomUUID(),
       input.clientId,
       input.name,
       input.notes ?? null,
       input.color ?? null,
-      input.sortOrder ?? 0
+      input.sortOrder ?? 0,
+      vpnId ?? null
     ]
   )
   return mapEnvironment(rows[0])
@@ -141,14 +172,18 @@ export async function createEnvironment(
 export async function updateEnvironment(
   db: Db,
   id: string,
-  input: UpdateEnvironmentInput
-): Promise<Environment | null> {
-  const set = setClause(input, {
-    name: 'name',
-    notes: 'notes',
-    color: 'color',
-    sortOrder: 'sort_order'
-  })
+  input: UpdateEnvironmentInput & VpnLink
+): Promise<(Environment & VpnLink) | null> {
+  const set = setClause(
+    { ...input, vpnId: await knownVpn(db, input.vpnId) },
+    {
+      name: 'name',
+      notes: 'notes',
+      color: 'color',
+      sortOrder: 'sort_order',
+      vpnId: 'vpn_id'
+    }
+  )
   const { rows } = await db.query(`UPDATE environments SET ${set.sql} WHERE id = $1 RETURNING *`, [
     id,
     ...set.params
@@ -219,10 +254,11 @@ export async function deleteGroup(db: Db, id: string): Promise<boolean> {
 // ── connections ────────────────────────────────────────────────────────────
 
 /**
- * Shared columns only. `privateKeyPath` and `vpnProfileId` point at things on
- * one person's machine (key file, local VPN), so the organization never stores
- * them; usage stats are per user (later). `credentialRef` is the id of a
- * server-side secret (see store/secrets).
+ * Shared columns only. `privateKeyPath` points at a file on one person's
+ * machine, so the organization never stores it; usage stats are per user
+ * (later). `credentialRef` is the id of a server-side secret (see
+ * store/secrets) and `vpnProfileId` the id of an organization VPN template
+ * (store/vpns), which each desktop maps to its own local profile.
  */
 const CONNECTION_COLUMNS: Record<string, string> = {
   name: 'name',
@@ -246,6 +282,7 @@ const CONNECTION_COLUMNS: Record<string, string> = {
   links: 'links',
   vpnRequired: 'vpn_required',
   vpnMode: 'vpn_mode',
+  vpnProfileId: 'vpn_id',
   checklist: 'checklist',
   relatedFiles: 'related_files'
 }
@@ -276,7 +313,7 @@ const mapConnection = (r: Row): Connection => ({
   links: (r.links as Connection['links']) ?? [],
   vpnRequired: Boolean(r.vpn_required),
   vpnMode: r.vpn_mode as Connection['vpnMode'],
-  vpnProfileId: null,
+  vpnProfileId: (r.vpn_id as string | null) ?? null,
   checklist: (r.checklist as Connection['checklist']) ?? [],
   relatedFiles: (r.related_files as string[]) ?? [],
   isFavorite: Boolean(r.is_favorite),
@@ -347,6 +384,7 @@ export async function createConnection(
     vpnRequired: false,
     vpnMode: 'inherit',
     ...input,
+    vpnProfileId: await knownVpn(db, input.vpnProfileId),
     startupDirectory: input.protocol === 'ssh' ? (input.startupDirectory ?? null) : null,
     logFiles: input.protocol === 'ssh' ? (input.logFiles ?? []) : []
   }
@@ -374,10 +412,11 @@ export async function updateConnection(
 ): Promise<Connection | null> {
   if (input.groupId && !(await getGroup(db, input.groupId))) throw notFound('Group')
   await assertAttachable(db, userId, input.credentialRef, id)
+  const vpned = { ...input, vpnProfileId: await knownVpn(db, input.vpnProfileId) }
   const patch: UpdateConnectionInput =
-    input.protocol && input.protocol !== 'ssh'
-      ? { ...input, startupDirectory: null, logFiles: [] }
-      : input
+    vpned.protocol && vpned.protocol !== 'ssh'
+      ? { ...vpned, startupDirectory: null, logFiles: [] }
+      : vpned
   const set = setClause(patch, { ...CONNECTION_COLUMNS, groupId: 'group_id' }, JSON_COLUMNS)
   const { rows } = await db.query(`UPDATE connections SET ${set.sql} WHERE id = $1 RETURNING id`, [
     id,
@@ -398,20 +437,23 @@ export async function deleteConnection(db: Db, id: string): Promise<boolean> {
  * secret its author just stored. Anything else answers 404, so nobody can
  * point a connection at another connection's password and reveal it.
  */
-async function assertAttachable(
+export async function assertAttachable(
   db: Db,
   userId: string,
   credentialRef: string | null | undefined,
-  connectionId: string | null
+  ownerId: string | null
 ): Promise<void> {
   if (!credentialRef) return
   const { rows } = await db.query<{ created_by: string | null; owner: string | null }>(
-    `SELECT s.created_by, (SELECT c.id FROM connections c WHERE c.credential_ref = s.id LIMIT 1) AS owner
+    `SELECT s.created_by, COALESCE(
+       (SELECT c.id FROM connections c WHERE c.credential_ref = s.id LIMIT 1),
+       (SELECT a.id FROM accesses a WHERE a.credential_ref = s.id LIMIT 1)
+     ) AS owner
      FROM secrets s WHERE s.id = $1`,
     [credentialRef]
   )
   const row = rows[0]
-  const ok = row && (row.owner ? row.owner === connectionId : row.created_by === userId)
+  const ok = row && (row.owner ? row.owner === ownerId : row.created_by === userId)
   if (!ok) throw notFound('Secret')
 }
 
@@ -460,7 +502,7 @@ export async function duplicateConnection(
 
 // ── tags ───────────────────────────────────────────────────────────────────
 
-const mapTag = (r: Row): Tag => ({
+export const mapTag = (r: Row): Tag => ({
   id: r.id as string,
   name: r.name as string,
   color: (r.color as string | null) ?? null

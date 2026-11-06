@@ -36,7 +36,12 @@ import { VpnError } from '../services/vpn/vpn-error'
 import { VpnGate } from '../services/vpn/vpn-gate'
 import { VpnHelper } from '../services/vpn/vpn-helper'
 import { type VpnNoticeEvent, vpnNoticeCopy, vpnNoticeFor } from '../services/vpn/vpn-notices'
-import { createVpnHandlers, createVpnRuntime, type VpnRuntime } from '../services/vpn/vpn-runtime'
+import {
+  createVpnHandlers,
+  createVpnRuntime,
+  type OrganizationVpnLinks,
+  type VpnRuntime
+} from '../services/vpn/vpn-runtime'
 import { OpenvpnServiceBroker } from '../services/vpn/windows-openvpn-service'
 import { WindowsVpnComponent } from '../services/vpn/windows-vpn-component'
 import { WindowsVpnService } from '../services/vpn/windows-vpn-service'
@@ -78,10 +83,17 @@ function broadcast(channel: string, payload: unknown): void {
   }
 }
 
+/** VPN answers that come from the active organization instead of this computer (REC-023). */
+export type OrganizationVpnHooks = OrganizationVpnLinks & {
+  /** Local profile an organization access needs; undefined in the personal workspace. */
+  access(accessId: string): Promise<string | null | undefined>
+}
+
 export function registerVpnHandlers(
   repos: Repositories,
   vault: CredentialVault,
-  monitor?: ConnectionMonitorService
+  monitor?: ConnectionMonitorService,
+  organization?: OrganizationVpnHooks
 ): void {
   const vpnDir = join(app.getPath('userData'), 'vpn')
   const tmpDir = join(vpnDir, 'tmp')
@@ -367,8 +379,15 @@ export function registerVpnHandlers(
   const manager = runtime.manager
   // sessions opened from now on bring their VPN up first
   const gate = new VpnGate({ repos, manager })
-  const handlers = createVpnHandlers(runtime, process.platform, component, (id) =>
-    gate.profileForAccess(id)
+  const handlers = createVpnHandlers(
+    runtime,
+    process.platform,
+    component,
+    async (id) => {
+      const fromOrganization = await organization?.access(id)
+      return fromOrganization === undefined ? gate.profileForAccess(id) : fromOrganization
+    },
+    organization
   )
   const profileChanges = new Set<string>([
     IpcChannels.VPN_CREATE,

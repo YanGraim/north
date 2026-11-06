@@ -7,13 +7,15 @@ const TABLE: Record<ScopeType, string> = {
   client: 'clients',
   environment: 'environments',
   group: 'groups',
-  connection: 'connections'
+  connection: 'connections',
+  access: 'accesses'
 }
 const COLUMN: Record<ScopeType, string> = {
   client: 'client_id',
   environment: 'environment_id',
   group: 'group_id',
-  connection: 'connection_id'
+  connection: 'connection_id',
+  access: 'access_id'
 }
 
 /** Who receives a grant: one person, or every member of a team. */
@@ -73,7 +75,10 @@ async function scopeChain(db: Db, scopeType: ScopeType, scopeId: string): Promis
             FROM groups g INNER JOIN environments e ON e.id = g.environment_id WHERE g.id = $1`,
     connection: `SELECT c.id AS a, c.group_id AS b, g.environment_id AS c, e.client_id AS d
             FROM connections c INNER JOIN groups g ON g.id = c.group_id
-            INNER JOIN environments e ON e.id = g.environment_id WHERE c.id = $1`
+            INNER JOIN environments e ON e.id = g.environment_id WHERE c.id = $1`,
+    access: `SELECT a.id AS a, a.group_id AS b, g.environment_id AS c, e.client_id AS d
+            FROM accesses a INNER JOIN groups g ON g.id = a.group_id
+            INNER JOIN environments e ON e.id = g.environment_id WHERE a.id = $1`
   }
   const { rows } = await db.query<{
     a: string

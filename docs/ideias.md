@@ -584,3 +584,19 @@ Sem `--global`, as duas opções valem só para aquele repositório. `HTTP/1.1` 
 
 **Questões em aberto:** nenhuma.
 
+### IDEIA-023 — Acessos e VPN na organização
+
+- **Status:** 🚀 Promovida → [REC-023](./recursos/rec-023-acessos-e-vpn-na-organizacao/especificacao.md)
+- **Prioridade:** Alta
+- **Esforço do agente:** 🧠 High
+- **Registrada em:** 2026-11-05
+- **Área:** Servidor / Desktop
+
+**Descrição:** Levar bancos e logins para a organização, com liberação por acesso. Fazer a VPN subir sozinha para todo mundo: a organização guarda só o gateway, e cada pessoa usa o próprio login. Copiar vários clientes do Meu workspace de uma vez.
+
+**Motivação:** O gestor quer liberar um banco ou uma URL para alguém, e a equipe precisa que a VPN de cada cliente suba ao clicar no SSH, no banco ou no portal, sem compartilhar a credencial de VPN.
+
+**Impacto esperado:** Migration 009 no servidor e 023 no desktop, rotas novas, ponte de VPN no main, painel com acessos, manual e what's new nos 3 idiomas.
+
+**Questões em aberto:** nenhuma.
+

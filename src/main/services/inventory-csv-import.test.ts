@@ -17,8 +17,7 @@ const importInventoryCsv = (
   importInto(
     {
       inventory: localInventoryStore(repos),
-      secrets: vault ? localSecretStore(vault) : null,
-      accesses: repos.accesses
+      secrets: vault ? localSecretStore(vault) : null
     },
     content,
     options

@@ -49,3 +49,11 @@ If the symptom shows up while the VPN is already on (for example a `git push` th
 In **Edit environment** (or **Edit client**), pick its **VPN**. From then on, opening an SSH, RDP, database or API session in that environment turns the VPN on first, waits for the server to answer and only then opens the session; several sessions share one tunnel, which turns off by itself when the last one closes (if the VPN auto-disconnects). The environment's own VPN wins; without one, the client's applies. On each connection or access, the **VPN** field offers **Inherit** (default), **Never use a VPN** or another VPN. If the VPN fails, the session shows the error with its name. The connection monitor doesn't flag a server as down while its VPN is off.
 
 **Open URL** on a login access (web portal) also turns on the inherited VPN before opening the browser. Since North can't tell when you're done with the site, that VPN stays on until you click **Turn off**.
+
+## VPN in an organization
+
+The VPN lives on your computer, with your own username and password, and shows up the same in every workspace. When someone links a FortiGate, IPsec or Windows VPN to a client, environment, connection or database of the organization, the server keeps only its "template": name, gateway, port, realm and the trusted certificate. It never keeps a username, password or pre-shared key.
+
+The first time you open something in the organization that needs that VPN, North looks for a VPN of yours with the same gateway and uses it. If you don't have one yet, it creates the VPN from the template, missing only your login: on the first connection North tells you, and you open the VPN in **VPNs → Edit** and fill in your username and password (and the pre-shared key, for IPsec). From then on, clicking the SSH, the database or the portal brings the VPN up by itself, like in My workspace. Each person signs in to the FortiGate with their own login, so the FortiGate knows who is who.
+
+OpenVPN VPNs are not shared, because the `.ovpn` file usually carries a personal certificate. When copying to the organization, North tells you and copies the rest without the VPN.

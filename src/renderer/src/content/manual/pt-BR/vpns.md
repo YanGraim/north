@@ -49,3 +49,11 @@ Se o sintoma aparece com a VPN já ligada (por exemplo um `git push` que devolve
 Em **Editar ambiente** (ou **Editar cliente**), escolha a **VPN** dele. A partir daí, abrir uma conexão SSH, RDP, banco ou API desse ambiente liga a VPN antes, espera o servidor responder e só então abre a sessão; várias sessões dividem o mesmo túnel, que desliga sozinho quando a última fecha (se a VPN estiver em desligamento automático). O ambiente usa a própria VPN; sem ela, vale a do cliente. Em cada conexão ou acesso, o campo **VPN** permite **Herdar** (padrão), **Nunca usar VPN** ou escolher outra. Se a VPN falhar, a sessão mostra o erro com o nome dela. O monitor de conexões não marca como fora do ar um servidor cuja VPN está desligada.
 
 **Abrir URL** de um acesso de login (portal web) também liga a VPN herdada antes de abrir o navegador. Como o North não sabe quando você terminou de usar o site, essa VPN fica ligada até você clicar em **Desligar**.
+
+## VPN numa organização
+
+A VPN fica no seu computador, com o seu usuário e a sua senha, e aparece igual em todos os workspaces. Quando alguém liga uma VPN FortiGate, IPsec ou do Windows a um cliente, ambiente, conexão ou banco da organização, o servidor guarda só o "modelo" dela: nome, gateway, porta, realm e o certificado confiado. Nunca guarda usuário, senha ou chave pré-compartilhada.
+
+Na primeira vez que você abre algo da organização que precisa dessa VPN, o North procura uma VPN sua com o mesmo gateway e passa a usar essa. Se você ainda não tem, ele cria a VPN a partir do modelo, faltando só o seu login: na primeira conexão o North avisa, e você abre a VPN em **VPNs → Editar** e preenche o seu usuário e a sua senha (e a chave pré-compartilhada, no IPsec). Depois disso, clicar no SSH, no banco ou no portal sobe a VPN sozinho, como no Meu workspace. Cada pessoa entra na FortiGate com o próprio login, então a FortiGate registra quem é quem.
+
+VPNs OpenVPN não são compartilhadas, porque o arquivo `.ovpn` costuma levar o certificado pessoal. Na cópia para a organização, o North avisa e copia o resto sem a VPN.

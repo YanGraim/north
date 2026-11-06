@@ -20,6 +20,7 @@ import { GroupVariablesRepository } from './group-variables-repository'
 import { GroupsRepository } from './groups-repository'
 import { HistoryRepository } from './history-repository'
 import { KnownHostsRepository } from './known-hosts-repository'
+import { OrganizationVpnLinksRepository } from './organization-vpn-links-repository'
 import { TagsRepository } from './tags-repository'
 import { VpnHistoryRepository } from './vpn-history-repository'
 import { VpnProfilesRepository } from './vpn-profiles-repository'
@@ -55,6 +56,7 @@ export type Repositories = {
   vpnProfiles: VpnProfilesRepository
   vpnSecrets: VpnSecretsRepository
   vpnHistory: VpnHistoryRepository
+  organizationVpnLinks: OrganizationVpnLinksRepository
 }
 
 export function createRepositories(db: SqliteDatabase): Repositories {
@@ -85,7 +87,8 @@ export function createRepositories(db: SqliteDatabase): Repositories {
     connectionHealthEvents: new ConnectionHealthEventsRepository(db),
     vpnProfiles: new VpnProfilesRepository(db),
     vpnSecrets: new VpnSecretsRepository(db),
-    vpnHistory: new VpnHistoryRepository(db)
+    vpnHistory: new VpnHistoryRepository(db),
+    organizationVpnLinks: new OrganizationVpnLinksRepository(db)
   }
 }
 

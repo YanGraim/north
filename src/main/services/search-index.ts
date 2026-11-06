@@ -7,14 +7,10 @@ import type {
   SearchIndexItem,
   Tag
 } from '@shared/types'
-import type { Repositories } from '../repositories'
 import type { InventoryStore } from '../workspaces/inventory-store'
 
-/** Tree from the workspace inventory (local or organization); accesses stay local-only for now. */
-export async function buildSearchIndex(
-  repos: Repositories,
-  inventory: InventoryStore
-): Promise<SearchIndexItem[]> {
+/** Tree and accesses from the workspace inventory (local or organization). */
+export async function buildSearchIndex(inventory: InventoryStore): Promise<SearchIndexItem[]> {
   const [clients, environments, groups, connections, tags] = await Promise.all([
     inventory.clients.list(),
     inventory.environments.list(),
@@ -22,7 +18,7 @@ export async function buildSearchIndex(
     inventory.connections.list(),
     inventory.tags.list()
   ])
-  const accesses = repos.accesses.list()
+  const accesses = await inventory.accesses.list()
   const connectionTags = await Promise.all(
     connections.map((c) => inventory.tags.listForConnection(c.id))
   )

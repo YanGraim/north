@@ -16,7 +16,7 @@ export type ServerEvent =
   | { type: 'ready' }
   | {
       type: 'inventory.changed'
-      entity: 'client' | 'environment' | 'group' | 'connection' | 'tag'
+      entity: 'client' | 'environment' | 'group' | 'connection' | 'access' | 'vpn' | 'tag'
     }
   | { type: 'access.changed' }
   | { type: 'session.revoked'; reason: 'disabled' }
@@ -64,6 +64,8 @@ const ENTITY: Record<string, Extract<ServerEvent, { type: 'inventory.changed' }>
   environments: 'environment',
   groups: 'group',
   connections: 'connection',
+  accesses: 'access',
+  vpns: 'vpn',
   tags: 'tag'
 }
 
@@ -109,7 +111,8 @@ export async function registerEvents(
   app.addHook('onResponse', async (request, reply) => {
     if (request.method === 'GET' || reply.statusCode >= 300) return
     const path = request.routeOptions.url ?? ''
-    const match = /^\/api\/v1\/(clients|environments|groups|connections|tags)(\/|$)/.exec(path)
+    const match =
+      /^\/api\/v1\/(clients|environments|groups|connections|accesses|vpns|tags)(\/|$)/.exec(path)
     if (!match || path.endsWith('/favorite')) return
     hub.broadcast({ type: 'inventory.changed', entity: ENTITY[match[1]] })
   })

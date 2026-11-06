@@ -24,7 +24,7 @@ describe('buildSearchIndex', () => {
     })
     repos.tags.setForConnection({ connectionId: conn.id, tagIds: [tag.id] })
 
-    const index = await buildSearchIndex(repos, localInventoryStore(repos))
+    const index = await buildSearchIndex(localInventoryStore(repos))
     const connectionItem = index.find((item) => item.id === conn.id)
 
     expect(connectionItem).toMatchObject({
@@ -49,7 +49,7 @@ describe('buildSearchIndex', () => {
     repos.clients.create({ name: 'Only local' })
     const org = createTestRepositories().repos
     org.clients.create({ name: 'Org client' })
-    const index = await buildSearchIndex(repos, localInventoryStore(org))
+    const index = await buildSearchIndex(localInventoryStore(org))
     const titles = index.filter((i) => i.kind === 'client').map((i) => i.title)
     expect(titles).toEqual(['Org client'])
   })

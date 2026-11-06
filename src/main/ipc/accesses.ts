@@ -8,6 +8,8 @@ import {
 import { ipcMain } from 'electron'
 import type { Repositories } from '../repositories'
 import type { CredentialVault } from '../vault'
+import type { InventoryStore } from '../workspaces/inventory-store'
+import type { SecretStore } from '../workspaces/secret-store'
 import { deleteSecretsForAccess } from './vault-cleanup'
 
 function requireEntity<T>(entity: T | null, label: string): T {
@@ -17,37 +19,51 @@ function requireEntity<T>(entity: T | null, label: string): T {
   return entity
 }
 
-export function registerAccessHandlers(repos: Repositories, vault: CredentialVault): void {
+/**
+ * Accesses follow the active workspace (REC-023): SQLite for the personal one,
+ * the North Server for an organization, which drops a deleted access's
+ * password itself.
+ */
+export function registerAccessHandlers(
+  repos: Repositories,
+  vault: CredentialVault,
+  inventory: () => InventoryStore,
+  secrets: () => SecretStore
+): void {
   ipcMain.handle(IpcChannels.ACCESSES_LIST, (_event, filter?: unknown) => {
     const parsed =
       filter === undefined || filter === null ? {} : ListAccessesFilterSchema.parse(filter)
-    return repos.accesses.list(parsed)
+    return inventory().accesses.list(parsed)
   })
 
   ipcMain.handle(IpcChannels.ACCESSES_GET, (_event, id: unknown) => {
-    return repos.accesses.get(IdSchema.parse(id))
+    return inventory().accesses.get(IdSchema.parse(id))
   })
 
   ipcMain.handle(IpcChannels.ACCESSES_CREATE, (_event, input: unknown) => {
-    return repos.accesses.create(CreateAccessInputSchema.parse(input))
+    return inventory().accesses.create(CreateAccessInputSchema.parse(input))
   })
 
-  ipcMain.handle(IpcChannels.ACCESSES_UPDATE, (_event, id: unknown, input: unknown) => {
-    const updated = repos.accesses.update(IdSchema.parse(id), UpdateAccessInputSchema.parse(input))
+  ipcMain.handle(IpcChannels.ACCESSES_UPDATE, async (_event, id: unknown, input: unknown) => {
+    const updated = await inventory().accesses.update(
+      IdSchema.parse(id),
+      UpdateAccessInputSchema.parse(input)
+    )
     return requireEntity(updated, 'Access')
   })
 
-  ipcMain.handle(IpcChannels.ACCESSES_DELETE, (_event, id: unknown) => {
+  ipcMain.handle(IpcChannels.ACCESSES_DELETE, async (_event, id: unknown) => {
     const accessId = IdSchema.parse(id)
-    const existing = repos.accesses.get(accessId)
+    const store = inventory()
+    const existing = await store.accesses.get(accessId)
     if (!existing) {
       throw new Error('Access not found')
     }
-    deleteSecretsForAccess(repos, vault, existing)
-    repos.accesses.delete(accessId)
+    if (secrets().kind === 'local') deleteSecretsForAccess(repos, vault, existing)
+    await store.accesses.delete(accessId)
   })
 
-  ipcMain.handle(IpcChannels.ACCESSES_TOGGLE_FAVORITE, (_event, id: unknown) => {
-    return requireEntity(repos.accesses.toggleFavorite(IdSchema.parse(id)), 'Access')
+  ipcMain.handle(IpcChannels.ACCESSES_TOGGLE_FAVORITE, async (_event, id: unknown) => {
+    return requireEntity(await inventory().accesses.toggleFavorite(IdSchema.parse(id)), 'Access')
   })
 }

@@ -7,24 +7,18 @@ import {
   parseTagNames,
   REQUIRED_CSV_HEADERS
 } from '@shared/types'
-import type { Repositories } from '../repositories'
 import type { InventoryStore } from '../workspaces/inventory-store'
 import type { SecretStore } from '../workspaces/secret-store'
 import { parseCsv } from './csv-parse'
 
 /**
- * Where the rows land: the active workspace's tree and passwords (SQLite +
- * vault, or a North Server). Accesses only exist in the personal workspace
- * for now (ADR 0018), so an organization passes `accesses: null`.
+ * Where the rows land: the active workspace's tree, accesses and passwords
+ * (SQLite + vault, or a North Server).
  */
 export type CsvImportTarget = {
   inventory: InventoryStore
   secrets: SecretStore | null
-  accesses: Repositories['accesses'] | null
 }
-
-export const ACCESSES_UNAVAILABLE =
-  'acessos (banco/login) ainda não existem numa organização — importe-os no Meu workspace'
 
 export type ImportCsvOptions = {
   /** When true, non-empty `senha` cells are written to the vault. */
@@ -165,7 +159,7 @@ export async function importInventoryCsv(
   content: string,
   options: ImportCsvOptions
 ): Promise<ImportReport> {
-  const { inventory, secrets, accesses } = target
+  const { inventory, secrets } = target
   const report = emptyReport()
 
   let parsed: ReturnType<typeof parseCsv>
@@ -200,10 +194,6 @@ export async function importInventoryCsv(
     }
 
     const row = validated.data
-    if (row.tipo !== 'servidor' && !accesses) {
-      report.errors.push(`${lineLabel}: ${ACCESSES_UNAVAILABLE}`)
-      continue
-    }
     const hierarchy = await resolveHierarchy(inventory, report, row, lineLabel)
     if (!hierarchy) continue
 
@@ -259,8 +249,8 @@ export async function importInventoryCsv(
         continue
       }
 
-      const store = accesses as Repositories['accesses']
-      const existingAccesses = store.list({ groupId: hierarchy.groupId })
+      const store = inventory.accesses
+      const existingAccesses = await store.list({ groupId: hierarchy.groupId })
       if (existingAccesses.some((a) => a.name.toLowerCase() === row.nome.toLowerCase())) {
         report.skipped.accesses += 1
         if (credentialRef) await secrets?.delete(credentialRef)
@@ -268,7 +258,7 @@ export async function importInventoryCsv(
       }
 
       if (row.tipo === 'banco') {
-        const created = store.create({
+        const created = await store.create({
           groupId: hierarchy.groupId,
           type: 'database',
           name: row.nome,
@@ -295,7 +285,7 @@ export async function importInventoryCsv(
       }
 
       // login
-      const created = store.create({
+      const created = await store.create({
         groupId: hierarchy.groupId,
         type: 'login',
         name: row.nome,
