@@ -77,11 +77,37 @@ describe('createEchoSuppressor', () => {
     expect(asText(suppress.push(Buffer.from(rest)))).toBe('\r\n% ')
   })
 
-  it('replays a partial match when the echo diverges, then stops filtering', () => {
+  it('replays a partial match when the echo diverges, and drops only one echo', () => {
     const suppress = createEchoSuppressor('echo hi')
     expect(asText(suppress.push(Buffer.from('echo ')))).toBe('')
     expect(asText(suppress.push(Buffer.from('no\r\n')))).toBe('echo no\r\n')
+    expect(asText(suppress.push(Buffer.from('echo hi\r\n')))).toBe('\r\n')
     expect(asText(suppress.push(Buffer.from('echo hi\r\n')))).toBe('echo hi\r\n')
+  })
+
+  it('finds the echo after the login banner and the first prompt', () => {
+    const suppress = createEchoSuppressor(BASH_OSC7_HOOK)
+    const banner = 'Last login: Fri Nov  6 16:41:11 2026 from 177.72.44.56\r\nroot@logsync:~# '
+    const out = [
+      suppress.push(Buffer.from(banner.slice(0, 30))),
+      suppress.push(Buffer.from(banner.slice(30) + BASH_OSC7_HOOK.slice(0, 40))),
+      suppress.push(Buffer.from(`${BASH_OSC7_HOOK.slice(40)}\r\nroot@logsync:~# `))
+    ]
+      .map(asText)
+      .join('')
+    expect(out).toBe(`${banner}\r\nroot@logsync:~# `)
+  })
+
+  it('a repeated first character does not lose the start of the echo', () => {
+    const suppress = createEchoSuppressor('__north')
+    expect(asText(suppress.push(Buffer.from('a___north!')))).toBe('a_!')
+  })
+
+  it('gives up after a lot of output without the echo', () => {
+    const suppress = createEchoSuppressor(BASH_OSC7_HOOK)
+    const big = 'x'.repeat(70 * 1024)
+    expect(asText(suppress.push(Buffer.from(big))).length).toBe(big.length)
+    expect(asText(suppress.push(Buffer.from(BASH_OSC7_HOOK)))).toBe(BASH_OSC7_HOOK)
   })
 
   it('forwards output that does not start with the hook', () => {

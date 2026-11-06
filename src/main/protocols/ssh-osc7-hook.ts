@@ -66,54 +66,83 @@ export function osc7HookLine(shell: LoginShell): string {
 
 export type EchoSuppressor = {
   /**
-   * Drops one exact echo of `line`. Anything that diverges is forwarded,
-   * including bytes already held. Later output is never filtered.
+   * Drops one exact echo of `line`, wherever it shows up in the first output
+   * (the login banner and the prompt usually come first). Everything else is
+   * forwarded, in order. Later output is never filtered.
    */
   push(chunk: Uint8Array): Uint8Array
 }
 
+/** How much output may pass before North stops looking for the echo. */
+const ECHO_SEARCH_LIMIT = 64 * 1024
+
 /**
- * The PTY echoes the hook as if it had been typed. The line is longer than
- * the initial 80 columns, so the terminal wraps and then overwrites it,
- * leaving a fragment on screen. Drop that echo before it reaches xterm.
- * A mismatch fails open: real output is never hidden.
+ * The PTY echoes the hook as if it had been typed, usually after the login
+ * banner and the first prompt. Drop that echo before it reaches xterm.
+ * A mismatch fails open: real output is never hidden, only held while it
+ * could still be the start of the echo.
  */
 export function createEchoSuppressor(line: string): EchoSuppressor {
   const expected = Buffer.from(line, 'utf8')
   if (expected.length === 0) return { push: (chunk) => chunk }
 
-  let offset = 0
   let active = true
-  const held: number[] = []
+  let seen = 0
+  let held: number[] = []
+
+  /** Longest tail of `bytes` that is still a prefix of the echo. */
+  const keepFrom = (bytes: number[]): number => {
+    for (let k = 0; k < bytes.length; k++) {
+      let ok = true
+      for (let m = k; m < bytes.length; m++) {
+        if (bytes[m] !== expected[m - k]) {
+          ok = false
+          break
+        }
+      }
+      if (ok) return k
+    }
+    return bytes.length
+  }
 
   return {
     push(chunk: Uint8Array): Uint8Array {
       if (!active) return chunk
+      const out: number[] = []
       for (let i = 0; i < chunk.length; i++) {
         const byte = chunk[i] ?? 0
-        if (byte === expected[offset]) {
+        if (byte === expected[held.length]) {
           held.push(byte)
-          offset++
-          if (offset === expected.length) {
+          if (held.length === expected.length) {
             active = false
-            held.length = 0
-            return chunk.subarray(i + 1)
+            held = []
+            return concat(out, chunk.subarray(i + 1))
           }
           continue
         }
-        active = false
-        const rest = chunk.subarray(i)
-        if (held.length === 0) return rest.length === chunk.length ? chunk : rest
-        const prefix = Uint8Array.from(held)
-        held.length = 0
-        const out = new Uint8Array(prefix.length + rest.length)
-        out.set(prefix, 0)
-        out.set(rest, prefix.length)
-        return out
+        const candidate = [...held, byte]
+        const k = keepFrom(candidate)
+        for (let n = 0; n < k; n++) out.push(candidate[n] ?? 0)
+        held = candidate.slice(k)
+        seen += k
+        if (seen > ECHO_SEARCH_LIMIT) {
+          active = false
+          const rest = [...held]
+          held = []
+          return concat([...out, ...rest], chunk.subarray(i + 1))
+        }
       }
-      return new Uint8Array(0)
+      return Uint8Array.from(out)
     }
   }
+}
+
+function concat(head: number[], tail: Uint8Array): Uint8Array {
+  if (head.length === 0) return tail
+  const out = new Uint8Array(head.length + tail.length)
+  out.set(head, 0)
+  out.set(tail, head.length)
+  return out
 }
 
 export type Osc7HookIo = {
