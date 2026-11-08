@@ -51,12 +51,14 @@ import {
 import { WindowsVpnService } from '../services/vpn/windows-vpn-service'
 import { WindowsVpnSetup } from '../services/vpn/windows-vpn-setup'
 import { WSL_DISTRO_MISSING, WslIpsec } from '../services/vpn/wsl-ipsec'
-import type { TrayVpn } from '../tray-menu'
+import { type TrayVpn, trayVpns } from '../tray-menu'
 import type { CredentialVault } from '../vault'
 import { pinCloseToTrayOn, readAppLocale, readVpnNotifications } from '../window-prefs'
 import { getProtocolManager } from './sessions'
 
 let runtime: VpnRuntime | null = null
+/** whose VPNs the tray lists: the active workspace's (REC-025) */
+let trayWorkspace: () => string = () => 'local'
 /** the tray menu (src/main/tray.ts) redraws on every VPN state or profile change */
 const changeListeners = new Set<() => void>()
 const notifyChange = () => {
@@ -99,6 +101,7 @@ export function registerVpnHandlers(
   monitor?: ConnectionMonitorService,
   organization?: OrganizationVpnHooks
 ): void {
+  if (organization) trayWorkspace = () => organization.workspace()
   const vpnDir = join(app.getPath('userData'), 'vpn')
   const tmpDir = join(vpnDir, 'tmp')
   const tunnels = new TunnelRegistry(join(vpnDir, 'tunnels'))
@@ -449,9 +452,12 @@ function currentUserSid(): Promise<string> {
 export function listVpnsForTray(): TrayVpn[] {
   if (!runtime) return []
   const { profiles, manager } = runtime
-  return profiles
-    .list()
-    .map((p) => ({ id: p.id, name: p.name, status: manager.getState(p.id).status }))
+  return trayVpns(profiles.list(), trayWorkspace(), (id) => manager.getState(id).status)
+}
+
+/** Redraws the tray after switching workspace. */
+export function notifyVpnWorkspaceChange(): void {
+  notifyChange()
 }
 
 export function onVpnChange(listener: () => void): () => void {

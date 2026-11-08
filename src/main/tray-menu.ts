@@ -20,6 +20,21 @@ export type TrayActions = {
   dot?: (dot: TrayDot) => MenuItemConstructorOptions['icon']
 }
 
+/**
+ * Only the active workspace's VPNs, so a profile copied into an organization does not show
+ * twice; a tunnel still up from another workspace stays, so it can be turned off.
+ */
+export function trayVpns(
+  profiles: readonly { id: string; name: string; workspaceId?: string }[],
+  workspace: string,
+  status: (id: string) => VpnStatus
+): TrayVpn[] {
+  return profiles
+    .map((p) => ({ id: p.id, name: p.name, status: status(p.id), ws: p.workspaceId ?? 'local' }))
+    .filter((p) => p.ws === workspace || trayDot(p.status) !== 'off')
+    .map(({ ws: _ws, ...vpn }) => vpn)
+}
+
 export function trayDot(status: VpnStatus): TrayDot {
   if (status === 'connected') return 'on'
   if (status === 'connecting' || status === 'reconnecting' || status === 'disconnecting') {
