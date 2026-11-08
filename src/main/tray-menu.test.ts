@@ -1,5 +1,6 @@
+import type { VpnStatus } from '@shared/types'
 import { describe, expect, it, vi } from 'vitest'
-import { buildTrayMenu, type TrayVpn, trayShowsVpnBadge, trayTooltip } from './tray-menu'
+import { buildTrayMenu, type TrayVpn, trayShowsVpnBadge, trayTooltip, trayVpns } from './tray-menu'
 
 const actions = () => ({ connect: vi.fn(), disconnect: vi.fn(), open: vi.fn(), quit: vi.fn() })
 const click = (item: { click?: unknown }) => (item.click as () => void)()
@@ -82,5 +83,20 @@ describe('trayShowsVpnBadge', () => {
     expect(trayShowsVpnBadge([vpn('disconnected')])).toBe(false)
     expect(trayShowsVpnBadge([vpn('connected')])).toBe(true)
     expect(trayShowsVpnBadge([vpn('connected'), vpn('connected'), vpn('connecting')])).toBe(true)
+  })
+})
+
+describe('trayVpns', () => {
+  const profiles = [
+    { id: 'a', name: 'Pac' },
+    { id: 'b', name: 'Pac', workspaceId: 'org' },
+    { id: 'c', name: 'Poly', workspaceId: 'org' }
+  ]
+
+  it('lists only the active workspace, plus tunnels still up elsewhere', () => {
+    const status = (id: string): VpnStatus => (id === 'a' ? 'connected' : 'disconnected')
+    expect(trayVpns(profiles, 'org', status).map((v) => v.id)).toEqual(['a', 'b', 'c'])
+    expect(trayVpns(profiles, 'local', () => 'disconnected').map((v) => v.id)).toEqual(['a'])
+    expect(trayVpns(profiles, 'org', () => 'disconnected').map((v) => v.id)).toEqual(['b', 'c'])
   })
 })
