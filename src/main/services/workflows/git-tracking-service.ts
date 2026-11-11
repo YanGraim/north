@@ -11,6 +11,7 @@ export type GitDelta = {
   currentCommit: string
   commits: EnvironmentUpdateCommit[]
   filesChanged: number
+  tag: string | null
 }
 
 /**
@@ -61,7 +62,9 @@ export class GitTrackingService {
       ])
       const filesChanged = countNonEmptyLines(nameOnlyOutput ?? '')
 
-      return { currentCommit, commits, filesChanged }
+      const tag = await tagAt(exec, tracking.repositoryPath, currentCommit)
+
+      return { currentCommit, commits, filesChanged, tag }
     } catch (error) {
       warn('captureAfter failed', error)
       return null
@@ -83,6 +86,25 @@ async function resolveBranchLabel(
   if (currentBranch) return currentBranch
   const tag = await runGit(exec, tracking.repositoryPath, ['describe', '--tags', '--exact-match'])
   return tag ?? ''
+}
+
+/** Newest version tag on the commit (for release notes); null when untagged or on any failure. */
+async function tagAt(
+  exec: RemoteExecSession,
+  repositoryPath: string,
+  commit: string
+): Promise<string | null> {
+  try {
+    const tags = await runGit(exec, repositoryPath, [
+      'tag',
+      '--points-at',
+      shellQuote(commit),
+      '--sort=-v:refname'
+    ])
+    return tags?.split('\n')[0]?.trim() || null
+  } catch {
+    return null
+  }
 }
 
 async function runGit(

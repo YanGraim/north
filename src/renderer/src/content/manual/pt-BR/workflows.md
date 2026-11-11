@@ -46,6 +46,10 @@ O histórico de atualizações aparece em dois lugares:
 
 Em ambos, o histórico é por **ambiente**: se duas conexões diferentes (ex.: backend e frontend) atualizam o mesmo ambiente via workflows distintos, tudo aparece junto.
 
+## Notas da versão
+
+Se o commit atualizado tem uma tag do Git (ex.: `v3.5.040`), ela aparece ao lado do commit na atualização. Abra uma atualização e clique em **Notas da versão**: o North monta um rascunho a partir dos commits. Os commits `feat` viram **Novo**, `fix` vira **Correção** e o resto vira **Melhoria**, agrupados pelo escopo (`feat(inventario): …` vai para a seção Inventario). Códigos de chamado como `WMS-277` vão para o lado do título da seção. Merges e commits `chore`, `docs` e `test` ficam de fora. Ajuste produto, versão, data, build e os textos (use `**assim**` para negrito), e depois use **Copiar imagem** para colar no WhatsApp, no Teams ou num e-mail, ou **Salvar PNG**.
+
 ## Na organização
 
 Numa organização, os workflows e as variáveis do grupo ficam no North Server e valem para toda a equipe. Quem tem acesso ao grupo (ou ao ambiente ou cliente acima dele) vê e roda os workflows; só Editor e Admin criam e mudam. Quem recebeu só uma conexão não vê os workflows do grupo.

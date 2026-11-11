@@ -327,7 +327,8 @@ export class WorkflowService {
             finishedAt: data.finishedAt,
             status: data.status,
             commits: data.commits,
-            filesChanged: data.filesChanged
+            filesChanged: data.filesChanged,
+            tag: data.tag
           })
           .catch(() => {
             // history persistence must never affect the already-finished run

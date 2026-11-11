@@ -17,6 +17,7 @@ export type TrackingCompletePayload = {
   currentCommit: string
   commits: EnvironmentUpdateCommit[]
   filesChanged: number
+  tag: string | null
   startedAt: string
   finishedAt: string
   status: 'success' | 'failed'
@@ -273,6 +274,7 @@ export class WorkflowEngine {
               currentCommit: delta.currentCommit,
               commits: delta.commits,
               filesChanged: delta.filesChanged,
+              tag: delta.tag,
               startedAt: new Date(startedAt).toISOString(),
               finishedAt: new Date().toISOString(),
               status: finalStatus === 'succeeded' ? 'success' : 'failed'

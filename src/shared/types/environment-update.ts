@@ -28,6 +28,8 @@ export const EnvironmentUpdateSchema = z.object({
   status: EnvironmentUpdateStatusSchema,
   commits: z.array(EnvironmentUpdateCommitSchema),
   filesChanged: z.number().int().nonnegative(),
+  /** Git tag on the updated commit (e.g. v3.5.040); null when it has none. */
+  tag: z.string().nullable().optional(),
   /**
    * Who ran it, in an organization (REC-024). Absent in the personal
    * workspace; null when that person was removed from the server.
