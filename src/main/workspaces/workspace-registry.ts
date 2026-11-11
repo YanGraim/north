@@ -24,6 +24,7 @@ import {
   type TokenStore
 } from './organization-client'
 import { OrganizationEvents } from './organization-events'
+import { withLocalKeyPaths } from './organization-key-paths'
 import { adoptVpnProfile, OrganizationVpnBridge, withLocalVpnIds } from './organization-vpns'
 import { ORGANIZATION_UNAVAILABLE, RemoteInventoryStore } from './remote-inventory-store'
 import { localSecretStore, RemoteSecretStore, type SecretStore } from './secret-store'
@@ -117,7 +118,11 @@ class RemoteDataSource implements WorkspaceDataSource {
     workspaceId: string
   ) {
     this.vpns = new OrganizationVpnBridge(client, workspaceId, shape)
-    this.inventory = withLocalVpnIds(new RemoteInventoryStore(client), this.vpns)
+    this.inventory = withLocalKeyPaths(
+      withLocalVpnIds(new RemoteInventoryStore(client), this.vpns),
+      shape.organizationKeyPaths,
+      workspaceId
+    )
     this.secrets = new RemoteSecretStore(client)
     this.workflows = new RemoteWorkflowStore(client, shape)
     this.repositories = unavailableRepositories(shape)
