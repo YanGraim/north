@@ -1,3 +1,4 @@
+import { Button } from '@renderer/components/ui/button'
 import { DetailSection } from '@renderer/features/connections/DetailSection'
 import { useEnvironmentUpdates } from '@renderer/hooks/use-environment-updates'
 import { useWorkflow } from '@renderer/hooks/use-workflows'
@@ -5,8 +6,10 @@ import { formatRelativeDate } from '@renderer/lib/connection-ui'
 import { UpdatesChart } from '@renderer/lib/environment-updates-chart'
 import { cn } from '@renderer/lib/utils'
 import type { EnvironmentUpdate } from '@shared/types'
-import { CheckCircle2, ChevronDown, UserRound, XCircle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, FileText, Tag, UserRound, XCircle } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ReleaseNotesDialog } from './ReleaseNotesDialog'
 
 type EnvironmentUpdatesSectionProps = {
   environmentId: string | null
@@ -26,6 +29,7 @@ export function UpdateRow({
   contextLabel?: React.ReactNode
 }): React.JSX.Element {
   const { t } = useTranslation()
+  const [notesOpen, setNotesOpen] = useState(false)
   const success = update.status === 'success'
   // Organizations sign each update with who ran it (REC-024).
   const ranBy = update.ranBy
@@ -46,6 +50,12 @@ export function UpdateRow({
           <span className="shrink-0 truncate font-mono text-foreground">
             {update.currentCommit.slice(0, 7)}
           </span>
+          {update.tag ? (
+            <span className="flex shrink-0 items-center gap-1 font-mono text-accent">
+              <Tag className="size-3" aria-hidden />
+              {update.tag}
+            </span>
+          ) : null}
           {ranBy ? (
             <span
               className="flex min-w-0 items-center gap-1 truncate text-foreground"
@@ -78,7 +88,19 @@ export function UpdateRow({
             ))}
           </ul>
         ) : null}
+        {update.commits.length > 0 ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setNotesOpen(true)}
+            data-testid="release-notes-open"
+          >
+            <FileText className="size-3.5" /> Notas da versão
+          </Button>
+        ) : null}
       </div>
+      <ReleaseNotesDialog update={update} open={notesOpen} onOpenChange={setNotesOpen} />
     </details>
   )
 }

@@ -88,6 +88,17 @@ describe('GitTrackingService.captureBefore', () => {
 describe('GitTrackingService.captureAfter', () => {
   const before = { commit: 'a1b2c3d', branch: 'release' }
 
+  it('picks the newest version tag on the updated commit', async () => {
+    const exec = fakeExec({
+      'rev-parse HEAD': { exitCode: 0, stdout: 'f91ab42\n' },
+      'log --oneline': { exitCode: 0, stdout: 'f91ab42 feat: x\n' },
+      'diff --name-only': { exitCode: 0, stdout: 'a.php\n' },
+      'tag --points-at': { exitCode: 0, stdout: 'v3.5.040\nv3.5.039\n' }
+    })
+    const delta = await new GitTrackingService().captureAfter(exec, tracking, before)
+    expect(delta?.tag).toBe('v3.5.040')
+  })
+
   it('returns null when the commit did not change (no-op update)', async () => {
     const exec = fakeExec({
       'rev-parse HEAD': { exitCode: 0, stdout: 'a1b2c3d\n' }
@@ -105,7 +116,8 @@ describe('GitTrackingService.captureAfter', () => {
     expect(delta).toEqual({
       currentCommit: 'f91ab42',
       commits: [{ hash: 'f91ab42', message: 'fix: conference issue' }],
-      filesChanged: 1
+      filesChanged: 1,
+      tag: null
     })
   })
 
@@ -141,7 +153,7 @@ describe('GitTrackingService.captureAfter', () => {
       'diff --name-only': { exitCode: 0, stdout: '' }
     })
     const delta = await new GitTrackingService().captureAfter(exec, tracking, before)
-    expect(delta).toEqual({ currentCommit: 'f91ab42', commits: [], filesChanged: 0 })
+    expect(delta).toEqual({ currentCommit: 'f91ab42', commits: [], filesChanged: 0, tag: null })
   })
 
   it('ignores a trailing blank line in diff --name-only output', async () => {

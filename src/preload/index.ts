@@ -485,7 +485,9 @@ const api: NorthApi = {
   environmentUpdates: {
     list: (environmentId, limit) =>
       ipcRenderer.invoke(IpcChannels.ENVIRONMENT_UPDATES_LIST, environmentId, limit),
-    listRecent: (limit) => ipcRenderer.invoke(IpcChannels.ENVIRONMENT_UPDATES_LIST_RECENT, limit)
+    listRecent: (limit) => ipcRenderer.invoke(IpcChannels.ENVIRONMENT_UPDATES_LIST_RECENT, limit),
+    saveReleaseNotes: (png, suggestedName) =>
+      ipcRenderer.invoke(IpcChannels.ENVIRONMENT_UPDATES_SAVE_RELEASE_NOTES, png, suggestedName)
   },
   terminal: {
     pasteImage: (bytes, mimeType) =>

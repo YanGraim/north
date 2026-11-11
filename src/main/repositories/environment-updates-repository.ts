@@ -21,6 +21,7 @@ type EnvironmentUpdateRow = {
   status: string
   commits: string
   files_changed: number
+  tag: string | null
 }
 
 function mapRow(row: EnvironmentUpdateRow): EnvironmentUpdate {
@@ -37,7 +38,8 @@ function mapRow(row: EnvironmentUpdateRow): EnvironmentUpdate {
     finishedAt: row.finished_at,
     status: row.status as EnvironmentUpdateStatus,
     commits: JSON.parse(row.commits) as EnvironmentUpdateCommit[],
-    filesChanged: row.files_changed
+    filesChanged: row.files_changed,
+    tag: row.tag
   }
 }
 
@@ -51,14 +53,14 @@ export class EnvironmentUpdatesRepository {
     this.getStmt = db.prepare(`
       SELECT id, environment_id, connection_id, workflow_id, workflow_run_id,
              branch, previous_commit, current_commit, started_at, finished_at,
-             status, commits, files_changed
+             status, commits, files_changed, tag
       FROM environment_updates
       WHERE id = ?
     `)
     this.listByEnvironmentStmt = db.prepare(`
       SELECT id, environment_id, connection_id, workflow_id, workflow_run_id,
              branch, previous_commit, current_commit, started_at, finished_at,
-             status, commits, files_changed
+             status, commits, files_changed, tag
       FROM environment_updates
       WHERE environment_id = ?
       ORDER BY started_at DESC
@@ -67,7 +69,7 @@ export class EnvironmentUpdatesRepository {
     this.listRecentStmt = db.prepare(`
       SELECT id, environment_id, connection_id, workflow_id, workflow_run_id,
              branch, previous_commit, current_commit, started_at, finished_at,
-             status, commits, files_changed
+             status, commits, files_changed, tag
       FROM environment_updates
       ORDER BY started_at DESC
       LIMIT ?
@@ -76,11 +78,11 @@ export class EnvironmentUpdatesRepository {
       INSERT INTO environment_updates (
         id, environment_id, connection_id, workflow_id, workflow_run_id,
         branch, previous_commit, current_commit, started_at, finished_at,
-        status, commits, files_changed, created_at
+        status, commits, files_changed, tag, created_at
       ) VALUES (
         @id, @environment_id, @connection_id, @workflow_id, @workflow_run_id,
         @branch, @previous_commit, @current_commit, @started_at, @finished_at,
-        @status, @commits, @files_changed, @created_at
+        @status, @commits, @files_changed, @tag, @created_at
       )
     `)
   }
@@ -115,7 +117,8 @@ export class EnvironmentUpdatesRepository {
       finishedAt: input.finishedAt,
       status: input.status,
       commits: input.commits,
-      filesChanged: input.filesChanged
+      filesChanged: input.filesChanged,
+      tag: input.tag ?? null
     }
     this.insertStmt.run({
       id: update.id,
@@ -131,6 +134,7 @@ export class EnvironmentUpdatesRepository {
       status: update.status,
       commits: JSON.stringify(update.commits),
       files_changed: update.filesChanged,
+      tag: update.tag ?? null,
       created_at: nowIso()
     })
     return update

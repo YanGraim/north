@@ -251,6 +251,7 @@ export const IpcChannels = {
 
   ENVIRONMENT_UPDATES_LIST: 'environment-updates:list',
   ENVIRONMENT_UPDATES_LIST_RECENT: 'environment-updates:list-recent',
+  ENVIRONMENT_UPDATES_SAVE_RELEASE_NOTES: 'environment-updates:save-release-notes',
 
   TERMINAL_PASTE_IMAGE: 'terminal:paste-image',
 

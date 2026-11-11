@@ -46,6 +46,10 @@ The update history shows up in two places:
 
 In both, history is scoped per **environment**: if two different connections (e.g. backend and frontend) update the same environment via separate workflows, it all shows up together.
 
+## Release notes
+
+If the updated commit has a Git tag (e.g. `v3.5.040`), it shows next to the commit in the update. Open an update and click **Notas da versão** (release notes): North drafts them from the commits. `feat` commits become **Novo** (new), `fix` becomes **Correção** (fix) and the rest **Melhoria** (improvement), grouped by scope (`feat(inventory): …` goes to the Inventory section). Ticket codes such as `WMS-277` move next to the section title. Merges and `chore`, `docs` and `test` commits are left out. Adjust product, version, date, build and the texts (use `**this**` for bold), then use **Copiar imagem** to paste into WhatsApp, Teams or an email, or **Salvar PNG** to save the image.
+
 ## In an organization
 
 In an organization, workflows and group variables live on the North Server and are shared with the whole team. Whoever has access to the group (or the environment or client above it) sees and runs its workflows; only Editors and Admins create and change them. Someone given a single connection does not see the group's workflows.

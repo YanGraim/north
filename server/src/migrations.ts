@@ -449,6 +449,12 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_environment_updates_env ON environment_updates(environment_id, started_at DESC);
       CREATE INDEX idx_environment_updates_started ON environment_updates(started_at DESC);
     `
+  },
+  {
+    // Git tag on the updated commit, for the release notes of an update.
+    version: 11,
+    name: '011-environment-update-tag',
+    sql: `ALTER TABLE environment_updates ADD COLUMN tag TEXT;`
   }
 ]
 
