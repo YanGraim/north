@@ -865,6 +865,10 @@ export interface IpcInvokeMap {
     args: [limit?: number]
     result: EnvironmentUpdate[]
   }
+  [IpcChannels.ENVIRONMENT_UPDATES_SAVE_RELEASE_NOTES]: {
+    args: [png: Uint8Array, suggestedName: string]
+    result: { canceled: boolean; filePath: string | null }
+  }
 
   [IpcChannels.TERMINAL_PASTE_IMAGE]: {
     args: [bytes: Uint8Array, mimeType: string]
@@ -1243,6 +1247,11 @@ export interface NorthApi {
     list: (environmentId: string, limit?: number) => Promise<EnvironmentUpdate[]>
     /** Global feed across every environment — powers the Dashboard widget. */
     listRecent: (limit?: number) => Promise<EnvironmentUpdate[]>
+    /** Save dialog for a release-notes image rendered in the renderer (PNG bytes only). */
+    saveReleaseNotes: (
+      png: Uint8Array,
+      suggestedName: string
+    ) => Promise<{ canceled: boolean; filePath: string | null }>
   }
   terminal: {
     /**

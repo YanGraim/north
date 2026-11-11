@@ -212,6 +212,7 @@ const mapUpdate = (r: Row): EnvironmentUpdate => ({
   status: r.status as EnvironmentUpdate['status'],
   commits: r.commits as EnvironmentUpdate['commits'],
   filesChanged: Number(r.files_changed),
+  tag: (r.tag as string | null) ?? null,
   ranBy: r.user_id
     ? {
         id: r.user_id as string,
@@ -244,8 +245,8 @@ export async function createUpdate(
   await db.query(
     `INSERT INTO environment_updates
        (id, environment_id, connection_id, workflow_id, workflow_run_id, user_id, branch,
-        previous_commit, current_commit, started_at, finished_at, status, commits, files_changed)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+        previous_commit, current_commit, started_at, finished_at, status, commits, files_changed, tag)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
     [
       id,
       input.environmentId,
@@ -260,7 +261,8 @@ export async function createUpdate(
       input.finishedAt,
       input.status,
       JSON.stringify(input.commits),
-      input.filesChanged
+      input.filesChanged,
+      input.tag ?? null
     ]
   )
   const { rows } = await db.query(`${SELECT_UPDATE} WHERE u.id = $1`, [id])
