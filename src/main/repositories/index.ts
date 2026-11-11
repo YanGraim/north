@@ -20,6 +20,7 @@ import { GroupVariablesRepository } from './group-variables-repository'
 import { GroupsRepository } from './groups-repository'
 import { HistoryRepository } from './history-repository'
 import { KnownHostsRepository } from './known-hosts-repository'
+import { OrganizationKeyPathsRepository } from './organization-key-paths-repository'
 import { OrganizationVpnChoicesRepository } from './organization-vpn-choices-repository'
 import { OrganizationVpnLinksRepository } from './organization-vpn-links-repository'
 import { TagsRepository } from './tags-repository'
@@ -59,6 +60,8 @@ export type Repositories = {
   vpnHistory: VpnHistoryRepository
   organizationVpnLinks: OrganizationVpnLinksRepository
   organizationVpnChoices: OrganizationVpnChoicesRepository
+  /** This person's SSH key path per organization connection. */
+  organizationKeyPaths: OrganizationKeyPathsRepository
   /** Runs of an organization's workflows on this computer (REC-024). */
   organizationWorkflowRuns: WorkflowRunsRepository
   /** Git/sudo passwords those runs learned, per organization connection. */
@@ -96,6 +99,7 @@ export function createRepositories(db: SqliteDatabase): Repositories {
     vpnHistory: new VpnHistoryRepository(db),
     organizationVpnLinks: new OrganizationVpnLinksRepository(db),
     organizationVpnChoices: new OrganizationVpnChoicesRepository(db),
+    organizationKeyPaths: new OrganizationKeyPathsRepository(db),
     organizationWorkflowRuns: new WorkflowRunsRepository(db, 'organization_workflow_runs'),
     organizationConnectionSecrets: new ConnectionSecretsRepository(
       db,
