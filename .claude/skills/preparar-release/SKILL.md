@@ -2,8 +2,8 @@
 name: preparar-release
 description: >
   Prepara uma release do North: define a versão, faz o bump no package.json, garante o what's new
-  nos 3 idiomas registrado em whats-new/index.ts, valida, cria o commit "chore: release X.Y.Z" e,
-  com confirmação, cria e envia a tag vX.Y.Z que dispara o workflow de Release (draft no GitHub).
+  nos 3 idiomas registrado em whats-new/index.ts, valida, cria o commit "chore: release X.Y.Z",
+  cria e envia a tag vX.Y.Z que dispara o workflow de Release (draft no GitHub).
   Use quando o usuário pede para soltar, cortar ou preparar uma versão/release.
 ---
 
@@ -11,7 +11,7 @@ description: >
 
 # Preparar Release
 
-O push da tag `vX.Y.Z` dispara `.github/workflows/release.yml`, que compila DMG, NSIS e AppImage e abre um **draft release**. Esse passo é público e caro: **sempre confirmar antes**.
+O push da tag `vX.Y.Z` dispara `.github/workflows/release.yml`, que compila DMG, NSIS e AppImage e abre um **draft release**. Esse passo é público e caro: só seguir com todas as validações verdes e acompanhar o workflow até o fim.
 
 ## Passo 1 — Pré-condições
 
@@ -52,13 +52,13 @@ npm run lint && npm run typecheck && npm run test
 
 Qualquer falha interrompe a release.
 
-## Passo 5 — Commit (com confirmação)
+## Passo 5 — Commit
 
-Mostrar `git diff --stat` e a mensagem `chore: release X.Y.Z`. Com o "sim", fazer o commit (sem `--no-verify`).
+Mostrar `git diff --stat` e a mensagem `chore: release X.Y.Z` e fazer o commit (sem `--no-verify`).
 
-## Passo 6 — Tag e push (com confirmação separada)
+## Passo 6 — Tag e push
 
-Perguntar explicitamente: **"Posso criar a tag vX.Y.Z e enviar branch e tag? Isso dispara o build de release."** Só então:
+O Tech Lead (Polaris) decide a release. Antes do push, conferir que a tag `vX.Y.Z` bate com a versão do `package.json` e aponta para um commit de `main`/`develop` que já passou pelo PR aprovado, e avisar o usuário. Enviar só essa tag:
 
 ```bash
 git tag vX.Y.Z
@@ -70,7 +70,7 @@ Nunca usar `git push --tags`, que pode publicar tags antigas esquecidas.
 
 ## Passo 7 — Pós-release
 
-Informar o runbook do `README.md`: acompanhar **Actions → Release** (`verify`, `build`, `release`), validar no draft os artefatos (`.dmg`/`.zip`, `North-*-setup.exe`, `.AppImage`, `*.blockmap`, `latest*.yml`) e publicar o draft manualmente depois do QA (`docs/09-qa.md`).
+Acompanhar **Actions → Release** (`verify`, `build`, `release`) até ficar verde (`gh run watch`). Se falhar, parar e avisar o usuário com o job e o erro. Nunca apagar, mover ou recriar uma tag já enviada (ela pode ter gerado draft e `latest*.yml`): corrigir em uma nova versão. Depois, seguir o runbook do `README.md`, validar no draft os artefatos (`.dmg`/`.zip`, `North-*-setup.exe`, `.AppImage`, `*.blockmap`, `latest*.yml`) e publicar o draft manualmente depois do QA (`docs/09-qa.md`).
 
 ## Exemplo de uso
 
