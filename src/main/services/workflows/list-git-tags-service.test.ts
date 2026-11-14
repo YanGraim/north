@@ -146,4 +146,27 @@ describe('listGitTags', () => {
     })
     await expect(listGitTags(exec, '/repo')).rejects.toThrow(/Senha sudo/)
   })
+
+  it('redacts the git password, user:password@ and the Basic token from the error message', async () => {
+    const password = 'p@ss/w:rd'
+    const basic = Buffer.from(`alice:${password}`, 'utf8').toString('base64')
+    const { exec } = fakeExec({
+      exitCode: 128,
+      stdout: '',
+      stderr: [
+        `fatal: unable to access 'https://alice:${encodeURIComponent(password)}@bitbucket.org/x/y.git/': 403`,
+        `raw ${password} header Authorization: Basic ${basic}`
+      ].join('\n')
+    })
+    const error = await listGitTags(exec, '/repo', { username: 'alice', password }).catch(
+      (e: Error) => e
+    )
+    expect(error).toBeInstanceOf(Error)
+    const message = (error as Error).message
+    expect(message).toContain('fatal: unable to access')
+    expect(message).not.toContain(password)
+    expect(message).not.toContain(encodeURIComponent(password))
+    expect(message).not.toContain(basic)
+    expect(message).not.toContain('alice:')
+  })
 })
