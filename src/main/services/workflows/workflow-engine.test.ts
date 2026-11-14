@@ -277,7 +277,7 @@ describe('WorkflowEngine', () => {
   })
 
   it('with authHints and vault miss pauses on auth_prompt then wraps', async () => {
-    const session = mockSession([{ exitCode: 0 }])
+    const session = mockSession([{ exitCode: 1 }, { exitCode: 0 }]) // sudo -n true fails: a password is needed
     const engine = new WorkflowEngine({
       onEvent: (e) => {
         if (e.type === 'auth_prompt') {
@@ -314,7 +314,7 @@ describe('WorkflowEngine', () => {
     })
 
     expect(status).toBe('succeeded')
-    const executed = (session.exec as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string
+    const executed = (session.exec as ReturnType<typeof vi.fn>).mock.calls[1]?.[0] as string
     expect(executed).toContain('from-ui')
     expect(executed).toContain('sudo -S')
   })
