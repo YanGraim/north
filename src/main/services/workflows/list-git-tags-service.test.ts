@@ -169,4 +169,16 @@ describe('listGitTags', () => {
     expect(message).not.toContain(basic)
     expect(message).not.toContain('alice:')
   })
+
+  it('redacts the sudo password from the error message', async () => {
+    const { exec } = fakeExec({
+      exitCode: 1,
+      stdout: '',
+      stderr: 'sudo: 3 incorrect password attempts (tried hunter2-sudo)'
+    })
+    const error = await listGitTags(exec, '/repo', undefined, 'hunter2-sudo').catch((e: Error) => e)
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toContain('incorrect password attempts')
+    expect((error as Error).message).not.toContain('hunter2-sudo')
+  })
 })
