@@ -29,7 +29,7 @@ Registro de defeitos, regressões e comportamentos inesperados em funcionalidade
 | BUG-003 | IPsec no Windows fica conectado sem alcançar as redes da VPN | VPN | Alta | Windows | ✅ Corrigido | 2026-10-31 | 2026-10-31 |
 | BUG-004 | Abrir o painel de log deixa a janela preta | REC-004 / REC-008 | Alta | Windows | ✅ Corrigido | 2026-10-31 | 2026-10-31 |
 | BUG-005 | Gancho OSC 7 aparece cortado no terminal ao conectar | REC-010 | Baixa | todas | ✅ Corrigido | 2026-11-04 | 2026-11-04 |
-| BUG-006 | Parâmetro "Tag de deploy" não lista tags no workflow da organização | REC-024 | Alta | todas | 🐛 Aberto | 2026-11-12 | — |
+| BUG-006 | Parâmetro "Tag de deploy" não lista tags no workflow da organização | REC-024 | Alta | todas | 🔄 Em correção | 2026-11-12 | — |
 
 ## Detalhamento
 
@@ -148,7 +148,7 @@ Registro de defeitos, regressões e comportamentos inesperados em funcionalidade
 - **Área / Recurso:** REC-024 | Workflows
 - **Severidade:** Alta (impede rodar o deploy por tag)
 - **Plataforma:** todas
-- **Status:** 🐛 Aberto
+- **Status:** 🔄 Em correção
 - **Reportado em:** 2026-11-12 (v0.1.55)
 
 **Passos para reproduzir:**
@@ -159,10 +159,10 @@ Registro de defeitos, regressões e comportamentos inesperados em funcionalidade
 **Esperado:** as tags do repositório, da mais nova para a mais antiga.
 **Atual:** "Nenhuma tag encontrada nesse repositório.", sem erro.
 
-**Causa raiz:** a investigar. Suspeitas: o caminho do repositório ou os secrets Git não chegam a `listGitTags` quando o workflow vem do servidor; ou o `git fetch`/`git tag` falha e volta lista vazia em vez de erro. Comparar com o mesmo workflow no workspace pessoal.
+**Causa raiz:** com Usuário Git/Senha Git ou Senha sudo na conexão (caso da organização), `listGitTags` embrulha cada comando com `wrapCommandForAuth`. O wrapper terminava com `rm -f` de limpeza, então o exit code era sempre 0 e o stderr do git se perdia: qualquer falha (caminho errado, `dubious ownership`, fetch recusado) virava lista vazia, mostrada como "Nenhuma tag". No workspace pessoal, sem secrets, o comando não é embrulhado e o erro aparecia. Reproduzido em teste: comando que falha com exit 3 devolvia exit 0.
 
-**Solução:** —
-**Arquivos:** `src/main/services/workflows/list-git-tags-service.ts`
+**Solução:** `wrapCommandForAuth` guarda o exit code do comando (`NORTH_RC=$?`) e o devolve após a limpeza (`exit "$NORTH_RC"`). Falhas voltam a ser erro no dialog, com o stderr do git. Efeito colateral: passos `ssh.exec` com auth que falhavam em silêncio agora falham de verdade. Se a falha real no servidor persistir, a mensagem de erro mostrará a causa (caminho/permissão) para ajuste.
+**Arquivos:** `src/main/services/workflows/auth-wrap.ts`, `src/main/services/workflows/auth-wrap.test.ts`
 **Corrigido em:** —
 
 <!--

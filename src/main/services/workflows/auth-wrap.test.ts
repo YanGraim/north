@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import {
   ASKPASS_PLACEHOLDER,
@@ -77,5 +78,25 @@ describe('auth-wrap', () => {
 
   it('wrapCommandForAuth with empty hints returns raw command', () => {
     expect(wrapCommandForAuth('echo hi', [], { sudo: 'x' })).toBe('echo hi')
+  })
+
+  describe('exit code and output of the wrapped command', () => {
+    const creds = { gitUsername: 'u', gitPassword: 'gp' }
+    const run = (command: string) =>
+      spawnSync('/bin/sh', ['-c', wrapCommandForAuth(command, ['git'], creds)], {
+        encoding: 'utf8'
+      })
+
+    it('propagates a non-zero exit code instead of masking it with the cleanup', () => {
+      const result = run('echo "fatal: not a repository" >&2; exit 3')
+      expect(result.status).toBe(3)
+      expect(result.stderr).toContain('fatal: not a repository')
+    })
+
+    it('keeps exit 0 and stdout on success', () => {
+      const result = run('echo v1.0.0')
+      expect(result.status).toBe(0)
+      expect(result.stdout.trim()).toBe('v1.0.0')
+    })
   })
 })
