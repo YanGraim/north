@@ -128,7 +128,12 @@ describe('StepPolicy / step registry', () => {
 
   it('ssh.exec with sudo hint and vault miss prompts then wraps', async () => {
     const ctx = execCtx({
-      requestAuth: vi.fn(async () => ({ secret: 'typed-sudo' }))
+      requestAuth: vi.fn(async () => ({ secret: 'typed-sudo' })),
+      exec: vi.fn(async (command: string) => ({
+        exitCode: command === 'sudo -n true' ? 1 : 0,
+        stdout: '',
+        stderr: ''
+      }))
     })
     const step: WorkflowStep = {
       id: '1',
@@ -142,9 +147,25 @@ describe('StepPolicy / step registry', () => {
     expect(ctx.requestAuth).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'sudo', needsUsername: false })
     )
-    const executed = (ctx.exec as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string
+    const executed = (ctx.exec as ReturnType<typeof vi.fn>).mock.calls[1]?.[0] as string
     expect(executed).toContain('typed-sudo')
     expect(executed).not.toBe('true')
+  })
+
+  it('ssh.exec with sudo hint skips the prompt when sudo needs no password', async () => {
+    const ctx = execCtx()
+    const step: WorkflowStep = {
+      id: '1',
+      type: 'ssh.exec',
+      name: 'Restart',
+      policy: { onFailure: 'stop' },
+      config: { command: 'true', authHints: ['sudo'] }
+    }
+    await defaultStepRegistry.execute(defaultStepRegistry.resolve(step, {}), ctx)
+    expect(ctx.requestAuth).not.toHaveBeenCalled()
+    const calls = (ctx.exec as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls[0]?.[0]).toBe('sudo -n true')
+    expect(calls[1]?.[0]).toContain('sudo -S')
   })
 
   it('ssh.exec with git hint prompts for username+password when vault misses', async () => {
