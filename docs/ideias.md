@@ -1,6 +1,6 @@
 # Ideias (backlog)
 
-- **Última atualização:** 2026-11-05
+- **Última atualização:** 2026-11-13
 
 Primeiro passo de toda funcionalidade nova: a ideia é registrada aqui, amadurece e, quando aprovada, vira um recurso em [`recursos/`](./recursos/README.md). Defeitos em algo que já existe **não** entram aqui, e sim em [`correcoes.md`](./correcoes.md). O procedimento está na skill `ciclo-vida-recursos` (`.agents/skills/`).
 
@@ -46,6 +46,7 @@ Temas de longo prazo ainda sem forma de ideia continuam no [roadmap](./07-roadma
 | IDEIA-019 | Inverter botões do meio e direito no shell | 🚀 Promovida | Média | ⚡ Low | 2026-11-04 | REC-019 |
 | IDEIA-020 | Seleção de fontes da aplicação | 🚀 Promovida | Média | 🧠 High | 2026-11-04 | REC-020 |
 | IDEIA-021 | Problemas conhecidos no manual | 🚀 Promovida | Média | ⚡ Low | 2026-11-04 | REC-021 |
+| IDEIA-024 | Melhorias no auto-update | 💡 Nova | Média | ⚡ Low | 2026-11-13 | — |
 
 ## Detalhamento
 
@@ -600,3 +601,27 @@ Sem `--global`, as duas opções valem só para aquele repositório. `HTTP/1.1` 
 
 **Questões em aberto:** nenhuma.
 
+### IDEIA-024 — Melhorias no auto-update
+
+- **Status:** 💡 Nova
+- **Prioridade:** Média
+- **Esforço do agente:** ⚡ Low
+- **Registrada em:** 2026-11-13
+- **Área:** distribuição
+
+**Descrição:** Endurecer e melhorar o fluxo de atualização em `src/main/ipc/updates.ts`:
+
+1. Reaproveitar a checagem em andamento: um "Verificar agora" durante a checagem da inicialização não dispara uma segunda.
+2. Detectar o app rodando de `AppTranslocation` (aberto direto de Downloads no macOS) e pedir para mover para Aplicativos, como já é feito para `/Volumes/`.
+3. Trocar as mensagens de erro fixas em português no main por códigos de erro traduzidos no renderer (3 locales).
+4. Checagem periódica (a cada 4–6 h), já que o North fica dias aberto na bandeja.
+5. Opção "Instalar ao fechar", além de "Instalar e reiniciar agora".
+6. Canal beta opcional (prerelease) em Configurações.
+
+**Motivação:** Hoje a checagem só roda 8 s após abrir, o clique duplo pode duplicar download, o erro de translocation é confuso e os erros não seguem o idioma do app.
+
+**Impacto esperado:** Atualizações chegam sem a pessoa precisar reabrir o app, falham menos e explicam melhor o que fazer.
+
+**Notas técnicas:** Itens 1–4 ficam no main e no contrato de `UpdateStatus` (código de erro). Itens 5 e 6 mexem na UI de Configurações → Atualizações e pedem manual + what's new nos 3 idiomas. Para o 5, ver as ressalvas do OpenBot (`src/main/update-service.ts`, nightly-labs/openbot) sobre `autoInstallOnAppQuit` e o Squirrel.Mac. Risco fora do código: toda a cadeia do Mac depende do `.p12` "North Code Signing"; conferir a validade e manter backup fora do repositório.
+
+**Questões em aberto:** intervalo da checagem periódica; se 5 e 6 entram agora ou depois.
