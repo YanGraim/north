@@ -2,8 +2,8 @@
 name: commit-completo
 description: >
   Fluxo completo de commit no North: revisa o que mudou, faz o stage, gera a mensagem no padrão
-  Conventional Commits em inglês usado pelo repo, pede confirmação e só então commita (com os
-  hooks do husky). Use quando o usuário pede para commitar as mudanças.
+  Conventional Commits em inglês usado pelo repo e commita (com os hooks do husky).
+  Use quando o usuário pede para commitar as mudanças.
 ---
 
 # Commit Completo
@@ -30,12 +30,12 @@ Ler `git diff --cached` e `git log --format=%s -15` para seguir o estilo vigente
 - `type`: `feat`, `fix`, `docs`, `refactor`, `test`, `ci`, `chore`, `perf`, `build`.
 - `scope`: a área (`vpn`, `ssh`, `files`, `api`, `workspaces`, `server`, `release`, `e2e`, `adr-0018`, `harness`…). Omitir se for transversal.
 - Corpo (opcional): o porquê e detalhes não óbvios, linhas de até 100 caracteres.
-- Trailers (opcionais): `Refs: REC-004`, `Refs: BUG-012`. Adicionar as linhas de coautoria que a ferramenta exigir.
+- Trailers (opcionais): `Refs: REC-004`, `Refs: BUG-012`. Sem linhas de coautoria nem menção a IA.
 - Não inventar nada que não esteja no diff.
 
-## Passo 4 — Confirmação obrigatória
+## Passo 4 — Mensagem final
 
-Mostrar a mensagem completa e perguntar: **"Posso commitar com essa mensagem?"** Só seguir com um "sim" claro; se pedirem ajuste, refazer e perguntar de novo.
+Mostrar a mensagem completa e seguir. Commit não precisa de confirmação.
 
 ## Passo 5 — Commit
 
@@ -56,6 +56,4 @@ The canvas kept the first size and the browser scaled it. Resize now
 renegotiates the desktop size with the server.
 
 Refs: BUG-012
-
-Posso commitar com essa mensagem?
 ```

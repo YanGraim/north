@@ -82,7 +82,10 @@ Regras de ouro:
 - Commits em inglês no formato do repo: `type(scope): summary` (`feat`, `fix`, `docs`, `refactor`, `test`, `ci`, `chore`), resumo no que o usuário ganha. Referências opcionais em trailer: `Refs: REC-004` / `Refs: BUG-012`.
 - Release: commit `chore: release X.Y.Z` (bump + what's new) — skill `preparar-release`.
 - **Nunca** usar `--no-verify`, `push --force` ou reescrever histórico publicado sem pedido explícito.
-- **Nunca** fazer commit, push ou criar/enviar tag sem confirmação do usuário na sessão corrente — push de tag `v*` publica builds.
+- Commit: liberado sem pedido, no padrão acima, sem mencionar IA (sem `Co-Authored-By` de ferramenta).
+- Merge: o Dev executa pelo PR no GitHub (`gh pr merge`), só depois do APROVADO do Revisor e, quando o diff toca auth, rede, dados, permissões, dependências, auto-update, `.github/workflows`, assinatura/notarização ou `electron-builder.yml`, também do de Segurança.
+- Push: liberado para `feature/*` e `fix/*`, sempre via PR para `develop`. Sem push direto em `main`/`develop` fora do fluxo de release. O Revisor pode aprovar o PR no GitHub (`gh pr review --approve`) quando der APROVADO.
+- Tag e release: decididas pelo Tech Lead (Polaris), com o usuário avisado antes do push da tag (skill `preparar-release`). Push só da tag `vX.Y.Z` da versão atual; ela dispara `release.yml`: acompanhar até ficar verde; se falhar, parar e avisar o usuário, sem apagar, mover ou recriar a tag (corrigir em nova versão). Publicar o draft continua manual, após o QA.
 
 ## Segurança
 
@@ -106,10 +109,10 @@ Em `.agents/skills/` (no Claude Code e no Antigravity também viram comandos `/n
 | `planejar-goal` | Avaliar recursos candidatos e particionar em lotes para execução autônoma |
 | `nova-adr` | Criar ADR no formato de `docs/adr/` |
 | `auditoria-docs` | Verificação cruzada de ideias, recursos, bugs, ADRs, manual, what's new e harness |
-| `commit-completo` | Stage → mensagem Conventional Commit → confirmação → commit |
+| `commit-completo` | Stage → mensagem Conventional Commit → commit |
 | `sugerir-versao` | Recomendar o próximo número de versão a partir do histórico |
-| `preparar-release` | Bump de versão + what's new nos 3 idiomas + commit de release + tag (com confirmação) |
-| `atualiza-repositorio` | Push de branches à frente do remoto (e tags, com confirmação) |
+| `preparar-release` | Bump de versão + what's new nos 3 idiomas + commit de release + tag e push + acompanhar o Actions |
+| `atualiza-repositorio` | Push de branches à frente do remoto; avisa tags órfãs, nunca envia `v*` |
 | `resolve-conflitos` | Resolver conflitos de merge arquivo a arquivo, com confirmação |
 
 ## Manutenção do harness
