@@ -88,7 +88,10 @@ async function resolveAuthCredentials(
   if (hints.includes('sudo')) {
     let sudo = await ctx.resolveConnectionSecret(WORKFLOW_SECRET_KINDS.sudo)
     // Key-only servers often have passwordless sudo (NOPASSWD): don't ask for what isn't needed.
-    if (!sudo && (await sudoWithoutPassword(ctx))) sudo = ''
+    if (!sudo && (await sudoWithoutPassword(ctx))) {
+      sudo = ''
+      ctx.emitLog('system', 'sudo: passwordless (NOPASSWD) detected, password not requested')
+    }
     if (sudo === null || sudo === undefined) {
       const prompted = await ctx.requestAuth({
         kind: WORKFLOW_SECRET_KINDS.sudo,
