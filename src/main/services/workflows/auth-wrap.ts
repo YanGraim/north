@@ -130,10 +130,14 @@ export function wrapCommandForAuth(
     lines.push('bash "$NORTH_RUN"')
   }
 
+  // Keep the command's own exit code: without it the cleanup `rm -f` below
+  // would turn every failure into exit 0 (and e.g. an empty tag list).
+  lines.push('NORTH_RC=$?')
   lines.push('rm -f "$NORTH_RUN"')
   if (wantGit) {
     lines.push('rm -f "$ASKPASS"')
   }
+  lines.push('exit "$NORTH_RC"')
 
   return lines.join('; ')
 }
