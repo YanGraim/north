@@ -162,7 +162,23 @@ function ensureConfigured(): void {
   })
 }
 
-async function runCheck(): Promise<UpdateStatus> {
+let inFlightCheck: Promise<UpdateStatus> | null = null
+
+/**
+ * One check at a time: a "Verificar agora" during the startup check (or a double
+ * click) shares the running check instead of starting a second one. The slot is
+ * released when it settles, so the next call checks again.
+ */
+function runCheck(): Promise<UpdateStatus> {
+  if (inFlightCheck) return inFlightCheck
+  const current = performCheck().finally(() => {
+    if (inFlightCheck === current) inFlightCheck = null
+  })
+  inFlightCheck = current
+  return current
+}
+
+async function performCheck(): Promise<UpdateStatus> {
   if (!isUpdatesEnabled()) {
     return disabledStatus()
   }
