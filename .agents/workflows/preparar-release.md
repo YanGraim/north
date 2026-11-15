@@ -1,5 +1,5 @@
 ---
-description: Prepara uma release do North: define a versão, faz o bump no package.json, garante o what's new nos 3 idiomas registrado em whats-new/index.ts, valida, cria o commit "chore: release X.Y.Z" e, com confirmação, cria e envia a tag vX.Y.Z que dispara o w
+description: Prepara uma release do North: define a versão, faz o bump no package.json, garante o what's new nos 3 idiomas registrado em whats-new/index.ts, valida, cria o commit "chore: release X.Y.Z", cria e envia a tag vX.Y.Z que dispara o workflow de Release 
 ---
 
 <!-- GERADO por scripts/harness/sync.mjs a partir de .agents/skills/preparar-release/SKILL.md. Não edite: altere a fonte e rode `npm run harness:sync`. -->

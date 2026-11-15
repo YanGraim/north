@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { shellQuote } from '@shared/lib/shell-quote'
 import { wrapCommandForAuth } from './auth-wrap'
 import type { RemoteExecSession } from './remote-exec-service'
@@ -83,7 +84,9 @@ function toFriendlyError(
   gitCredentials: GitFetchCredentials | undefined,
   sudoPassword: string | undefined
 ): Error {
-  const message = stderr.trim() || 'Não foi possível listar as tags do repositório'
+  const message =
+    redactSecrets(stderr.trim(), gitCredentials, sudoPassword) ||
+    'Não foi possível listar as tags do repositório'
   if (!gitCredentials && /could not read username|authentication failed/i.test(message)) {
     return new Error(`${message} — preencha "Usuário Git" e "Senha Git" em Secrets, na conexão`)
   }
@@ -91,4 +94,24 @@ function toFriendlyError(
     return new Error(`${message} — preencha "Senha sudo" em Secrets, na conexão`)
   }
   return new Error(message)
+}
+
+/** Git's stderr can echo the credentials we inject (URL userinfo, Basic header); never show them. */
+function redactSecrets(
+  text: string,
+  gitCredentials: GitFetchCredentials | undefined,
+  sudoPassword: string | undefined
+): string {
+  let out = text.replace(/(\/\/)[^/\s@]*@/g, '$1***@')
+  const secrets: string[] = []
+  if (gitCredentials) {
+    const { username, password } = gitCredentials
+    secrets.push(Buffer.from(`${username ?? ''}:${password}`, 'utf8').toString('base64'))
+    secrets.push(encodeURIComponent(password), password)
+  }
+  if (sudoPassword) secrets.push(sudoPassword)
+  for (const secret of secrets) {
+    if (secret) out = out.split(secret).join('***')
+  }
+  return out
 }

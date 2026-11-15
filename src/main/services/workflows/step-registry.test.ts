@@ -128,7 +128,12 @@ describe('StepPolicy / step registry', () => {
 
   it('ssh.exec with sudo hint and vault miss prompts then wraps', async () => {
     const ctx = execCtx({
-      requestAuth: vi.fn(async () => ({ secret: 'typed-sudo' }))
+      requestAuth: vi.fn(async () => ({ secret: 'typed-sudo' })),
+      exec: vi.fn(async (command: string) => ({
+        exitCode: command === 'sudo -n true' ? 1 : 0,
+        stdout: '',
+        stderr: ''
+      }))
     })
     const step: WorkflowStep = {
       id: '1',
@@ -142,9 +147,79 @@ describe('StepPolicy / step registry', () => {
     expect(ctx.requestAuth).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'sudo', needsUsername: false })
     )
-    const executed = (ctx.exec as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string
+    const executed = (ctx.exec as ReturnType<typeof vi.fn>).mock.calls[1]?.[0] as string
     expect(executed).toContain('typed-sudo')
     expect(executed).not.toBe('true')
+  })
+
+  it('ssh.exec with sudo hint skips the prompt when sudo needs no password', async () => {
+    const ctx = execCtx()
+    const step: WorkflowStep = {
+      id: '1',
+      type: 'ssh.exec',
+      name: 'Restart',
+      policy: { onFailure: 'stop' },
+      config: { command: 'true', authHints: ['sudo'] }
+    }
+    await defaultStepRegistry.execute(defaultStepRegistry.resolve(step, {}), ctx)
+    expect(ctx.requestAuth).not.toHaveBeenCalled()
+    const calls = (ctx.exec as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls[0]?.[0]).toBe('sudo -n true')
+    expect(calls[1]?.[0]).toContain('sudo -S')
+  })
+
+  it('ssh.exec in dry-run neither probes sudo -n nor prompts, and runs nothing', async () => {
+    const ctx = execCtx({ mode: 'dry-run' })
+    const step: WorkflowStep = {
+      id: '1',
+      type: 'ssh.exec',
+      name: 'Restart',
+      policy: { onFailure: 'stop' },
+      config: { command: 'true', authHints: ['sudo'] }
+    }
+    const result = await defaultStepRegistry.execute(defaultStepRegistry.resolve(step, {}), ctx)
+    expect(result.status).toBe('skipped_dry_run')
+    expect(ctx.exec).not.toHaveBeenCalled()
+    expect(ctx.requestAuth).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['throws', () => Promise.reject(new Error('connection lost'))],
+    ['times out', () => Promise.reject(new Error('Command timed out after 10000ms'))]
+  ])('ssh.exec falls back to the sudo prompt when the sudo -n probe %s', async (_label, fail) => {
+    const ctx = execCtx({
+      requestAuth: vi.fn(async () => ({ secret: 'typed-sudo' })),
+      exec: vi.fn(async (command: string) => {
+        if (command === 'sudo -n true') return fail()
+        return { exitCode: 0, stdout: '', stderr: '' }
+      })
+    })
+    const step: WorkflowStep = {
+      id: '1',
+      type: 'ssh.exec',
+      name: 'Restart',
+      policy: { onFailure: 'stop' },
+      config: { command: 'true', authHints: ['sudo'] }
+    }
+    await defaultStepRegistry.execute(defaultStepRegistry.resolve(step, {}), ctx)
+    expect(ctx.requestAuth).toHaveBeenCalledWith(expect.objectContaining({ kind: 'sudo' }))
+    const calls = (ctx.exec as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls[calls.length - 1]?.[0]).toContain('typed-sudo')
+  })
+
+  it('ssh.exec logs when the sudo password is skipped because sudo is passwordless', async () => {
+    const emitLog = vi.fn()
+    const ctx = execCtx({ emitLog })
+    const step: WorkflowStep = {
+      id: '1',
+      type: 'ssh.exec',
+      name: 'Restart',
+      policy: { onFailure: 'stop' },
+      config: { command: 'true', authHints: ['sudo'] }
+    }
+    await defaultStepRegistry.execute(defaultStepRegistry.resolve(step, {}), ctx)
+    const logs = emitLog.mock.calls.map((call) => String(call[1]))
+    expect(logs.some((line) => /passwordless|NOPASSWD/i.test(line))).toBe(true)
   })
 
   it('ssh.exec with git hint prompts for username+password when vault misses', async () => {

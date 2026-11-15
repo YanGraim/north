@@ -1,6 +1,6 @@
 # Correções (bugs)
 
-- **Última atualização:** 2026-11-04
+- **Última atualização:** 2026-11-15
 
 Registro de defeitos, regressões e comportamentos inesperados em funcionalidades existentes, da abertura à correção. Procedimento: skill `ciclo-vida-recursos` (Fase 5). Commits de correção usam `fix(scope): ...` com o trailer `Refs: BUG-XXX`.
 
@@ -29,6 +29,7 @@ Registro de defeitos, regressões e comportamentos inesperados em funcionalidade
 | BUG-003 | IPsec no Windows fica conectado sem alcançar as redes da VPN | VPN | Alta | Windows | ✅ Corrigido | 2026-10-31 | 2026-10-31 |
 | BUG-004 | Abrir o painel de log deixa a janela preta | REC-004 / REC-008 | Alta | Windows | ✅ Corrigido | 2026-10-31 | 2026-10-31 |
 | BUG-005 | Gancho OSC 7 aparece cortado no terminal ao conectar | REC-010 | Baixa | todas | ✅ Corrigido | 2026-11-04 | 2026-11-04 |
+| BUG-006 | Parâmetro "Tag de deploy" não lista tags no workflow da organização | REC-024 | Alta | todas | ✅ Corrigido | 2026-11-12 | 2026-11-15 (0.1.56) |
 
 ## Detalhamento
 
@@ -141,6 +142,30 @@ Registro de defeitos, regressões e comportamentos inesperados em funcionalidade
 **Solução:** o eco é retirado do fluxo antes do xterm, e só quando os bytes são exatamente o gancho. Se divergir, a saída segue inteira. O what's new fica para o bump da próxima versão. O manual não muda: não há controle novo, o comando interno deixa de aparecer.
 **Arquivos:** `src/main/protocols/ssh-osc7-hook.ts`, `src/main/protocols/ssh-driver.ts`
 **Corrigido em:** 2026-11-04
+
+### BUG-006 — "Tag de deploy" não lista tags no workflow da organização
+
+- **Área / Recurso:** REC-024 | Workflows
+- **Severidade:** Alta (impede rodar o deploy por tag)
+- **Plataforma:** todas
+- **Status:** ✅ Corrigido
+- **Reportado em:** 2026-11-12 (v0.1.55)
+
+**Passos para reproduzir:**
+1. No workspace de uma organização, abrir uma conexão SSH de produção (com Usuário Git e Senha Git no vault).
+2. Executar o workflow "Atualizar frontend".
+3. Abrir o select "Tag de deploy".
+
+**Esperado:** as tags do repositório, da mais nova para a mais antiga.
+**Atual:** "Nenhuma tag encontrada nesse repositório.", sem erro.
+
+**Causa raiz:** com Usuário Git/Senha Git ou Senha sudo na conexão (caso da organização), `listGitTags` embrulha cada comando com `wrapCommandForAuth`. O wrapper terminava com `rm -f` de limpeza, então o exit code era sempre 0 e o stderr do git se perdia: qualquer falha (caminho errado, `dubious ownership`, fetch recusado) virava lista vazia, mostrada como "Nenhuma tag". No workspace pessoal, sem secrets, o comando não é embrulhado e o erro aparecia. Reproduzido em teste: comando que falha com exit 3 devolvia exit 0.
+
+**Solução:** `wrapCommandForAuth` guarda o exit code do comando (`NORTH_RC=$?`) e o devolve após a limpeza (`exit "$NORTH_RC"`). Falhas voltam a ser erro no dialog, com o stderr do git. Efeito colateral: passos `ssh.exec` com auth que falhavam em silêncio agora falham de verdade. Se a falha real no servidor persistir, a mensagem de erro mostrará a causa (caminho/permissão) para ajuste.
+Os erros de listagem passam a ocultar senha Git, `user:senha@` da URL, token Basic e senha sudo antes de chegar ao dialog.
+**Arquivos:** `src/main/services/workflows/auth-wrap.ts`, `src/main/services/workflows/auth-wrap.test.ts`, `src/main/services/workflows/list-git-tags-service.ts`, `src/main/services/workflows/list-git-tags-service.test.ts`
+**Corrigido em:** 2026-11-15 (0.1.56, PR #9)
+**Validação:** validado por testes automatizados (list-git-tags-service, auth-wrap); não validado ao vivo no servidor da organização.
 
 <!--
 ### BUG-XXX — <Título>

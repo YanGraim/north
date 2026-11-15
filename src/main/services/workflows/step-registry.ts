@@ -68,6 +68,17 @@ function asRecord(config: unknown): Record<string, unknown> {
   return config !== null && typeof config === 'object' ? (config as Record<string, unknown>) : {}
 }
 
+/** `sudo -n` fails instead of prompting, so exit 0 means no password is needed. */
+async function sudoWithoutPassword(ctx: StepExecutionContext): Promise<boolean> {
+  if (ctx.mode !== 'live') return false
+  try {
+    const result = await ctx.exec('sudo -n true', { timeoutMs: 10_000 })
+    return result.exitCode === 0
+  } catch {
+    return false
+  }
+}
+
 async function resolveAuthCredentials(
   hints: ReturnType<typeof parseAuthHints>,
   ctx: StepExecutionContext
@@ -76,7 +87,12 @@ async function resolveAuthCredentials(
 
   if (hints.includes('sudo')) {
     let sudo = await ctx.resolveConnectionSecret(WORKFLOW_SECRET_KINDS.sudo)
-    if (!sudo) {
+    // Key-only servers often have passwordless sudo (NOPASSWD): don't ask for what isn't needed.
+    if (!sudo && (await sudoWithoutPassword(ctx))) {
+      sudo = ''
+      ctx.emitLog('system', 'sudo: passwordless (NOPASSWD) detected, password not requested')
+    }
+    if (sudo === null || sudo === undefined) {
       const prompted = await ctx.requestAuth({
         kind: WORKFLOW_SECRET_KINDS.sudo,
         message: 'Senha sudo necessária para este step',
