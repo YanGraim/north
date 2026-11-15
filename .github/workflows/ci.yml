@@ -51,7 +51,7 @@ jobs:
         run: npm test
 
       - name: Server tests
-        run: npm test --prefix server
+        run: npm test --prefix server -- --no-file-parallelism
 
       - name: Build
         run: npx electron-vite build
