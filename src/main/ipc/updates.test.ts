@@ -60,7 +60,9 @@ async function loadUpdates() {
   registerUpdateHandlers()
   const check = handlers.get(IpcChannels.UPDATES_CHECK)
   if (!check) throw new Error('UPDATES_CHECK handler not registered')
-  return { check, checkForUpdates }
+  const install = handlers.get(IpcChannels.UPDATES_INSTALL)
+  if (!install) throw new Error('UPDATES_INSTALL handler not registered')
+  return { check, install, checkForUpdates }
 }
 
 describe('runCheck (UPDATES_CHECK)', () => {
@@ -105,5 +107,20 @@ describe('runCheck (UPDATES_CHECK)', () => {
 
     await check()
     expect(checkForUpdates).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses to install an update when running from AppTranslocation on macOS', async () => {
+    const { install } = await loadUpdates()
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+    const execPath = process.execPath
+    Object.defineProperty(process, 'platform', { value: 'darwin' })
+    process.execPath =
+      '/private/var/folders/ab/cd/AppTranslocation/UUID/d/North.app/Contents/MacOS/North'
+    try {
+      await expect(install()).rejects.toThrow(/AppTranslocation/)
+    } finally {
+      process.execPath = execPath
+      if (platform) Object.defineProperty(process, 'platform', platform)
+    }
   })
 })

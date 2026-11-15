@@ -8,8 +8,8 @@
 
 | # | Etapa | Camada | Status |
 | --- | --- | --- | --- |
-| 1 | PR 1 `fix/updates-single-check`: reaproveitar a checagem em andamento | main | 🔄 |
-| 2 | PR 2 `fix/updates-translocation`: detectar AppTranslocation | main | ⬜ |
+| 1 | PR 1 `fix/updates-single-check`: reaproveitar a checagem em andamento | main | ✅ |
+| 2 | PR 2 `fix/updates-translocation`: detectar AppTranslocation | main | 🔄 |
 | 3 | PR 3 `feat/updates-error-codes`: códigos de erro traduzidos | shared/main/renderer | ⬜ |
 | 4 | PR 4 `feat/updates-periodic-check`: checagem periódica a cada 4 h | main | ⬜ |
 

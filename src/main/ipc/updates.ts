@@ -4,6 +4,7 @@ import type { UpdateStatus } from '@shared/types'
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { markQuitting } from '../app-quit'
+import { isRunningFromReadOnlyLocation } from '../lib/read-only-location'
 import { stripQuarantine } from '../lib/strip-quarantine'
 
 const DOWNLOAD_TIMEOUT_MS = 15 * 60 * 1000
@@ -28,10 +29,6 @@ let state: UpdateStatus = disabledStatus()
 
 function isUpdatesEnabled(): boolean {
   return app.isPackaged || process.env.NORTH_ENABLE_UPDATES === '1'
-}
-
-function isRunningFromDmgVolume(): boolean {
-  return process.platform === 'darwin' && process.execPath.startsWith('/Volumes/')
 }
 
 function getStatus(): UpdateStatus {
@@ -271,9 +268,9 @@ async function installUpdate(): Promise<void> {
     throw new Error('Atualizações desabilitadas neste ambiente.')
   }
 
-  if (isRunningFromDmgVolume()) {
+  if (isRunningFromReadOnlyLocation()) {
     throw new Error(
-      'O North está rodando a partir de um volume (DMG). Copie o app para /Applications e abra de lá antes de instalar atualizações.'
+      'O North está rodando a partir de um volume (DMG) ou de uma pasta temporária do macOS (AppTranslocation). Mova o app para /Applications e abra de lá antes de instalar atualizações.'
     )
   }
 
