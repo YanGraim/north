@@ -1,6 +1,6 @@
 # Recursos
 
-- **Última atualização:** 2026-11-05
+- **Última atualização:** 2026-11-15
 
 Índice dos recursos promovidos a partir de [ideias](../ideias.md). Cada recurso tem um diretório `rec-xxx-<nome>/` com:
 
@@ -51,3 +51,4 @@ Fluxo e templates: skill `ciclo-vida-recursos`. Pausar, despromover ou abandonar
 | REC-023 | [Acessos e VPN na organização](./rec-023-acessos-e-vpn-na-organizacao/especificacao.md) | 🧪 Em testes | IDEIA-023 | 🧠 High | `feature/org-accesses-vpn-templates` | 2026-11-05 | — | [0018](../adr/0018-north-server-workspaces.md) |
 | REC-024 | [Workflows na organização](./rec-024-workflows-na-organizacao/especificacao.md) | 🧪 Em testes | — | 🧠 High | `feature/workflows-copy-vpn` | 2026-11-06 | — | [0018](../adr/0018-north-server-workspaces.md) |
 | REC-025 | [VPN por pessoa na organização](./rec-025-vpn-por-pessoa-na-organizacao/especificacao.md) | 🧪 Em testes | — | 🧠 High | `fix/org-openvpn` | 2026-11-06 | — | [0018](../adr/0018-north-server-workspaces.md) |
+| REC-026 | [Melhorias no auto-update](./rec-026-melhorias-auto-update/especificacao.md) | 🔄 Em desenvolvimento | IDEIA-024 | ⚡ Low | `fix/updates-single-check` | 2026-11-15 | — | — |
